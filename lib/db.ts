@@ -17,6 +17,8 @@ export interface AffiliateOffer {
 
 let db: Database.Database | null = null;
 
+let migrationsRun = false;
+
 export function getDatabase(): Database.Database {
   if (db) {
     return db;
@@ -31,26 +33,17 @@ export function getDatabase(): Database.Database {
   const dbPath = join(dbDir, 'affiliate.db');
   db = new Database(dbPath);
 
-  // Создаем таблицу если её нет
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS affiliate_offers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      topic TEXT NOT NULL,
-      country TEXT NOT NULL,
-      model TEXT NOT NULL,
-      cr REAL DEFAULT 0,
-      ecpc REAL DEFAULT 0,
-      epc REAL DEFAULT 0,
-      source TEXT,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_name ON affiliate_offers(name);
-    CREATE INDEX IF NOT EXISTS idx_topic ON affiliate_offers(topic);
-    CREATE INDEX IF NOT EXISTS idx_country ON affiliate_offers(country);
-    CREATE INDEX IF NOT EXISTS idx_model ON affiliate_offers(model);
-  `);
+  // Автоматически запускаем миграции при первом подключении
+  if (!migrationsRun) {
+    try {
+      const { runMigrations } = require('./migrations');
+      runMigrations();
+      migrationsRun = true;
+    } catch (error) {
+      console.error('Error running migrations:', error);
+      // Продолжаем работу даже если миграции не выполнились
+    }
+  }
 
   return db;
 }
