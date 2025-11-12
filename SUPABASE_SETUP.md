@@ -60,6 +60,20 @@ CREATE POLICY "Allow public delete access" ON affiliate_offers
 - ✅ `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - ✅ `SUPABASE_SERVICE_ROLE_KEY` (опционально, но рекомендуется)
 
+## Миграции для Supabase
+
+Для полной настройки приложения выполните все миграции в Supabase SQL Editor в следующем порядке:
+
+1. `migrations/002_sites_table_supabase.sql` (или `002_sites_table_supabase_fix.sql` если была ошибка)
+2. `migrations/003_link_projects_table_supabase.sql`
+3. `migrations/004_project_links_table_supabase.sql`
+4. `migrations/005_google_ahrefs_postbacks_tables_supabase.sql`
+5. `migrations/006_integrations_table_supabase.sql` - **только эта миграция для Supabase**
+
+**Важно**: Для Supabase нужно выполнить ТОЛЬКО миграцию `006_integrations_table_supabase.sql`. Не создавайте дополнительные миграции для Supabase.
+
+Подробнее см. `migrations/MIGRATION_GUIDE.md`
+
 ## Проверка:
 
 После деплоя:

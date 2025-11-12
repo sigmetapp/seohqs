@@ -1,5 +1,10 @@
 # Руководство по миграциям базы данных
 
+## ⚠️ Важно для Supabase
+
+**Для Supabase используется ТОЛЬКО миграция `006_integrations_table_supabase.sql` для таблицы integrations.**
+Не создавайте дополнительные миграции для Supabase - используйте только файлы с суффиксом `_supabase.sql`.
+
 ## Порядок выполнения миграций
 
 Выполняйте миграции в следующем порядке:
@@ -18,6 +23,10 @@
 ### 4. Таблицы для данных сайтов
 - `005_google_ahrefs_postbacks_tables_supabase.sql` (для Supabase) или `005_google_ahrefs_postbacks_tables.sql` (для PostgreSQL)
 
+### 5. Таблица настроек интеграций
+- `006_integrations_table_supabase.sql` (для Supabase) или `006_integrations_table.sql` (для PostgreSQL)
+- **Важно**: Для Supabase нужно выполнить ТОЛЬКО миграцию `006_integrations_table_supabase.sql`. Не создавайте дополнительные миграции для Supabase.
+
 ## Для Supabase
 
 Выполните в Supabase SQL Editor в следующем порядке:
@@ -26,6 +35,7 @@
 2. `003_link_projects_table_supabase.sql`
 3. `004_project_links_table_supabase.sql`
 4. `005_google_ahrefs_postbacks_tables_supabase.sql`
+5. `006_integrations_table_supabase.sql` - **только эта миграция для Supabase**
 
 ## Для PostgreSQL
 
@@ -35,6 +45,7 @@
 2. `003_link_projects_table.sql`
 3. `004_project_links_table.sql`
 4. `005_google_ahrefs_postbacks_tables.sql`
+5. `006_integrations_table.sql`
 
 ## Для SQLite (локальная разработка)
 
@@ -44,6 +55,7 @@
 2. `003_link_projects_table_sqlite.sql`
 3. `004_project_links_table_sqlite.sql`
 4. `005_google_ahrefs_postbacks_tables_sqlite.sql`
+5. `006_integrations_table_sqlite.sql`
 
 ## Список создаваемых таблиц
 
@@ -53,6 +65,7 @@
 4. **google_search_console_data** - данные Google Search Console
 5. **ahrefs_data** - данные Ahrefs
 6. **postbacks** - постбеки с партнерок
+7. **integrations** - настройки интеграций (Google Service Account, Ahrefs API и т.д.)
 
 ## Важно
 
