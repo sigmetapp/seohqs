@@ -10,9 +10,27 @@ export const runtime = 'nodejs';
  */
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams, origin } = new URL(request.url);
+    
+    // Определяем правильный origin с учетом заголовков (для продакшена с прокси/CDN)
+    const headers = request.headers;
+    const host = headers.get('host') || headers.get('x-forwarded-host');
+    const protocol = headers.get('x-forwarded-proto') || (origin.startsWith('https') ? 'https' : 'http');
+    
+    // Используем NEXT_PUBLIC_APP_URL если установлен, иначе определяем из заголовков
+    let baseOrigin = process.env.NEXT_PUBLIC_APP_URL;
+    if (!baseOrigin) {
+      if (host) {
+        baseOrigin = `${protocol}://${host}`;
+      } else {
+        baseOrigin = origin;
+      }
+    }
+    
+    // Определяем redirect_uri на основе текущего запроса
+    // Это гарантирует, что redirect_uri будет соответствовать текущему домену и протоколу
     const redirectUri = searchParams.get('redirect_uri') || 
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/google/callback`;
+      `${baseOrigin}/api/auth/google/callback`;
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -29,6 +47,15 @@ export async function GET(request: Request) {
         { status: 500 }
       );
     }
+
+    // Логируем redirect_uri для отладки
+    console.log('[Google OAuth] Redirect URI:', redirectUri);
+    console.log('[Google OAuth] Base Origin:', baseOrigin);
+    console.log('[Google OAuth] Request Origin:', origin);
+    console.log('[Google OAuth] Host:', host);
+    console.log('[Google OAuth] Protocol:', protocol);
+    console.log('[Google OAuth] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
+    console.log('[Google OAuth] Client ID:', clientId?.substring(0, 20) + '...');
 
     const oauth2Client = new google.auth.OAuth2(
       clientId,
@@ -56,6 +83,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       authUrl: `${authUrl}&state=${state}`,
+      redirectUri: redirectUri, // Возвращаем redirect_uri для отображения пользователю
     });
   } catch (error: any) {
     console.error('Ошибка создания OAuth URL:', error);
