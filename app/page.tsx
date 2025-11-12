@@ -65,15 +65,23 @@ export default function Home() {
       }
       
       if (data.success) {
+        // Показываем сообщение об успехе
+        console.log('✅ Данные успешно загружены:', data.message);
+        if (data.debug) {
+          console.log('Debug steps:', data.debug.steps);
+        }
+        // Обновляем данные
         await loadData();
       } else {
         const errorMsg = data.error || 'Ошибка загрузки тестовых данных';
         setError(errorMsg);
+        console.error('❌ Ошибка загрузки данных:', errorMsg);
         if (data.tableMissing) {
           console.error('Таблица не существует. Создайте таблицу в Supabase согласно инструкции в SUPABASE_SETUP.md');
         }
         if (data.debug) {
-          console.error('Seed Debug details:', data.debug);
+          console.error('Debug steps:', data.debug.steps);
+          console.error('Debug errors:', data.debug.errors);
         }
       }
     } catch (err: any) {

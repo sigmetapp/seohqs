@@ -27,21 +27,33 @@ export async function POST() {
 
   try {
     debug.steps.push('Начало загрузки тестовых данных');
+    debug.steps.push(`Подготовлено ${testData.length} записей для вставки`);
     
     // Очищаем старые данные
     debug.steps.push('Очистка старых данных');
-    await clearAllOffers();
-    debug.steps.push('Старые данные очищены');
+    try {
+      await clearAllOffers();
+      debug.steps.push('Старые данные очищены');
+    } catch (clearError: any) {
+      debug.steps.push(`Предупреждение при очистке: ${clearError.message}`);
+      // Продолжаем даже если очистка не удалась
+    }
     
     // Вставляем тестовые данные
     debug.steps.push(`Вставка ${testData.length} записей`);
     await insertOffers(testData);
     debug.steps.push('Данные успешно вставлены');
     
+    // Проверяем, что данные действительно вставлены
+    debug.steps.push('Проверка вставленных данных');
+    const { getAllOffers } = await import('@/lib/db-adapter');
+    const insertedOffers = await getAllOffers();
+    debug.steps.push(`Проверка завершена: найдено ${insertedOffers.length} записей в БД`);
+    
     return NextResponse.json({
       success: true,
-      message: `Загружено ${testData.length} тестовых записей`,
-      count: testData.length,
+      message: `Загружено ${testData.length} тестовых записей. В базе найдено: ${insertedOffers.length} записей`,
+      count: insertedOffers.length,
       debug: debug,
     });
   } catch (error: any) {

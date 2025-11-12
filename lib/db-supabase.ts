@@ -9,22 +9,34 @@ export async function insertOffers(offers: Omit<AffiliateOffer, 'id' | 'created_
   if (offers.length === 0) return;
 
   try {
-    const { error } = await supabase
+    const dataToInsert = offers.map(offer => ({
+      name: offer.name,
+      topic: offer.topic,
+      country: offer.country,
+      model: offer.model,
+      cr: offer.cr,
+      ecpc: offer.ecpc,
+      epc: offer.epc,
+      source: offer.source || null,
+    }));
+
+    console.log('Inserting offers into Supabase:', dataToInsert.length, 'records');
+    
+    const { data, error } = await supabase
       .from('affiliate_offers')
-      .insert(offers.map(offer => ({
-        name: offer.name,
-        topic: offer.topic,
-        country: offer.country,
-        model: offer.model,
-        cr: offer.cr,
-        ecpc: offer.ecpc,
-        epc: offer.epc,
-        source: offer.source || null,
-      })));
+      .insert(dataToInsert)
+      .select();
 
     if (error) {
-      throw new Error(`Supabase insert error: ${error.message} (code: ${error.code})`);
+      console.error('Supabase insert error:', error);
+      // Проверяем специфичные ошибки RLS
+      if (error.code === '42501' || error.message?.includes('permission denied') || error.message?.includes('new row violates row-level security')) {
+        throw new Error(`RLS Policy Error: ${error.message}. Проверьте политики Row Level Security в Supabase.`);
+      }
+      throw new Error(`Supabase insert error: ${error.message} (code: ${error.code}, hint: ${error.hint || 'none'})`);
     }
+
+    console.log('Successfully inserted offers:', data?.length || 0);
   } catch (error: any) {
     if (error?.message?.includes('does not exist') || error?.code === '42P01') {
       throw new Error('Table affiliate_offers does not exist. Please create it in Supabase.');
