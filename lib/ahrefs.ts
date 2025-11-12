@@ -140,12 +140,40 @@ export async function fetchAhrefsSiteMetrics(
     });
     
     let metricsWithoutDateData: any = {};
+    let errorWithoutDate: string | null = null;
     if (responseWithoutDate.ok) {
       const data = await responseWithoutDate.json();
       metricsWithoutDateData = data.metrics || (data as any).data?.metrics || {};
       console.log('[Ahrefs API] Метрики без date получены:', Object.keys(metricsWithoutDateData));
     } else {
-      console.error('[Ahrefs API] Ошибка при получении метрик без date:', responseWithoutDate.status, await responseWithoutDate.text());
+      const errorText = await responseWithoutDate.text();
+      errorWithoutDate = `Status ${responseWithoutDate.status}: ${errorText}`;
+      console.error('[Ahrefs API] Ошибка при получении метрик без date:', responseWithoutDate.status, errorText);
+      
+      // Пробуем альтернативную авторизацию
+      if (responseWithoutDate.status === 403) {
+        console.log('[Ahrefs API] Пробуем альтернативную авторизацию для метрик без date...');
+        try {
+          const responseAlt = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${trimmedKey}`,
+            },
+            body: JSON.stringify(requestBodyWithoutDate),
+          });
+          
+          if (responseAlt.ok) {
+            const data = await responseAlt.json();
+            metricsWithoutDateData = data.metrics || (data as any).data?.metrics || {};
+            console.log('[Ahrefs API] Метрики без date получены через Authorization Bearer');
+            errorWithoutDate = null;
+          }
+        } catch (altError) {
+          console.error('[Ahrefs API] Ошибка при альтернативной авторизации:', altError);
+        }
+      }
     }
     
     // Затем получаем метрики с date
@@ -160,12 +188,14 @@ export async function fetchAhrefsSiteMetrics(
     });
     
     let metricsWithDateData: any = {};
+    let errorWithDate: string | null = null;
     if (responseWithDate.ok) {
       const data = await responseWithDate.json();
       metricsWithDateData = data.metrics || (data as any).data?.metrics || {};
       console.log('[Ahrefs API] Метрики с date получены:', Object.keys(metricsWithDateData));
     } else {
       const errorText = await responseWithDate.text();
+      errorWithDate = `Status ${responseWithDate.status}: ${errorText}`;
       console.error('[Ahrefs API] Ошибка при получении метрик с date:', responseWithDate.status, errorText);
       
       // Если получили ошибку о date, пробуем более ранние даты
@@ -199,11 +229,37 @@ export async function fetchAhrefsSiteMetrics(
               console.log(`[Ahrefs API] Успешно получены данные за дату: ${pastDateString}`);
               const data = await responsePastDate.json();
               metricsWithDateData = data.metrics || (data as any).data?.metrics || {};
+              errorWithDate = null;
               break;
             }
           } catch (pastDateError) {
             console.error(`[Ahrefs API] Ошибка при попытке даты ${daysAgo} дней назад:`, pastDateError);
           }
+        }
+      }
+      
+      // Пробуем альтернативную авторизацию для метрик с date
+      if (responseWithDate.status === 403) {
+        console.log('[Ahrefs API] Пробуем альтернативную авторизацию для метрик с date...');
+        try {
+          const responseAlt = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${trimmedKey}`,
+            },
+            body: JSON.stringify(requestBodyWithDate),
+          });
+          
+          if (responseAlt.ok) {
+            const data = await responseAlt.json();
+            metricsWithDateData = data.metrics || (data as any).data?.metrics || {};
+            console.log('[Ahrefs API] Метрики с date получены через Authorization Bearer');
+            errorWithDate = null;
+          }
+        } catch (altError) {
+          console.error('[Ahrefs API] Ошибка при альтернативной авторизации:', altError);
         }
       }
     }
@@ -216,7 +272,20 @@ export async function fetchAhrefsSiteMetrics(
     
     // Проверяем, что мы получили хотя бы какие-то данные
     if (Object.keys(allMetrics).length === 0) {
-      throw new Error('Ahrefs API не вернул данные. Проверьте API ключ и доступ к Site Explorer API.');
+      const errorMessages: string[] = [];
+      if (errorWithoutDate) {
+        errorMessages.push(`Метрики без date: ${errorWithoutDate}`);
+      }
+      if (errorWithDate) {
+        errorMessages.push(`Метрики с date: ${errorWithDate}`);
+      }
+      if (errorMessages.length === 0) {
+        errorMessages.push('Оба запроса не вернули данные');
+      }
+      
+      throw new Error(
+        `Ahrefs API не вернул данные. Ошибки: ${errorMessages.join('; ')}. Проверьте API ключ и доступ к Site Explorer API.`
+      );
     }
     
     // Возвращаем объединенные метрики
