@@ -105,15 +105,15 @@ export default function Table({ data }: TableProps) {
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  className="px-6 py-4 text-left text-sm font-semibold text-gray-300 bg-gray-800 cursor-pointer hover:bg-gray-750 select-none"
+                  className="px-6 py-4 text-left text-sm font-semibold text-gray-300 bg-gray-800 cursor-pointer hover:bg-gray-700 select-none"
                   onClick={header.column.getToggleSortingHandler()}
                 >
                   <div className="flex items-center gap-2">
                     {flexRender(header.column.columnDef.header, header.getContext())}
-                    {{
-                      asc: ' ↑',
-                      desc: ' ↓',
-                    }[header.column.getIsSorted() as string] ?? null}
+                    {(() => {
+                      const sortDirection = header.column.getIsSorted();
+                      return sortDirection === 'asc' ? ' ↑' : sortDirection === 'desc' ? ' ↓' : null;
+                    })()}
                   </div>
                 </th>
               ))}
