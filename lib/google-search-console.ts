@@ -15,8 +15,8 @@ export class GoogleSearchConsoleService {
     const accessToken = storage.integrations.googleAccessToken;
     const refreshToken = storage.integrations.googleRefreshToken;
     
-    // Если есть OAuth токены, используем их
-    if (accessToken && refreshToken) {
+    // Если есть OAuth токены (не пустые строки), используем их
+    if (accessToken && accessToken.trim() && refreshToken && refreshToken.trim()) {
       const clientId = process.env.GOOGLE_CLIENT_ID;
       const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
       const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/google/callback`;
@@ -36,7 +36,7 @@ export class GoogleSearchConsoleService {
       this.auth.setCredentials({
         access_token: accessToken,
         refresh_token: refreshToken,
-        expiry_date: storage.integrations.googleTokenExpiry 
+        expiry_date: storage.integrations.googleTokenExpiry && storage.integrations.googleTokenExpiry.trim()
           ? new Date(storage.integrations.googleTokenExpiry).getTime() 
           : undefined,
       });

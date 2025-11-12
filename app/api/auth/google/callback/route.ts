@@ -70,9 +70,9 @@ export async function GET(request: Request) {
     // Используем non-null assertion, так как мы уже проверили наличие токенов выше
     const accessToken: string = tokens.access_token!;
     const refreshToken: string = tokens.refresh_token!;
-    const tokenExpiry: string | undefined = tokens.expiry_date 
+    const tokenExpiry: string = tokens.expiry_date 
       ? new Date(tokens.expiry_date).toISOString() 
-      : undefined;
+      : '';
 
     storage.integrations = {
       ...storage.integrations,
