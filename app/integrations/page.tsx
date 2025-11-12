@@ -284,9 +284,22 @@ export default function IntegrationsPage() {
                     </button>
                   )}
                 </div>
-                {isGoogleOAuthConfigured() && (
+                {isGoogleOAuthConfigured() ? (
                   <div className="text-xs text-green-300 mt-2">
                     ✓ Google OAuth настроен. Вы можете использовать Google Search Console API.
+                  </div>
+                ) : (
+                  <div className="text-xs text-yellow-300 mt-2">
+                    ⚠️ Перед авторизацией убедитесь, что GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET настроены в переменных окружения.
+                    <br />
+                    <a 
+                      href="https://github.com/sigmetapp/seohqs/blob/main/GOOGLE_SEARCH_CONSOLE_OAUTH_SETUP.md" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="underline hover:text-yellow-200"
+                    >
+                      См. инструкцию по настройке
+                    </a>
                   </div>
                 )}
               </div>
