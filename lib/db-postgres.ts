@@ -1,5 +1,5 @@
 import { getPostgresClient } from './postgres-client';
-import type { AffiliateOffer, Site } from './types';
+import type { AffiliateOffer, Site, IntegrationsSettings } from './types';
 
 // Проверяем, доступна ли PostgreSQL БД
 function isPostgresAvailable(): boolean {
