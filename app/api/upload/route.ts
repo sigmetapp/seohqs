@@ -95,7 +95,7 @@ export async function POST(request: Request) {
             }, { status: 500 }));
           }
         },
-        error: (error) => {
+        error: (error: Error) => {
           debug.errors.push(error.message);
           resolve(NextResponse.json({
             success: false,
