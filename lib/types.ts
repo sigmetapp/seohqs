@@ -93,3 +93,13 @@ export interface PostbackData {
   date: string;
   data?: Record<string, any>;
 }
+
+// Типы для настроек интеграций
+export interface IntegrationsSettings {
+  id: number;
+  googleServiceAccountEmail?: string;
+  googlePrivateKey?: string;
+  ahrefsApiKey?: string;
+  googleSearchConsoleUrl?: string;
+  updatedAt: string;
+}
