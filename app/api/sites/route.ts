@@ -11,12 +11,11 @@ export async function GET() {
     
     // Проверяем статус подключения для каждого сайта
     const hasGoogleOAuth = !!(integrations.googleAccessToken && integrations.googleRefreshToken);
-    const hasGoogleServiceAccount = !!(integrations.googleServiceAccountEmail && integrations.googlePrivateKey);
     
     const sitesWithStatus = sites.map(site => {
       const hasGoogleConsoleConnection = !!(
         site.googleSearchConsoleUrl && 
-        (hasGoogleOAuth || hasGoogleServiceAccount)
+        hasGoogleOAuth
       );
       const hasAhrefsConnection = !!(site.ahrefsApiKey || integrations.ahrefsApiKey);
       

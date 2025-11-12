@@ -81,29 +81,10 @@ export class GoogleSearchConsoleService {
         }
       });
     } else {
-      // Fallback на Service Account (старый способ, для обратной совместимости)
-      const serviceAccountEmail = integrations.googleServiceAccountEmail || 
-                                  storage.integrations.googleServiceAccountEmail || 
-                                  process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-      const privateKey = (integrations.googlePrivateKey || 
-                         storage.integrations.googlePrivateKey || 
-                         process.env.GOOGLE_PRIVATE_KEY)?.replace(/\\n/g, '\n');
-
-      if (!serviceAccountEmail || !privateKey) {
-        throw new Error(
-          'Для работы с Google Search Console необходимо либо авторизоваться через OAuth (новый способ), либо настроить Google Service Account (старый способ). Перейдите в раздел Интеграции для авторизации.'
-        );
-      }
-
-      // Создаем JWT клиент для аутентификации
-      this.auth = new google.auth.JWT({
-        email: serviceAccountEmail,
-        key: privateKey,
-        scopes: [
-          'https://www.googleapis.com/auth/webmasters.readonly',
-          'https://www.googleapis.com/auth/webmasters',
-        ],
-      });
+      // OAuth токены отсутствуют
+      throw new Error(
+        'Для работы с Google Search Console необходимо авторизоваться через OAuth. Перейдите в раздел Интеграции и нажмите "Авторизоваться через Google".'
+      );
     }
 
     // Инициализируем Search Console API
@@ -215,7 +196,7 @@ export class GoogleSearchConsoleService {
       
       if (error.response?.data?.error?.code === 403) {
         throw new Error(
-          'Доступ запрещен. Убедитесь, что Service Account имеет доступ к сайту в Google Search Console и настроено делегирование домена (для Google Workspace).'
+          'Доступ запрещен. Убедитесь, что ваш Google аккаунт имеет доступ к сайту в Google Search Console.'
         );
       }
       

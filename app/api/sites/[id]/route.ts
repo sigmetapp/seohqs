@@ -39,12 +39,11 @@ export async function GET(
     // Проверяем статус подключения Google Console
     // Подключено, если:
     // 1. У сайта указан googleSearchConsoleUrl И
-    // 2. Есть OAuth токены ИЛИ настроен Service Account
+    // 2. Есть OAuth токены
     const hasGoogleOAuth = !!(integrations.googleAccessToken && integrations.googleRefreshToken);
-    const hasGoogleServiceAccount = !!(integrations.googleServiceAccountEmail && integrations.googlePrivateKey);
     const hasGoogleConsoleConnection = !!(
       site.googleSearchConsoleUrl && 
-      (hasGoogleOAuth || hasGoogleServiceAccount)
+      hasGoogleOAuth
     );
 
     return NextResponse.json({
@@ -100,10 +99,9 @@ export async function PUT(
 
     // Проверяем статус подключения Google Console
     const hasGoogleOAuth = !!(integrations.googleAccessToken && integrations.googleRefreshToken);
-    const hasGoogleServiceAccount = !!(integrations.googleServiceAccountEmail && integrations.googlePrivateKey);
     const hasGoogleConsoleConnection = !!(
       updatedSite.googleSearchConsoleUrl && 
-      (hasGoogleOAuth || hasGoogleServiceAccount)
+      hasGoogleOAuth
     );
 
     return NextResponse.json({

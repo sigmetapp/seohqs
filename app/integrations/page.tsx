@@ -8,21 +8,15 @@ export default function IntegrationsPage() {
   const [saving, setSaving] = useState(false);
   const [integrations, setIntegrations] = useState<IntegrationsSettings>({
     id: 1,
-    googleServiceAccountEmail: '',
-    googlePrivateKey: '',
     ahrefsApiKey: '',
     googleSearchConsoleUrl: '',
     updatedAt: new Date().toISOString(),
   });
 
   const [formData, setFormData] = useState({
-    googleServiceAccountEmail: '',
-    googlePrivateKey: '',
     ahrefsApiKey: '',
     googleSearchConsoleUrl: '',
   });
-
-  const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [showAhrefsKey, setShowAhrefsKey] = useState(false);
   const [showSearchConsoleGuide, setShowSearchConsoleGuide] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -55,8 +49,6 @@ export default function IntegrationsPage() {
       if (data.success && data.integrations) {
         setIntegrations(data.integrations);
         setFormData({
-          googleServiceAccountEmail: data.integrations.googleServiceAccountEmail || '',
-          googlePrivateKey: data.integrations.googlePrivateKey || '',
           ahrefsApiKey: data.integrations.ahrefsApiKey || '',
           googleSearchConsoleUrl: data.integrations.googleSearchConsoleUrl || '',
         });
@@ -160,76 +152,6 @@ export default function IntegrationsPage() {
         )}
 
         <div className="space-y-6">
-          {/* Google Service Account */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="text-3xl">🔐</div>
-                <div>
-                  <h2 className="text-xl font-bold">Google Service Account</h2>
-                  <p className="text-sm text-gray-400">
-                    Для работы Google Indexing API
-                  </p>
-                </div>
-              </div>
-              <div
-                className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  isConfigured('googleServiceAccountEmail') && isConfigured('googlePrivateKey')
-                    ? 'bg-green-900/30 text-green-300 border border-green-700'
-                    : 'bg-gray-700 text-gray-400 border border-gray-600'
-                }`}
-              >
-                {isConfigured('googleServiceAccountEmail') && isConfigured('googlePrivateKey')
-                  ? 'Настроено'
-                  : 'Не настроено'}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  GOOGLE_SERVICE_ACCOUNT_EMAIL
-                </label>
-                <input
-                  type="email"
-                  value={formData.googleServiceAccountEmail}
-                  onChange={(e) =>
-                    setFormData({ ...formData, googleServiceAccountEmail: e.target.value })
-                  }
-                  className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                  placeholder="service-account@project-id.iam.gserviceaccount.com"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  GOOGLE_PRIVATE_KEY
-                </label>
-                <div className="relative">
-                  <textarea
-                    value={formData.googlePrivateKey}
-                    onChange={(e) =>
-                      setFormData({ ...formData, googlePrivateKey: e.target.value })
-                    }
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none font-mono text-sm"
-                    placeholder="-----BEGIN PRIVATE KEY-----\n..."
-                    rows={6}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPrivateKey(!showPrivateKey)}
-                    className="absolute top-2 right-2 text-gray-400 hover:text-gray-200 text-sm"
-                  >
-                    {showPrivateKey ? '👁️' : '👁️‍🗨️'}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Вставьте полный приватный ключ из JSON файла Service Account
-                </p>
-              </div>
-            </div>
-          </div>
-
           {/* Google Search Console */}
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
             <div className="flex items-center justify-between mb-4">
@@ -250,33 +172,31 @@ export default function IntegrationsPage() {
                   <span>📖</span>
                   <span>Как настроить?</span>
                 </button>
-                <div
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    isConfigured('googleSearchConsoleUrl') && (isGoogleOAuthConfigured() || (isConfigured('googleServiceAccountEmail') && isConfigured('googlePrivateKey')))
-                      ? 'bg-green-900/30 text-green-300 border border-green-700'
-                      : 'bg-gray-700 text-gray-400 border border-gray-600'
-                  }`}
-                >
-                  {isConfigured('googleSearchConsoleUrl') && (isGoogleOAuthConfigured() || (isConfigured('googleServiceAccountEmail') && isConfigured('googlePrivateKey')))
-                    ? 'Настроено'
-                    : 'Не настроено'}
-                </div>
+                {isGoogleOAuthConfigured() ? (
+                  <div className="px-3 py-1 bg-green-900/30 text-green-300 border border-green-700 rounded-full text-xs font-medium">
+                    Авторизовано в Google Search Console
+                  </div>
+                ) : (
+                  <div className="px-3 py-1 rounded-full text-xs font-medium bg-gray-700 text-gray-400 border border-gray-600">
+                    Не авторизовано
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="space-y-4">
-              {/* OAuth авторизация (новый способ) */}
+              {/* OAuth авторизация */}
               <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h3 className="text-sm font-bold text-blue-300 mb-1">🚀 Новый способ (рекомендуется)</h3>
+                    <h3 className="text-sm font-bold text-blue-300 mb-1">Авторизация Google Search Console</h3>
                     <p className="text-xs text-gray-400">
-                      Авторизуйтесь через Google аккаунт - не нужно создавать Service Account
+                      Авторизуйтесь через Google аккаунт для доступа к данным Search Console
                     </p>
                   </div>
                   {isGoogleOAuthConfigured() ? (
                     <div className="px-3 py-1 bg-green-900/30 text-green-300 border border-green-700 rounded-full text-xs font-medium">
-                      Авторизован
+                      Авторизовано
                     </div>
                   ) : (
                     <button
@@ -290,7 +210,7 @@ export default function IntegrationsPage() {
                 </div>
                 {isGoogleOAuthConfigured() ? (
                   <div className="text-xs text-green-300 mt-2">
-                    ✓ Google OAuth настроен. Вы можете использовать Google Search Console API.
+                    ✓ Авторизовано в Google Search Console. Вы можете использовать Google Search Console API.
                   </div>
                 ) : (
                   <div className="text-xs text-yellow-300 mt-2">
@@ -325,18 +245,6 @@ export default function IntegrationsPage() {
                   Укажите URL сайта из Google Search Console. Поддерживаются форматы: <code className="bg-gray-900 px-1 rounded">sc-domain:example.com</code>, <code className="bg-gray-900 px-1 rounded">https://example.com</code> или полный URL из интерфейса
                 </p>
               </div>
-
-              {/* Старый способ через Service Account (для обратной совместимости) */}
-              {!isGoogleOAuthConfigured() && (
-                <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3">
-                  <div className="flex items-start gap-2">
-                    <span className="text-yellow-400">ℹ️</span>
-                    <div className="text-sm text-yellow-300">
-                      <strong>Альтернативный способ:</strong> Вы можете использовать Google Service Account (старый способ) вместо OAuth. Настройте его в секции выше.
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -408,10 +316,7 @@ export default function IntegrationsPage() {
               • Настройки интеграций сохраняются централизованно и используются во всех разделах приложения
             </li>
             <li>
-              • Google Search Console теперь поддерживает авторизацию через OAuth 2.0 (новый способ) или через Service Account (старый способ)
-            </li>
-            <li>
-              • Google Service Account используется для работы Google Indexing API
+              • Google Search Console использует авторизацию через OAuth 2.0 для доступа к данным
             </li>
             <li>
               • Google Search Console позволяет автоматически получать данные о кликах, показах, CTR и позициях в поиске
@@ -459,18 +364,23 @@ export default function IntegrationsPage() {
               <div className="border-l-4 border-blue-500 pl-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">1</span>
-                  <h3 className="text-lg font-bold text-white">Проверьте настройку Google Service Account</h3>
+                  <h3 className="text-lg font-bold text-white">Авторизуйтесь через Google</h3>
                 </div>
                 <div className="ml-10 space-y-2 text-gray-300 text-sm">
-                  <p>Убедитесь, что Google Service Account настроен выше. Он необходим для работы с Google Search Console API.</p>
-                  <div className="bg-gray-700 rounded p-3 mt-2">
-                    <p className="font-mono text-xs text-gray-400 break-all">
-                      Email: {formData.googleServiceAccountEmail || 'не указан'}
-                    </p>
-                  </div>
-                  {!isConfigured('googleServiceAccountEmail') && (
-                    <div className="bg-yellow-900/20 border border-yellow-700 rounded p-2 text-yellow-300 text-xs">
-                      ⚠ Сначала настройте Google Service Account в секции выше
+                  <p>Нажмите кнопку "Авторизоваться через Google" выше. Вы будете перенаправлены на страницу авторизации Google, где нужно будет:</p>
+                  <ol className="list-decimal list-inside space-y-2 ml-2">
+                    <li>Войти в свой Google аккаунт</li>
+                    <li>Предоставить доступ к Google Search Console API</li>
+                    <li>После успешной авторизации вы вернетесь на эту страницу</li>
+                  </ol>
+                  {!isGoogleOAuthConfigured() && (
+                    <div className="bg-yellow-900/20 border border-yellow-700 rounded p-2 text-yellow-300 text-xs mt-2">
+                      ⚠ Сначала авторизуйтесь через Google, нажав кнопку выше
+                    </div>
+                  )}
+                  {isGoogleOAuthConfigured() && (
+                    <div className="bg-green-900/20 border border-green-700 rounded p-2 text-green-300 text-xs mt-2">
+                      ✓ Авторизация выполнена успешно
                     </div>
                   )}
                 </div>
@@ -480,48 +390,6 @@ export default function IntegrationsPage() {
               <div className="border-l-4 border-blue-500 pl-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">2</span>
-                  <h3 className="text-lg font-bold text-white">Предоставьте доступ в Google Search Console</h3>
-                </div>
-                <div className="ml-10 space-y-3 text-gray-300 text-sm">
-                  <p>Service Account должен иметь доступ к вашему сайту в Google Search Console:</p>
-                  <ol className="list-decimal list-inside space-y-2 ml-2">
-                    <li>
-                      Откройте{' '}
-                      <a
-                        href="https://search.google.com/search-console"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-400 hover:text-blue-300 underline"
-                      >
-                        Google Search Console
-                      </a>
-                    </li>
-                    <li>Выберите ваш сайт</li>
-                    <li>Перейдите в <strong>Настройки</strong> → <strong>Владельцы и пользователи</strong></li>
-                    <li>Нажмите <strong>Добавить пользователя</strong></li>
-                    <li>
-                      Введите email вашего Service Account:
-                      <div className="bg-gray-700 rounded p-2 mt-1">
-                        <code className="text-xs text-blue-300 break-all">
-                          {formData.googleServiceAccountEmail || 'service-account@project-id.iam.gserviceaccount.com'}
-                        </code>
-                      </div>
-                    </li>
-                    <li>Выберите уровень доступа: <strong>Полный</strong> или <strong>Ограниченный</strong> (достаточно для чтения данных)</li>
-                  </ol>
-                  <div className="bg-yellow-900/20 border border-yellow-700 rounded p-3 mt-3">
-                    <p className="text-yellow-300 text-xs font-semibold mb-1">⚠️ Важно для Google Workspace:</p>
-                    <p className="text-yellow-200 text-xs">
-                      Для доменов Google Workspace может потребоваться настройка делегирования домена. В этом случае перейдите в Google Admin Console и настройте делегирование домена для Service Account.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Шаг 3 */}
-              <div className="border-l-4 border-blue-500 pl-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">3</span>
                   <h3 className="text-lg font-bold text-white">Укажите URL сайта</h3>
                 </div>
                 <div className="ml-10 space-y-2 text-gray-300 text-sm">
@@ -537,10 +405,10 @@ export default function IntegrationsPage() {
                 </div>
               </div>
 
-              {/* Шаг 4 */}
+              {/* Шаг 3 */}
               <div className="border-l-4 border-green-500 pl-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">4</span>
+                  <span className="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">3</span>
                   <h3 className="text-lg font-bold text-white">Синхронизируйте данные</h3>
                 </div>
                 <div className="ml-10 space-y-2 text-gray-300 text-sm">
@@ -564,11 +432,11 @@ export default function IntegrationsPage() {
                 <div className="space-y-3 text-sm">
                   <div>
                     <p className="font-semibold text-red-400 mb-1">Ошибка аутентификации</p>
-                    <p className="text-gray-300">Проверьте настройки Google Service Account выше. Убедитесь, что email и приватный ключ указаны правильно.</p>
+                    <p className="text-gray-300">Убедитесь, что вы успешно авторизовались через Google. Проверьте, что GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET настроены в переменных окружения.</p>
                   </div>
                   <div>
                     <p className="font-semibold text-red-400 mb-1">Доступ запрещен (403)</p>
-                    <p className="text-gray-300">Service Account не имеет доступа к сайту. Вернитесь к шагу 2 и добавьте Service Account как пользователя в Google Search Console.</p>
+                    <p className="text-gray-300">Убедитесь, что ваш Google аккаунт имеет доступ к сайту в Google Search Console. Перейдите в Google Search Console и проверьте, что сайт добавлен и у вас есть права доступа.</p>
                   </div>
                   <div>
                     <p className="font-semibold text-red-400 mb-1">Неверный формат URL</p>
