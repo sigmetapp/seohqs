@@ -59,13 +59,40 @@ export async function fetchAhrefsSiteMetrics(
     const url = `https://api.ahrefs.com/v3/site-explorer/metrics`;
     
     // Пробуем сначала без www
-    // Ahrefs API требует параметр date в формате YYYY-MM-DD для некоторых метрик
-    // Используем текущую дату или недавнюю дату для получения последних данных
+    // Согласно документации Ahrefs API, некоторые метрики требуют date, а некоторые нет
+    // Метрики без date: domain_rating, backlinks, referring_domains (текущие метрики)
+    // Метрики с date: organic_keywords, organic_traffic (исторические метрики)
     const today = new Date();
     const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD
     
-    // Создаем requestBody с date
-    const requestBody: {
+    // Сначала получаем метрики без date
+    const metricsWithoutDate = [
+      'domain_rating',
+      'backlinks',
+      'referring_domains',
+    ];
+    
+    // Затем получаем метрики с date
+    const metricsWithDate = [
+      'organic_keywords',
+      'organic_traffic',
+    ];
+    
+    // Создаем requestBody для метрик без date
+    const requestBodyWithoutDate: {
+      target: string;
+      mode: string;
+      output: string;
+      metrics: string[];
+    } = {
+      target: domainWithoutWww,
+      mode: 'domain',
+      output: 'json',
+      metrics: metricsWithoutDate,
+    };
+    
+    // Создаем requestBody для метрик с date
+    const requestBodyWithDate: {
       target: string;
       mode: string;
       output: string;
@@ -76,24 +103,8 @@ export async function fetchAhrefsSiteMetrics(
       mode: 'domain',
       output: 'json',
       date: dateString,
-      metrics: [
-        'domain_rating',
-        'backlinks',
-        'referring_domains',
-        'organic_keywords',
-        'organic_traffic',
-      ],
+      metrics: metricsWithDate,
     };
-    
-    // Явная проверка, что date добавлен
-    if (!requestBody.date || requestBody.date.length === 0) {
-      throw new Error('Параметр date не был добавлен в requestBody или пуст');
-    }
-    
-    // Дополнительная проверка формата даты
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(requestBody.date)) {
-      throw new Error(`Неверный формат даты: ${requestBody.date}. Ожидается YYYY-MM-DD`);
-    }
     
     // Ahrefs API v3 требует токен в query параметре token
     // Параметр date должен быть в body запроса, а не в query
@@ -116,323 +127,104 @@ export async function fetchAhrefsSiteMetrics(
       hasTokenInUrl: true,
     });
     
-    // Логируем тело запроса для отладки
-    const requestBodyString = JSON.stringify(requestBody);
-    console.log('[Ahrefs API] Тело запроса:', requestBodyString);
-    console.log('[Ahrefs API] Проверка параметра date:', {
-      hasDate: 'date' in requestBody,
-      dateValue: requestBody.date,
-      requestBodyKeys: Object.keys(requestBody),
-    });
-    
-    // Пробуем сначала стандартный способ с токеном в query
-    let response = await fetch(urlWithToken, {
+    // Сначала получаем метрики без date
+    console.log('[Ahrefs API] Запрос метрик без date:', JSON.stringify(requestBodyWithoutDate));
+    let responseWithoutDate = await fetch(urlWithToken, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: requestBodyString,
+      body: JSON.stringify(requestBodyWithoutDate),
     });
     
-    // Если получили 403, пробуем без токена в URL, а в заголовке Authorization
-    if (!response.ok && response.status === 403) {
-      console.log('[Ahrefs API] Пробуем авторизацию через заголовок Authorization...');
-      try {
-        response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${trimmedKey}`,
-          },
-          body: JSON.stringify(requestBody),
-        });
-      } catch (authError) {
-        console.error('[Ahrefs API] Ошибка при попытке Authorization:', authError);
-        // Продолжаем с оригинальным ответом
-      }
+    let metricsWithoutDateData: any = {};
+    if (responseWithoutDate.ok) {
+      const data = await responseWithoutDate.json();
+      metricsWithoutDateData = data.metrics || (data as any).data?.metrics || {};
+      console.log('[Ahrefs API] Метрики без date получены:', Object.keys(metricsWithoutDateData));
+    } else {
+      console.error('[Ahrefs API] Ошибка при получении метрик без date:', responseWithoutDate.status, await responseWithoutDate.text());
     }
-
-    if (!response.ok) {
-      let errorText = '';
-      let errorData: any = null;
+    
+    // Затем получаем метрики с date
+    console.log('[Ahrefs API] Запрос метрик с date:', JSON.stringify(requestBodyWithDate));
+    let responseWithDate = await fetch(urlWithToken, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(requestBodyWithDate),
+    });
+    
+    let metricsWithDateData: any = {};
+    if (responseWithDate.ok) {
+      const data = await responseWithDate.json();
+      metricsWithDateData = data.metrics || (data as any).data?.metrics || {};
+      console.log('[Ahrefs API] Метрики с date получены:', Object.keys(metricsWithDateData));
+    } else {
+      const errorText = await responseWithDate.text();
+      console.error('[Ahrefs API] Ошибка при получении метрик с date:', responseWithDate.status, errorText);
       
-      try {
-        errorText = await response.text();
-        // Пытаемся распарсить JSON ответ, если это возможно
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          // Если не JSON, используем текст как есть
-        }
-      } catch {
-        errorText = 'Не удалось получить детали ошибки';
-      }
-
-      // Специальная обработка для 400 Bad Request
-      if (response.status === 400) {
-        const errorMessage = errorData 
-          ? (Array.isArray(errorData) ? errorData.join(', ') : (typeof errorData === 'object' ? JSON.stringify(errorData) : String(errorData)))
-          : errorText;
+      // Если получили ошибку о date, пробуем более ранние даты
+      if (responseWithDate.status === 400 && errorText.includes('date')) {
+        console.log('[Ahrefs API] Пробуем более ранние даты для метрик с date...');
         
-        // Логируем детали ошибки 400
-        console.error('[Ahrefs API] 400 Bad Request - Детали ошибки:', {
-          errorText,
-          errorData,
-          requestBody: JSON.stringify(requestBody),
-          requestBodyKeys: Object.keys(requestBody),
-          hasDate: 'date' in requestBody,
-          dateValue: requestBody.date,
-          responseStatus: response.status,
-          responseStatusText: response.statusText,
-        });
-        
-        // Если ошибка связана с датой, пробуем более ранние даты
-        if (errorMessage.includes('date') || errorMessage.includes('Date')) {
-          console.log('[Ahrefs API] Пробуем более ранние даты...');
-          
-          // Пробуем последние 7 дней
-          for (let daysAgo = 1; daysAgo <= 7; daysAgo++) {
-            try {
-              const pastDate = new Date();
-              pastDate.setDate(pastDate.getDate() - daysAgo);
-              const pastDateString = pastDate.toISOString().split('T')[0];
-              
-              const requestBodyWithPastDate = {
-                ...requestBody,
-                date: pastDateString,
-              };
-              
-              console.log(`[Ahrefs API] Пробуем дату: ${pastDateString} (${daysAgo} дней назад)`);
-              
-              const responsePastDate = await fetch(urlWithToken, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json',
-                },
-                body: JSON.stringify(requestBodyWithPastDate),
-              });
-              
-              if (responsePastDate.ok) {
-                console.log(`[Ahrefs API] Успешно получены данные за дату: ${pastDateString}`);
-                const data = await responsePastDate.json();
-                const metrics = data.metrics || (data as any).data?.metrics || {};
-                
-                return {
-                  domainRating: metrics.domain_rating || 0,
-                  backlinks: metrics.backlinks || 0,
-                  referringDomains: metrics.referring_domains || 0,
-                  organicKeywords: metrics.organic_keywords || 0,
-                  organicTraffic: metrics.organic_traffic || 0,
-                };
-              }
-            } catch (pastDateError) {
-              console.error(`[Ahrefs API] Ошибка при попытке даты ${daysAgo} дней назад:`, pastDateError);
-            }
-          }
-        }
-        
-        // Если не помогло, пробрасываем ошибку
-        throw new Error(
-          `Ahrefs API error: 400 Bad Request. ${errorMessage}. Проверьте формат запроса и параметры.`
-        );
-      }
-      
-      // Специальная обработка для 403 Forbidden
-      if (response.status === 403) {
-        const errorMessage = errorData 
-          ? (Array.isArray(errorData) ? errorData.join(', ') : (typeof errorData === 'object' ? JSON.stringify(errorData) : String(errorData)))
-          : errorText;
-        
-        // Логируем детали ошибки для отладки
-        console.error('[Ahrefs API] 403 Forbidden - Детали ошибки:', {
-          originalDomain: domain,
-          cleanDomain: cleanDomain,
-          domainWithoutWww: domainWithoutWww,
-          target: requestBody.target,
-          requestBody: JSON.stringify(requestBody),
-          errorText: errorText.substring(0, 500), // Ограничиваем длину для логов
-          errorData,
-          url: url,
-          responseStatus: response.status,
-          responseStatusText: response.statusText,
-          responseHeaders: Object.fromEntries(response.headers.entries()),
-        });
-        
-        // Проверяем, может быть проблема в формате API ключа или доступа
-        console.error('[Ahrefs API] Возможные причины 403:');
-        console.error('1. API ключ неверный или неактивен');
-        console.error('2. API ключ не имеет доступа к Site Explorer API');
-        console.error('3. У аккаунта нет подписки с доступом к API');
-        console.error('4. Формат запроса неверный');
-        console.error('5. Домен не найден в базе Ahrefs (но это не должно блокировать запрос)');
-        
-        // Пробуем альтернативные варианты домена
-        // Если использовали без www, пробуем с www, и наоборот
-        const alternativeDomains = [];
-        if (domainWithoutWww !== cleanDomain) {
-          // Если убрали www, пробуем с www
-          alternativeDomains.push(cleanDomain);
-        } else if (!cleanDomain.startsWith('www.')) {
-          // Если не было www, пробуем с www
-          alternativeDomains.push(`www.${cleanDomain}`);
-        }
-        
-        for (const altDomain of alternativeDomains) {
-          console.log(`[Ahrefs API] Пробуем альтернативный домен: ${altDomain}...`);
+        // Пробуем последние 7 дней
+        for (let daysAgo = 1; daysAgo <= 7; daysAgo++) {
           try {
-            const requestBodyAlt = {
-              ...requestBody,
-              target: altDomain,
+            const pastDate = new Date();
+            pastDate.setDate(pastDate.getDate() - daysAgo);
+            const pastDateString = pastDate.toISOString().split('T')[0];
+            
+            const requestBodyWithPastDate = {
+              ...requestBodyWithDate,
+              date: pastDateString,
             };
             
-            const responseAlt = await fetch(urlWithToken, {
+            console.log(`[Ahrefs API] Пробуем дату: ${pastDateString} (${daysAgo} дней назад)`);
+            
+            const responsePastDate = await fetch(urlWithToken, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
               },
-              body: JSON.stringify(requestBodyAlt),
+              body: JSON.stringify(requestBodyWithPastDate),
             });
             
-            if (responseAlt.ok) {
-              console.log(`[Ahrefs API] Успешно использован домен: ${altDomain}`);
-              const data = await responseAlt.json();
-              const metrics = data.metrics || (data as any).data?.metrics || {};
-              
-              return {
-                domainRating: metrics.domain_rating || 0,
-                backlinks: metrics.backlinks || 0,
-                referringDomains: metrics.referring_domains || 0,
-                organicKeywords: metrics.organic_keywords || 0,
-                organicTraffic: metrics.organic_traffic || 0,
-              };
+            if (responsePastDate.ok) {
+              console.log(`[Ahrefs API] Успешно получены данные за дату: ${pastDateString}`);
+              const data = await responsePastDate.json();
+              metricsWithDateData = data.metrics || (data as any).data?.metrics || {};
+              break;
             }
-          } catch (altError) {
-            console.error(`[Ahrefs API] Ошибка при попытке домена ${altDomain}:`, altError);
+          } catch (pastDateError) {
+            console.error(`[Ahrefs API] Ошибка при попытке даты ${daysAgo} дней назад:`, pastDateError);
           }
         }
-        
-        // Пробуем альтернативные способы авторизации
-        // Это может помочь, если query параметр не работает
-        console.log('[Ahrefs API] Пробуем альтернативные способы авторизации...');
-        
-        // Список доменов для попыток (включая оригинальный и альтернативные)
-        const domainsToTry = [requestBody.target, ...alternativeDomains];
-        
-        // Способ 1: Authorization Bearer
-        for (const tryDomain of domainsToTry) {
-          try {
-            const requestBodyWithDomain = {
-              ...requestBody,
-              target: tryDomain,
-            };
-            
-            const responseWithBearer = await fetch(url, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${trimmedKey}`,
-              },
-              body: JSON.stringify(requestBodyWithDomain),
-            });
-            
-            if (responseWithBearer.ok) {
-              console.log(`[Ahrefs API] Успешно использован заголовок Authorization Bearer с доменом: ${tryDomain}`);
-              const data = await responseWithBearer.json();
-              const metrics = data.metrics || (data as any).data?.metrics || {};
-              
-              return {
-                domainRating: metrics.domain_rating || 0,
-                backlinks: metrics.backlinks || 0,
-                referringDomains: metrics.referring_domains || 0,
-                organicKeywords: metrics.organic_keywords || 0,
-                organicTraffic: metrics.organic_traffic || 0,
-              };
-            }
-          } catch (bearerError) {
-            console.error(`[Ahrefs API] Ошибка при попытке Authorization Bearer с доменом ${tryDomain}:`, bearerError);
-          }
-        }
-        
-        // Способ 2: X-API-Key заголовок
-        for (const tryDomain of domainsToTry) {
-          try {
-            const requestBodyWithDomain = {
-              ...requestBody,
-              target: tryDomain,
-            };
-            
-            const responseWithApiKey = await fetch(url, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-API-Key': trimmedKey,
-              },
-              body: JSON.stringify(requestBodyWithDomain),
-            });
-            
-            if (responseWithApiKey.ok) {
-              console.log(`[Ahrefs API] Успешно использован заголовок X-API-Key с доменом: ${tryDomain}`);
-              const data = await responseWithApiKey.json();
-              const metrics = data.metrics || (data as any).data?.metrics || {};
-              
-              return {
-                domainRating: metrics.domain_rating || 0,
-                backlinks: metrics.backlinks || 0,
-                referringDomains: metrics.referring_domains || 0,
-                organicKeywords: metrics.organic_keywords || 0,
-                organicTraffic: metrics.organic_traffic || 0,
-              };
-            }
-          } catch (apiKeyError) {
-            console.error(`[Ahrefs API] Ошибка при попытке X-API-Key с доменом ${tryDomain}:`, apiKeyError);
-          }
-        }
-        
-        throw new Error(
-          `Ahrefs API error: 403 Forbidden. ${errorMessage}. Возможные причины: 1) API ключ неверный или неактивен, 2) API ключ не имеет доступа к Site Explorer API (проверьте настройки API ключа в Ahrefs), 3) У аккаунта нет подписки с доступом к API, 4) Формат запроса неверный. Для получения данных из Site Explorer не нужно добавлять домен в проект - API должен работать для любого домена, если у API ключа есть доступ к Site Explorer API. Проверьте настройки API ключа в Ahrefs и убедитесь, что у него включен доступ к Site Explorer API.`
-        );
       }
-
-      // Для других ошибок
-      const errorMessage = errorData 
-        ? (Array.isArray(errorData) ? errorData.join(', ') : JSON.stringify(errorData))
-        : errorText;
-      
-      throw new Error(
-        `Ahrefs API error: ${response.status} ${response.statusText}. ${errorMessage}`
-      );
     }
-
-    let data: AhrefsApiResponse;
-    try {
-      data = await response.json();
-    } catch (parseError) {
-      throw new Error(
-        `Ahrefs API вернул невалидный JSON ответ. Возможно, API ключ неверен или произошла ошибка на стороне сервера.`
-      );
-    }
-
-    // Извлекаем метрики из ответа
-    // Ahrefs API может возвращать данные в разных форматах
-    const metrics = data.metrics || (data as any).data?.metrics || {};
-
+    
+    // Объединяем результаты
+    const allMetrics = {
+      ...metricsWithoutDateData,
+      ...metricsWithDateData,
+    };
+    
     // Проверяем, что мы получили хотя бы какие-то данные
-    if (Object.keys(metrics).length === 0 && !data.metrics) {
-      console.warn('Ahrefs API вернул пустой ответ метрик. Возможно, домен не найден в базе Ahrefs.');
+    if (Object.keys(allMetrics).length === 0) {
+      throw new Error('Ahrefs API не вернул данные. Проверьте API ключ и доступ к Site Explorer API.');
     }
-
+    
+    // Возвращаем объединенные метрики
     return {
-      domainRating: metrics.domain_rating || 0,
-      backlinks: metrics.backlinks || 0,
-      referringDomains: metrics.referring_domains || 0,
-      organicKeywords: metrics.organic_keywords || 0,
-      organicTraffic: metrics.organic_traffic || 0,
+      domainRating: allMetrics.domain_rating || 0,
+      backlinks: allMetrics.backlinks || 0,
+      referringDomains: allMetrics.referring_domains || 0,
+      organicKeywords: allMetrics.organic_keywords || 0,
+      organicTraffic: allMetrics.organic_traffic || 0,
     };
   } catch (error: any) {
     // Если это ошибка API, пробрасываем её дальше
