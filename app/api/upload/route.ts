@@ -47,21 +47,36 @@ export async function POST(request: Request) {
               debug.errors.push(...results.errors.map((e: any) => `Строка ${e.row}: ${e.message}`));
             }
 
-            // Преобразуем данные в нужный формат
-            const offers = results.data
-              .filter((row: any) => row.name && row.topic && row.country && row.model)
-              .map((row: any) => ({
-                name: String(row.name || '').trim(),
-                topic: String(row.topic || '').trim(),
-                country: String(row.country || '').trim(),
-                model: String(row.model || '').trim(),
-                cr: parseFloat(row.cr) || 0,
-                ecpc: parseFloat(row.ecpc) || 0,
-                epc: parseFloat(row.epc) || 0,
-                source: source,
-              }));
+            // Логируем первую строку для отладки
+            if (results.data.length > 0) {
+              debug.steps.push(`Первая строка данных: ${JSON.stringify(results.data[0])}`);
+              debug.steps.push(`Ключи первой строки: ${Object.keys(results.data[0] || {}).join(', ')}`);
+            }
 
-            debug.steps.push(`Валидных записей: ${offers.length}`);
+            // Преобразуем данные в нужный формат
+            const rawOffers = results.data.map((row: any) => ({
+              name: String(row.name || '').trim(),
+              topic: String(row.topic || '').trim(),
+              country: String(row.country || '').trim(),
+              model: String(row.model || '').trim(),
+              cr: parseFloat(row.cr) || 0,
+              ecpc: parseFloat(row.ecpc) || 0,
+              epc: parseFloat(row.epc) || 0,
+              source: source,
+            }));
+
+            debug.steps.push(`Всего записей после преобразования: ${rawOffers.length}`);
+
+            // Фильтруем валидные записи
+            const offers = rawOffers.filter((row: any) => {
+              const isValid = row.name && row.topic && row.country && row.model;
+              if (!isValid) {
+                debug.steps.push(`Невалидная запись: name=${row.name}, topic=${row.topic}, country=${row.country}, model=${row.model}`);
+              }
+              return isValid;
+            });
+
+            debug.steps.push(`Валидных записей после фильтрации: ${offers.length}`);
 
             if (offers.length === 0) {
               resolve(NextResponse.json({
