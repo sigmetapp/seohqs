@@ -14,23 +14,45 @@ const testData = [
 ];
 
 export async function POST() {
+  const debug: any = {
+    timestamp: new Date().toISOString(),
+    env: {
+      hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasSupabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      hasSupabaseServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    },
+    steps: [],
+    errors: [],
+  };
+
   try {
+    debug.steps.push('Начало загрузки тестовых данных');
+    
     // Очищаем старые данные
+    debug.steps.push('Очистка старых данных');
     await clearAllOffers();
+    debug.steps.push('Старые данные очищены');
     
     // Вставляем тестовые данные
+    debug.steps.push(`Вставка ${testData.length} записей`);
     await insertOffers(testData);
+    debug.steps.push('Данные успешно вставлены');
     
     return NextResponse.json({
       success: true,
       message: `Загружено ${testData.length} тестовых записей`,
       count: testData.length,
+      debug: debug,
     });
   } catch (error: any) {
+    debug.errors.push(error.message || 'Unknown error');
+    debug.steps.push(`Ошибка: ${error.message}`);
     console.error('Error seeding data:', error);
+    
     return NextResponse.json({
       success: false,
       error: error.message || 'Ошибка загрузки тестовых данных',
+      debug: debug,
     }, { status: 500 });
   }
 }

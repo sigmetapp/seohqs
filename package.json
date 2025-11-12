@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.81.1",
     "@tanstack/react-table": "^8.10.0",
     "@vercel/postgres": "^0.10.0",
     "better-sqlite3": "^12.4.1",

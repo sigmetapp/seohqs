@@ -25,12 +25,23 @@ export default function Home() {
       const response = await fetch('/api/data');
       const data = await response.json();
       
+      // Выводим отладочную информацию в консоль
+      console.log('API Response:', data);
+      if (data.debug) {
+        console.log('Debug info:', data.debug);
+      }
+      
       if (data.success) {
         setOffers(data.offers || []);
       } else {
-        setError(data.error || 'Ошибка загрузки данных');
+        const errorMsg = data.error || 'Ошибка загрузки данных';
+        setError(errorMsg);
+        if (data.debug) {
+          console.error('Debug details:', data.debug);
+        }
       }
     } catch (err: any) {
+      console.error('Fetch error:', err);
       setError(err.message || 'Ошибка подключения');
     } finally {
       setLoading(false);
@@ -44,12 +55,23 @@ export default function Home() {
       const response = await fetch('/api/seed', { method: 'POST' });
       const data = await response.json();
       
+      // Выводим отладочную информацию в консоль
+      console.log('Seed API Response:', data);
+      if (data.debug) {
+        console.log('Seed Debug info:', data.debug);
+      }
+      
       if (data.success) {
         await loadData();
       } else {
-        setError(data.error || 'Ошибка загрузки тестовых данных');
+        const errorMsg = data.error || 'Ошибка загрузки тестовых данных';
+        setError(errorMsg);
+        if (data.debug) {
+          console.error('Seed Debug details:', data.debug);
+        }
       }
     } catch (err: any) {
+      console.error('Seed fetch error:', err);
       setError(err.message || 'Ошибка подключения');
     } finally {
       setLoading(false);
@@ -96,9 +118,27 @@ export default function Home() {
 
         {error && (
           <div className="bg-red-900 border border-red-700 rounded p-4 mb-6">
-            <p className="text-red-200">Ошибка: {error}</p>
+            <p className="text-red-200 font-bold">Ошибка: {error}</p>
           </div>
         )}
+
+        {/* Отладочная информация */}
+        <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-purple-500">
+          <h2 className="text-xl font-bold mb-4 text-purple-300">Отладочная информация</h2>
+          <div className="space-y-2 text-sm">
+            <p className="text-gray-400">
+              <strong>Переменные окружения:</strong>
+            </p>
+            <ul className="list-disc list-inside text-gray-300 ml-4">
+              <li>NEXT_PUBLIC_SUPABASE_URL: {typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_SUPABASE_URL ? '✓ установлена' : '✗ не установлена') : 'проверка на сервере'}</li>
+              <li>NEXT_PUBLIC_SUPABASE_ANON_KEY: {typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✓ установлена' : '✗ не установлена') : 'проверка на сервере'}</li>
+              <li>SUPABASE_SERVICE_ROLE_KEY: {typeof window !== 'undefined' ? 'проверка на сервере' : 'проверка на сервере'}</li>
+            </ul>
+            <p className="text-gray-400 mt-4">
+              <strong>Примечание:</strong> Проверьте ответ API в консоли браузера (F12) для подробной информации о подключении к базе данных.
+            </p>
+          </div>
+        </div>
 
         {offers.length === 0 && !error && (
           <div className="bg-yellow-900 border border-yellow-700 rounded p-4 mb-6">
