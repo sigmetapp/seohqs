@@ -11,20 +11,28 @@ export const runtime = 'nodejs';
  */
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams, origin } = new URL(request.url);
     const code = searchParams.get('code');
     const state = searchParams.get('state');
     const error = searchParams.get('error');
 
+    // Определяем базовый URL для редиректов
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || origin;
+
     if (error) {
+      console.error('[Google OAuth Callback] Error from Google:', error);
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/integrations?error=${encodeURIComponent(error)}`
+        `${baseUrl}/integrations?error=${encodeURIComponent(
+          error === 'redirect_uri_mismatch' 
+            ? 'Ошибка redirect_uri_mismatch: Убедитесь, что в Google Cloud Console добавлен правильный Redirect URI: ' + origin + '/api/auth/google/callback'
+            : error
+        )}`
       );
     }
 
     if (!code) {
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/integrations?error=${encodeURIComponent('Код авторизации не получен')}`
+        `${baseUrl}/integrations?error=${encodeURIComponent('Код авторизации не получен')}`
       );
     }
 
@@ -33,12 +41,13 @@ export async function GET(request: Request) {
 
     if (!clientId || !clientSecret) {
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/integrations?error=${encodeURIComponent('OAuth не настроен')}`
+        `${baseUrl}/integrations?error=${encodeURIComponent('OAuth не настроен')}`
       );
     }
 
     // Декодируем state для получения redirect_uri
-    let redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/google/callback`;
+    // Если state не передан, используем текущий origin
+    let redirectUri = `${origin}/api/auth/google/callback`;
     if (state) {
       try {
         const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
@@ -46,9 +55,13 @@ export async function GET(request: Request) {
           redirectUri = stateData.redirect_uri;
         }
       } catch (e) {
-        console.warn('Не удалось декодировать state:', e);
+        console.warn('[Google OAuth Callback] Не удалось декодировать state:', e);
       }
     }
+
+    // Логируем для отладки
+    console.log('[Google OAuth Callback] Redirect URI:', redirectUri);
+    console.log('[Google OAuth Callback] Origin:', origin);
 
     const oauth2Client = new google.auth.OAuth2(
       clientId,
@@ -61,7 +74,7 @@ export async function GET(request: Request) {
 
     if (!tokens.access_token || !tokens.refresh_token) {
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/integrations?error=${encodeURIComponent('Не удалось получить токены')}`
+        `${baseUrl}/integrations?error=${encodeURIComponent('Не удалось получить токены')}`
       );
     }
 
@@ -84,12 +97,21 @@ export async function GET(request: Request) {
 
     // Перенаправляем на страницу интеграций с успешным сообщением
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/integrations?success=${encodeURIComponent('Google авторизация успешна!')}`
+      `${baseUrl}/integrations?success=${encodeURIComponent('Google авторизация успешна!')}`
     );
   } catch (error: any) {
-    console.error('Ошибка обработки OAuth callback:', error);
+    console.error('[Google OAuth Callback] Ошибка обработки OAuth callback:', error);
+    
+    // Проверяем, не является ли это ошибкой redirect_uri_mismatch
+    const errorMessage = error.message || 'Ошибка авторизации';
+    let userMessage = errorMessage;
+    
+    if (errorMessage.includes('redirect_uri_mismatch') || errorMessage.includes('redirect_uri')) {
+      userMessage = `Ошибка redirect_uri_mismatch. Убедитесь, что в Google Cloud Console добавлен Redirect URI: ${origin}/api/auth/google/callback`;
+    }
+    
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/integrations?error=${encodeURIComponent(error.message || 'Ошибка авторизации')}`
+      `${baseUrl}/integrations?error=${encodeURIComponent(userMessage)}`
     );
   }
 }

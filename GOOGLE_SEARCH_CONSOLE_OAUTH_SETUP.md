@@ -36,6 +36,8 @@
    - **Authorized redirect URIs**: 
      - Для локальной разработки: `http://localhost:3000/api/auth/google/callback`
      - Для продакшена: `https://yourdomain.com/api/auth/google/callback`
+     - ⚠️ **Важно:** Добавьте все домены, на которых будет работать приложение (localhost для разработки и продакшен домен)
+     - ⚠️ **Важно:** Redirect URI должен точно совпадать, включая протокол (http/https), домен, порт (если используется) и путь
    - Нажмите **Create**
 7. Скопируйте **Client ID** и **Client Secret**
 
@@ -149,10 +151,29 @@ OAuth токены автоматически обновляются при ис
 
 **Причина:** Redirect URI в Google Cloud Console не совпадает с URL приложения  
 **Решение:** 
-1. Проверьте, что в Google Cloud Console добавлен правильный Redirect URI
-2. Для локальной разработки: `http://localhost:3000/api/auth/google/callback`
-3. Для продакшена: `https://yourdomain.com/api/auth/google/callback`
-4. Убедитесь, что `NEXT_PUBLIC_APP_URL` установлен правильно
+1. Определите текущий URL вашего приложения:
+   - Для локальной разработки: `http://localhost:3000`
+   - Для продакшена: ваш домен (например, `https://yourdomain.com`)
+2. Добавьте в Google Cloud Console Redirect URI в формате: `{ваш_домен}/api/auth/google/callback`
+   - Для локальной разработки: `http://localhost:3000/api/auth/google/callback`
+   - Для продакшена: `https://yourdomain.com/api/auth/google/callback`
+3. **Важно:** Redirect URI должен точно совпадать, включая:
+   - Протокол (http или https)
+   - Домен (localhost или ваш домен)
+   - Порт (если используется нестандартный порт)
+   - Путь (`/api/auth/google/callback`)
+4. После добавления Redirect URI в Google Cloud Console подождите несколько минут для применения изменений
+5. Попробуйте авторизоваться снова
+
+**Как добавить Redirect URI в Google Cloud Console:**
+1. Откройте [Google Cloud Console](https://console.cloud.google.com/)
+2. Выберите ваш проект
+3. Перейдите в **APIs & Services** → **Credentials**
+4. Найдите ваш OAuth 2.0 Client ID и нажмите на него для редактирования
+5. В разделе **Authorized redirect URIs** нажмите **Add URI**
+6. Введите ваш Redirect URI (например, `https://yourdomain.com/api/auth/google/callback`)
+7. Нажмите **Save**
+8. Подождите 1-2 минуты и попробуйте авторизоваться снова
 
 ### Ошибка: "access_denied"
 

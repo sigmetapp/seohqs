@@ -10,9 +10,12 @@ export const runtime = 'nodejs';
  */
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams, origin } = new URL(request.url);
+    
+    // Определяем redirect_uri на основе текущего запроса
+    // Это гарантирует, что redirect_uri будет соответствовать текущему домену и протоколу
     const redirectUri = searchParams.get('redirect_uri') || 
-      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/google/callback`;
+      `${origin}/api/auth/google/callback`;
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -29,6 +32,11 @@ export async function GET(request: Request) {
         { status: 500 }
       );
     }
+
+    // Логируем redirect_uri для отладки
+    console.log('[Google OAuth] Redirect URI:', redirectUri);
+    console.log('[Google OAuth] Origin:', origin);
+    console.log('[Google OAuth] Client ID:', clientId?.substring(0, 20) + '...');
 
     const oauth2Client = new google.auth.OAuth2(
       clientId,
