@@ -92,6 +92,63 @@ export default function Home() {
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Определяем источник по имени файла
+      const fileName = file.name.toLowerCase();
+      let source = 'upload';
+      if (fileName.includes('admitad')) source = 'admitad';
+      else if (fileName.includes('advertise')) source = 'advertise';
+      else if (fileName.includes('cj')) source = 'cj';
+      else if (fileName.includes('clickbank')) source = 'clickbank';
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('source', source);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      
+      console.log('Upload API Response:', data);
+      if (data.debug) {
+        console.log('Upload Debug info:', data.debug);
+      }
+
+      if (data.success) {
+        console.log('✅ Файл успешно загружен:', data.message);
+        if (data.debug) {
+          console.log('Debug steps:', data.debug.steps);
+        }
+        await loadData();
+      } else {
+        const errorMsg = data.error || 'Ошибка загрузки файла';
+        setError(errorMsg);
+        console.error('❌ Ошибка загрузки файла:', errorMsg);
+        if (data.debug) {
+          console.error('Debug steps:', data.debug.steps);
+          console.error('Debug errors:', data.debug.errors);
+        }
+      }
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      setError(err.message || 'Ошибка загрузки файла');
+    } finally {
+      setLoading(false);
+      // Сбрасываем input, чтобы можно было загрузить тот же файл снова
+      event.target.value = '';
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, []);
@@ -111,19 +168,31 @@ export default function Home() {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-4">Тестовая страница</h1>
-          <div className="flex gap-4 mb-4">
+          <div className="flex flex-wrap gap-4 mb-4">
             <button
               onClick={loadData}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+              disabled={loading}
             >
               Обновить данные
             </button>
             <button
               onClick={loadTestData}
               className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded"
+              disabled={loading}
             >
               Загрузить тестовые данные
             </button>
+            <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded cursor-pointer">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                className="hidden"
+                disabled={loading}
+              />
+              {loading ? 'Загрузка...' : 'Загрузить CSV файл'}
+            </label>
           </div>
           <p className="text-gray-400">
             Записей в базе: {offers.length}
