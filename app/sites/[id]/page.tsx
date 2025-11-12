@@ -16,12 +16,24 @@ export default function SiteDetailPage() {
   const [ahrefsData, setAhrefsData] = useState<AhrefsData | null>(null);
   const [postbacks, setPostbacks] = useState<PostbackData[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    googleSearchConsoleUrl: '',
+  });
 
   useEffect(() => {
     if (siteId) {
       loadSite();
     }
   }, [siteId]);
+
+  useEffect(() => {
+    if (site) {
+      setEditForm({
+        googleSearchConsoleUrl: site.googleSearchConsoleUrl || '',
+      });
+    }
+  }, [site]);
 
   useEffect(() => {
     if (site && activeTab !== 'overview') {
@@ -76,19 +88,51 @@ export default function SiteDetailPage() {
   const handleSyncGoogle = async () => {
     try {
       setLoadingData(true);
+      
+      // Проверяем наличие необходимых настроек перед синхронизацией
+      if (!site?.googleConsoleStatus?.hasOAuth) {
+        const shouldGoToIntegrations = confirm(
+          'Для синхронизации необходимо авторизоваться через Google. Перейти на страницу интеграций?'
+        );
+        if (shouldGoToIntegrations) {
+          window.location.href = '/integrations';
+        }
+        return;
+      }
+      
+      if (!site?.googleConsoleStatus?.hasUrl) {
+        const shouldEdit = confirm(
+          'Для синхронизации необходимо указать URL сайта в Google Search Console. Открыть форму редактирования?'
+        );
+        if (shouldEdit) {
+          setShowEditModal(true);
+        }
+        return;
+      }
+      
       const response = await fetch(`/api/sites/${siteId}/google-console/sync`, {
         method: 'POST',
       });
-      const data = await response.json();
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        throw new Error(`Ошибка сервера: ${response.status} ${response.statusText}`);
+      }
+      
       if (data.success) {
         loadTabData();
-        alert('Данные Google Search Console обновлены');
+        alert(`Данные Google Search Console обновлены. Загружено ${data.count || 0} записей.`);
       } else {
-        alert(data.error || 'Ошибка синхронизации');
+        const errorMessage = data.error || 'Ошибка синхронизации';
+        console.error('Google sync error:', errorMessage);
+        alert(errorMessage);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error syncing Google:', err);
-      alert('Ошибка синхронизации');
+      const errorMessage = err.message || 'Ошибка синхронизации Google Search Console';
+      alert(errorMessage);
     } finally {
       setLoadingData(false);
     }
@@ -124,6 +168,30 @@ export default function SiteDetailPage() {
       alert(errorMessage);
     } finally {
       setLoadingData(false);
+    }
+  };
+
+  const handleUpdateSite = async () => {
+    try {
+      const response = await fetch(`/api/sites/${siteId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...site,
+          googleSearchConsoleUrl: editForm.googleSearchConsoleUrl || undefined,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSite(data.site);
+        setShowEditModal(false);
+        alert('Настройки сайта обновлены');
+      } else {
+        alert(data.error || 'Ошибка обновления сайта');
+      }
+    } catch (err) {
+      console.error('Error updating site:', err);
+      alert('Ошибка обновления сайта');
     }
   };
 
@@ -185,13 +253,36 @@ export default function SiteDetailPage() {
               </div>
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <div className="text-sm text-gray-400 mb-2">Google Console</div>
-                <div className="text-xl font-bold">
+                <div className="text-xl font-bold mb-2">
                   {site?.hasGoogleConsoleConnection ? (
                     <span className="text-green-400">Подключено</span>
                   ) : (
-                    <span className="text-gray-600">Не подключено</span>
+                    <span className="text-yellow-400">Не подключено</span>
                   )}
                 </div>
+                {!site?.hasGoogleConsoleConnection && (
+                  <div className="text-xs text-gray-400 space-y-1">
+                    {!site?.googleConsoleStatus?.hasOAuth && (
+                      <div>
+                        ⚠️ OAuth не настроен.{' '}
+                        <a href="/integrations" className="text-blue-400 hover:underline">
+                          Настроить
+                        </a>
+                      </div>
+                    )}
+                    {site?.googleConsoleStatus?.hasOAuth && !site?.googleConsoleStatus?.hasUrl && (
+                      <div>
+                        ⚠️ URL не указан.{' '}
+                        <button
+                          onClick={() => setShowEditModal(true)}
+                          className="text-blue-400 hover:underline"
+                        >
+                          Указать
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <div className="text-sm text-gray-400 mb-2">Ahrefs API</div>
@@ -204,6 +295,25 @@ export default function SiteDetailPage() {
                 </div>
               </div>
             </div>
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold">Настройки сайта</h3>
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                >
+                  Редактировать
+                </button>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="text-gray-400">Google Search Console URL:</span>{' '}
+                  <span className="text-gray-300">
+                    {site?.googleSearchConsoleUrl || 'Не указан'}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -211,14 +321,52 @@ export default function SiteDetailPage() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">Данные Google Search Console</h2>
-              <button
-                onClick={handleSyncGoogle}
-                disabled={loadingData || !site?.hasGoogleConsoleConnection}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50"
-              >
-                {loadingData ? 'Синхронизация...' : 'Синхронизировать'}
-              </button>
+              <div className="flex gap-2">
+                {!site?.hasGoogleConsoleConnection && (
+                  <div className="flex items-center gap-2 text-sm text-yellow-400 mr-4">
+                    {!site?.googleConsoleStatus?.hasOAuth ? (
+                      <>
+                        <span>⚠️ OAuth не настроен</span>
+                        <a
+                          href="/integrations"
+                          className="text-blue-400 hover:underline"
+                        >
+                          Настроить
+                        </a>
+                      </>
+                    ) : !site?.googleConsoleStatus?.hasUrl ? (
+                      <>
+                        <span>⚠️ URL не указан</span>
+                        <button
+                          onClick={() => setShowEditModal(true)}
+                          className="text-blue-400 hover:underline"
+                        >
+                          Указать
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                )}
+                <button
+                  onClick={handleSyncGoogle}
+                  disabled={loadingData}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingData ? 'Синхронизация...' : 'Синхронизировать'}
+                </button>
+              </div>
             </div>
+            {!site?.hasGoogleConsoleConnection && (
+              <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
+                <p className="text-yellow-300 text-sm">
+                  {!site?.googleConsoleStatus?.hasOAuth
+                    ? 'Для синхронизации данных необходимо авторизоваться через Google в разделе Интеграции.'
+                    : !site?.googleConsoleStatus?.hasUrl
+                    ? 'Для синхронизации данных необходимо указать URL сайта в Google Search Console.'
+                    : 'Подключение не настроено.'}
+                </p>
+              </div>
+            )}
             {loadingData ? (
               <div className="text-center py-8">Загрузка данных...</div>
             ) : googleData.length === 0 ? (
@@ -341,6 +489,50 @@ export default function SiteDetailPage() {
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Модальное окно редактирования сайта */}
+        {showEditModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
+              <h2 className="text-2xl font-bold mb-4">Редактировать сайт</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Google Search Console URL
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.googleSearchConsoleUrl}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, googleSearchConsoleUrl: e.target.value })
+                    }
+                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    placeholder="sc-domain:example.com или https://example.com"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Укажите URL сайта из Google Search Console. Поддерживаются форматы:{' '}
+                    <code className="bg-gray-900 px-1 rounded">sc-domain:example.com</code>,{' '}
+                    <code className="bg-gray-900 px-1 rounded">https://example.com</code>
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleUpdateSite}
+                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+                  >
+                    Сохранить
+                  </button>
+                  <button
+                    onClick={() => setShowEditModal(false)}
+                    className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

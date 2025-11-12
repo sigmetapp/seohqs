@@ -67,6 +67,12 @@ export interface Site {
   // Поля, добавляемые в API response для отображения статуса подключений
   hasGoogleConsoleConnection?: boolean;
   hasAhrefsConnection?: boolean;
+  // Детальная информация о статусе Google Console
+  googleConsoleStatus?: {
+    connected: boolean;
+    hasOAuth: boolean;
+    hasUrl: boolean;
+  };
 }
 
 export interface GoogleSearchConsoleData {
