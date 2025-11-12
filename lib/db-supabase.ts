@@ -333,6 +333,19 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
       .single();
 
     if (error) {
+      // Если таблица не существует (42P01 - undefined_table)
+      if (error.code === '42P01' || error.message?.includes('does not exist') || error.message?.includes('schema cache')) {
+        console.error('Table integrations does not exist. Please run migration: migrations/006_integrations_table_supabase.sql');
+        return {
+          id: 1,
+          googleServiceAccountEmail: '',
+          googlePrivateKey: '',
+          ahrefsApiKey: '',
+          googleSearchConsoleUrl: '',
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
       if (error.code === 'PGRST116') {
         // Запись не найдена, создаем её
         const { data: newData, error: insertError } = await supabase
@@ -439,6 +452,15 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
       .single();
 
     if (error) {
+      // Если таблица не существует
+      if (error.code === '42P01' || error.message?.includes('does not exist') || error.message?.includes('schema cache')) {
+        throw new Error(
+          `Таблица integrations не существует в Supabase. Пожалуйста, выполните миграцию:\n` +
+          `1. Откройте Supabase Dashboard\n` +
+          `2. Перейдите в SQL Editor\n` +
+          `3. Выполните SQL из файла: migrations/006_integrations_table_supabase.sql`
+        );
+      }
       throw new Error(`Supabase update error: ${error.message}`);
     }
 
