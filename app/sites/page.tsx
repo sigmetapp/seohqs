@@ -209,7 +209,7 @@ export default function SitesPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Google Search Console URL (необязательно)
+                    Google Search Console URL <span className="text-gray-500 text-xs">(необязательно - будет определен автоматически по домену)</span>
                   </label>
                   <input
                     type="text"

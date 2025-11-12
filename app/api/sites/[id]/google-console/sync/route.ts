@@ -32,23 +32,28 @@ export async function POST(
       );
     }
 
-    if (!site.googleSearchConsoleUrl) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Google Search Console не настроен для этого сайта',
-        },
-        { status: 400 }
-      );
-    }
-
     // Получаем данные из Google Search Console API
     const searchConsoleService = createSearchConsoleService();
     
+    // Если URL не указан, пытаемся найти автоматически по домену
+    let foundSiteUrl: string | null = null;
+    if (!site.googleSearchConsoleUrl && site.domain) {
+      try {
+        foundSiteUrl = await searchConsoleService.findSiteByDomain(site.domain);
+        if (foundSiteUrl) {
+          console.log(`Автоматически найден сайт в GSC: ${foundSiteUrl} для домена ${site.domain}`);
+        }
+      } catch (error) {
+        console.warn('Не удалось автоматически найти сайт в GSC:', error);
+      }
+    }
+    
     // Получаем данные за последние 30 дней
+    // Передаем найденный URL или указанный вручную, и домен для автоматического поиска
     const aggregatedData = await searchConsoleService.getAggregatedData(
-      site.googleSearchConsoleUrl,
-      30
+      site.googleSearchConsoleUrl || foundSiteUrl,
+      30,
+      site.domain
     );
 
     if (aggregatedData.length === 0) {
@@ -89,8 +94,10 @@ export async function POST(
       errorMessage = 'Ошибка аутентификации. Убедитесь, что вы авторизованы через Google в разделе Интеграции.';
     } else if (errorMessage.includes('доступ запрещен') || errorMessage.includes('403')) {
       errorMessage = 'Доступ запрещен. Убедитесь, что ваш Google аккаунт имеет доступ к сайту в Google Search Console.';
-    } else if (errorMessage.includes('не удалось извлечь URL')) {
-      errorMessage = 'Неверный формат URL Google Search Console. Убедитесь, что URL корректный.';
+    } else if (errorMessage.includes('не удалось извлечь URL') || errorMessage.includes('Не удалось автоматически найти сайт')) {
+      errorMessage = 'Не удалось автоматически найти сайт в Google Search Console. Укажите URL сайта вручную в настройках сайта.';
+    } else if (errorMessage.includes('Не указан URL сайта')) {
+      errorMessage = 'Не указан URL сайта и домен для автоматического поиска. Укажите URL сайта в настройках сайта.';
     }
 
     return NextResponse.json(
