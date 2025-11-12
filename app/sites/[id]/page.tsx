@@ -100,16 +100,28 @@ export default function SiteDetailPage() {
       const response = await fetch(`/api/sites/${siteId}/ahrefs/sync`, {
         method: 'POST',
       });
-      const data = await response.json();
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        // Если не удалось распарсить JSON, показываем статус ошибки
+        throw new Error(`Ошибка сервера: ${response.status} ${response.statusText}`);
+      }
+      
       if (data.success) {
         loadTabData();
         alert('Данные Ahrefs обновлены');
       } else {
-        alert(data.error || 'Ошибка синхронизации');
+        // Показываем детальное сообщение об ошибке
+        const errorMessage = data.error || 'Ошибка синхронизации';
+        console.error('Ahrefs sync error:', errorMessage);
+        alert(errorMessage);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error syncing Ahrefs:', err);
-      alert('Ошибка синхронизации');
+      const errorMessage = err.message || 'Ошибка синхронизации Ahrefs';
+      alert(errorMessage);
     } finally {
       setLoadingData(false);
     }

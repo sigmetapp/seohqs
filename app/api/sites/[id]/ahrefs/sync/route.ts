@@ -60,15 +60,46 @@ export async function POST(
     // Получаем данные из Ahrefs API
     let metrics;
     try {
+      console.log('[Ahrefs Sync] Начало синхронизации:', {
+        siteId,
+        domain: site.domain,
+        hasApiKey: !!ahrefsApiKey,
+        apiKeyLength: ahrefsApiKey?.length || 0,
+      });
+      
       metrics = await fetchAhrefsSiteMetrics(site.domain, ahrefsApiKey);
+      
+      console.log('[Ahrefs Sync] Данные получены успешно:', {
+        domainRating: metrics.domainRating,
+        backlinks: metrics.backlinks,
+      });
     } catch (apiError: any) {
+      // Логируем детали ошибки
+      console.error('[Ahrefs Sync] Ошибка API:', {
+        message: apiError.message,
+        stack: apiError.stack,
+        domain: site.domain,
+      });
+      
       // Если API вернул ошибку, возвращаем понятное сообщение
+      const errorMessage = apiError.message || 'Неизвестная ошибка';
+      
+      // Определяем статус код на основе сообщения об ошибке
+      let statusCode = 400;
+      if (errorMessage.includes('403 Forbidden')) {
+        statusCode = 403;
+      } else if (errorMessage.includes('401')) {
+        statusCode = 401;
+      } else if (errorMessage.includes('404')) {
+        statusCode = 404;
+      }
+      
       return NextResponse.json(
         {
           success: false,
-          error: `Ошибка при запросе к Ahrefs API: ${apiError.message}. Проверьте правильность API ключа и домена.`,
+          error: errorMessage,
         },
-        { status: 400 }
+        { status: statusCode }
       );
     }
 
