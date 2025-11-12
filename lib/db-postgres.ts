@@ -1,5 +1,5 @@
 import { getPostgresClient } from './postgres-client';
-import type { AffiliateOffer } from './types';
+import type { AffiliateOffer, Site } from './types';
 
 // Проверяем, доступна ли PostgreSQL БД
 function isPostgresAvailable(): boolean {
@@ -85,5 +85,161 @@ export async function getOffersCount(): Promise<number> {
     }
     console.error('Error getting offers count:', error);
     return 0;
+  }
+}
+
+// Sites functions
+export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedAt'>): Promise<Site> {
+  if (!isPostgresAvailable()) {
+    throw new Error('PostgreSQL database not configured. Please set POSTGRES_URL or DATABASE_URL.');
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const result = await db.query(
+      `INSERT INTO sites (name, domain, category, google_search_console_url, ahrefs_api_key) 
+       VALUES ($1, $2, $3, $4, $5) 
+       RETURNING id, name, domain, category, google_search_console_url, ahrefs_api_key, created_at, updated_at`,
+      [
+        site.name,
+        site.domain,
+        site.category || null,
+        site.googleSearchConsoleUrl || null,
+        site.ahrefsApiKey || null,
+      ]
+    );
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      name: row.name,
+      domain: row.domain,
+      category: row.category,
+      googleSearchConsoleUrl: row.google_search_console_url,
+      ahrefsApiKey: row.ahrefs_api_key,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      throw new Error('Table sites does not exist. Please run migrations manually. See migrations/002_sites_table.sql');
+    }
+    throw error;
+  }
+}
+
+export async function getAllSites(): Promise<Site[]> {
+  if (!isPostgresAvailable()) {
+    console.warn('PostgreSQL database not configured, returning empty array');
+    return [];
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const result = await db.query('SELECT * FROM sites ORDER BY created_at DESC');
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      domain: row.domain,
+      category: row.category,
+      googleSearchConsoleUrl: row.google_search_console_url,
+      ahrefsApiKey: row.ahrefs_api_key,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      console.warn('Table sites does not exist. Please run migrations manually.');
+      return [];
+    }
+    console.error('Error fetching sites:', error);
+    return [];
+  }
+}
+
+export async function getSiteById(id: number): Promise<Site | null> {
+  if (!isPostgresAvailable()) {
+    return null;
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const result = await db.query('SELECT * FROM sites WHERE id = $1', [id]);
+    
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      name: row.name,
+      domain: row.domain,
+      category: row.category,
+      googleSearchConsoleUrl: row.google_search_console_url,
+      ahrefsApiKey: row.ahrefs_api_key,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      return null;
+    }
+    console.error('Error fetching site:', error);
+    return null;
+  }
+}
+
+export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdAt'>>): Promise<Site> {
+  if (!isPostgresAvailable()) {
+    throw new Error('PostgreSQL database not configured');
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (site.name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(site.name);
+    }
+    if (site.domain !== undefined) {
+      updates.push(`domain = $${paramIndex++}`);
+      values.push(site.domain);
+    }
+    if (site.category !== undefined) {
+      updates.push(`category = $${paramIndex++}`);
+      values.push(site.category || null);
+    }
+    if (site.googleSearchConsoleUrl !== undefined) {
+      updates.push(`google_search_console_url = $${paramIndex++}`);
+      values.push(site.googleSearchConsoleUrl || null);
+    }
+    if (site.ahrefsApiKey !== undefined) {
+      updates.push(`ahrefs_api_key = $${paramIndex++}`);
+      values.push(site.ahrefsApiKey || null);
+    }
+
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(id);
+
+    const query = `UPDATE sites SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+    const result = await db.query(query, values);
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      name: row.name,
+      domain: row.domain,
+      category: row.category,
+      googleSearchConsoleUrl: row.google_search_console_url,
+      ahrefsApiKey: row.ahrefs_api_key,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } catch (error: any) {
+    throw error;
   }
 }

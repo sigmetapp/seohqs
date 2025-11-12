@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { storage } from '@/lib/storage';
+import { getSiteById } from '@/lib/db-adapter';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -9,7 +9,18 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const site = storage.sites.find((s) => s.id === parseInt(params.id));
+    const siteId = parseInt(params.id);
+    if (isNaN(siteId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Неверный ID сайта',
+        },
+        { status: 400 }
+      );
+    }
+
+    const site = await getSiteById(siteId);
     
     if (!site) {
       return NextResponse.json(
@@ -26,6 +37,7 @@ export async function GET(
       site: site,
     });
   } catch (error: any) {
+    console.error('Error fetching site:', error);
     return NextResponse.json(
       {
         success: false,

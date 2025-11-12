@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server';
-import { storage } from '@/lib/storage';
+import { getAllSites, insertSite } from '@/lib/db-adapter';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET() {
   try {
+    const sites = await getAllSites();
     return NextResponse.json({
       success: true,
-      sites: storage.sites,
+      sites: sites,
     });
   } catch (error: any) {
+    console.error('Error fetching sites:', error);
     return NextResponse.json(
       {
         success: false,
@@ -24,7 +26,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, domain, googleSearchConsoleUrl, ahrefsApiKey } = body;
+    const { name, domain, category, googleSearchConsoleUrl, ahrefsApiKey } = body;
 
     if (!name || !domain) {
       return NextResponse.json(
@@ -36,23 +38,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const newSite = {
-      id: storage.counters.siteId++,
+    const newSite = await insertSite({
       name,
       domain,
-      googleSearchConsoleUrl: googleSearchConsoleUrl || '',
-      ahrefsApiKey: ahrefsApiKey || '',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    storage.sites.push(newSite);
+      category: category || undefined,
+      googleSearchConsoleUrl: googleSearchConsoleUrl || undefined,
+      ahrefsApiKey: ahrefsApiKey || undefined,
+    });
 
     return NextResponse.json({
       success: true,
       site: newSite,
     });
   } catch (error: any) {
+    console.error('Error creating site:', error);
     return NextResponse.json(
       {
         success: false,
