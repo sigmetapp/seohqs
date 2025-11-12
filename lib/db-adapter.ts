@@ -268,3 +268,52 @@ export async function bulkInsertGoogleSearchConsoleData(
     return bulkInsertSQLite(data);
   }
 }
+
+// Ahrefs Data adapter functions
+export interface AhrefsDataRow {
+  id: number;
+  siteId: number;
+  domainRating: number;
+  backlinks: number;
+  referringDomains: number;
+  organicKeywords: number;
+  organicTraffic: number;
+  date: string;
+  createdAt: string;
+}
+
+export async function insertAhrefsData(
+  data: Omit<AhrefsDataRow, 'id' | 'createdAt'>
+): Promise<AhrefsDataRow> {
+  if (useSupabase()) {
+    const { insertAhrefsData: insertSupabase } = await import('./db-supabase');
+    return insertSupabase(data);
+  } else if (usePostgres()) {
+    const { insertAhrefsData: insertPostgres } = await import('./db-postgres');
+    return insertPostgres(data);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { insertAhrefsData: insertSQLite } = require('./db');
+    return insertSQLite(data);
+  }
+}
+
+export async function getAhrefsDataBySiteId(
+  siteId: number
+): Promise<AhrefsDataRow | null> {
+  if (useSupabase()) {
+    const { getAhrefsDataBySiteId: getSupabase } = await import('./db-supabase');
+    return getSupabase(siteId);
+  } else if (usePostgres()) {
+    const { getAhrefsDataBySiteId: getPostgres } = await import('./db-postgres');
+    return getPostgres(siteId);
+  } else {
+    if (process.env.VERCEL) {
+      return null;
+    }
+    const { getAhrefsDataBySiteId: getSQLite } = require('./db');
+    return getSQLite(siteId);
+  }
+}
