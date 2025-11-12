@@ -293,7 +293,7 @@ export async function fetchAhrefsSiteMetrics(
       }
       
       throw new Error(
-        `Ahrefs API не вернул данные. Ошибки: ${errorMessages.join('; ')}. Проблема: API ключ не имеет доступа к Site Explorer API или неверный. Проверьте: 1) API ключ активен и правильный, 2) В настройках API ключа в Ahrefs включен доступ к Site Explorer API, 3) У вашего аккаунта есть подписка с доступом к API.`
+        `Ahrefs API не вернул данные. Ошибки: ${errorMessages.join('; ')}. Проблема: API ключ не имеет доступа к Site Explorer API или неверный. ВАЖНО: Если Ahrefs предоставляет доступ только через MCP Server, то прямой REST API может быть недоступен. Проверьте: 1) API ключ активен и правильный, 2) В настройках API ключа в Ahrefs включен доступ к Site Explorer API, 3) У вашего аккаунта есть подписка с доступом к API, 4) Если доступ только через MCP Server, настройте MCP сервер для Ahrefs.`
       );
     }
     
