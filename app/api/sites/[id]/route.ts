@@ -36,11 +36,22 @@ export async function GET(
     const integrations = await getIntegrations();
     const hasAhrefsConnection = site.ahrefsApiKey || integrations.ahrefsApiKey;
 
+    // Проверяем статус подключения Google Console
+    // Подключено, если:
+    // 1. У сайта указан googleSearchConsoleUrl И
+    // 2. Есть OAuth токены
+    const hasGoogleOAuth = !!(integrations.googleAccessToken && integrations.googleRefreshToken);
+    const hasGoogleConsoleConnection = !!(
+      site.googleSearchConsoleUrl && 
+      hasGoogleOAuth
+    );
+
     return NextResponse.json({
       success: true,
       site: {
         ...site,
         hasAhrefsConnection: !!hasAhrefsConnection,
+        hasGoogleConsoleConnection,
       },
     });
   } catch (error: any) {
@@ -86,11 +97,19 @@ export async function PUT(
     const integrations = await getIntegrations();
     const hasAhrefsConnection = updatedSite.ahrefsApiKey || integrations.ahrefsApiKey;
 
+    // Проверяем статус подключения Google Console
+    const hasGoogleOAuth = !!(integrations.googleAccessToken && integrations.googleRefreshToken);
+    const hasGoogleConsoleConnection = !!(
+      updatedSite.googleSearchConsoleUrl && 
+      hasGoogleOAuth
+    );
+
     return NextResponse.json({
       success: true,
       site: {
         ...updatedSite,
         hasAhrefsConnection: !!hasAhrefsConnection,
+        hasGoogleConsoleConnection,
       },
     });
   } catch (error: any) {

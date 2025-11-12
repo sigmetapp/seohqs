@@ -186,7 +186,7 @@ export default function SiteDetailPage() {
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <div className="text-sm text-gray-400 mb-2">Google Console</div>
                 <div className="text-xl font-bold">
-                  {site?.googleSearchConsoleUrl ? (
+                  {site?.hasGoogleConsoleConnection ? (
                     <span className="text-green-400">Подключено</span>
                   ) : (
                     <span className="text-gray-600">Не подключено</span>
@@ -213,7 +213,7 @@ export default function SiteDetailPage() {
               <h2 className="text-2xl font-bold">Данные Google Search Console</h2>
               <button
                 onClick={handleSyncGoogle}
-                disabled={loadingData || !site?.googleSearchConsoleUrl}
+                disabled={loadingData || !site?.hasGoogleConsoleConnection}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50"
               >
                 {loadingData ? 'Синхронизация...' : 'Синхронизировать'}

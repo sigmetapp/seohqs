@@ -126,14 +126,14 @@ export default function SitesPage() {
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-500">Google Console:</span>
-                    <span className={site.googleSearchConsoleUrl ? 'text-green-400' : 'text-gray-600'}>
-                      {site.googleSearchConsoleUrl ? '✓' : '✗'}
+                    <span className={site.hasGoogleConsoleConnection ? 'text-green-400' : 'text-gray-600'}>
+                      {site.hasGoogleConsoleConnection ? '✓' : '✗'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-500">Ahrefs API:</span>
-                    <span className={site.ahrefsApiKey ? 'text-green-400' : 'text-gray-600'}>
-                      {site.ahrefsApiKey ? '✓' : '✗'}
+                    <span className={site.hasAhrefsConnection ? 'text-green-400' : 'text-gray-600'}>
+                      {site.hasAhrefsConnection ? '✓' : '✗'}
                     </span>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllSites, insertSite } from '@/lib/db-adapter';
+import { getAllSites, insertSite, getIntegrations } from '@/lib/db-adapter';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -7,9 +7,28 @@ export const runtime = 'nodejs';
 export async function GET() {
   try {
     const sites = await getAllSites();
+    const integrations = await getIntegrations();
+    
+    // Проверяем статус подключения для каждого сайта
+    const hasGoogleOAuth = !!(integrations.googleAccessToken && integrations.googleRefreshToken);
+    
+    const sitesWithStatus = sites.map(site => {
+      const hasGoogleConsoleConnection = !!(
+        site.googleSearchConsoleUrl && 
+        hasGoogleOAuth
+      );
+      const hasAhrefsConnection = !!(site.ahrefsApiKey || integrations.ahrefsApiKey);
+      
+      return {
+        ...site,
+        hasGoogleConsoleConnection,
+        hasAhrefsConnection,
+      };
+    });
+    
     return NextResponse.json({
       success: true,
-      sites: sites,
+      sites: sitesWithStatus,
     });
   } catch (error: any) {
     console.error('Error fetching sites:', error);

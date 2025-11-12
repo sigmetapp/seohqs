@@ -85,10 +85,10 @@ export async function POST(
     // Более детальная обработка ошибок
     let errorMessage = error.message || 'Ошибка синхронизации Google Console';
     
-    if (errorMessage.includes('Service Account')) {
-      errorMessage = 'Ошибка аутентификации. Проверьте настройки Google Service Account в разделе Интеграции.';
+    if (errorMessage.includes('OAuth') || errorMessage.includes('авторизоваться')) {
+      errorMessage = 'Ошибка аутентификации. Убедитесь, что вы авторизованы через Google в разделе Интеграции.';
     } else if (errorMessage.includes('доступ запрещен') || errorMessage.includes('403')) {
-      errorMessage = 'Доступ запрещен. Убедитесь, что Service Account имеет доступ к сайту в Google Search Console. Для доменов Google Workspace может потребоваться настройка делегирования домена.';
+      errorMessage = 'Доступ запрещен. Убедитесь, что ваш Google аккаунт имеет доступ к сайту в Google Search Console.';
     } else if (errorMessage.includes('не удалось извлечь URL')) {
       errorMessage = 'Неверный формат URL Google Search Console. Убедитесь, что URL корректный.';
     }
