@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSiteById, getIntegrations } from '@/lib/db-adapter';
+import { storage } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
