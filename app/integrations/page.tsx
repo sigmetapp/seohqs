@@ -108,6 +108,10 @@ export default function IntegrationsPage() {
       const data = await response.json();
       
       if (data.success && data.authUrl) {
+        // Если есть redirectUri, показываем его пользователю для справки
+        if (data.redirectUri) {
+          console.log('Redirect URI для добавления в Google Cloud Console:', data.redirectUri);
+        }
         // Перенаправляем на страницу авторизации Google
         window.location.href = data.authUrl;
       } else {
