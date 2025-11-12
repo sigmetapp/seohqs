@@ -18,6 +18,10 @@ export const runtime = 'nodejs';
 
 export async function GET() {
   try {
+    // Проверяем наличие переменных окружения
+    const hasPostgres = !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
+    const isVercel = !!process.env.VERCEL;
+    
     const result = await runMigrations();
     
     return NextResponse.json({
@@ -25,13 +29,27 @@ export async function GET() {
       message: 'Migrations completed',
       executed: result.executed,
       skipped: result.skipped,
+      environment: {
+        hasPostgres,
+        isVercel,
+        hasPostgresUrl: !!process.env.POSTGRES_URL,
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+      },
     });
   } catch (error) {
     console.error('Error running migrations:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     return NextResponse.json(
       {
         error: 'Failed to run migrations',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        details: errorMessage,
+        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined,
+        environment: {
+          hasPostgres: !!(process.env.POSTGRES_URL || process.env.DATABASE_URL),
+          isVercel: !!process.env.VERCEL,
+        },
       },
       { status: 500 }
     );
