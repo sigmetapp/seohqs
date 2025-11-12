@@ -2,12 +2,14 @@
 const nextConfig = {
   reactStrictMode: true,
   webpack: (config, { isServer }) => {
-    // Исключаем better-sqlite3 из серверного бандла на Vercel
+    // Исключаем better-sqlite3 из серверного бандла
     if (isServer) {
       config.externals = config.externals || [];
-      config.externals.push({
-        'better-sqlite3': 'commonjs better-sqlite3',
-      });
+      if (Array.isArray(config.externals)) {
+        config.externals.push('better-sqlite3');
+      } else {
+        config.externals = [config.externals, 'better-sqlite3'];
+      }
     }
     return config;
   },
