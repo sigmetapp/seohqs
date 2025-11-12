@@ -94,10 +94,16 @@ export async function POST(
         statusCode = 404;
       }
       
+      // Если ошибка связана с MCP Server, добавляем дополнительную информацию
+      let enhancedErrorMessage = errorMessage;
+      if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+        enhancedErrorMessage = `${errorMessage}\n\nПримечание: Если Ahrefs предоставляет доступ только через MCP Server, прямой REST API может быть недоступен. В этом случае необходимо настроить MCP сервер для Ahrefs или использовать альтернативный способ получения данных.`;
+      }
+      
       return NextResponse.json(
         {
           success: false,
-          error: errorMessage,
+          error: enhancedErrorMessage,
         },
         { status: statusCode }
       );
