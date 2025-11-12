@@ -21,7 +21,10 @@ export async function GET(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: 'GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET должны быть установлены в переменных окружения',
+          error: 'GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET должны быть установлены в переменных окружения. ' +
+                 'Для локальной разработки добавьте их в .env.local. ' +
+                 'Для Vercel добавьте их в Settings → Environment Variables. ' +
+                 'См. инструкцию: GOOGLE_SEARCH_CONSOLE_OAUTH_SETUP.md',
         },
         { status: 500 }
       );
