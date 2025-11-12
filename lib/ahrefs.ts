@@ -2,6 +2,9 @@
  * Ahrefs API Integration
  * 
  * Документация: https://ahrefs.com/api/documentation
+ * 
+ * Важно: API ключ должен иметь доступ к Site Explorer API.
+ * Проверьте настройки API ключа в Ahrefs и убедитесь, что у него включен доступ к Site Explorer API.
  */
 
 export interface AhrefsSiteMetrics {
@@ -169,6 +172,9 @@ export async function fetchAhrefsSiteMetrics(
             metricsWithoutDateData = data.metrics || (data as any).data?.metrics || {};
             console.log('[Ahrefs API] Метрики без date получены через Authorization Bearer');
             errorWithoutDate = null;
+          } else {
+            const altErrorText = await responseAlt.text();
+            console.error('[Ahrefs API] Альтернативная авторизация для метрик без date не помогла:', responseAlt.status, altErrorText);
           }
         } catch (altError) {
           console.error('[Ahrefs API] Ошибка при альтернативной авторизации:', altError);
@@ -257,6 +263,9 @@ export async function fetchAhrefsSiteMetrics(
             metricsWithDateData = data.metrics || (data as any).data?.metrics || {};
             console.log('[Ahrefs API] Метрики с date получены через Authorization Bearer');
             errorWithDate = null;
+          } else {
+            const altErrorText = await responseAlt.text();
+            console.error('[Ahrefs API] Альтернативная авторизация для метрик с date не помогла:', responseAlt.status, altErrorText);
           }
         } catch (altError) {
           console.error('[Ahrefs API] Ошибка при альтернативной авторизации:', altError);
@@ -284,7 +293,7 @@ export async function fetchAhrefsSiteMetrics(
       }
       
       throw new Error(
-        `Ahrefs API не вернул данные. Ошибки: ${errorMessages.join('; ')}. Проверьте API ключ и доступ к Site Explorer API.`
+        `Ahrefs API не вернул данные. Ошибки: ${errorMessages.join('; ')}. Проблема: API ключ не имеет доступа к Site Explorer API или неверный. Проверьте: 1) API ключ активен и правильный, 2) В настройках API ключа в Ahrefs включен доступ к Site Explorer API, 3) У вашего аккаунта есть подписка с доступом к API.`
       );
     }
     
