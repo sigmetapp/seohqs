@@ -14,8 +14,16 @@
 ### Шаг 2: Включение необходимых API
 
 1. Перейдите в **APIs & Services** → **Library**
-2. Найдите и включите нужные API (например, Google Sheets API, Google Drive API, Google Indexing API и т.д.)
+2. Найдите и включите нужные API:
+   - **Google Indexing API** (обязательно для индексации URL)
+   - Google Sheets API (если используете)
+   - Google Drive API (если используете)
 3. Нажмите "Enable" для каждого API
+
+**Важно для Google Indexing API:**
+- Google Indexing API позволяет индексировать **любые URL**, не только своего сайта
+- Однако для успешной индексации URL должен принадлежать сайту, добавленному в Google Search Console
+- Service Account должен быть добавлен как владелец сайта в Google Search Console (см. шаг 6)
 
 ### Шаг 3: Создание Service Account
 
@@ -163,6 +171,32 @@ GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\
 4. Дайте необходимые права доступа
 5. Нажмите **Send**
 
+### Настройка Google Indexing API для индексации URL
+
+**Важно:** Google Indexing API позволяет индексировать **любые URL**, но для успешной работы необходимо:
+
+1. **Добавить сайт в Google Search Console:**
+   - Откройте [Google Search Console](https://search.google.com/search-console)
+   - Добавьте свой сайт (если еще не добавлен)
+   - Подтвердите право собственности на сайт
+
+2. **Добавить Service Account как владельца сайта:**
+   - В Google Search Console перейдите в **Settings** → **Users and permissions**
+   - Нажмите **Add user**
+   - Вставьте email вашего Service Account (из `client_email` в JSON файле)
+   - Выберите роль **Owner** (владелец)
+   - Нажмите **Add**
+
+3. **Проверка доступа:**
+   - После добавления Service Account подождите несколько минут
+   - Попробуйте проиндексировать URL через API
+   - Если возникает ошибка 403, убедитесь, что Service Account добавлен как Owner
+
+**Примечание:** 
+- Вы можете индексировать URL с любого сайта, который добавлен в Search Console
+- Service Account должен быть владельцем (Owner) каждого сайта, URL которого вы хотите индексировать
+- Для индексации URL с разных сайтов добавьте Service Account как Owner во все нужные сайты в Search Console
+
 ## Устранение проблем
 
 ### Ошибка: "Invalid credentials"
@@ -170,10 +204,16 @@ GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\
 - Убедитесь, что ключ содержит все символы `\n`
 - Проверьте, что ключ не истек (ключи не имеют срока действия, но могут быть удалены)
 
-### Ошибка: "Permission denied"
+### Ошибка: "Permission denied" или "403 Forbidden"
 - Убедитесь, что нужные API включены в Google Cloud Console
 - Проверьте, что Service Account имеет необходимые роли
 - Для Google Sheets/Drive: убедитесь, что вы предоставили доступ к файлам/папкам
+- **Для Google Indexing API:** убедитесь, что Service Account добавлен как Owner в Google Search Console для сайта, URL которого вы индексируете
+
+### Ошибка: "URL is not on Google" или "Invalid URL"
+- Убедитесь, что URL принадлежит сайту, добавленному в Google Search Console
+- Проверьте, что Service Account имеет доступ к этому сайту в Search Console
+- URL должен быть полным (начинаться с http:// или https://)
 
 ### Ошибка: "Service account not found"
 - Проверьте правильность email адреса
