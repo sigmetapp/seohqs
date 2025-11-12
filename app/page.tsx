@@ -5,11 +5,13 @@ import { parseCSVFiles, AffiliateOffer } from './utils/parseCSV';
 import Filters from './components/Filters';
 import Table from './components/Table';
 import Loader from './components/Loader';
+import FileUpload from './components/FileUpload';
 import Papa from 'papaparse';
 
 export default function Home() {
   const [offers, setOffers] = useState<AffiliateOffer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showUpload, setShowUpload] = useState(false);
   const [filters, setFilters] = useState({
     topic: '',
     country: '',
@@ -19,25 +21,33 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const data = await parseCSVFiles();
-        if (data.length === 0) {
-          console.warn('No data loaded from CSV files. Check if files exist in /public/data/');
-        }
-        setOffers(data);
-      } catch (error) {
-        console.error('Error loading data:', error);
-        // Устанавливаем пустой массив при ошибке, чтобы приложение не зависло
-        setOffers([]);
-      } finally {
-        setLoading(false);
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const data = await parseCSVFiles();
+      if (data.length === 0) {
+        setShowUpload(true);
+      } else {
+        setShowUpload(false);
       }
-    };
+      setOffers(data);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setOffers([]);
+      setShowUpload(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadData();
   }, []);
+
+  const handleUploadSuccess = () => {
+    // Перезагружаем данные после успешной загрузки
+    loadData();
+  };
 
   // Фильтрация данных
   const filteredOffers = useMemo(() => {
@@ -93,46 +103,76 @@ export default function Home() {
           </p>
         </div>
 
-        <Filters
-          offers={offers}
-          filters={filters}
-          onFilterChange={handleFilterChange}
-        />
+        {/* Показываем загрузку файлов если данных нет */}
+        {showUpload && (
+          <>
+            <FileUpload onUploadSuccess={handleUploadSuccess} />
+            {offers.length === 0 && (
+              <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 mb-6">
+                <p className="text-yellow-200">
+                  Для начала работы загрузите CSV файлы выше. После загрузки данные будут автоматически отображаться.
+                </p>
+              </div>
+            )}
+          </>
+        )}
 
-        <div className="mb-4 flex justify-end">
-          <button
-            onClick={exportToCSV}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-          >
-            Export CSV
-          </button>
-        </div>
-
-        <div className="bg-gray-800 rounded-lg p-6">
-          <Table data={paginatedOffers} />
-        </div>
-
-        {/* Пагинация */}
-        {totalPages > 1 && (
-          <div className="mt-6 flex justify-center items-center gap-2">
+        {/* Показываем кнопку для повторной загрузки если данные есть */}
+        {!showUpload && offers.length > 0 && (
+          <div className="mb-6 flex justify-between items-center">
             <button
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              onClick={() => setShowUpload(true)}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
             >
-              Назад
-            </button>
-            <span className="text-gray-300 px-4">
-              Страница {currentPage} из {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Вперёд
+              Загрузить/Обновить CSV файлы
             </button>
           </div>
+        )}
+
+        {offers.length > 0 && (
+          <>
+            <Filters
+              offers={offers}
+              filters={filters}
+              onFilterChange={handleFilterChange}
+            />
+
+            <div className="mb-4 flex justify-end">
+              <button
+                onClick={exportToCSV}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+              >
+                Export CSV
+              </button>
+            </div>
+
+            <div className="bg-gray-800 rounded-lg p-6">
+              <Table data={paginatedOffers} />
+            </div>
+
+            {/* Пагинация */}
+            {totalPages > 1 && (
+              <div className="mt-6 flex justify-center items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Назад
+                </button>
+                <span className="text-gray-300 px-4">
+                  Страница {currentPage} из {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Вперёд
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </main>
