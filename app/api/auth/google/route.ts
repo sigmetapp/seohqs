@@ -27,6 +27,9 @@ export async function GET(request: Request) {
       }
     }
     
+    // Убираем завершающий слэш из baseOrigin, чтобы избежать двойного слэша
+    baseOrigin = baseOrigin.replace(/\/+$/, '');
+    
     // Определяем redirect_uri на основе текущего запроса
     // Это гарантирует, что redirect_uri будет соответствовать текущему домену и протоколу
     const redirectUri = searchParams.get('redirect_uri') || 
