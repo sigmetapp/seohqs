@@ -1,4 +1,4 @@
-import { AffiliateOffer } from './db';
+import type { AffiliateOffer } from './types';
 
 // Определяем, какую БД использовать
 function useSupabase(): boolean {
@@ -25,6 +25,11 @@ export async function insertOffers(offers: Omit<AffiliateOffer, 'id' | 'createdA
     const { insertOffers: insertPostgres } = await import('./db-postgres');
     return insertPostgres(offers);
   } else {
+    // На Vercel не используем SQLite
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    // Только для локальной разработки
     const { insertOffers: insertSQLite } = require('./db');
     return insertSQLite(offers);
   }
@@ -38,6 +43,12 @@ export async function getAllOffers(): Promise<AffiliateOffer[]> {
     const { getAllOffers: getPostgres } = await import('./db-postgres');
     return getPostgres();
   } else {
+    // На Vercel не используем SQLite
+    if (process.env.VERCEL) {
+      console.warn('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+      return [];
+    }
+    // Только для локальной разработки
     const { getAllOffers: getSQLite } = require('./db');
     return getSQLite();
   }
@@ -51,6 +62,11 @@ export async function clearAllOffers(): Promise<void> {
     const { clearAllOffers: clearPostgres } = await import('./db-postgres');
     return clearPostgres();
   } else {
+    // На Vercel не используем SQLite
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    // Только для локальной разработки
     const { clearAllOffers: clearSQLite } = require('./db');
     return clearSQLite();
   }
@@ -64,6 +80,11 @@ export async function getOffersCount(): Promise<number> {
     const { getOffersCount: countPostgres } = await import('./db-postgres');
     return countPostgres();
   } else {
+    // На Vercel не используем SQLite
+    if (process.env.VERCEL) {
+      return 0;
+    }
+    // Только для локальной разработки
     const { getOffersCount: countSQLite } = require('./db');
     return countSQLite();
   }

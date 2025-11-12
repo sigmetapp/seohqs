@@ -1,17 +1,5 @@
 import { getPostgresClient } from './postgres-client';
-
-export interface AffiliateOffer {
-  id?: number;
-  name: string;
-  topic: string;
-  country: string;
-  model: string;
-  cr: number;
-  ecpc: number;
-  epc: number;
-  source?: string;
-  createdAt?: string;
-}
+import type { AffiliateOffer } from './types';
 
 // Проверяем, доступна ли PostgreSQL БД
 function isPostgresAvailable(): boolean {
