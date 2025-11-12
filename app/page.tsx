@@ -11,7 +11,7 @@ import Papa from 'papaparse';
 export default function Home() {
   const [offers, setOffers] = useState<AffiliateOffer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showUpload, setShowUpload] = useState(false);
+  const [showUpload, setShowUpload] = useState(true); // По умолчанию показываем форму загрузки
   const [filters, setFilters] = useState({
     topic: '',
     country: '',
@@ -26,11 +26,11 @@ export default function Home() {
       setLoading(true);
       const data = await parseCSVFiles();
       setOffers(data);
-      // Показываем форму загрузки если данных нет
-      if (data.length === 0) {
-        setShowUpload(true);
-      } else {
+      // Скрываем форму загрузки только если есть данные
+      if (data.length > 0) {
         setShowUpload(false);
+      } else {
+        setShowUpload(true);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -93,10 +93,6 @@ export default function Home() {
     document.body.removeChild(link);
   };
 
-  if (loading) {
-    return <Loader />;
-  }
-
   return (
     <main className="min-h-screen bg-gray-900 text-white p-8">
       <div className="max-w-7xl mx-auto">
@@ -107,74 +103,80 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Показываем загрузку файлов если данных нет или пользователь хочет обновить */}
-        {(showUpload || offers.length === 0) && (
+        {loading ? (
+          <Loader />
+        ) : (
           <>
-            <FileUpload onUploadSuccess={handleUploadSuccess} />
-            {offers.length === 0 && (
-              <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 mb-6">
-                <p className="text-yellow-200">
-                  Для начала работы загрузите CSV файлы выше. После загрузки данные будут автоматически отображаться.
-                </p>
+            {/* Показываем загрузку файлов если данных нет или пользователь хочет обновить */}
+            {(showUpload || offers.length === 0) && (
+              <>
+                <FileUpload onUploadSuccess={handleUploadSuccess} />
+                {offers.length === 0 && (
+                  <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 mb-6">
+                    <p className="text-yellow-200">
+                      Для начала работы загрузите CSV файлы выше. После загрузки данные будут автоматически отображаться.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Показываем кнопку для повторной загрузки если данные есть */}
+            {!showUpload && offers.length > 0 && (
+              <div className="mb-6 flex justify-between items-center">
+                <button
+                  onClick={() => setShowUpload(true)}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
+                >
+                  Загрузить/Обновить CSV файлы
+                </button>
               </div>
             )}
-          </>
-        )}
 
-        {/* Показываем кнопку для повторной загрузки если данные есть */}
-        {!showUpload && offers.length > 0 && (
-          <div className="mb-6 flex justify-between items-center">
-            <button
-              onClick={() => setShowUpload(true)}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
-            >
-              Загрузить/Обновить CSV файлы
-            </button>
-          </div>
-        )}
+            {offers.length > 0 && (
+              <>
+                <Filters
+                  offers={offers}
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                />
 
-        {offers.length > 0 && (
-          <>
-            <Filters
-              offers={offers}
-              filters={filters}
-              onFilterChange={handleFilterChange}
-            />
+                <div className="mb-4 flex justify-end">
+                  <button
+                    onClick={exportToCSV}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+                  >
+                    Export CSV
+                  </button>
+                </div>
 
-            <div className="mb-4 flex justify-end">
-              <button
-                onClick={exportToCSV}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-              >
-                Export CSV
-              </button>
-            </div>
+                <div className="bg-gray-800 rounded-lg p-6">
+                  <Table data={paginatedOffers} />
+                </div>
 
-            <div className="bg-gray-800 rounded-lg p-6">
-              <Table data={paginatedOffers} />
-            </div>
-
-            {/* Пагинация */}
-            {totalPages > 1 && (
-              <div className="mt-6 flex justify-center items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Назад
-                </button>
-                <span className="text-gray-300 px-4">
-                  Страница {currentPage} из {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Вперёд
-                </button>
-              </div>
+                {/* Пагинация */}
+                {totalPages > 1 && (
+                  <div className="mt-6 flex justify-center items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Назад
+                    </button>
+                    <span className="text-gray-300 px-4">
+                      Страница {currentPage} из {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Вперёд
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}

@@ -46,7 +46,10 @@ export const parseCSVFiles = async (): Promise<AffiliateOffer[]> => {
       });
       
       if (!response.ok) {
-        console.warn(`File ${url} not found (${response.status} ${response.statusText}), skipping...`);
+        // Не логируем предупреждение для 404 - это нормально при первом запуске
+        if (response.status !== 404) {
+          console.warn(`File ${url} error (${response.status} ${response.statusText}), skipping...`);
+        }
         continue;
       }
       
