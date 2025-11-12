@@ -24,6 +24,7 @@ export default function IntegrationsPage() {
 
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [showAhrefsKey, setShowAhrefsKey] = useState(false);
+  const [showSearchConsoleGuide, setShowSearchConsoleGuide] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
@@ -195,34 +196,68 @@ export default function IntegrationsPage() {
                 <div>
                   <h2 className="text-xl font-bold">Google Search Console</h2>
                   <p className="text-sm text-gray-400">
-                    URL для подключения к Google Search Console
+                    Автоматическая синхронизация данных о производительности сайта в поиске Google
                   </p>
                 </div>
               </div>
-              <div
-                className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  isConfigured('googleSearchConsoleUrl')
-                    ? 'bg-green-900/30 text-green-300 border border-green-700'
-                    : 'bg-gray-700 text-gray-400 border border-gray-600'
-                }`}
-              >
-                {isConfigured('googleSearchConsoleUrl') ? 'Настроено' : 'Не настроено'}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowSearchConsoleGuide(true)}
+                  className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <span>📖</span>
+                  <span>Как настроить?</span>
+                </button>
+                <div
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    isConfigured('googleSearchConsoleUrl')
+                      ? 'bg-green-900/30 text-green-300 border border-green-700'
+                      : 'bg-gray-700 text-gray-400 border border-gray-600'
+                  }`}
+                >
+                  {isConfigured('googleSearchConsoleUrl') ? 'Настроено' : 'Не настроено'}
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                URL Google Search Console
-              </label>
-              <input
-                type="url"
-                value={formData.googleSearchConsoleUrl}
-                onChange={(e) =>
-                  setFormData({ ...formData, googleSearchConsoleUrl: e.target.value })
-                }
-                className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                placeholder="https://search.google.com/search-console/..."
-              />
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  URL сайта в Google Search Console
+                </label>
+                <input
+                  type="url"
+                  value={formData.googleSearchConsoleUrl}
+                  onChange={(e) =>
+                    setFormData({ ...formData, googleSearchConsoleUrl: e.target.value })
+                  }
+                  className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                  placeholder="sc-domain:example.com или https://example.com"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Укажите URL сайта из Google Search Console. Поддерживаются форматы: <code className="bg-gray-900 px-1 rounded">sc-domain:example.com</code>, <code className="bg-gray-900 px-1 rounded">https://example.com</code> или полный URL из интерфейса
+                </p>
+              </div>
+
+              {isConfigured('googleServiceAccountEmail') && isConfigured('googlePrivateKey') ? (
+                <div className="bg-green-900/20 border border-green-700 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-green-400">✓</span>
+                    <div className="text-sm text-green-300">
+                      <strong>Google Service Account настроен.</strong> Теперь нужно предоставить доступ к сайту в Google Search Console.
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-yellow-400">⚠</span>
+                    <div className="text-sm text-yellow-300">
+                      <strong>Сначала настройте Google Service Account</strong> выше. Он необходим для работы с Google Search Console API.
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -294,10 +329,10 @@ export default function IntegrationsPage() {
               • Настройки интеграций сохраняются централизованно и используются во всех разделах приложения
             </li>
             <li>
-              • Google Service Account используется для работы Google Indexing API
+              • Google Service Account используется для работы Google Indexing API и Google Search Console API
             </li>
             <li>
-              • Google Search Console URL используется для синхронизации данных из Search Console
+              • Google Search Console позволяет автоматически получать данные о кликах, показах, CTR и позициях в поиске
             </li>
             <li>
               • Ahrefs API Key используется для получения данных о ссылочном профиле и метриках
@@ -305,6 +340,186 @@ export default function IntegrationsPage() {
           </ul>
         </div>
       </div>
+
+      {/* Google Search Console Guide Modal */}
+      {showSearchConsoleGuide && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg border border-gray-700 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                <span>🔍</span>
+                <span>Настройка Google Search Console</span>
+              </h2>
+              <button
+                onClick={() => setShowSearchConsoleGuide(false)}
+                className="text-gray-400 hover:text-white text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Описание */}
+              <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+                <h3 className="text-lg font-bold text-blue-300 mb-2">Что это дает?</h3>
+                <p className="text-gray-300 text-sm">
+                  Интеграция с Google Search Console позволяет автоматически получать данные о производительности ваших сайтов в поиске Google:
+                </p>
+                <ul className="mt-2 space-y-1 text-sm text-gray-300 list-disc list-inside">
+                  <li>Количество кликов из поиска</li>
+                  <li>Количество показов в поиске</li>
+                  <li>CTR (Click-Through Rate)</li>
+                  <li>Средняя позиция в поиске</li>
+                </ul>
+              </div>
+
+              {/* Шаг 1 */}
+              <div className="border-l-4 border-blue-500 pl-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">1</span>
+                  <h3 className="text-lg font-bold text-white">Проверьте настройку Google Service Account</h3>
+                </div>
+                <div className="ml-10 space-y-2 text-gray-300 text-sm">
+                  <p>Убедитесь, что Google Service Account настроен выше. Он необходим для работы с Google Search Console API.</p>
+                  <div className="bg-gray-700 rounded p-3 mt-2">
+                    <p className="font-mono text-xs text-gray-400 break-all">
+                      Email: {formData.googleServiceAccountEmail || 'не указан'}
+                    </p>
+                  </div>
+                  {!isConfigured('googleServiceAccountEmail') && (
+                    <div className="bg-yellow-900/20 border border-yellow-700 rounded p-2 text-yellow-300 text-xs">
+                      ⚠ Сначала настройте Google Service Account в секции выше
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Шаг 2 */}
+              <div className="border-l-4 border-blue-500 pl-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">2</span>
+                  <h3 className="text-lg font-bold text-white">Предоставьте доступ в Google Search Console</h3>
+                </div>
+                <div className="ml-10 space-y-3 text-gray-300 text-sm">
+                  <p>Service Account должен иметь доступ к вашему сайту в Google Search Console:</p>
+                  <ol className="list-decimal list-inside space-y-2 ml-2">
+                    <li>
+                      Откройте{' '}
+                      <a
+                        href="https://search.google.com/search-console"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 underline"
+                      >
+                        Google Search Console
+                      </a>
+                    </li>
+                    <li>Выберите ваш сайт</li>
+                    <li>Перейдите в <strong>Настройки</strong> → <strong>Владельцы и пользователи</strong></li>
+                    <li>Нажмите <strong>Добавить пользователя</strong></li>
+                    <li>
+                      Введите email вашего Service Account:
+                      <div className="bg-gray-700 rounded p-2 mt-1">
+                        <code className="text-xs text-blue-300 break-all">
+                          {formData.googleServiceAccountEmail || 'service-account@project-id.iam.gserviceaccount.com'}
+                        </code>
+                      </div>
+                    </li>
+                    <li>Выберите уровень доступа: <strong>Полный</strong> или <strong>Ограниченный</strong> (достаточно для чтения данных)</li>
+                  </ol>
+                  <div className="bg-yellow-900/20 border border-yellow-700 rounded p-3 mt-3">
+                    <p className="text-yellow-300 text-xs font-semibold mb-1">⚠️ Важно для Google Workspace:</p>
+                    <p className="text-yellow-200 text-xs">
+                      Для доменов Google Workspace может потребоваться настройка делегирования домена. В этом случае перейдите в Google Admin Console и настройте делегирование домена для Service Account.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Шаг 3 */}
+              <div className="border-l-4 border-blue-500 pl-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">3</span>
+                  <h3 className="text-lg font-bold text-white">Укажите URL сайта</h3>
+                </div>
+                <div className="ml-10 space-y-2 text-gray-300 text-sm">
+                  <p>В поле выше укажите URL сайта из Google Search Console. Поддерживаются следующие форматы:</p>
+                  <div className="bg-gray-700 rounded p-3 space-y-2 font-mono text-xs">
+                    <div className="text-green-400">sc-domain:example.com</div>
+                    <div className="text-green-400">https://example.com</div>
+                    <div className="text-gray-500">https://search.google.com/search-console/...?resource_id=sc-domain%3Aexample.com</div>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    💡 <strong>Совет:</strong> Самый простой способ - скопировать URL из адресной строки браузера, когда вы находитесь на странице сайта в Google Search Console.
+                  </p>
+                </div>
+              </div>
+
+              {/* Шаг 4 */}
+              <div className="border-l-4 border-green-500 pl-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">4</span>
+                  <h3 className="text-lg font-bold text-white">Синхронизируйте данные</h3>
+                </div>
+                <div className="ml-10 space-y-2 text-gray-300 text-sm">
+                  <p>После настройки:</p>
+                  <ol className="list-decimal list-inside space-y-1 ml-2">
+                    <li>Сохраните настройки на этой странице</li>
+                    <li>Перейдите на страницу сайта</li>
+                    <li>Откройте вкладку <strong>Google Console</strong></li>
+                    <li>Нажмите кнопку <strong>Синхронизировать</strong></li>
+                    <li>Данные за последние 30 дней будут загружены автоматически</li>
+                  </ol>
+                </div>
+              </div>
+
+              {/* Решение проблем */}
+              <div className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+                <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                  <span>🔧</span>
+                  <span>Решение проблем</span>
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <p className="font-semibold text-red-400 mb-1">Ошибка аутентификации</p>
+                    <p className="text-gray-300">Проверьте настройки Google Service Account выше. Убедитесь, что email и приватный ключ указаны правильно.</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-red-400 mb-1">Доступ запрещен (403)</p>
+                    <p className="text-gray-300">Service Account не имеет доступа к сайту. Вернитесь к шагу 2 и добавьте Service Account как пользователя в Google Search Console.</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-red-400 mb-1">Неверный формат URL</p>
+                    <p className="text-gray-300">Убедитесь, что URL корректный. Используйте формат <code className="bg-gray-900 px-1 rounded">sc-domain:example.com</code> или <code className="bg-gray-900 px-1 rounded">https://example.com</code></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-800 border-t border-gray-700 p-4 flex justify-end gap-3">
+              <button
+                onClick={() => setShowSearchConsoleGuide(false)}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              >
+                Закрыть
+              </button>
+              <button
+                onClick={() => {
+                  setShowSearchConsoleGuide(false);
+                  // Прокручиваем к полю ввода URL
+                  setTimeout(() => {
+                    document.querySelector('input[type="url"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    (document.querySelector('input[type="url"]') as HTMLInputElement)?.focus();
+                  }, 100);
+                }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              >
+                Настроить сейчас
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
