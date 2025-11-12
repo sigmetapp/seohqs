@@ -31,12 +31,14 @@ export async function fetchAhrefsSiteMetrics(
 ): Promise<AhrefsSiteMetrics> {
   try {
     // Ahrefs API endpoint для получения метрик сайта
-    const url = `https://api.ahrefs.com/v3/site-explorer/site-metrics`;
+    const url = `https://api.ahrefs.com/v3/site-explorer/metrics`;
     
-    const response = await fetch(url, {
+    // Ahrefs API использует token в query параметре или в заголовке
+    const urlWithToken = `${url}?token=${apiKey}`;
+    
+    const response = await fetch(urlWithToken, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
