@@ -40,18 +40,25 @@ export async function fetchAhrefsSiteMetrics(
 
   // Очищаем домен от протокола и лишних символов
   const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '').trim();
+  
+  // Удаляем www. если есть, так как Ahrefs может требовать домен без www
+  // Но также пробуем с www, если без него не работает
+  const domainWithoutWww = cleanDomain.replace(/^www\./, '');
 
   try {
     // Ahrefs API endpoint для получения метрик сайта
-    // Согласно документации Ahrefs API v3, токен передается в query параметре token
+    // Согласно документации Ahrefs API v3, токен можно передавать в query параметре token
+    // или в заголовке Authorization: Bearer {token}
     const url = `https://api.ahrefs.com/v3/site-explorer/metrics`;
     const trimmedKey = apiKey.trim();
     
-    // Ahrefs API v3 использует токен в query параметре token
+    // Пробуем оба способа: сначала через query параметр (стандартный для Ahrefs)
+    // Если не сработает, можно попробовать через заголовок Authorization
     const urlWithToken = `${url}?token=${encodeURIComponent(trimmedKey)}`;
     
+    // Пробуем сначала без www
     const requestBody = {
-      target: cleanDomain,
+      target: domainWithoutWww,
       mode: 'domain',
       output: 'json',
       metrics: [
@@ -66,8 +73,13 @@ export async function fetchAhrefsSiteMetrics(
     // Логируем запрос для отладки (без ключа)
     console.log('[Ahrefs API] Запрос:', {
       url: url,
-      domain: cleanDomain,
+      originalDomain: domain,
+      cleanDomain: cleanDomain,
+      domainWithoutWww: domainWithoutWww,
+      target: requestBody.target,
       metrics: requestBody.metrics,
+      apiKeyLength: trimmedKey.length,
+      apiKeyPrefix: trimmedKey.substring(0, 4) + '...',
     });
     
     const response = await fetch(urlWithToken, {
@@ -98,16 +110,145 @@ export async function fetchAhrefsSiteMetrics(
       // Специальная обработка для 403 Forbidden
       if (response.status === 403) {
         const errorMessage = errorData 
-          ? (Array.isArray(errorData) ? errorData.join(', ') : JSON.stringify(errorData))
+          ? (Array.isArray(errorData) ? errorData.join(', ') : (typeof errorData === 'object' ? JSON.stringify(errorData) : String(errorData)))
           : errorText;
         
         // Логируем детали ошибки для отладки
         console.error('[Ahrefs API] 403 Forbidden:', {
-          domain: cleanDomain,
+          originalDomain: domain,
+          cleanDomain: cleanDomain,
+          domainWithoutWww: domainWithoutWww,
+          target: requestBody.target,
           errorText,
           errorData,
           url: url,
+          responseHeaders: Object.fromEntries(response.headers.entries()),
         });
+        
+        // Пробуем альтернативные варианты домена
+        // Если использовали без www, пробуем с www, и наоборот
+        const alternativeDomains = [];
+        if (domainWithoutWww !== cleanDomain) {
+          // Если убрали www, пробуем с www
+          alternativeDomains.push(cleanDomain);
+        } else if (!cleanDomain.startsWith('www.')) {
+          // Если не было www, пробуем с www
+          alternativeDomains.push(`www.${cleanDomain}`);
+        }
+        
+        for (const altDomain of alternativeDomains) {
+          console.log(`[Ahrefs API] Пробуем альтернативный домен: ${altDomain}...`);
+          try {
+            const requestBodyAlt = {
+              ...requestBody,
+              target: altDomain,
+            };
+            
+            const responseAlt = await fetch(urlWithToken, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: JSON.stringify(requestBodyAlt),
+            });
+            
+            if (responseAlt.ok) {
+              console.log(`[Ahrefs API] Успешно использован домен: ${altDomain}`);
+              const data = await responseAlt.json();
+              const metrics = data.metrics || (data as any).data?.metrics || {};
+              
+              return {
+                domainRating: metrics.domain_rating || 0,
+                backlinks: metrics.backlinks || 0,
+                referringDomains: metrics.referring_domains || 0,
+                organicKeywords: metrics.organic_keywords || 0,
+                organicTraffic: metrics.organic_traffic || 0,
+              };
+            }
+          } catch (altError) {
+            console.error(`[Ahrefs API] Ошибка при попытке домена ${altDomain}:`, altError);
+          }
+        }
+        
+        // Пробуем альтернативные способы авторизации
+        // Это может помочь, если query параметр не работает
+        console.log('[Ahrefs API] Пробуем альтернативные способы авторизации...');
+        
+        // Список доменов для попыток (включая оригинальный и альтернативные)
+        const domainsToTry = [requestBody.target, ...alternativeDomains];
+        
+        // Способ 1: Authorization Bearer
+        for (const tryDomain of domainsToTry) {
+          try {
+            const requestBodyWithDomain = {
+              ...requestBody,
+              target: tryDomain,
+            };
+            
+            const responseWithBearer = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${trimmedKey}`,
+              },
+              body: JSON.stringify(requestBodyWithDomain),
+            });
+            
+            if (responseWithBearer.ok) {
+              console.log(`[Ahrefs API] Успешно использован заголовок Authorization Bearer с доменом: ${tryDomain}`);
+              const data = await responseWithBearer.json();
+              const metrics = data.metrics || (data as any).data?.metrics || {};
+              
+              return {
+                domainRating: metrics.domain_rating || 0,
+                backlinks: metrics.backlinks || 0,
+                referringDomains: metrics.referring_domains || 0,
+                organicKeywords: metrics.organic_keywords || 0,
+                organicTraffic: metrics.organic_traffic || 0,
+              };
+            }
+          } catch (bearerError) {
+            console.error(`[Ahrefs API] Ошибка при попытке Authorization Bearer с доменом ${tryDomain}:`, bearerError);
+          }
+        }
+        
+        // Способ 2: X-API-Key заголовок
+        for (const tryDomain of domainsToTry) {
+          try {
+            const requestBodyWithDomain = {
+              ...requestBody,
+              target: tryDomain,
+            };
+            
+            const responseWithApiKey = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-API-Key': trimmedKey,
+              },
+              body: JSON.stringify(requestBodyWithDomain),
+            });
+            
+            if (responseWithApiKey.ok) {
+              console.log(`[Ahrefs API] Успешно использован заголовок X-API-Key с доменом: ${tryDomain}`);
+              const data = await responseWithApiKey.json();
+              const metrics = data.metrics || (data as any).data?.metrics || {};
+              
+              return {
+                domainRating: metrics.domain_rating || 0,
+                backlinks: metrics.backlinks || 0,
+                referringDomains: metrics.referring_domains || 0,
+                organicKeywords: metrics.organic_keywords || 0,
+                organicTraffic: metrics.organic_traffic || 0,
+              };
+            }
+          } catch (apiKeyError) {
+            console.error(`[Ahrefs API] Ошибка при попытке X-API-Key с доменом ${tryDomain}:`, apiKeyError);
+          }
+        }
         
         throw new Error(
           `Ahrefs API error: 403 Forbidden. ${errorMessage}. Возможные причины: неправильный API ключ, ключ не имеет доступа к домену "${cleanDomain}", ключ был отозван, или домен "${cleanDomain}" не найден в базе Ahrefs. Убедитесь, что: 1) API ключ активен и имеет доступ к Site Explorer, 2) Домен добавлен в ваш проект Ahrefs, 3) У вашего аккаунта есть подписка с доступом к API.`
