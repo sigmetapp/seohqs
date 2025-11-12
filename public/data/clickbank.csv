@@ -1,0 +1,6 @@
+name,topic,country,model,cr,ecpc,epc
+Program P,Technology,USA,CPS,2.7,0.50,1.32
+Program Q,Finance,UK,CPA,1.95,0.34,1.02
+Program R,Health,Germany,RevShare,3.4,0.61,1.52
+Program S,E-commerce,USA,CPS,2.25,0.41,1.22
+Program T,Education,Canada,CPA,1.65,0.295,0.92
