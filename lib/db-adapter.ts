@@ -1,4 +1,4 @@
-import type { AffiliateOffer } from './db';
+import type { AffiliateOffer } from './types';
 
 // Определяем, какую БД использовать
 function useSupabase(): boolean {

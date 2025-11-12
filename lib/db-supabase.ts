@@ -1,4 +1,5 @@
-import { supabase, AffiliateOffer } from './supabase';
+import { supabase } from './supabase';
+import type { AffiliateOffer } from './types';
 
 export async function insertOffers(offers: Omit<AffiliateOffer, 'id' | 'created_at'>[]): Promise<void> {
   if (!supabase) {
