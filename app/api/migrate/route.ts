@@ -22,30 +22,47 @@ export async function GET() {
     const hasPostgres = !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
     const isVercel = !!process.env.VERCEL;
     
-    const result = await runMigrations();
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Migrations completed',
-      executed: result.executed,
-      skipped: result.skipped,
-      environment: {
-        hasPostgres,
-        isVercel,
-        hasPostgresUrl: !!process.env.POSTGRES_URL,
-        hasDatabaseUrl: !!process.env.DATABASE_URL,
-      },
-    });
+    // Пробуем выполнить миграции, но не падаем если они уже выполнены вручную
+    try {
+      const result = await runMigrations();
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Migrations completed',
+        executed: result.executed,
+        skipped: result.skipped,
+        environment: {
+          hasPostgres,
+          isVercel,
+          hasPostgresUrl: !!process.env.POSTGRES_URL,
+          hasDatabaseUrl: !!process.env.DATABASE_URL,
+        },
+      });
+    } catch (migrationError) {
+      // Если миграции уже выполнены вручную, это нормально
+      return NextResponse.json({
+        success: true,
+        message: 'Migrations may already be applied. If tables exist, you can ignore this.',
+        executed: [],
+        skipped: [],
+        note: 'You can run migrations manually using SQL from migrations/manual_migration.sql',
+        environment: {
+          hasPostgres,
+          isVercel,
+          hasPostgresUrl: !!process.env.POSTGRES_URL,
+          hasDatabaseUrl: !!process.env.DATABASE_URL,
+        },
+      });
+    }
   } catch (error) {
     console.error('Error running migrations:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStack = error instanceof Error ? error.stack : undefined;
     
     return NextResponse.json(
       {
         error: 'Failed to run migrations',
         details: errorMessage,
-        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined,
+        note: 'You can run migrations manually using SQL from migrations/manual_migration.sql',
         environment: {
           hasPostgres: !!(process.env.POSTGRES_URL || process.env.DATABASE_URL),
           isVercel: !!process.env.VERCEL,

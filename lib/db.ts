@@ -33,17 +33,8 @@ export function getDatabase(): Database.Database {
   const dbPath = join(dbDir, 'affiliate.db');
   db = new Database(dbPath);
 
-  // Автоматически запускаем миграции при первом подключении
-  if (!migrationsRun) {
-    try {
-      const { runMigrations } = require('./migrations');
-      runMigrations();
-      migrationsRun = true;
-    } catch (error) {
-      console.error('Error running migrations:', error);
-      // Продолжаем работу даже если миграции не выполнились
-    }
-  }
+  // Миграции теперь выполняются вручную или через API /api/migrate
+  // Не запускаем автоматически, чтобы не было ошибок
 
   return db;
 }

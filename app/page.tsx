@@ -43,19 +43,8 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // Сначала запускаем миграции, затем загружаем данные
-    const initialize = async () => {
-      try {
-        // Запускаем миграции
-        await fetch('/api/migrate', { method: 'GET' });
-      } catch (error) {
-        console.error('Error running migrations:', error);
-      }
-      // Загружаем данные
-      loadData();
-    };
-    
-    initialize();
+    // Просто загружаем данные, миграции можно запустить вручную через /api/migrate
+    loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
