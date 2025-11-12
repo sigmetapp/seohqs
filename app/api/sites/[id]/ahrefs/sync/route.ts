@@ -60,8 +60,27 @@ export async function POST(
     // Получаем данные из Ahrefs API
     let metrics;
     try {
+      console.log('[Ahrefs Sync] Начало синхронизации:', {
+        siteId,
+        domain: site.domain,
+        hasApiKey: !!ahrefsApiKey,
+        apiKeyLength: ahrefsApiKey?.length || 0,
+      });
+      
       metrics = await fetchAhrefsSiteMetrics(site.domain, ahrefsApiKey);
+      
+      console.log('[Ahrefs Sync] Данные получены успешно:', {
+        domainRating: metrics.domainRating,
+        backlinks: metrics.backlinks,
+      });
     } catch (apiError: any) {
+      // Логируем детали ошибки
+      console.error('[Ahrefs Sync] Ошибка API:', {
+        message: apiError.message,
+        stack: apiError.stack,
+        domain: site.domain,
+      });
+      
       // Если API вернул ошибку, возвращаем понятное сообщение
       const errorMessage = apiError.message || 'Неизвестная ошибка';
       
