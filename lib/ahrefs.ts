@@ -59,10 +59,16 @@ export async function fetchAhrefsSiteMetrics(
     const url = `https://api.ahrefs.com/v3/site-explorer/metrics`;
     
     // Пробуем сначала без www
+    // Ahrefs API требует параметр date в формате YYYY-MM-DD
+    // Используем текущую дату или недавнюю дату для получения последних данных
+    const today = new Date();
+    const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    
     const requestBody = {
       target: domainWithoutWww,
       mode: 'domain',
       output: 'json',
+      date: dateString,
       metrics: [
         'domain_rating',
         'backlinks',
@@ -85,6 +91,7 @@ export async function fetchAhrefsSiteMetrics(
       target: requestBody.target,
       mode: requestBody.mode,
       output: requestBody.output,
+      date: requestBody.date,
       metrics: requestBody.metrics,
       apiKeyLength: trimmedKey.length,
       apiKeyPrefix: trimmedKey.substring(0, 6) + '...' + trimmedKey.substring(trimmedKey.length - 4),
@@ -136,6 +143,64 @@ export async function fetchAhrefsSiteMetrics(
         errorText = 'Не удалось получить детали ошибки';
       }
 
+      // Специальная обработка для 400 Bad Request
+      if (response.status === 400) {
+        const errorMessage = errorData 
+          ? (Array.isArray(errorData) ? errorData.join(', ') : (typeof errorData === 'object' ? JSON.stringify(errorData) : String(errorData)))
+          : errorText;
+        
+        // Если ошибка связана с датой, пробуем более ранние даты
+        if (errorMessage.includes('date') || errorMessage.includes('Date')) {
+          console.log('[Ahrefs API] Пробуем более ранние даты...');
+          
+          // Пробуем последние 7 дней
+          for (let daysAgo = 1; daysAgo <= 7; daysAgo++) {
+            try {
+              const pastDate = new Date();
+              pastDate.setDate(pastDate.getDate() - daysAgo);
+              const pastDateString = pastDate.toISOString().split('T')[0];
+              
+              const requestBodyWithPastDate = {
+                ...requestBody,
+                date: pastDateString,
+              };
+              
+              console.log(`[Ahrefs API] Пробуем дату: ${pastDateString} (${daysAgo} дней назад)`);
+              
+              const responsePastDate = await fetch(urlWithToken, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                },
+                body: JSON.stringify(requestBodyWithPastDate),
+              });
+              
+              if (responsePastDate.ok) {
+                console.log(`[Ahrefs API] Успешно получены данные за дату: ${pastDateString}`);
+                const data = await responsePastDate.json();
+                const metrics = data.metrics || (data as any).data?.metrics || {};
+                
+                return {
+                  domainRating: metrics.domain_rating || 0,
+                  backlinks: metrics.backlinks || 0,
+                  referringDomains: metrics.referring_domains || 0,
+                  organicKeywords: metrics.organic_keywords || 0,
+                  organicTraffic: metrics.organic_traffic || 0,
+                };
+              }
+            } catch (pastDateError) {
+              console.error(`[Ahrefs API] Ошибка при попытке даты ${daysAgo} дней назад:`, pastDateError);
+            }
+          }
+        }
+        
+        // Если не помогло, пробрасываем ошибку
+        throw new Error(
+          `Ahrefs API error: 400 Bad Request. ${errorMessage}. Проверьте формат запроса и параметры.`
+        );
+      }
+      
       // Специальная обработка для 403 Forbidden
       if (response.status === 403) {
         const errorMessage = errorData 
