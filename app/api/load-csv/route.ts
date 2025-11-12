@@ -10,6 +10,7 @@ export const runtime = 'nodejs';
 const CSV_FILES = [
   { name: 'admitad.csv', source: 'admitad' },
   { name: 'advertise.csv', source: 'advertise' },
+  { name: 'advertise1.csv', source: 'advertise' },
   { name: 'cj.csv', source: 'cj' },
   { name: 'clickbank.csv', source: 'clickbank' },
 ];
@@ -47,6 +48,18 @@ export async function POST(request: Request) {
         debug.steps.push(`Обработка файла: ${fileInfo.name}`);
         
         const filePath = join(process.cwd(), 'public', 'data', fileInfo.name);
+        
+        // Проверяем существование файла
+        try {
+          await readFile(filePath, 'utf-8');
+        } catch (fileError: any) {
+          if (fileError.code === 'ENOENT') {
+            debug.steps.push(`Файл ${fileInfo.name} не найден, пропускаем`);
+            continue;
+          }
+          throw fileError;
+        }
+        
         const fileContent = await readFile(filePath, 'utf-8');
         
         debug.steps.push(`Файл ${fileInfo.name} прочитан, длина: ${fileContent.length} символов`);

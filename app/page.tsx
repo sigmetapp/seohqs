@@ -237,6 +237,13 @@ export default function Home() {
               Загрузить advertise.csv
             </button>
             <button
+              onClick={() => loadCsvFromServer('advertise1.csv')}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded disabled:opacity-50"
+              disabled={loading}
+            >
+              Загрузить advertise1.csv
+            </button>
+            <button
               onClick={() => loadCsvFromServer()}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded disabled:opacity-50"
               disabled={loading}
