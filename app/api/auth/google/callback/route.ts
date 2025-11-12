@@ -10,14 +10,14 @@ export const runtime = 'nodejs';
  * Обрабатывает callback от Google OAuth и сохраняет токены
  */
 export async function GET(request: Request) {
+  // Определяем базовый URL и origin вне блока try, чтобы они были доступны в catch
+  const { searchParams, origin } = new URL(request.url);
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || origin;
+  
   try {
-    const { searchParams, origin } = new URL(request.url);
     const code = searchParams.get('code');
     const state = searchParams.get('state');
     const error = searchParams.get('error');
-
-    // Определяем базовый URL для редиректов
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || origin;
 
     if (error) {
       console.error('[Google OAuth Callback] Error from Google:', error);
@@ -107,7 +107,8 @@ export async function GET(request: Request) {
     let userMessage = errorMessage;
     
     if (errorMessage.includes('redirect_uri_mismatch') || errorMessage.includes('redirect_uri')) {
-      userMessage = `Ошибка redirect_uri_mismatch. Убедитесь, что в Google Cloud Console добавлен Redirect URI: ${origin}/api/auth/google/callback`;
+      const currentOrigin = origin || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      userMessage = `Ошибка redirect_uri_mismatch. Убедитесь, что в Google Cloud Console добавлен Redirect URI: ${currentOrigin}/api/auth/google/callback`;
     }
     
     return NextResponse.redirect(
