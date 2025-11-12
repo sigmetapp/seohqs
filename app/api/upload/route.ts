@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     debug.steps.push(`Файл прочитан, длина: ${text.length} символов`);
 
     // Парсим CSV
-    return new Promise((resolve) => {
+    return new Promise<NextResponse>((resolve) => {
       Papa.parse(text, {
         header: true,
         skipEmptyLines: true,
@@ -64,11 +64,12 @@ export async function POST(request: Request) {
             debug.steps.push(`Валидных записей: ${offers.length}`);
 
             if (offers.length === 0) {
-              return resolve(NextResponse.json({
+              resolve(NextResponse.json({
                 success: false,
                 error: 'Не найдено валидных записей в CSV файле',
                 debug: debug,
               }, { status: 400 }));
+              return;
             }
 
             // Вставляем данные в БД
