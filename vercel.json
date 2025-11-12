@@ -1,7 +1,12 @@
 {
+  "version": 2,
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["arn1"]
+  "regions": ["iad1"],
+  "github": {
+    "enabled": true,
+    "silent": false
+  }
 }

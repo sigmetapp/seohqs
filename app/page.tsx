@@ -1,269 +1,161 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-interface Offer {
-  id: number;
-  name: string;
-  topic: string;
-  country: string;
-  model: string;
-  cr: number;
-  ecpc: number;
-  epc: number;
+interface IndexResult {
+  url: string;
+  success: boolean;
+  error?: string;
+  data?: any;
 }
 
 export default function Home() {
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [url, setUrl] = useState('');
+  const [urls, setUrls] = useState('');
+  const [type, setType] = useState<'URL_UPDATED' | 'URL_DELETED'>('URL_UPDATED');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch('/api/data');
-      const data = await response.json();
-      
-      // Выводим отладочную информацию в консоль
-      console.log('API Response:', data);
-      if (data.debug) {
-        console.log('Debug info:', data.debug);
-      }
-      
-      if (data.success) {
-        setOffers(data.offers || []);
-      } else {
-        const errorMsg = data.error || 'Ошибка загрузки данных';
-        setError(errorMsg);
-        if (data.tableMissing) {
-          console.error('Таблица не существует. Создайте таблицу в Supabase согласно инструкции в SUPABASE_SETUP.md');
-        }
-        if (data.debug) {
-          console.error('Debug details:', data.debug);
-        }
-      }
-    } catch (err: any) {
-      console.error('Fetch error:', err);
-      setError(err.message || 'Ошибка подключения');
-    } finally {
-      setLoading(false);
+  const handleSingleUrl = async () => {
+    if (!url.trim()) {
+      setError('Введите URL');
+      return;
     }
-  };
 
-  const loadTestData = async () => {
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
     try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch('/api/seed', { method: 'POST' });
-      const data = await response.json();
-      
-      // Выводим отладочную информацию в консоль
-      console.log('Seed API Response:', data);
-      if (data.debug) {
-        console.log('Seed Debug info:', data.debug);
-      }
-      
-      if (data.success) {
-        // Показываем сообщение об успехе
-        console.log('✅ Данные успешно загружены:', data.message);
-        if (data.debug) {
-          console.log('Debug steps:', data.debug.steps);
-        }
-        // Обновляем данные
-        await loadData();
-      } else {
-        const errorMsg = data.error || 'Ошибка загрузки тестовых данных';
-        setError(errorMsg);
-        console.error('❌ Ошибка загрузки данных:', errorMsg);
-        if (data.tableMissing) {
-          console.error('Таблица не существует. Создайте таблицу в Supabase согласно инструкции в SUPABASE_SETUP.md');
-        }
-        if (data.debug) {
-          console.error('Debug steps:', data.debug.steps);
-          console.error('Debug errors:', data.debug.errors);
-        }
-      }
-    } catch (err: any) {
-      console.error('Seed fetch error:', err);
-      setError(err.message || 'Ошибка подключения');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCsvFromServer = async (filename?: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch('/api/load-csv', {
+      const response = await fetch('/api/index', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ filename }),
+        body: JSON.stringify({ url: url.trim(), type }),
       });
 
       const data = await response.json();
       
-      console.log('Load CSV API Response:', data);
-      if (data.debug) {
-        console.log('Load CSV Debug info:', data.debug);
-      }
-
       if (data.success) {
-        console.log('✅ CSV файлы успешно загружены:', data.message);
-        if (data.files) {
-          console.log('Загруженные файлы:', data.files);
-        }
-        if (data.debug) {
-          console.log('Debug steps:', data.debug.steps);
-        }
-        await loadData();
+        setResult(data);
       } else {
-        const errorMsg = data.error || 'Ошибка загрузки CSV файлов';
-        setError(errorMsg);
-        console.error('❌ Ошибка загрузки CSV файлов:', errorMsg);
-        if (data.debug) {
-          console.error('Debug steps:', data.debug.steps);
-          console.error('Debug errors:', data.debug.errors);
-        }
+        setError(data.error || 'Ошибка при индексации');
+        setResult(data);
       }
     } catch (err: any) {
-      console.error('Load CSV error:', err);
-      setError(err.message || 'Ошибка загрузки CSV файлов');
+      setError(err.message || 'Ошибка подключения');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleMultipleUrls = async () => {
+    const urlList = urls
+      .split('\n')
+      .map(u => u.trim())
+      .filter(u => u.length > 0);
+
+    if (urlList.length === 0) {
+      setError('Введите хотя бы один URL');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setResult(null);
 
     try {
-      setLoading(true);
-      setError(null);
-
-      // Определяем источник по имени файла
-      const fileName = file.name.toLowerCase();
-      let source = 'upload';
-      if (fileName.includes('admitad')) source = 'admitad';
-      else if (fileName.includes('advertise')) source = 'advertise';
-      else if (fileName.includes('cj')) source = 'cj';
-      else if (fileName.includes('clickbank')) source = 'clickbank';
-
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('source', source);
-
-      const response = await fetch('/api/upload', {
+      const response = await fetch('/api/index', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ urls: urlList, type }),
       });
 
       const data = await response.json();
       
-      console.log('Upload API Response:', data);
-      if (data.debug) {
-        console.log('Upload Debug info:', data.debug);
-      }
-
       if (data.success) {
-        console.log('✅ Файл успешно загружен:', data.message);
-        if (data.debug) {
-          console.log('Debug steps:', data.debug.steps);
-        }
-        await loadData();
+        setResult(data);
       } else {
-        const errorMsg = data.error || 'Ошибка загрузки файла';
-        setError(errorMsg);
-        console.error('❌ Ошибка загрузки файла:', errorMsg);
-        if (data.debug) {
-          console.error('Debug steps:', data.debug.steps);
-          console.error('Debug errors:', data.debug.errors);
-        }
+        setError(data.error || 'Ошибка при индексации');
+        setResult(data);
       }
     } catch (err: any) {
-      console.error('Upload error:', err);
-      setError(err.message || 'Ошибка загрузки файла');
+      setError(err.message || 'Ошибка подключения');
     } finally {
       setLoading(false);
-      // Сбрасываем input, чтобы можно было загрузить тот же файл снова
-      event.target.value = '';
     }
   };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-2xl mb-4">Загрузка...</div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-4">Тестовая страница</h1>
-          <div className="flex flex-wrap gap-4 mb-4">
-            <button
-              onClick={loadData}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50"
-              disabled={loading}
+          <h1 className="text-4xl font-bold mb-2">Google Indexing Service</h1>
+          <p className="text-gray-400">
+            Сервис для отправки URL на индексацию в Google Search Console
+          </p>
+        </div>
+
+        <div className="bg-gray-800 rounded-lg p-6 mb-6">
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Тип операции</label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value as 'URL_UPDATED' | 'URL_DELETED')}
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white"
             >
-              Обновить данные
-            </button>
-            <button
-              onClick={loadTestData}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded disabled:opacity-50"
-              disabled={loading}
-            >
-              Загрузить тестовые данные
-            </button>
-            <button
-              onClick={() => loadCsvFromServer('advertise.csv')}
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded disabled:opacity-50"
-              disabled={loading}
-            >
-              Загрузить advertise.csv
-            </button>
-            <button
-              onClick={() => loadCsvFromServer('advertise1.csv')}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded disabled:opacity-50"
-              disabled={loading}
-            >
-              Загрузить advertise1.csv
-            </button>
-            <button
-              onClick={() => loadCsvFromServer()}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded disabled:opacity-50"
-              disabled={loading}
-            >
-              Загрузить все CSV
-            </button>
-            <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded cursor-pointer disabled:opacity-50">
+              <option value="URL_UPDATED">URL_UPDATED - Обновить/Добавить</option>
+              <option value="URL_DELETED">URL_DELETED - Удалить</option>
+            </select>
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2">
+              Один URL
+            </label>
+            <div className="flex gap-2">
               <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileUpload}
-                className="hidden"
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://example.com/page"
+                className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400"
                 disabled={loading}
               />
-              {loading ? 'Загрузка...' : 'Загрузить CSV файл'}
-            </label>
+              <button
+                onClick={handleSingleUrl}
+                disabled={loading}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Отправка...' : 'Отправить'}
+              </button>
+            </div>
           </div>
-          <p className="text-gray-400">
-            Записей в базе: {offers.length}
-          </p>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">
+              Несколько URL (по одному на строку)
+            </label>
+            <textarea
+              value={urls}
+              onChange={(e) => setUrls(e.target.value)}
+              placeholder="https://example.com/page1&#10;https://example.com/page2&#10;https://example.com/page3"
+              rows={8}
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 font-mono text-sm"
+              disabled={loading}
+            />
+            <button
+              onClick={handleMultipleUrls}
+              disabled={loading}
+              className="mt-2 px-6 py-2 bg-green-600 hover:bg-green-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Отправка...' : 'Отправить все'}
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -272,64 +164,83 @@ export default function Home() {
           </div>
         )}
 
-        {/* Отладочная информация */}
-        <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-purple-500">
-          <h2 className="text-xl font-bold mb-4 text-purple-300">Отладочная информация</h2>
-          <div className="space-y-2 text-sm">
-            <p className="text-gray-400">
-              <strong>Переменные окружения:</strong>
-            </p>
-            <ul className="list-disc list-inside text-gray-300 ml-4">
-              <li>NEXT_PUBLIC_SUPABASE_URL: {typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_SUPABASE_URL ? '✓ установлена' : '✗ не установлена') : 'проверка на сервере'}</li>
-              <li>NEXT_PUBLIC_SUPABASE_ANON_KEY: {typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✓ установлена' : '✗ не установлена') : 'проверка на сервере'}</li>
-              <li>SUPABASE_SERVICE_ROLE_KEY: {typeof window !== 'undefined' ? 'проверка на сервере' : 'проверка на сервере'}</li>
-            </ul>
-            <p className="text-gray-400 mt-4">
-              <strong>Примечание:</strong> Проверьте ответ API в консоли браузера (F12) для подробной информации о подключении к базе данных.
-            </p>
-          </div>
-        </div>
+        {result && (
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h2 className="text-xl font-bold mb-4">Результат</h2>
+            
+            {result.summary && (
+              <div className="mb-4 p-4 bg-gray-700 rounded">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-blue-400">{result.summary.total}</div>
+                    <div className="text-sm text-gray-400">Всего</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-green-400">{result.summary.success}</div>
+                    <div className="text-sm text-gray-400">Успешно</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-red-400">{result.summary.failed}</div>
+                    <div className="text-sm text-gray-400">Ошибок</div>
+                  </div>
+                </div>
+              </div>
+            )}
 
-        {offers.length === 0 && !error && (
-          <div className="bg-yellow-900 border border-yellow-700 rounded p-4 mb-6">
-            <p className="text-yellow-200">
-              База данных пуста. Нажмите "Загрузить тестовые данные" для заполнения.
-            </p>
-          </div>
-        )}
-
-        {offers.length > 0 && (
-          <div className="bg-gray-800 rounded-lg overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-700">
-                <tr>
-                  <th className="px-4 py-3 text-left">ID</th>
-                  <th className="px-4 py-3 text-left">Название</th>
-                  <th className="px-4 py-3 text-left">Тема</th>
-                  <th className="px-4 py-3 text-left">Страна</th>
-                  <th className="px-4 py-3 text-left">Модель</th>
-                  <th className="px-4 py-3 text-left">CR</th>
-                  <th className="px-4 py-3 text-left">ECPC</th>
-                  <th className="px-4 py-3 text-left">EPC</th>
-                </tr>
-              </thead>
-              <tbody>
-                {offers.map((offer) => (
-                  <tr key={offer.id} className="border-t border-gray-700">
-                    <td className="px-4 py-3">{offer.id}</td>
-                    <td className="px-4 py-3">{offer.name}</td>
-                    <td className="px-4 py-3">{offer.topic}</td>
-                    <td className="px-4 py-3">{offer.country}</td>
-                    <td className="px-4 py-3">{offer.model}</td>
-                    <td className="px-4 py-3">{offer.cr}</td>
-                    <td className="px-4 py-3">{offer.ecpc}</td>
-                    <td className="px-4 py-3">{offer.epc}</td>
-                  </tr>
+            {result.results && (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {result.results.map((r: IndexResult, index: number) => (
+                  <div
+                    key={index}
+                    className={`p-3 rounded ${
+                      r.success ? 'bg-green-900/30 border border-green-700' : 'bg-red-900/30 border border-red-700'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="font-mono text-sm break-all">{r.url}</div>
+                        {r.success ? (
+                          <div className="text-green-400 text-sm mt-1">✓ Успешно отправлено</div>
+                        ) : (
+                          <div className="text-red-400 text-sm mt-1">
+                            ✗ Ошибка: {r.error || 'Неизвестная ошибка'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            )}
+
+            {result.url && !result.results && (
+              <div className={`p-3 rounded ${
+                result.success ? 'bg-green-900/30 border border-green-700' : 'bg-red-900/30 border border-red-700'
+              }`}>
+                <div className="font-mono text-sm break-all mb-2">{result.url}</div>
+                {result.success ? (
+                  <div className="text-green-400">✓ {result.message}</div>
+                ) : (
+                  <div className="text-red-400">✗ {result.error}</div>
+                )}
+              </div>
+            )}
+
+            {result.message && !result.results && (
+              <div className="mt-4 text-gray-300">{result.message}</div>
+            )}
           </div>
         )}
+
+        <div className="mt-8 bg-blue-900/30 border border-blue-700 rounded p-4">
+          <h3 className="font-bold mb-2">ℹ️ Информация</h3>
+          <ul className="text-sm text-gray-300 space-y-1 list-disc list-inside">
+            <li>Убедитесь, что настроены переменные окружения GOOGLE_SERVICE_ACCOUNT_EMAIL и GOOGLE_PRIVATE_KEY</li>
+            <li>Service Account должен иметь доступ к Google Search Console</li>
+            <li>URL должны принадлежать веб-сайту, добавленному в Search Console</li>
+            <li>API имеет лимиты: до 200 запросов в день на один URL</li>
+          </ul>
+        </div>
       </div>
     </main>
   );
