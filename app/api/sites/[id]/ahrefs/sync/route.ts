@@ -63,12 +63,24 @@ export async function POST(
       metrics = await fetchAhrefsSiteMetrics(site.domain, ahrefsApiKey);
     } catch (apiError: any) {
       // Если API вернул ошибку, возвращаем понятное сообщение
+      const errorMessage = apiError.message || 'Неизвестная ошибка';
+      
+      // Определяем статус код на основе сообщения об ошибке
+      let statusCode = 400;
+      if (errorMessage.includes('403 Forbidden')) {
+        statusCode = 403;
+      } else if (errorMessage.includes('401')) {
+        statusCode = 401;
+      } else if (errorMessage.includes('404')) {
+        statusCode = 404;
+      }
+      
       return NextResponse.json(
         {
           success: false,
-          error: `Ошибка при запросе к Ahrefs API: ${apiError.message}. Проверьте правильность API ключа и домена.`,
+          error: errorMessage,
         },
-        { status: 400 }
+        { status: statusCode }
       );
     }
 
