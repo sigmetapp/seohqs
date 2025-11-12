@@ -32,11 +32,14 @@ export async function POST(
       );
     }
 
-    if (!site.ahrefsApiKey) {
+    // Используем ключ сайта или глобальный ключ из настроек интеграций
+    const ahrefsApiKey = site.ahrefsApiKey || storage.integrations.ahrefsApiKey;
+    
+    if (!ahrefsApiKey) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Ahrefs API Key не настроен для этого сайта',
+          error: 'Ahrefs API Key не настроен. Настройте его для сайта или в глобальных настройках интеграций.',
         },
         { status: 400 }
       );
