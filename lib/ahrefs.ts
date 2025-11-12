@@ -64,7 +64,13 @@ export async function fetchAhrefsSiteMetrics(
     const today = new Date();
     const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD
     
-    const requestBody = {
+    const requestBody: {
+      target: string;
+      mode: string;
+      output: string;
+      date: string;
+      metrics: string[];
+    } = {
       target: domainWithoutWww,
       mode: 'domain',
       output: 'json',
@@ -78,8 +84,14 @@ export async function fetchAhrefsSiteMetrics(
       ],
     };
     
+    // Явная проверка, что date добавлен
+    if (!requestBody.date) {
+      throw new Error('Параметр date не был добавлен в requestBody');
+    }
+    
     // Ahrefs API v3 требует токен в query параметре token
-    const urlWithToken = `${url}?token=${encodeURIComponent(trimmedKey)}`;
+    // Также пробуем добавить date в query параметры, если API требует его там
+    const urlWithToken = `${url}?token=${encodeURIComponent(trimmedKey)}&date=${encodeURIComponent(dateString)}`;
 
     // Логируем запрос для отладки (без полного ключа)
     console.log('[Ahrefs API] Запрос к Site Explorer:', {
@@ -98,6 +110,15 @@ export async function fetchAhrefsSiteMetrics(
       hasTokenInUrl: true,
     });
     
+    // Логируем тело запроса для отладки
+    const requestBodyString = JSON.stringify(requestBody);
+    console.log('[Ahrefs API] Тело запроса:', requestBodyString);
+    console.log('[Ahrefs API] Проверка параметра date:', {
+      hasDate: 'date' in requestBody,
+      dateValue: requestBody.date,
+      requestBodyKeys: Object.keys(requestBody),
+    });
+    
     // Пробуем сначала стандартный способ с токеном в query
     let response = await fetch(urlWithToken, {
       method: 'POST',
@@ -105,7 +126,7 @@ export async function fetchAhrefsSiteMetrics(
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify(requestBody),
+      body: requestBodyString,
     });
     
     // Если получили 403, пробуем без токена в URL, а в заголовке Authorization
