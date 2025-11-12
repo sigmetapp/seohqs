@@ -201,6 +201,9 @@ export function getIntegrations(): IntegrationsSettings {
       googlePrivateKey: '',
       ahrefsApiKey: '',
       googleSearchConsoleUrl: '',
+      googleAccessToken: '',
+      googleRefreshToken: '',
+      googleTokenExpiry: '',
       updatedAt: new Date().toISOString(),
     };
   }
@@ -211,6 +214,9 @@ export function getIntegrations(): IntegrationsSettings {
     googlePrivateKey: row.google_private_key || '',
     ahrefsApiKey: row.ahrefs_api_key || '',
     googleSearchConsoleUrl: row.google_search_console_url || '',
+    googleAccessToken: row.google_access_token || '',
+    googleRefreshToken: row.google_refresh_token || '',
+    googleTokenExpiry: row.google_token_expiry || '',
     updatedAt: row.updated_at,
   };
 }
@@ -235,6 +241,18 @@ export function updateIntegrations(settings: Partial<Omit<IntegrationsSettings, 
   if (settings.googleSearchConsoleUrl !== undefined) {
     updates.push('google_search_console_url = ?');
     values.push(settings.googleSearchConsoleUrl || null);
+  }
+  if (settings.googleAccessToken !== undefined) {
+    updates.push('google_access_token = ?');
+    values.push(settings.googleAccessToken || null);
+  }
+  if (settings.googleRefreshToken !== undefined) {
+    updates.push('google_refresh_token = ?');
+    values.push(settings.googleRefreshToken || null);
+  }
+  if (settings.googleTokenExpiry !== undefined) {
+    updates.push('google_token_expiry = ?');
+    values.push(settings.googleTokenExpiry || null);
   }
 
   updates.push("updated_at = datetime('now')");

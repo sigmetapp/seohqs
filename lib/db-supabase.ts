@@ -342,6 +342,9 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
           googlePrivateKey: '',
           ahrefsApiKey: '',
           googleSearchConsoleUrl: '',
+          googleAccessToken: '',
+          googleRefreshToken: '',
+          googleTokenExpiry: '',
           updatedAt: new Date().toISOString(),
         };
       }
@@ -362,6 +365,9 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
             googlePrivateKey: '',
             ahrefsApiKey: '',
             googleSearchConsoleUrl: '',
+            googleAccessToken: '',
+            googleRefreshToken: '',
+            googleTokenExpiry: '',
             updatedAt: new Date().toISOString(),
           };
         }
@@ -372,6 +378,9 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
           googlePrivateKey: newData.google_private_key || '',
           ahrefsApiKey: newData.ahrefs_api_key || '',
           googleSearchConsoleUrl: newData.google_search_console_url || '',
+          googleAccessToken: newData.google_access_token || '',
+          googleRefreshToken: newData.google_refresh_token || '',
+          googleTokenExpiry: newData.google_token_expiry || '',
           updatedAt: newData.updated_at,
         };
       }
@@ -383,6 +392,9 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
         googlePrivateKey: '',
         ahrefsApiKey: '',
         googleSearchConsoleUrl: '',
+        googleAccessToken: '',
+        googleRefreshToken: '',
+        googleTokenExpiry: '',
         updatedAt: new Date().toISOString(),
       };
     }
@@ -393,6 +405,9 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
       googlePrivateKey: data.google_private_key || '',
       ahrefsApiKey: data.ahrefs_api_key || '',
       googleSearchConsoleUrl: data.google_search_console_url || '',
+      googleAccessToken: data.google_access_token || '',
+      googleRefreshToken: data.google_refresh_token || '',
+      googleTokenExpiry: data.google_token_expiry || '',
       updatedAt: data.updated_at,
     };
   } catch (error: any) {
@@ -403,6 +418,9 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
       googlePrivateKey: '',
       ahrefsApiKey: '',
       googleSearchConsoleUrl: '',
+      googleAccessToken: '',
+      googleRefreshToken: '',
+      googleTokenExpiry: '',
       updatedAt: new Date().toISOString(),
     };
   }
@@ -443,6 +461,15 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
     if (settings.googleSearchConsoleUrl !== undefined) {
       updateData.google_search_console_url = settings.googleSearchConsoleUrl || null;
     }
+    if (settings.googleAccessToken !== undefined) {
+      updateData.google_access_token = settings.googleAccessToken || null;
+    }
+    if (settings.googleRefreshToken !== undefined) {
+      updateData.google_refresh_token = settings.googleRefreshToken || null;
+    }
+    if (settings.googleTokenExpiry !== undefined) {
+      updateData.google_token_expiry = settings.googleTokenExpiry || null;
+    }
 
     const { data, error } = await supabase
       .from('integrations')
@@ -470,6 +497,9 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
       googlePrivateKey: data.google_private_key || '',
       ahrefsApiKey: data.ahrefs_api_key || '',
       googleSearchConsoleUrl: data.google_search_console_url || '',
+      googleAccessToken: data.google_access_token || '',
+      googleRefreshToken: data.google_refresh_token || '',
+      googleTokenExpiry: data.google_token_expiry || '',
       updatedAt: data.updated_at,
     };
   } catch (error: any) {
