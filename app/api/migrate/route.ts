@@ -1,12 +1,24 @@
 import { NextResponse } from 'next/server';
-import { runMigrations } from '@/lib/migrations';
+
+async function runMigrations() {
+  // Проверяем, используем ли мы PostgreSQL
+  const usePostgres = !!(process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.VERCEL);
+  
+  if (usePostgres) {
+    const { runMigrations: runPostgres } = await import('@/lib/migrations-postgres');
+    return runPostgres();
+  } else {
+    const { runMigrations: runSQLite } = require('@/lib/migrations');
+    return runSQLite();
+  }
+}
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    const result = runMigrations();
+    const result = await runMigrations();
     
     return NextResponse.json({
       success: true,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Papa from 'papaparse';
-import { insertOffers, clearAllOffers, AffiliateOffer } from '@/lib/db';
+import { insertOffers, clearAllOffers } from '@/lib/db-adapter';
+import { AffiliateOffer } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     let processedFiles = 0;
 
     // Очищаем старые данные перед загрузкой новых
-    clearAllOffers();
+    await clearAllOffers();
 
     for (const file of files) {
       if (!file.name.toLowerCase().endsWith('.csv')) {
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     // Сохраняем все офферы в БД
     if (allOffers.length > 0) {
-      insertOffers(allOffers);
+      await insertOffers(allOffers);
     }
 
     return NextResponse.json({
