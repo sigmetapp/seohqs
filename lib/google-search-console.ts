@@ -101,6 +101,73 @@ export class GoogleSearchConsoleService {
   }
 
   /**
+   * Извлекает домен из URL сайта Google Search Console
+   * @param siteUrl URL сайта (sc-domain:example.com или https://example.com)
+   * @returns Домен без протокола и префиксов
+   */
+  private extractDomain(siteUrl: string): string {
+    try {
+      // Убираем префикс sc-domain:
+      let domain = siteUrl.replace(/^sc-domain:/, '');
+      
+      // Убираем протокол
+      domain = domain.replace(/^https?:\/\//, '');
+      
+      // Убираем www.
+      domain = domain.replace(/^www\./, '');
+      
+      // Убираем путь после домена
+      domain = domain.split('/')[0];
+      
+      // Убираем порт
+      domain = domain.split(':')[0];
+      
+      return domain.toLowerCase().trim();
+    } catch (error) {
+      return siteUrl;
+    }
+  }
+
+  /**
+   * Сопоставляет домен сайта с сайтами из Google Search Console
+   * @param domain Домен сайта (например, example.com)
+   * @returns URL сайта из Google Search Console или null
+   */
+  async findSiteByDomain(domain: string): Promise<string | null> {
+    await this.ensureInitialized();
+    try {
+      const sites = await this.getSites();
+      
+      // Нормализуем домен для сравнения
+      const normalizedDomain = domain.toLowerCase().trim().replace(/^www\./, '');
+      
+      // Ищем точное совпадение
+      for (const site of sites) {
+        const siteDomain = this.extractDomain(site.siteUrl);
+        if (siteDomain === normalizedDomain) {
+          return site.siteUrl;
+        }
+      }
+      
+      // Если точного совпадения нет, ищем частичное (например, example.com и www.example.com)
+      for (const site of sites) {
+        const siteDomain = this.extractDomain(site.siteUrl);
+        // Проверяем, содержит ли один домен другой
+        if (siteDomain === normalizedDomain || 
+            siteDomain === `www.${normalizedDomain}` ||
+            normalizedDomain === `www.${siteDomain}`) {
+          return site.siteUrl;
+        }
+      }
+      
+      return null;
+    } catch (error: any) {
+      console.error('Ошибка поиска сайта по домену:', error);
+      return null;
+    }
+  }
+
+  /**
    * Извлекает URL сайта из URL Search Console
    * @param searchConsoleUrl URL из Google Search Console (например, https://search.google.com/search-console/...)
    * @returns URL сайта (например, sc-domain:example.com или https://example.com)
@@ -209,13 +276,15 @@ export class GoogleSearchConsoleService {
 
   /**
    * Получает агрегированные данные за период (по дням)
-   * @param searchConsoleUrl URL из настроек сайта
+   * @param searchConsoleUrl URL из настроек сайта или домен для автоматического поиска
    * @param days Количество дней назад (по умолчанию 30)
+   * @param domain Домен сайта для автоматического поиска, если searchConsoleUrl не указан
    * @returns Массив данных по дням
    */
   async getAggregatedData(
-    searchConsoleUrl: string,
-    days: number = 30
+    searchConsoleUrl: string | null,
+    days: number = 30,
+    domain?: string
   ): Promise<Array<{
     date: string;
     clicks: number;
@@ -225,9 +294,23 @@ export class GoogleSearchConsoleService {
   }>> {
     await this.ensureInitialized();
     try {
-      const siteUrl = this.extractSiteUrl(searchConsoleUrl);
-      if (!siteUrl) {
-        throw new Error('Не удалось извлечь URL сайта из настроек Search Console');
+      let siteUrl: string | null = null;
+      
+      // Если URL не указан, пытаемся найти автоматически по домену
+      if (!searchConsoleUrl && domain) {
+        siteUrl = await this.findSiteByDomain(domain);
+        if (!siteUrl) {
+          throw new Error(
+            `Не удалось автоматически найти сайт "${domain}" в Google Search Console. Убедитесь, что сайт добавлен в Google Search Console и у вас есть к нему доступ.`
+          );
+        }
+      } else if (searchConsoleUrl) {
+        siteUrl = this.extractSiteUrl(searchConsoleUrl);
+        if (!siteUrl) {
+          throw new Error('Не удалось извлечь URL сайта из настроек Search Console');
+        }
+      } else {
+        throw new Error('Не указан URL сайта и домен для автоматического поиска');
       }
 
       // Вычисляем даты

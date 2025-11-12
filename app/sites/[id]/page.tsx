@@ -20,6 +20,8 @@ export default function SiteDetailPage() {
   const [editForm, setEditForm] = useState({
     googleSearchConsoleUrl: '',
   });
+  const [availableSites, setAvailableSites] = useState<Array<{ siteUrl: string; permissionLevel: string }>>([]);
+  const [loadingSites, setLoadingSites] = useState(false);
 
   useEffect(() => {
     if (siteId) {
@@ -100,14 +102,15 @@ export default function SiteDetailPage() {
         return;
       }
       
+      // Если URL не указан, пытаемся синхронизировать автоматически
+      // Система попытается найти сайт по домену
       if (!site?.googleConsoleStatus?.hasUrl) {
-        const shouldEdit = confirm(
-          'Для синхронизации необходимо указать URL сайта в Google Search Console. Открыть форму редактирования?'
+        const shouldProceed = confirm(
+          'URL сайта не указан. Система попытается автоматически найти сайт в Google Search Console по домену. Продолжить?'
         );
-        if (shouldEdit) {
-          setShowEditModal(true);
+        if (!shouldProceed) {
+          return;
         }
-        return;
       }
       
       const response = await fetch(`/api/sites/${siteId}/google-console/sync`, {
@@ -336,12 +339,12 @@ export default function SiteDetailPage() {
                       </>
                     ) : !site?.googleConsoleStatus?.hasUrl ? (
                       <>
-                        <span>⚠️ URL не указан</span>
+                        <span>ℹ️ URL не указан (будет определен автоматически по домену)</span>
                         <button
                           onClick={() => setShowEditModal(true)}
-                          className="text-blue-400 hover:underline"
+                          className="text-blue-400 hover:underline ml-2"
                         >
-                          Указать
+                          Указать вручную
                         </button>
                       </>
                     ) : null}
@@ -362,7 +365,7 @@ export default function SiteDetailPage() {
                   {!site?.googleConsoleStatus?.hasOAuth
                     ? 'Для синхронизации данных необходимо авторизоваться через Google в разделе Интеграции.'
                     : !site?.googleConsoleStatus?.hasUrl
-                    ? 'Для синхронизации данных необходимо указать URL сайта в Google Search Console.'
+                    ? 'URL сайта не указан. Система автоматически попытается найти сайт в Google Search Console по домену. Если это не сработает, укажите URL вручную.'
                     : 'Подключение не настроено.'}
                 </p>
               </div>
@@ -500,7 +503,7 @@ export default function SiteDetailPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Google Search Console URL
+                    Google Search Console URL <span className="text-gray-500 text-xs">(необязательно)</span>
                   </label>
                   <input
                     type="text"
@@ -512,10 +515,52 @@ export default function SiteDetailPage() {
                     placeholder="sc-domain:example.com или https://example.com"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Укажите URL сайта из Google Search Console. Поддерживаются форматы:{' '}
+                    Если URL не указан, система автоматически найдет сайт в Google Search Console по домену "{site?.domain}". 
+                    Поддерживаются форматы:{' '}
                     <code className="bg-gray-900 px-1 rounded">sc-domain:example.com</code>,{' '}
                     <code className="bg-gray-900 px-1 rounded">https://example.com</code>
                   </p>
+                  {site?.googleConsoleStatus?.hasOAuth && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          setLoadingSites(true);
+                          const response = await fetch('/api/sites/google-console-sites');
+                          const data = await response.json();
+                          if (data.success) {
+                            setAvailableSites(data.sites);
+                          } else {
+                            alert('Ошибка загрузки списка сайтов: ' + (data.error || 'Неизвестная ошибка'));
+                          }
+                        } catch (error: any) {
+                          alert('Ошибка загрузки списка сайтов: ' + error.message);
+                        } finally {
+                          setLoadingSites(false);
+                        }
+                      }}
+                      className="mt-2 text-sm text-blue-400 hover:underline"
+                      disabled={loadingSites}
+                    >
+                      {loadingSites ? 'Загрузка...' : 'Показать доступные сайты из Google Search Console'}
+                    </button>
+                  )}
+                  {availableSites.length > 0 && (
+                    <div className="mt-2 max-h-40 overflow-y-auto border border-gray-600 rounded bg-gray-900">
+                      {availableSites.map((gscSite, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            setEditForm({ ...editForm, googleSearchConsoleUrl: gscSite.siteUrl });
+                            setAvailableSites([]);
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-gray-800 text-sm border-b border-gray-700 last:border-b-0"
+                        >
+                          <div className="font-medium">{gscSite.siteUrl}</div>
+                          <div className="text-xs text-gray-500">{gscSite.permissionLevel}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <button
