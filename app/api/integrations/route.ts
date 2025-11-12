@@ -36,11 +36,14 @@ export async function POST(request: Request) {
     const current = await getIntegrations();
 
     // Обновляем настройки интеграций в БД
+    // OAuth токены (googleAccessToken, googleRefreshToken, googleTokenExpiry) 
+    // сохраняются через callback и не должны перезаписываться здесь
     const updated = await updateIntegrations({
       googleServiceAccountEmail: googleServiceAccountEmail !== undefined ? googleServiceAccountEmail : current.googleServiceAccountEmail,
       googlePrivateKey: googlePrivateKey !== undefined ? googlePrivateKey : current.googlePrivateKey,
       ahrefsApiKey: ahrefsApiKey !== undefined ? ahrefsApiKey : current.ahrefsApiKey,
       googleSearchConsoleUrl: googleSearchConsoleUrl !== undefined ? googleSearchConsoleUrl : current.googleSearchConsoleUrl,
+      // OAuth токены не обновляем здесь - они сохраняются через callback
     });
 
     // Также обновляем переменные окружения для Google Indexing API

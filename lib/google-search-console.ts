@@ -4,34 +4,79 @@ import { storage } from './storage';
 /**
  * Сервис для работы с Google Search Console API
  * Получает данные о производительности сайта в поиске Google
+ * Использует OAuth 2.0 для аутентификации
  */
 export class GoogleSearchConsoleService {
   private auth: any;
   private searchConsole: any;
 
   constructor() {
-    // Получаем учетные данные из настроек интеграций
-    const serviceAccountEmail = storage.integrations.googleServiceAccountEmail || 
-                                process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-    const privateKey = (storage.integrations.googlePrivateKey || 
-                       process.env.GOOGLE_PRIVATE_KEY)?.replace(/\\n/g, '\n');
+    // Пробуем использовать OAuth токены (новый способ)
+    const accessToken = storage.integrations.googleAccessToken;
+    const refreshToken = storage.integrations.googleRefreshToken;
+    
+    // Если есть OAuth токены, используем их
+    if (accessToken && refreshToken) {
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+      const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/google/callback`;
 
-    if (!serviceAccountEmail || !privateKey) {
-      throw new Error(
-        'GOOGLE_SERVICE_ACCOUNT_EMAIL и GOOGLE_PRIVATE_KEY должны быть установлены в настройках интеграций или переменных окружения'
+      if (!clientId || !clientSecret) {
+        throw new Error(
+          'GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET должны быть установлены для использования OAuth'
+        );
+      }
+
+      this.auth = new google.auth.OAuth2(
+        clientId,
+        clientSecret,
+        redirectUri
       );
-    }
 
-    // Создаем JWT клиент для аутентификации
-    // Для Search Console API нужен scope: https://www.googleapis.com/auth/webmasters.readonly
-    this.auth = new google.auth.JWT({
-      email: serviceAccountEmail,
-      key: privateKey,
-      scopes: [
-        'https://www.googleapis.com/auth/webmasters.readonly',
-        'https://www.googleapis.com/auth/webmasters',
-      ],
-    });
+      this.auth.setCredentials({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expiry_date: storage.integrations.googleTokenExpiry 
+          ? new Date(storage.integrations.googleTokenExpiry).getTime() 
+          : undefined,
+      });
+
+      // Автоматически обновляем токен при истечении
+      this.auth.on('tokens', (tokens: any) => {
+        if (tokens.refresh_token) {
+          storage.integrations.googleRefreshToken = tokens.refresh_token;
+        }
+        if (tokens.access_token) {
+          storage.integrations.googleAccessToken = tokens.access_token;
+        }
+        if (tokens.expiry_date) {
+          storage.integrations.googleTokenExpiry = new Date(tokens.expiry_date).toISOString();
+        }
+        storage.integrations.updatedAt = new Date().toISOString();
+      });
+    } else {
+      // Fallback на Service Account (старый способ, для обратной совместимости)
+      const serviceAccountEmail = storage.integrations.googleServiceAccountEmail || 
+                                  process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+      const privateKey = (storage.integrations.googlePrivateKey || 
+                         process.env.GOOGLE_PRIVATE_KEY)?.replace(/\\n/g, '\n');
+
+      if (!serviceAccountEmail || !privateKey) {
+        throw new Error(
+          'Для работы с Google Search Console необходимо либо авторизоваться через OAuth (новый способ), либо настроить Google Service Account (старый способ). Перейдите в раздел Интеграции для авторизации.'
+        );
+      }
+
+      // Создаем JWT клиент для аутентификации
+      this.auth = new google.auth.JWT({
+        email: serviceAccountEmail,
+        key: privateKey,
+        scopes: [
+          'https://www.googleapis.com/auth/webmasters.readonly',
+          'https://www.googleapis.com/auth/webmasters',
+        ],
+      });
+    }
 
     // Инициализируем Search Console API
     this.searchConsole = google.webmasters({
