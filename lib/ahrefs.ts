@@ -59,11 +59,12 @@ export async function fetchAhrefsSiteMetrics(
     const url = `https://api.ahrefs.com/v3/site-explorer/metrics`;
     
     // Пробуем сначала без www
-    // Ahrefs API требует параметр date в формате YYYY-MM-DD
+    // Ahrefs API требует параметр date в формате YYYY-MM-DD для некоторых метрик
     // Используем текущую дату или недавнюю дату для получения последних данных
     const today = new Date();
     const dateString = today.toISOString().split('T')[0]; // YYYY-MM-DD
     
+    // Создаем requestBody с date
     const requestBody: {
       target: string;
       mode: string;
@@ -85,13 +86,18 @@ export async function fetchAhrefsSiteMetrics(
     };
     
     // Явная проверка, что date добавлен
-    if (!requestBody.date) {
-      throw new Error('Параметр date не был добавлен в requestBody');
+    if (!requestBody.date || requestBody.date.length === 0) {
+      throw new Error('Параметр date не был добавлен в requestBody или пуст');
+    }
+    
+    // Дополнительная проверка формата даты
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(requestBody.date)) {
+      throw new Error(`Неверный формат даты: ${requestBody.date}. Ожидается YYYY-MM-DD`);
     }
     
     // Ahrefs API v3 требует токен в query параметре token
-    // Также пробуем добавить date в query параметры, если API требует его там
-    const urlWithToken = `${url}?token=${encodeURIComponent(trimmedKey)}&date=${encodeURIComponent(dateString)}`;
+    // Параметр date должен быть в body запроса, а не в query
+    const urlWithToken = `${url}?token=${encodeURIComponent(trimmedKey)}`;
 
     // Логируем запрос для отладки (без полного ключа)
     console.log('[Ahrefs API] Запрос к Site Explorer:', {
@@ -169,6 +175,18 @@ export async function fetchAhrefsSiteMetrics(
         const errorMessage = errorData 
           ? (Array.isArray(errorData) ? errorData.join(', ') : (typeof errorData === 'object' ? JSON.stringify(errorData) : String(errorData)))
           : errorText;
+        
+        // Логируем детали ошибки 400
+        console.error('[Ahrefs API] 400 Bad Request - Детали ошибки:', {
+          errorText,
+          errorData,
+          requestBody: JSON.stringify(requestBody),
+          requestBodyKeys: Object.keys(requestBody),
+          hasDate: 'date' in requestBody,
+          dateValue: requestBody.date,
+          responseStatus: response.status,
+          responseStatusText: response.statusText,
+        });
         
         // Если ошибка связана с датой, пробуем более ранние даты
         if (errorMessage.includes('date') || errorMessage.includes('Date')) {
