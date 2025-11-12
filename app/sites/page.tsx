@@ -13,7 +13,6 @@ export default function SitesPage() {
     domain: '',
     category: '',
     googleSearchConsoleUrl: '',
-    ahrefsApiKey: '',
   });
   const [categories, setCategories] = useState<string[]>([]);
 
@@ -63,7 +62,7 @@ export default function SitesPage() {
       const data = await response.json();
       if (data.success) {
         setShowCreateModal(false);
-        setNewSite({ name: '', domain: '', category: '', googleSearchConsoleUrl: '', ahrefsApiKey: '' });
+        setNewSite({ name: '', domain: '', category: '', googleSearchConsoleUrl: '' });
         loadSites();
       } else {
         alert(data.error || 'Ошибка создания сайта');
@@ -90,7 +89,7 @@ export default function SitesPage() {
         <div className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-4xl font-bold mb-2">Панель сайтов</h1>
-            <p className="text-gray-400">Мониторинг сайтов: Google Console, Ahrefs, постбеки</p>
+            <p className="text-gray-400">Мониторинг сайтов: Google Console, постбеки</p>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
@@ -128,12 +127,6 @@ export default function SitesPage() {
                     <span className="text-gray-500">Google Console:</span>
                     <span className={site.googleSearchConsoleUrl ? 'text-green-400' : 'text-gray-600'}>
                       {site.googleSearchConsoleUrl ? '✓' : '✗'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Ahrefs API:</span>
-                    <span className={site.ahrefsApiKey ? 'text-green-400' : 'text-gray-600'}>
-                      {site.ahrefsApiKey ? '✓' : '✗'}
                     </span>
                   </div>
                 </div>
@@ -207,18 +200,6 @@ export default function SitesPage() {
                     onChange={(e) => setNewSite({ ...newSite, googleSearchConsoleUrl: e.target.value })}
                     className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
                     placeholder="https://search.google.com/search-console/..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Ahrefs API Key (необязательно)
-                  </label>
-                  <input
-                    type="password"
-                    value={newSite.ahrefsApiKey}
-                    onChange={(e) => setNewSite({ ...newSite, ahrefsApiKey: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="ahrefs_api_key"
                   />
                 </div>
                 <div className="flex gap-2">

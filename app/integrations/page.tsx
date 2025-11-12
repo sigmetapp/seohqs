@@ -10,7 +10,6 @@ export default function IntegrationsPage() {
     id: 1,
     googleServiceAccountEmail: '',
     googlePrivateKey: '',
-    ahrefsApiKey: '',
     googleSearchConsoleUrl: '',
     updatedAt: new Date().toISOString(),
   });
@@ -18,12 +17,10 @@ export default function IntegrationsPage() {
   const [formData, setFormData] = useState({
     googleServiceAccountEmail: '',
     googlePrivateKey: '',
-    ahrefsApiKey: '',
     googleSearchConsoleUrl: '',
   });
 
   const [showPrivateKey, setShowPrivateKey] = useState(false);
-  const [showAhrefsKey, setShowAhrefsKey] = useState(false);
   const [showSearchConsoleGuide, setShowSearchConsoleGuide] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -57,7 +54,6 @@ export default function IntegrationsPage() {
         setFormData({
           googleServiceAccountEmail: data.integrations.googleServiceAccountEmail || '',
           googlePrivateKey: data.integrations.googlePrivateKey || '',
-          ahrefsApiKey: data.integrations.ahrefsApiKey || '',
           googleSearchConsoleUrl: data.integrations.googleSearchConsoleUrl || '',
         });
         // OAuth токены загружаются автоматически в integrations, но не отображаются в форме
@@ -340,54 +336,6 @@ export default function IntegrationsPage() {
             </div>
           </div>
 
-          {/* Ahrefs API */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="text-3xl">📊</div>
-                <div>
-                  <h2 className="text-xl font-bold">Ahrefs API</h2>
-                  <p className="text-sm text-gray-400">
-                    API ключ для доступа к данным Ahrefs
-                  </p>
-                </div>
-              </div>
-              <div
-                className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  isConfigured('ahrefsApiKey')
-                    ? 'bg-green-900/30 text-green-300 border border-green-700'
-                    : 'bg-gray-700 text-gray-400 border border-gray-600'
-                }`}
-              >
-                {isConfigured('ahrefsApiKey') ? 'Настроено' : 'Не настроено'}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Ahrefs API Key
-              </label>
-              <div className="relative">
-                <input
-                  type={showAhrefsKey ? 'text' : 'password'}
-                  value={formData.ahrefsApiKey}
-                  onChange={(e) =>
-                    setFormData({ ...formData, ahrefsApiKey: e.target.value })
-                  }
-                  className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none font-mono"
-                  placeholder="ahrefs_api_key_here"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowAhrefsKey(!showAhrefsKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
-                >
-                  {showAhrefsKey ? '👁️' : '👁️‍🗨️'}
-                </button>
-              </div>
-            </div>
-          </div>
-
           {/* Save Button */}
           <div className="flex justify-end gap-4 pt-4">
             <button
@@ -415,9 +363,6 @@ export default function IntegrationsPage() {
             </li>
             <li>
               • Google Search Console позволяет автоматически получать данные о кликах, показах, CTR и позициях в поиске
-            </li>
-            <li>
-              • Ahrefs API Key используется для получения данных о ссылочном профиле и метриках
             </li>
           </ul>
         </div>

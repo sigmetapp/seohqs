@@ -61,7 +61,6 @@ export interface Site {
   domain: string;
   category?: string;
   googleSearchConsoleUrl?: string;
-  ahrefsApiKey?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -72,16 +71,6 @@ export interface GoogleSearchConsoleData {
   impressions: number;
   ctr: number;
   position: number;
-  date: string;
-}
-
-export interface AhrefsData {
-  siteId: number;
-  domainRating: number;
-  backlinks: number;
-  referringDomains: number;
-  organicKeywords: number;
-  organicTraffic: number;
   date: string;
 }
 
@@ -103,7 +92,6 @@ export interface IntegrationsSettings {
   googleAccessToken?: string;
   googleRefreshToken?: string;
   googleTokenExpiry?: string;
-  ahrefsApiKey?: string;
   googleSearchConsoleUrl?: string;
   updatedAt: string;
 }

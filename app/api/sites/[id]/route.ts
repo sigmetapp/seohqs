@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSiteById, updateSite, getIntegrations } from '@/lib/db-adapter';
+import { getSiteById, updateSite } from '@/lib/db-adapter';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -32,16 +32,9 @@ export async function GET(
       );
     }
 
-    // Проверяем наличие глобального ключа Ahrefs, если у сайта нет своего
-    const integrations = await getIntegrations();
-    const hasAhrefsConnection = site.ahrefsApiKey || integrations.ahrefsApiKey;
-
     return NextResponse.json({
       success: true,
-      site: {
-        ...site,
-        hasAhrefsConnection: !!hasAhrefsConnection,
-      },
+      site: site,
     });
   } catch (error: any) {
     console.error('Error fetching site:', error);
@@ -72,26 +65,18 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, domain, category, googleSearchConsoleUrl, ahrefsApiKey } = body;
+    const { name, domain, category, googleSearchConsoleUrl } = body;
 
     const updatedSite = await updateSite(siteId, {
       name,
       domain,
       category,
       googleSearchConsoleUrl,
-      ahrefsApiKey,
     });
-
-    // Проверяем наличие глобального ключа Ahrefs, если у сайта нет своего
-    const integrations = await getIntegrations();
-    const hasAhrefsConnection = updatedSite.ahrefsApiKey || integrations.ahrefsApiKey;
 
     return NextResponse.json({
       success: true,
-      site: {
-        ...updatedSite,
-        hasAhrefsConnection: !!hasAhrefsConnection,
-      },
+      site: updatedSite,
     });
   } catch (error: any) {
     console.error('Error updating site:', error);
