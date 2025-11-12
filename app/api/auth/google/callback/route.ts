@@ -28,6 +28,9 @@ export async function GET(request: Request) {
     }
   }
   
+  // Убираем завершающий слэш из baseOrigin, чтобы избежать двойного слэша
+  baseOrigin = baseOrigin.replace(/\/+$/, '');
+  
   const baseUrl = baseOrigin;
   
   try {
