@@ -32,12 +32,22 @@ export async function POST(request: Request) {
     } = body;
 
     // Обновляем настройки интеграций
+    // OAuth токены сохраняются через callback и не должны перезаписываться здесь
     storage.integrations = {
+      ...storage.integrations,
       id: storage.integrations.id,
-      googleServiceAccountEmail: googleServiceAccountEmail || storage.integrations.googleServiceAccountEmail,
-      googlePrivateKey: googlePrivateKey || storage.integrations.googlePrivateKey,
-      ahrefsApiKey: ahrefsApiKey || storage.integrations.ahrefsApiKey,
-      googleSearchConsoleUrl: googleSearchConsoleUrl || storage.integrations.googleSearchConsoleUrl,
+      googleServiceAccountEmail: googleServiceAccountEmail !== undefined 
+        ? googleServiceAccountEmail 
+        : storage.integrations.googleServiceAccountEmail,
+      googlePrivateKey: googlePrivateKey !== undefined 
+        ? googlePrivateKey 
+        : storage.integrations.googlePrivateKey,
+      ahrefsApiKey: ahrefsApiKey !== undefined 
+        ? ahrefsApiKey 
+        : storage.integrations.ahrefsApiKey,
+      googleSearchConsoleUrl: googleSearchConsoleUrl !== undefined 
+        ? googleSearchConsoleUrl 
+        : storage.integrations.googleSearchConsoleUrl,
       updatedAt: new Date().toISOString(),
     };
 

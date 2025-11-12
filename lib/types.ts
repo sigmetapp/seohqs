@@ -100,6 +100,9 @@ export interface IntegrationsSettings {
   id: number;
   googleServiceAccountEmail?: string;
   googlePrivateKey?: string;
+  googleAccessToken?: string;
+  googleRefreshToken?: string;
+  googleTokenExpiry?: string;
   ahrefsApiKey?: string;
   googleSearchConsoleUrl?: string;
   updatedAt: string;
