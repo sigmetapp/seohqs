@@ -35,7 +35,11 @@ export default function FileUpload({ onUploadSuccess }: FileUploadProps) {
         formData.append('files', file);
       });
 
-      const response = await fetch('/api/upload', {
+      // Используем переменную окружения или относительный путь
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+      const uploadUrl = `${baseUrl}/api/upload`;
+      
+      const response = await fetch(uploadUrl, {
         method: 'POST',
         body: formData,
       });

@@ -38,8 +38,11 @@ export default function Home() {
 
       // Проверяем API
       try {
-        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+        // Используем переменную окружения или window.location.origin
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+          (typeof window !== 'undefined' ? window.location.origin : '');
         debug.steps.push(`Проверка API: ${baseUrl}/api/data`);
+        debug.steps.push(`NEXT_PUBLIC_BASE_URL: ${process.env.NEXT_PUBLIC_BASE_URL || 'не установлена'}`);
         
         const response = await fetch(`${baseUrl}/api/data`, {
           cache: 'no-store',
@@ -241,6 +244,8 @@ export default function Home() {
                   <div className="bg-gray-700 rounded p-3 text-sm">
                     <p className="text-gray-400">URL: {typeof window !== 'undefined' ? window.location.href : 'N/A'}</p>
                     <p className="text-gray-400">Origin: {typeof window !== 'undefined' ? window.location.origin : 'N/A'}</p>
+                    <p className="text-gray-400">NEXT_PUBLIC_BASE_URL: {process.env.NEXT_PUBLIC_BASE_URL || 'не установлена'}</p>
+                    <p className="text-gray-400">Используемый baseUrl: {debugInfo.apiStatus?.url?.replace('/api/data', '') || 'N/A'}</p>
                   </div>
                 </div>
               </div>

@@ -13,9 +13,9 @@ export interface AffiliateOffer {
 
 export const loadDataFromDB = async (): Promise<AffiliateOffer[]> => {
   try {
-    const baseUrl = typeof window !== 'undefined' 
-      ? window.location.origin 
-      : '';
+    // Используем переменную окружения или window.location.origin
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+      (typeof window !== 'undefined' ? window.location.origin : '');
     
     const response = await fetch(`${baseUrl}/api/data`, {
       cache: 'no-store',
