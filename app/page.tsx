@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { parseCSVFiles, AffiliateOffer } from './utils/parseCSV';
+import { loadDataFromDB, AffiliateOffer } from './utils/parseCSV';
 import Filters from './components/Filters';
 import Table from './components/Table';
 import Loader from './components/Loader';
@@ -11,7 +11,7 @@ import Papa from 'papaparse';
 export default function Home() {
   const [offers, setOffers] = useState<AffiliateOffer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showUpload, setShowUpload] = useState(true); // По умолчанию показываем форму загрузки
+  const [showUpload, setShowUpload] = useState(false);
   const [filters, setFilters] = useState({
     topic: '',
     country: '',
@@ -24,18 +24,18 @@ export default function Home() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const data = await parseCSVFiles();
+      const data = await loadDataFromDB();
       setOffers(data);
-      // Скрываем форму загрузки только если есть данные
-      if (data.length > 0) {
-        setShowUpload(false);
-      } else {
+      
+      // Показываем форму загрузки только если данных нет
+      if (data.length === 0) {
         setShowUpload(true);
+      } else {
+        setShowUpload(false);
       }
     } catch (error) {
       console.error('Error loading data:', error);
       setOffers([]);
-      // Всегда показываем форму загрузки при ошибке или отсутствии данных
       setShowUpload(true);
     } finally {
       setLoading(false);
@@ -43,13 +43,11 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // Загружаем данные при монтировании компонента
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleUploadSuccess = () => {
-    // Перезагружаем данные после успешной загрузки
     loadData();
   };
 
@@ -77,7 +75,7 @@ export default function Home() {
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
-    setCurrentPage(1); // Сбрасываем на первую страницу при изменении фильтров
+    setCurrentPage(1);
   };
 
   const exportToCSV = () => {
@@ -93,6 +91,10 @@ export default function Home() {
     document.body.removeChild(link);
   };
 
+  if (loading) {
+    return <Loader />;
+  }
+
   return (
     <main className="min-h-screen bg-gray-900 text-white p-8">
       <div className="max-w-7xl mx-auto">
@@ -103,80 +105,74 @@ export default function Home() {
           </p>
         </div>
 
-        {loading ? (
-          <Loader />
-        ) : (
+        {/* Показываем форму загрузки если данных нет или пользователь хочет загрузить */}
+        {showUpload && (
           <>
-            {/* Показываем загрузку файлов если данных нет или пользователь хочет обновить */}
-            {(showUpload || offers.length === 0) && (
-              <>
-                <FileUpload onUploadSuccess={handleUploadSuccess} />
-                {offers.length === 0 && (
-                  <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 mb-6">
-                    <p className="text-yellow-200">
-                      Для начала работы загрузите CSV файлы выше. После загрузки данные будут автоматически отображаться.
-                    </p>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Показываем кнопку для повторной загрузки если данные есть */}
-            {!showUpload && offers.length > 0 && (
-              <div className="mb-6 flex justify-between items-center">
-                <button
-                  onClick={() => setShowUpload(true)}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
-                >
-                  Загрузить/Обновить CSV файлы
-                </button>
+            <FileUpload onUploadSuccess={handleUploadSuccess} />
+            {offers.length === 0 && (
+              <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 mb-6">
+                <p className="text-yellow-200">
+                  База данных пуста. Загрузите CSV файлы выше для начала работы.
+                </p>
               </div>
             )}
+          </>
+        )}
 
-            {offers.length > 0 && (
-              <>
-                <Filters
-                  offers={offers}
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                />
+        {/* Показываем кнопку для загрузки если данные есть */}
+        {!showUpload && offers.length > 0 && (
+          <div className="mb-6 flex justify-between items-center">
+            <button
+              onClick={() => setShowUpload(true)}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm"
+            >
+              Загрузить новые CSV файлы
+            </button>
+          </div>
+        )}
 
-                <div className="mb-4 flex justify-end">
-                  <button
-                    onClick={exportToCSV}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-                  >
-                    Export CSV
-                  </button>
-                </div>
+        {offers.length > 0 && (
+          <>
+            <Filters
+              offers={offers}
+              filters={filters}
+              onFilterChange={handleFilterChange}
+            />
 
-                <div className="bg-gray-800 rounded-lg p-6">
-                  <Table data={paginatedOffers} />
-                </div>
+            <div className="mb-4 flex justify-end">
+              <button
+                onClick={exportToCSV}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+              >
+                Export CSV
+              </button>
+            </div>
 
-                {/* Пагинация */}
-                {totalPages > 1 && (
-                  <div className="mt-6 flex justify-center items-center gap-2">
-                    <button
-                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                      disabled={currentPage === 1}
-                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Назад
-                    </button>
-                    <span className="text-gray-300 px-4">
-                      Страница {currentPage} из {totalPages}
-                    </span>
-                    <button
-                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                      disabled={currentPage === totalPages}
-                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Вперёд
-                    </button>
-                  </div>
-                )}
-              </>
+            <div className="bg-gray-800 rounded-lg p-6">
+              <Table data={paginatedOffers} />
+            </div>
+
+            {/* Пагинация */}
+            {totalPages > 1 && (
+              <div className="mt-6 flex justify-center items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Назад
+                </button>
+                <span className="text-gray-300 px-4">
+                  Страница {currentPage} из {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Вперёд
+                </button>
+              </div>
             )}
           </>
         )}

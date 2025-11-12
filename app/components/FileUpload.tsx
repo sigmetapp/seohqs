@@ -9,29 +9,32 @@ interface FileUploadProps {
 export default function FileUpload({ onUploadSuccess }: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [fileNames, setFileNames] = useState({
-    admitad: '',
-    cj: '',
-    advertise: '',
-    clickbank: '',
-  });
+  const [files, setFiles] = useState<File[]>([]);
 
-  const handleFileChange = (key: keyof typeof fileNames, file: File | null) => {
-    if (file) {
-      setFileNames((prev) => ({ ...prev, [key]: file.name }));
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const selectedFiles = Array.from(e.target.files);
+      setFiles(selectedFiles);
     }
   };
 
-  const handleUpload = async (file: File, fileName: string): Promise<{ success: boolean; fileName: string }> => {
-    if (!file) {
-      throw new Error('No file provided');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (files.length === 0) {
+      setMessage({ type: 'error', text: 'Пожалуйста, выберите хотя бы один CSV файл' });
+      return;
     }
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('fileName', fileName);
+    setUploading(true);
+    setMessage(null);
 
     try {
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append('files', file);
+      });
+
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
@@ -43,91 +46,24 @@ export default function FileUpload({ onUploadSuccess }: FileUploadProps) {
         throw new Error(result.error || 'Upload failed');
       }
 
-      return { success: true, fileName: result.fileName };
+      setMessage({
+        type: 'success',
+        text: `Успешно загружено! Обработано файлов: ${result.filesProcessed}, записей: ${result.offersCount}`,
+      });
+
+      // Очищаем выбранные файлы
+      setFiles([]);
+      
+      // Обновляем данные после успешной загрузки
+      setTimeout(() => {
+        onUploadSuccess();
+      }, 1000);
     } catch (error) {
-      console.error(`Error uploading ${fileName}:`, error);
-      throw error;
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setUploading(true);
-    setMessage(null);
-
-    const formData = new FormData(e.currentTarget as HTMLFormElement);
-    const files = {
-      admitad: formData.get('admitad') as File,
-      cj: formData.get('cj') as File,
-      advertise: formData.get('advertise') as File,
-      clickbank: formData.get('clickbank') as File,
-    };
-
-    const uploads: Promise<{ success: boolean; fileName: string }>[] = [];
-    let errorCount = 0;
-
-    // Загружаем все файлы
-    if (files.admitad && files.admitad.size > 0) {
-      uploads.push(
-        handleUpload(files.admitad, 'admitad.csv').catch((error) => {
-          errorCount++;
-          console.error('Failed to upload admitad.csv:', error);
-          return { success: false, fileName: 'admitad.csv' };
-        })
-      );
-    }
-    if (files.cj && files.cj.size > 0) {
-      uploads.push(
-        handleUpload(files.cj, 'cj.csv').catch((error) => {
-          errorCount++;
-          console.error('Failed to upload cj.csv:', error);
-          return { success: false, fileName: 'cj.csv' };
-        })
-      );
-    }
-    if (files.advertise && files.advertise.size > 0) {
-      uploads.push(
-        handleUpload(files.advertise, 'advertise.csv').catch((error) => {
-          errorCount++;
-          console.error('Failed to upload advertise.csv:', error);
-          return { success: false, fileName: 'advertise.csv' };
-        })
-      );
-    }
-    if (files.clickbank && files.clickbank.size > 0) {
-      uploads.push(
-        handleUpload(files.clickbank, 'clickbank.csv').catch((error) => {
-          errorCount++;
-          console.error('Failed to upload clickbank.csv:', error);
-          return { success: false, fileName: 'clickbank.csv' };
-        })
-      );
-    }
-
-    if (uploads.length === 0) {
-      setMessage({ type: 'error', text: 'Пожалуйста, выберите хотя бы один файл' });
-      setUploading(false);
-      return;
-    }
-
-    try {
-      await Promise.all(uploads);
-      const successCount = uploads.length - errorCount;
-
-      if (successCount > 0) {
-        setMessage({
-          type: 'success',
-          text: `Успешно загружено файлов: ${successCount}${errorCount > 0 ? `. Ошибок: ${errorCount}` : ''}`,
-        });
-        // Обновляем данные после успешной загрузки
-        setTimeout(() => {
-          onUploadSuccess();
-        }, 1000);
-      } else {
-        setMessage({ type: 'error', text: 'Не удалось загрузить файлы' });
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Ошибка при загрузке файлов' });
+      console.error('Error uploading files:', error);
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Ошибка при загрузке файлов',
+      });
     } finally {
       setUploading(false);
     }
@@ -137,74 +73,31 @@ export default function FileUpload({ onUploadSuccess }: FileUploadProps) {
     <div className="bg-gray-800 rounded-lg p-6 mb-6">
       <h2 className="text-2xl font-bold mb-4">Загрузка CSV файлов</h2>
       <p className="text-gray-400 mb-6">
-        Загрузите CSV файлы для настройки каталога. Файлы будут сохранены и использованы для отображения данных.
+        Выберите CSV файлы для загрузки в базу данных. Все файлы будут обработаны и сохранены.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Admitad CSV
-            </label>
-            <input
-              type="file"
-              name="admitad"
-              accept=".csv"
-              onChange={(e) => handleFileChange('admitad', e.target.files?.[0] || null)}
-              className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {fileNames.admitad && (
-              <p className="text-sm text-gray-400 mt-1">{fileNames.admitad}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              CJ CSV
-            </label>
-            <input
-              type="file"
-              name="cj"
-              accept=".csv"
-              onChange={(e) => handleFileChange('cj', e.target.files?.[0] || null)}
-              className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {fileNames.cj && (
-              <p className="text-sm text-gray-400 mt-1">{fileNames.cj}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Advertise CSV
-            </label>
-            <input
-              type="file"
-              name="advertise"
-              accept=".csv"
-              onChange={(e) => handleFileChange('advertise', e.target.files?.[0] || null)}
-              className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {fileNames.advertise && (
-              <p className="text-sm text-gray-400 mt-1">{fileNames.advertise}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              ClickBank CSV
-            </label>
-            <input
-              type="file"
-              name="clickbank"
-              accept=".csv"
-              onChange={(e) => handleFileChange('clickbank', e.target.files?.[0] || null)}
-              className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {fileNames.clickbank && (
-              <p className="text-sm text-gray-400 mt-1">{fileNames.clickbank}</p>
-            )}
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Выберите CSV файлы (можно несколько)
+          </label>
+          <input
+            type="file"
+            multiple
+            accept=".csv"
+            onChange={handleFileChange}
+            className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {files.length > 0 && (
+            <div className="mt-2">
+              <p className="text-sm text-gray-400">Выбрано файлов: {files.length}</p>
+              <ul className="mt-1 text-sm text-gray-300">
+                {files.map((file, index) => (
+                  <li key={index}>• {file.name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {message && (
@@ -221,10 +114,10 @@ export default function FileUpload({ onUploadSuccess }: FileUploadProps) {
 
         <button
           type="submit"
-          disabled={uploading}
+          disabled={uploading || files.length === 0}
           className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {uploading ? 'Загрузка...' : 'Загрузить файлы'}
+          {uploading ? 'Загрузка и обработка...' : 'Загрузить файлы в базу данных'}
         </button>
       </form>
     </div>
