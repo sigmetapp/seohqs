@@ -246,3 +246,107 @@ export function updateIntegrations(settings: Partial<Omit<IntegrationsSettings, 
 
   return getIntegrations();
 }
+
+// Google Search Console Data functions
+export interface GoogleSearchConsoleDataRow {
+  id: number;
+  siteId: number;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+  date: string;
+  createdAt: string;
+}
+
+export function insertGoogleSearchConsoleData(
+  data: Omit<GoogleSearchConsoleDataRow, 'id' | 'createdAt'>
+): GoogleSearchConsoleDataRow {
+  const database = getDatabase();
+  const stmt = database.prepare(`
+    INSERT INTO google_search_console_data (site_id, clicks, impressions, ctr, position, date)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(site_id, date) DO UPDATE SET
+      clicks = excluded.clicks,
+      impressions = excluded.impressions,
+      ctr = excluded.ctr,
+      position = excluded.position
+  `);
+
+  const result = stmt.run(
+    data.siteId,
+    data.clicks,
+    data.impressions,
+    data.ctr,
+    data.position,
+    data.date
+  );
+
+  const row = database
+    .prepare('SELECT * FROM google_search_console_data WHERE site_id = ? AND date = ?')
+    .get(data.siteId, data.date) as any;
+
+  return {
+    id: row.id,
+    siteId: row.site_id,
+    clicks: row.clicks,
+    impressions: row.impressions,
+    ctr: row.ctr,
+    position: row.position,
+    date: row.date,
+    createdAt: row.created_at,
+  };
+}
+
+export function getGoogleSearchConsoleDataBySiteId(
+  siteId: number,
+  limit: number = 100
+): GoogleSearchConsoleDataRow[] {
+  const database = getDatabase();
+  const rows = database
+    .prepare('SELECT * FROM google_search_console_data WHERE site_id = ? ORDER BY date DESC LIMIT ?')
+    .all(siteId, limit) as any[];
+
+  return rows.map((row) => ({
+    id: row.id,
+    siteId: row.site_id,
+    clicks: row.clicks,
+    impressions: row.impressions,
+    ctr: row.ctr,
+    position: row.position,
+    date: row.date,
+    createdAt: row.created_at,
+  }));
+}
+
+export function bulkInsertGoogleSearchConsoleData(
+  data: Omit<GoogleSearchConsoleDataRow, 'id' | 'createdAt'>[]
+): void {
+  if (data.length === 0) return;
+
+  const database = getDatabase();
+  const stmt = database.prepare(`
+    INSERT INTO google_search_console_data (site_id, clicks, impressions, ctr, position, date)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(site_id, date) DO UPDATE SET
+      clicks = excluded.clicks,
+      impressions = excluded.impressions,
+      ctr = excluded.ctr,
+      position = excluded.position
+  `);
+
+  const insertMany = database.transaction((items: Omit<GoogleSearchConsoleDataRow, 'id' | 'createdAt'>[]) => {
+    for (const item of items) {
+      stmt.run(
+        item.siteId,
+        item.clicks,
+        item.impressions,
+        item.ctr,
+        item.position,
+        item.date
+      );
+    }
+  });
+
+  insertMany(data);
+}

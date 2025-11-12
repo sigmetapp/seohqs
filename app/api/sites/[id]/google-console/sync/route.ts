@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getSiteById } from '@/lib/db-adapter';
-import { storage } from '@/lib/storage';
+import { getSiteById, bulkInsertGoogleSearchConsoleData } from '@/lib/db-adapter';
+import { createSearchConsoleService } from '@/lib/google-search-console';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -42,33 +42,61 @@ export async function POST(
       );
     }
 
-    // Имитация синхронизации данных
-    // В реальности здесь будет интеграция с Google Search Console API
-    const newData = {
-      siteId,
-      clicks: Math.floor(Math.random() * 1000),
-      impressions: Math.floor(Math.random() * 10000),
-      ctr: Math.random() * 0.1,
-      position: Math.random() * 50 + 1,
-      date: new Date().toISOString(),
-    };
-
-    // Удаляем старые данные за сегодня и добавляем новые
-    storage.googleData = storage.googleData.filter(
-      (d) => !(d.siteId === siteId && d.date.startsWith(new Date().toISOString().split('T')[0]))
+    // Получаем данные из Google Search Console API
+    const searchConsoleService = createSearchConsoleService();
+    
+    // Получаем данные за последние 30 дней
+    const aggregatedData = await searchConsoleService.getAggregatedData(
+      site.googleSearchConsoleUrl,
+      30
     );
-    storage.googleData.push(newData);
+
+    if (aggregatedData.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'Данные синхронизированы, но новых данных не найдено',
+        data: [],
+        count: 0,
+      });
+    }
+
+    // Преобразуем данные для сохранения в БД
+    const dataToInsert = aggregatedData.map((item) => ({
+      siteId,
+      clicks: item.clicks,
+      impressions: item.impressions,
+      ctr: item.ctr,
+      position: item.position,
+      date: item.date,
+    }));
+
+    // Сохраняем данные в БД
+    await bulkInsertGoogleSearchConsoleData(dataToInsert);
 
     return NextResponse.json({
       success: true,
-      data: newData,
-      message: 'Данные Google Search Console синхронизированы',
+      message: `Данные Google Search Console синхронизированы. Загружено ${dataToInsert.length} записей`,
+      data: aggregatedData,
+      count: dataToInsert.length,
     });
   } catch (error: any) {
+    console.error('Ошибка синхронизации Google Search Console:', error);
+    
+    // Более детальная обработка ошибок
+    let errorMessage = error.message || 'Ошибка синхронизации Google Console';
+    
+    if (errorMessage.includes('Service Account')) {
+      errorMessage = 'Ошибка аутентификации. Проверьте настройки Google Service Account в разделе Интеграции.';
+    } else if (errorMessage.includes('доступ запрещен') || errorMessage.includes('403')) {
+      errorMessage = 'Доступ запрещен. Убедитесь, что Service Account имеет доступ к сайту в Google Search Console. Для доменов Google Workspace может потребоваться настройка делегирования домена.';
+    } else if (errorMessage.includes('не удалось извлечь URL')) {
+      errorMessage = 'Неверный формат URL Google Search Console. Убедитесь, что URL корректный.';
+    }
+
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Ошибка синхронизации Google Console',
+        error: errorMessage,
       },
       { status: 500 }
     );

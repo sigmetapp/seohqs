@@ -1,5 +1,5 @@
 import { getPostgresClient } from './postgres-client';
-import type { AffiliateOffer, Site, IntegrationsSettings } from './types';
+import type { AffiliateOffer, Site } from './types';
 
 // Проверяем, доступна ли PostgreSQL БД
 function isPostgresAvailable(): boolean {
@@ -355,6 +355,132 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
 
     return getIntegrations();
   } catch (error: any) {
+    throw error;
+  }
+}
+
+// Google Search Console Data functions
+export interface GoogleSearchConsoleDataRow {
+  id: number;
+  siteId: number;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+  date: string;
+  createdAt: string;
+}
+
+export async function insertGoogleSearchConsoleData(
+  data: Omit<GoogleSearchConsoleDataRow, 'id' | 'createdAt'>
+): Promise<GoogleSearchConsoleDataRow> {
+  if (!isPostgresAvailable()) {
+    throw new Error('PostgreSQL database not configured');
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const result = await db.query(
+      `INSERT INTO google_search_console_data (site_id, clicks, impressions, ctr, position, date)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (site_id, date) 
+       DO UPDATE SET clicks = EXCLUDED.clicks, impressions = EXCLUDED.impressions, 
+                     ctr = EXCLUDED.ctr, position = EXCLUDED.position
+       RETURNING id, site_id, clicks, impressions, ctr, position, date, created_at`,
+      [data.siteId, data.clicks, data.impressions, data.ctr, data.position, data.date]
+    );
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      siteId: row.site_id,
+      clicks: row.clicks,
+      impressions: row.impressions,
+      ctr: parseFloat(row.ctr),
+      position: parseFloat(row.position),
+      date: row.date,
+      createdAt: row.created_at,
+    };
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      throw new Error('Table google_search_console_data does not exist. Please run migrations.');
+    }
+    throw error;
+  }
+}
+
+export async function getGoogleSearchConsoleDataBySiteId(
+  siteId: number,
+  limit: number = 100
+): Promise<GoogleSearchConsoleDataRow[]> {
+  if (!isPostgresAvailable()) {
+    return [];
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const result = await db.query(
+      `SELECT * FROM google_search_console_data 
+       WHERE site_id = $1 
+       ORDER BY date DESC 
+       LIMIT $2`,
+      [siteId, limit]
+    );
+
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      siteId: row.site_id,
+      clicks: row.clicks,
+      impressions: row.impressions,
+      ctr: parseFloat(row.ctr),
+      position: parseFloat(row.position),
+      date: row.date,
+      createdAt: row.created_at,
+    }));
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      return [];
+    }
+    console.error('Error fetching Google Search Console data:', error);
+    return [];
+  }
+}
+
+export async function bulkInsertGoogleSearchConsoleData(
+  data: Omit<GoogleSearchConsoleDataRow, 'id' | 'createdAt'>[]
+): Promise<void> {
+  if (!isPostgresAvailable()) {
+    throw new Error('PostgreSQL database not configured');
+  }
+
+  if (data.length === 0) return;
+
+  try {
+    const db = await getPostgresClient();
+    
+    // Используем транзакцию для массовой вставки
+    await db.query('BEGIN');
+    
+    try {
+      for (const item of data) {
+        await db.query(
+          `INSERT INTO google_search_console_data (site_id, clicks, impressions, ctr, position, date)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (site_id, date) 
+           DO UPDATE SET clicks = EXCLUDED.clicks, impressions = EXCLUDED.impressions, 
+                         ctr = EXCLUDED.ctr, position = EXCLUDED.position`,
+          [item.siteId, item.clicks, item.impressions, item.ctr, item.position, item.date]
+        );
+      }
+      await db.query('COMMIT');
+    } catch (error) {
+      await db.query('ROLLBACK');
+      throw error;
+    }
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      throw new Error('Table google_search_console_data does not exist. Please run migrations.');
+    }
     throw error;
   }
 }

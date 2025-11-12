@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { storage } from '@/lib/storage';
+import { getGoogleSearchConsoleDataBySiteId } from '@/lib/db-adapter';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -10,13 +10,36 @@ export async function GET(
 ) {
   try {
     const siteId = parseInt(params.id);
-    const data = storage.googleData.filter((d) => d.siteId === siteId);
+    if (isNaN(siteId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Неверный ID сайта',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Получаем данные из БД
+    const data = await getGoogleSearchConsoleDataBySiteId(siteId, 100);
+
+    // Преобразуем в формат, ожидаемый фронтендом
+    const formattedData = data.map((item) => ({
+      siteId: item.siteId,
+      clicks: item.clicks,
+      impressions: item.impressions,
+      ctr: item.ctr,
+      position: item.position,
+      date: item.date,
+    }));
 
     return NextResponse.json({
       success: true,
-      data: data,
+      data: formattedData,
+      count: formattedData.length,
     });
   } catch (error: any) {
+    console.error('Ошибка получения данных Google Search Console:', error);
     return NextResponse.json(
       {
         success: false,
