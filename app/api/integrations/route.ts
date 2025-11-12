@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import { storage } from '@/lib/storage';
+import { getIntegrations, updateIntegrations } from '@/lib/db-adapter';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET() {
   try {
+    const integrations = await getIntegrations();
     return NextResponse.json({
       success: true,
-      integrations: storage.integrations,
+      integrations: integrations,
     });
   } catch (error: any) {
     return NextResponse.json(
@@ -31,15 +32,16 @@ export async function POST(request: Request) {
       googleSearchConsoleUrl,
     } = body;
 
-    // Обновляем настройки интеграций
-    storage.integrations = {
-      id: storage.integrations.id,
-      googleServiceAccountEmail: googleServiceAccountEmail || storage.integrations.googleServiceAccountEmail,
-      googlePrivateKey: googlePrivateKey || storage.integrations.googlePrivateKey,
-      ahrefsApiKey: ahrefsApiKey || storage.integrations.ahrefsApiKey,
-      googleSearchConsoleUrl: googleSearchConsoleUrl || storage.integrations.googleSearchConsoleUrl,
-      updatedAt: new Date().toISOString(),
-    };
+    // Получаем текущие настройки
+    const current = await getIntegrations();
+
+    // Обновляем настройки интеграций в БД
+    const updated = await updateIntegrations({
+      googleServiceAccountEmail: googleServiceAccountEmail !== undefined ? googleServiceAccountEmail : current.googleServiceAccountEmail,
+      googlePrivateKey: googlePrivateKey !== undefined ? googlePrivateKey : current.googlePrivateKey,
+      ahrefsApiKey: ahrefsApiKey !== undefined ? ahrefsApiKey : current.ahrefsApiKey,
+      googleSearchConsoleUrl: googleSearchConsoleUrl !== undefined ? googleSearchConsoleUrl : current.googleSearchConsoleUrl,
+    });
 
     // Также обновляем переменные окружения для Google Indexing API
     // В продакшене это должно быть сделано через переменные окружения сервера
@@ -52,7 +54,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      integrations: storage.integrations,
+      integrations: updated,
     });
   } catch (error: any) {
     return NextResponse.json(

@@ -164,3 +164,40 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
     return updateSQLite(id, site);
   }
 }
+
+// Integrations adapter functions
+export async function getIntegrations(): Promise<import('./types').IntegrationsSettings> {
+  if (useSupabase()) {
+    const { getIntegrations: getSupabase } = await import('./db-supabase');
+    return getSupabase();
+  } else if (usePostgres()) {
+    const { getIntegrations: getPostgres } = await import('./db-postgres');
+    return getPostgres();
+  } else {
+    // На Vercel не используем SQLite
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    // Только для локальной разработки
+    const { getIntegrations: getSQLite } = require('./db');
+    return getSQLite();
+  }
+}
+
+export async function updateIntegrations(settings: Partial<Omit<import('./types').IntegrationsSettings, 'id' | 'updatedAt'>>): Promise<import('./types').IntegrationsSettings> {
+  if (useSupabase()) {
+    const { updateIntegrations: updateSupabase } = await import('./db-supabase');
+    return updateSupabase(settings);
+  } else if (usePostgres()) {
+    const { updateIntegrations: updatePostgres } = await import('./db-postgres');
+    return updatePostgres(settings);
+  } else {
+    // На Vercel не используем SQLite
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    // Только для локальной разработки
+    const { updateIntegrations: updateSQLite } = require('./db');
+    return updateSQLite(settings);
+  }
+}

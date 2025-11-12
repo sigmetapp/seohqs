@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSiteById } from '@/lib/db-adapter';
-import { storage } from '@/lib/storage';
+import { getSiteById, getIntegrations } from '@/lib/db-adapter';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -33,7 +32,8 @@ export async function POST(
     }
 
     // Используем ключ сайта или глобальный ключ из настроек интеграций
-    const ahrefsApiKey = site.ahrefsApiKey || storage.integrations.ahrefsApiKey;
+    const integrations = await getIntegrations();
+    const ahrefsApiKey = site.ahrefsApiKey || integrations.ahrefsApiKey;
     
     if (!ahrefsApiKey) {
       return NextResponse.json(

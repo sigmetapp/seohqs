@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import type { Site } from './types';
+import type { Site, IntegrationsSettings } from './types';
 
 export interface AffiliateOffer {
   id?: number;
@@ -181,4 +181,68 @@ export function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdA
     throw new Error('Site not found after update');
   }
   return updated;
+}
+
+// Integrations functions
+export function getIntegrations(): IntegrationsSettings {
+  const database = getDatabase();
+  const row = database.prepare('SELECT * FROM integrations WHERE id = 1').get() as any;
+  
+  if (!row) {
+    // Если записи нет, создаем её
+    database.prepare(`
+      INSERT INTO integrations (id, updated_at)
+      VALUES (1, datetime('now'))
+    `).run();
+    
+    return {
+      id: 1,
+      googleServiceAccountEmail: '',
+      googlePrivateKey: '',
+      ahrefsApiKey: '',
+      googleSearchConsoleUrl: '',
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  return {
+    id: row.id,
+    googleServiceAccountEmail: row.google_service_account_email || '',
+    googlePrivateKey: row.google_private_key || '',
+    ahrefsApiKey: row.ahrefs_api_key || '',
+    googleSearchConsoleUrl: row.google_search_console_url || '',
+    updatedAt: row.updated_at,
+  };
+}
+
+export function updateIntegrations(settings: Partial<Omit<IntegrationsSettings, 'id' | 'updatedAt'>>): IntegrationsSettings {
+  const database = getDatabase();
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (settings.googleServiceAccountEmail !== undefined) {
+    updates.push('google_service_account_email = ?');
+    values.push(settings.googleServiceAccountEmail || null);
+  }
+  if (settings.googlePrivateKey !== undefined) {
+    updates.push('google_private_key = ?');
+    values.push(settings.googlePrivateKey || null);
+  }
+  if (settings.ahrefsApiKey !== undefined) {
+    updates.push('ahrefs_api_key = ?');
+    values.push(settings.ahrefsApiKey || null);
+  }
+  if (settings.googleSearchConsoleUrl !== undefined) {
+    updates.push('google_search_console_url = ?');
+    values.push(settings.googleSearchConsoleUrl || null);
+  }
+
+  updates.push("updated_at = datetime('now')");
+
+  if (updates.length > 1) {
+    const query = `UPDATE integrations SET ${updates.join(', ')} WHERE id = 1`;
+    database.prepare(query).run(...values);
+  }
+
+  return getIntegrations();
 }

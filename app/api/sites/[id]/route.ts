@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSiteById, updateSite } from '@/lib/db-adapter';
-import { storage } from '@/lib/storage';
+import { getSiteById, updateSite, getIntegrations } from '@/lib/db-adapter';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -34,7 +33,8 @@ export async function GET(
     }
 
     // Проверяем наличие глобального ключа Ahrefs, если у сайта нет своего
-    const hasAhrefsConnection = site.ahrefsApiKey || storage.integrations.ahrefsApiKey;
+    const integrations = await getIntegrations();
+    const hasAhrefsConnection = site.ahrefsApiKey || integrations.ahrefsApiKey;
 
     return NextResponse.json({
       success: true,
@@ -83,7 +83,8 @@ export async function PUT(
     });
 
     // Проверяем наличие глобального ключа Ahrefs, если у сайта нет своего
-    const hasAhrefsConnection = updatedSite.ahrefsApiKey || storage.integrations.ahrefsApiKey;
+    const integrations = await getIntegrations();
+    const hasAhrefsConnection = updatedSite.ahrefsApiKey || integrations.ahrefsApiKey;
 
     return NextResponse.json({
       success: true,

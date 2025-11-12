@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { AffiliateOffer, Site } from './types';
+import type { AffiliateOffer, Site, IntegrationsSettings } from './types';
 
 export async function insertOffers(offers: Omit<AffiliateOffer, 'id' | 'created_at'>[]): Promise<void> {
   if (!supabase) {
@@ -305,6 +305,151 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
       googleSearchConsoleUrl: data.google_search_console_url,
       ahrefsApiKey: data.ahrefs_api_key,
       createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+// Integrations functions
+export async function getIntegrations(): Promise<IntegrationsSettings> {
+  if (!supabase) {
+    return {
+      id: 1,
+      googleServiceAccountEmail: '',
+      googlePrivateKey: '',
+      ahrefsApiKey: '',
+      googleSearchConsoleUrl: '',
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  try {
+    
+    const { data, error } = await supabase
+      .from('integrations')
+      .select('*')
+      .eq('id', 1)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // Запись не найдена, создаем её
+        const { data: newData, error: insertError } = await supabase
+          .from('integrations')
+          .insert({ id: 1 })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error creating integrations record:', insertError);
+          return {
+            id: 1,
+            googleServiceAccountEmail: '',
+            googlePrivateKey: '',
+            ahrefsApiKey: '',
+            googleSearchConsoleUrl: '',
+            updatedAt: new Date().toISOString(),
+          };
+        }
+
+        return {
+          id: newData.id,
+          googleServiceAccountEmail: newData.google_service_account_email || '',
+          googlePrivateKey: newData.google_private_key || '',
+          ahrefsApiKey: newData.ahrefs_api_key || '',
+          googleSearchConsoleUrl: newData.google_search_console_url || '',
+          updatedAt: newData.updated_at,
+        };
+      }
+
+      console.error('Error fetching integrations:', error);
+      return {
+        id: 1,
+        googleServiceAccountEmail: '',
+        googlePrivateKey: '',
+        ahrefsApiKey: '',
+        googleSearchConsoleUrl: '',
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    return {
+      id: data.id,
+      googleServiceAccountEmail: data.google_service_account_email || '',
+      googlePrivateKey: data.google_private_key || '',
+      ahrefsApiKey: data.ahrefs_api_key || '',
+      googleSearchConsoleUrl: data.google_search_console_url || '',
+      updatedAt: data.updated_at,
+    };
+  } catch (error: any) {
+    console.error('Error fetching integrations:', error);
+    return {
+      id: 1,
+      googleServiceAccountEmail: '',
+      googlePrivateKey: '',
+      ahrefsApiKey: '',
+      googleSearchConsoleUrl: '',
+      updatedAt: new Date().toISOString(),
+    };
+  }
+}
+
+export async function updateIntegrations(settings: Partial<Omit<IntegrationsSettings, 'id' | 'updatedAt'>>): Promise<IntegrationsSettings> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized');
+  }
+
+  try {
+    
+    // Сначала убедимся, что запись существует
+    const { data: existing } = await supabase
+      .from('integrations')
+      .select('id')
+      .eq('id', 1)
+      .single();
+
+    if (!existing) {
+      await supabase
+        .from('integrations')
+        .insert({ id: 1 });
+    }
+
+    const updateData: any = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (settings.googleServiceAccountEmail !== undefined) {
+      updateData.google_service_account_email = settings.googleServiceAccountEmail || null;
+    }
+    if (settings.googlePrivateKey !== undefined) {
+      updateData.google_private_key = settings.googlePrivateKey || null;
+    }
+    if (settings.ahrefsApiKey !== undefined) {
+      updateData.ahrefs_api_key = settings.ahrefsApiKey || null;
+    }
+    if (settings.googleSearchConsoleUrl !== undefined) {
+      updateData.google_search_console_url = settings.googleSearchConsoleUrl || null;
+    }
+
+    const { data, error } = await supabase
+      .from('integrations')
+      .update(updateData)
+      .eq('id', 1)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Supabase update error: ${error.message}`);
+    }
+
+    return {
+      id: data.id,
+      googleServiceAccountEmail: data.google_service_account_email || '',
+      googlePrivateKey: data.google_private_key || '',
+      ahrefsApiKey: data.ahrefs_api_key || '',
+      googleSearchConsoleUrl: data.google_search_console_url || '',
       updatedAt: data.updated_at,
     };
   } catch (error: any) {
