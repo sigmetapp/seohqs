@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { storage } from '@/lib/storage';
+import { updateIntegrations } from '@/lib/db-adapter';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -106,8 +107,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // Сохраняем токены в storage
-    // В продакшене это должно быть в БД с шифрованием
+    // Сохраняем токены в БД и в storage (для обратной совместимости)
     // Используем non-null assertion, так как мы уже проверили наличие токенов выше
     const accessToken: string = tokens.access_token!;
     const refreshToken: string = tokens.refresh_token!;
@@ -115,6 +115,14 @@ export async function GET(request: Request) {
       ? new Date(tokens.expiry_date).toISOString() 
       : '';
 
+    // Сохраняем в БД
+    await updateIntegrations({
+      googleAccessToken: accessToken,
+      googleRefreshToken: refreshToken,
+      googleTokenExpiry: tokenExpiry,
+    });
+
+    // Также обновляем storage для обратной совместимости
     storage.integrations = {
       ...storage.integrations,
       googleAccessToken: accessToken,

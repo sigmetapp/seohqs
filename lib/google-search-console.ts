@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { storage } from './storage';
+import { getIntegrations, updateIntegrations } from './db-adapter';
 
 /**
  * Сервис для работы с Google Search Console API
@@ -11,9 +12,23 @@ export class GoogleSearchConsoleService {
   private searchConsole: any;
 
   constructor() {
+    // Инициализация будет выполнена асинхронно
+  }
+
+  private async initializeAuth() {
     // Пробуем использовать OAuth токены (новый способ)
-    const accessToken = storage.integrations.googleAccessToken;
-    const refreshToken = storage.integrations.googleRefreshToken;
+    // Сначала пытаемся получить из БД
+    let integrations;
+    try {
+      integrations = await getIntegrations();
+    } catch (error) {
+      console.warn('Не удалось получить integrations из БД, используем storage:', error);
+      integrations = storage.integrations;
+    }
+
+    const accessToken = integrations.googleAccessToken || storage.integrations.googleAccessToken;
+    const refreshToken = integrations.googleRefreshToken || storage.integrations.googleRefreshToken;
+    const tokenExpiry = integrations.googleTokenExpiry || storage.integrations.googleTokenExpiry;
     
     // Если есть OAuth токены (не пустые строки), используем их
     if (accessToken && accessToken.trim() && refreshToken && refreshToken.trim()) {
@@ -36,29 +51,42 @@ export class GoogleSearchConsoleService {
       this.auth.setCredentials({
         access_token: accessToken,
         refresh_token: refreshToken,
-        expiry_date: storage.integrations.googleTokenExpiry && storage.integrations.googleTokenExpiry.trim()
-          ? new Date(storage.integrations.googleTokenExpiry).getTime() 
+        expiry_date: tokenExpiry && tokenExpiry.trim()
+          ? new Date(tokenExpiry).getTime() 
           : undefined,
       });
 
       // Автоматически обновляем токен при истечении
-      this.auth.on('tokens', (tokens: any) => {
+      this.auth.on('tokens', async (tokens: any) => {
+        const updates: any = {};
         if (tokens.refresh_token) {
+          updates.googleRefreshToken = tokens.refresh_token;
           storage.integrations.googleRefreshToken = tokens.refresh_token;
         }
         if (tokens.access_token) {
+          updates.googleAccessToken = tokens.access_token;
           storage.integrations.googleAccessToken = tokens.access_token;
         }
         if (tokens.expiry_date) {
-          storage.integrations.googleTokenExpiry = new Date(tokens.expiry_date).toISOString();
+          updates.googleTokenExpiry = new Date(tokens.expiry_date).toISOString();
+          storage.integrations.googleTokenExpiry = updates.googleTokenExpiry;
         }
         storage.integrations.updatedAt = new Date().toISOString();
+        
+        // Сохраняем обновленные токены в БД
+        try {
+          await updateIntegrations(updates);
+        } catch (error) {
+          console.error('Ошибка сохранения обновленных токенов в БД:', error);
+        }
       });
     } else {
       // Fallback на Service Account (старый способ, для обратной совместимости)
-      const serviceAccountEmail = storage.integrations.googleServiceAccountEmail || 
+      const serviceAccountEmail = integrations.googleServiceAccountEmail || 
+                                  storage.integrations.googleServiceAccountEmail || 
                                   process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-      const privateKey = (storage.integrations.googlePrivateKey || 
+      const privateKey = (integrations.googlePrivateKey || 
+                         storage.integrations.googlePrivateKey || 
                          process.env.GOOGLE_PRIVATE_KEY)?.replace(/\\n/g, '\n');
 
       if (!serviceAccountEmail || !privateKey) {
@@ -83,6 +111,12 @@ export class GoogleSearchConsoleService {
       version: 'v3',
       auth: this.auth,
     });
+  }
+
+  private async ensureInitialized() {
+    if (!this.auth) {
+      await this.initializeAuth();
+    }
   }
 
   /**
@@ -135,6 +169,7 @@ export class GoogleSearchConsoleService {
    * @returns Массив сайтов
    */
   async getSites(): Promise<Array<{ siteUrl: string; permissionLevel: string }>> {
+    await this.ensureInitialized();
     try {
       const response = await this.searchConsole.sites.list();
       return response.data.siteEntry || [];
@@ -161,6 +196,7 @@ export class GoogleSearchConsoleService {
     endDate: string,
     dimensions: string[] = []
   ): Promise<any> {
+    await this.ensureInitialized();
     try {
       const request: any = {
         siteUrl: siteUrl,
@@ -206,6 +242,7 @@ export class GoogleSearchConsoleService {
     ctr: number;
     position: number;
   }>> {
+    await this.ensureInitialized();
     try {
       const siteUrl = this.extractSiteUrl(searchConsoleUrl);
       if (!siteUrl) {
@@ -259,6 +296,7 @@ export class GoogleSearchConsoleService {
     ctr: number;
     position: number;
   }>> {
+    await this.ensureInitialized();
     try {
       const siteUrl = this.extractSiteUrl(searchConsoleUrl);
       if (!siteUrl) {
@@ -311,6 +349,7 @@ export class GoogleSearchConsoleService {
     ctr: number;
     position: number;
   }>> {
+    await this.ensureInitialized();
     try {
       const siteUrl = this.extractSiteUrl(searchConsoleUrl);
       if (!siteUrl) {
@@ -361,6 +400,7 @@ export class GoogleSearchConsoleService {
     ctr: number;
     position: number;
   }>> {
+    await this.ensureInitialized();
     try {
       const siteUrl = this.extractSiteUrl(searchConsoleUrl);
       if (!siteUrl) {
@@ -409,6 +449,7 @@ export class GoogleSearchConsoleService {
     ctr: number;
     position: number;
   }>> {
+    await this.ensureInitialized();
     try {
       const siteUrl = this.extractSiteUrl(searchConsoleUrl);
       if (!siteUrl) {
