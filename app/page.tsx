@@ -1,132 +1,183 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { parseCSVFiles, AffiliateOffer } from './utils/parseCSV';
-import Filters from './components/Filters';
-import Table from './components/Table';
-import Loader from './components/Loader';
-import Papa from 'papaparse';
+import { useState, useEffect } from 'react';
+
+interface Offer {
+  id: number;
+  name: string;
+  topic: string;
+  country: string;
+  model: string;
+  cr: number;
+  ecpc: number;
+  epc: number;
+}
 
 export default function Home() {
-  const [offers, setOffers] = useState<AffiliateOffer[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    topic: '',
-    country: '',
-    model: '',
-    search: '',
-  });
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('/api/data');
+      const data = await response.json();
+      
+      // Выводим отладочную информацию в консоль
+      console.log('API Response:', data);
+      if (data.debug) {
+        console.log('Debug info:', data.debug);
+      }
+      
+      if (data.success) {
+        setOffers(data.offers || []);
+      } else {
+        const errorMsg = data.error || 'Ошибка загрузки данных';
+        setError(errorMsg);
+        if (data.debug) {
+          console.error('Debug details:', data.debug);
+        }
+      }
+    } catch (err: any) {
+      console.error('Fetch error:', err);
+      setError(err.message || 'Ошибка подключения');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTestData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('/api/seed', { method: 'POST' });
+      const data = await response.json();
+      
+      // Выводим отладочную информацию в консоль
+      console.log('Seed API Response:', data);
+      if (data.debug) {
+        console.log('Seed Debug info:', data.debug);
+      }
+      
+      if (data.success) {
+        await loadData();
+      } else {
+        const errorMsg = data.error || 'Ошибка загрузки тестовых данных';
+        setError(errorMsg);
+        if (data.debug) {
+          console.error('Seed Debug details:', data.debug);
+        }
+      }
+    } catch (err: any) {
+      console.error('Seed fetch error:', err);
+      setError(err.message || 'Ошибка подключения');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const data = await parseCSVFiles();
-        setOffers(data);
-      } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadData();
   }, []);
 
-  // Фильтрация данных
-  const filteredOffers = useMemo(() => {
-    return offers.filter((offer) => {
-      const matchesTopic = !filters.topic || offer.topic === filters.topic;
-      const matchesCountry = !filters.country || offer.country === filters.country;
-      const matchesModel = !filters.model || offer.model === filters.model;
-      const matchesSearch =
-        !filters.search ||
-        offer.name.toLowerCase().includes(filters.search.toLowerCase());
-
-      return matchesTopic && matchesCountry && matchesModel && matchesSearch;
-    });
-  }, [offers, filters]);
-
-  // Пагинация
-  const totalPages = Math.ceil(filteredOffers.length / itemsPerPage);
-  const paginatedOffers = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    const end = start + itemsPerPage;
-    return filteredOffers.slice(start, end);
-  }, [filteredOffers, currentPage]);
-
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-    setCurrentPage(1); // Сбрасываем на первую страницу при изменении фильтров
-  };
-
-  const exportToCSV = () => {
-    const csv = Papa.unparse(filteredOffers);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'affiliate_offers.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   if (loading) {
-    return <Loader />;
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-2xl mb-4">Загрузка...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-8">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Affiliate Catalog</h1>
+          <h1 className="text-4xl font-bold mb-4">Тестовая страница</h1>
+          <div className="flex gap-4 mb-4">
+            <button
+              onClick={loadData}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+            >
+              Обновить данные
+            </button>
+            <button
+              onClick={loadTestData}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded"
+            >
+              Загрузить тестовые данные
+            </button>
+          </div>
           <p className="text-gray-400">
-            Всего программ: {offers.length} | Отфильтровано: {filteredOffers.length}
+            Записей в базе: {offers.length}
           </p>
         </div>
 
-        <Filters
-          offers={offers}
-          filters={filters}
-          onFilterChange={handleFilterChange}
-        />
+        {error && (
+          <div className="bg-red-900 border border-red-700 rounded p-4 mb-6">
+            <p className="text-red-200 font-bold">Ошибка: {error}</p>
+          </div>
+        )}
 
-        <div className="mb-4 flex justify-end">
-          <button
-            onClick={exportToCSV}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-          >
-            Export CSV
-          </button>
+        {/* Отладочная информация */}
+        <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-purple-500">
+          <h2 className="text-xl font-bold mb-4 text-purple-300">Отладочная информация</h2>
+          <div className="space-y-2 text-sm">
+            <p className="text-gray-400">
+              <strong>Переменные окружения:</strong>
+            </p>
+            <ul className="list-disc list-inside text-gray-300 ml-4">
+              <li>NEXT_PUBLIC_SUPABASE_URL: {typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_SUPABASE_URL ? '✓ установлена' : '✗ не установлена') : 'проверка на сервере'}</li>
+              <li>NEXT_PUBLIC_SUPABASE_ANON_KEY: {typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✓ установлена' : '✗ не установлена') : 'проверка на сервере'}</li>
+              <li>SUPABASE_SERVICE_ROLE_KEY: {typeof window !== 'undefined' ? 'проверка на сервере' : 'проверка на сервере'}</li>
+            </ul>
+            <p className="text-gray-400 mt-4">
+              <strong>Примечание:</strong> Проверьте ответ API в консоли браузера (F12) для подробной информации о подключении к базе данных.
+            </p>
+          </div>
         </div>
 
-        <div className="bg-gray-800 rounded-lg p-6">
-          <Table data={paginatedOffers} />
-        </div>
+        {offers.length === 0 && !error && (
+          <div className="bg-yellow-900 border border-yellow-700 rounded p-4 mb-6">
+            <p className="text-yellow-200">
+              База данных пуста. Нажмите "Загрузить тестовые данные" для заполнения.
+            </p>
+          </div>
+        )}
 
-        {/* Пагинация */}
-        {totalPages > 1 && (
-          <div className="mt-6 flex justify-center items-center gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Назад
-            </button>
-            <span className="text-gray-300 px-4">
-              Страница {currentPage} из {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Вперёд
-            </button>
+        {offers.length > 0 && (
+          <div className="bg-gray-800 rounded-lg overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-700">
+                <tr>
+                  <th className="px-4 py-3 text-left">ID</th>
+                  <th className="px-4 py-3 text-left">Название</th>
+                  <th className="px-4 py-3 text-left">Тема</th>
+                  <th className="px-4 py-3 text-left">Страна</th>
+                  <th className="px-4 py-3 text-left">Модель</th>
+                  <th className="px-4 py-3 text-left">CR</th>
+                  <th className="px-4 py-3 text-left">ECPC</th>
+                  <th className="px-4 py-3 text-left">EPC</th>
+                </tr>
+              </thead>
+              <tbody>
+                {offers.map((offer) => (
+                  <tr key={offer.id} className="border-t border-gray-700">
+                    <td className="px-4 py-3">{offer.id}</td>
+                    <td className="px-4 py-3">{offer.name}</td>
+                    <td className="px-4 py-3">{offer.topic}</td>
+                    <td className="px-4 py-3">{offer.country}</td>
+                    <td className="px-4 py-3">{offer.model}</td>
+                    <td className="px-4 py-3">{offer.cr}</td>
+                    <td className="px-4 py-3">{offer.ecpc}</td>
+                    <td className="px-4 py-3">{offer.epc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
