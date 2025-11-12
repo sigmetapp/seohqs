@@ -52,6 +52,12 @@ export async function GET(
         ...site,
         hasAhrefsConnection: !!hasAhrefsConnection,
         hasGoogleConsoleConnection,
+        // Детальная информация для отображения причин отсутствия подключения
+        googleConsoleStatus: {
+          connected: hasGoogleConsoleConnection,
+          hasOAuth: hasGoogleOAuth,
+          hasUrl: !!site.googleSearchConsoleUrl,
+        },
       },
     });
   } catch (error: any) {
@@ -110,6 +116,12 @@ export async function PUT(
         ...updatedSite,
         hasAhrefsConnection: !!hasAhrefsConnection,
         hasGoogleConsoleConnection,
+        // Детальная информация для отображения причин отсутствия подключения
+        googleConsoleStatus: {
+          connected: hasGoogleConsoleConnection,
+          hasOAuth: hasGoogleOAuth,
+          hasUrl: !!updatedSite.googleSearchConsoleUrl,
+        },
       },
     });
   } catch (error: any) {

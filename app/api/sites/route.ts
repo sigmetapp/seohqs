@@ -23,6 +23,12 @@ export async function GET() {
         ...site,
         hasGoogleConsoleConnection,
         hasAhrefsConnection,
+        // Детальная информация для отображения причин отсутствия подключения
+        googleConsoleStatus: {
+          connected: hasGoogleConsoleConnection,
+          hasOAuth: hasGoogleOAuth,
+          hasUrl: !!site.googleSearchConsoleUrl,
+        },
       };
     });
     
