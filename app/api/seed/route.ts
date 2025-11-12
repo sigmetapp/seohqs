@@ -49,10 +49,18 @@ export async function POST() {
     debug.steps.push(`Ошибка: ${error.message}`);
     console.error('Error seeding data:', error);
     
+    // Проверяем, есть ли проблема с таблицей
+    const isTableMissing = error.message?.includes('does not exist') || 
+                          error.message?.includes('42P01') ||
+                          error.code === '42P01';
+    
     return NextResponse.json({
       success: false,
-      error: error.message || 'Ошибка загрузки тестовых данных',
+      error: isTableMissing 
+        ? 'Таблица affiliate_offers не существует. Пожалуйста, создайте её в Supabase. См. SUPABASE_SETUP.md'
+        : error.message || 'Ошибка загрузки тестовых данных',
       debug: debug,
+      tableMissing: isTableMissing,
     }, { status: 500 });
   }
 }

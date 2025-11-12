@@ -48,12 +48,20 @@ export async function GET() {
     debug.steps.push(`Ошибка: ${error.message}`);
     console.error('Error fetching data:', error);
     
+    // Проверяем, есть ли проблема с таблицей
+    const isTableMissing = error.message?.includes('does not exist') || 
+                          error.message?.includes('42P01') ||
+                          error.code === '42P01';
+    
     return NextResponse.json({
       success: false,
-      error: error.message || 'Ошибка получения данных',
+      error: isTableMissing 
+        ? 'Таблица affiliate_offers не существует. Пожалуйста, создайте её в Supabase. См. SUPABASE_SETUP.md'
+        : error.message || 'Ошибка получения данных',
       offers: [],
       count: 0,
       debug: debug,
+      tableMissing: isTableMissing,
     }, { status: 500 });
   }
 }

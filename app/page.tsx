@@ -36,6 +36,9 @@ export default function Home() {
       } else {
         const errorMsg = data.error || 'Ошибка загрузки данных';
         setError(errorMsg);
+        if (data.tableMissing) {
+          console.error('Таблица не существует. Создайте таблицу в Supabase согласно инструкции в SUPABASE_SETUP.md');
+        }
         if (data.debug) {
           console.error('Debug details:', data.debug);
         }
@@ -66,6 +69,9 @@ export default function Home() {
       } else {
         const errorMsg = data.error || 'Ошибка загрузки тестовых данных';
         setError(errorMsg);
+        if (data.tableMissing) {
+          console.error('Таблица не существует. Создайте таблицу в Supabase согласно инструкции в SUPABASE_SETUP.md');
+        }
         if (data.debug) {
           console.error('Seed Debug details:', data.debug);
         }
