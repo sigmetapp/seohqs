@@ -311,3 +311,139 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
     throw error;
   }
 }
+
+// Google Search Console Data functions
+export interface GoogleSearchConsoleDataRow {
+  id: number;
+  siteId: number;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+  date: string;
+  createdAt: string;
+}
+
+export async function insertGoogleSearchConsoleData(
+  data: Omit<GoogleSearchConsoleDataRow, 'id' | 'createdAt'>
+): Promise<GoogleSearchConsoleDataRow> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized');
+  }
+
+  try {
+    const dataToInsert = {
+      site_id: data.siteId,
+      clicks: data.clicks,
+      impressions: data.impressions,
+      ctr: data.ctr,
+      position: data.position,
+      date: data.date,
+    };
+
+    const { data: inserted, error } = await supabase
+      .from('google_search_console_data')
+      .upsert(dataToInsert, {
+        onConflict: 'site_id,date',
+        ignoreDuplicates: false,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '42501' || error.message?.includes('permission denied')) {
+        throw new Error(`RLS Policy Error: ${error.message}. Проверьте политики Row Level Security.`);
+      }
+      throw new Error(`Supabase insert error: ${error.message}`);
+    }
+
+    return {
+      id: inserted.id,
+      siteId: inserted.site_id,
+      clicks: inserted.clicks,
+      impressions: inserted.impressions,
+      ctr: parseFloat(inserted.ctr),
+      position: parseFloat(inserted.position),
+      date: inserted.date,
+      createdAt: inserted.created_at,
+    };
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+export async function getGoogleSearchConsoleDataBySiteId(
+  siteId: number,
+  limit: number = 100
+): Promise<GoogleSearchConsoleDataRow[]> {
+  if (!supabase) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('google_search_console_data')
+      .select('*')
+      .eq('site_id', siteId)
+      .order('date', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      if (error.code === '42P01' || error.message.includes('does not exist')) {
+        return [];
+      }
+      throw error;
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      siteId: row.site_id,
+      clicks: row.clicks,
+      impressions: row.impressions,
+      ctr: parseFloat(row.ctr),
+      position: parseFloat(row.position),
+      date: row.date,
+      createdAt: row.created_at,
+    }));
+  } catch (error: any) {
+    console.error('Error fetching Google Search Console data:', error);
+    return [];
+  }
+}
+
+export async function bulkInsertGoogleSearchConsoleData(
+  data: Omit<GoogleSearchConsoleDataRow, 'id' | 'createdAt'>[]
+): Promise<void> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized');
+  }
+
+  if (data.length === 0) return;
+
+  try {
+    const dataToInsert = data.map(item => ({
+      site_id: item.siteId,
+      clicks: item.clicks,
+      impressions: item.impressions,
+      ctr: item.ctr,
+      position: item.position,
+      date: item.date,
+    }));
+
+    const { error } = await supabase
+      .from('google_search_console_data')
+      .upsert(dataToInsert, {
+        onConflict: 'site_id,date',
+        ignoreDuplicates: false,
+      });
+
+    if (error) {
+      if (error.code === '42501' || error.message?.includes('permission denied')) {
+        throw new Error(`RLS Policy Error: ${error.message}. Проверьте политики Row Level Security.`);
+      }
+      throw new Error(`Supabase bulk insert error: ${error.message}`);
+    }
+  } catch (error: any) {
+    throw error;
+  }
+}

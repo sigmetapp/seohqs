@@ -164,3 +164,70 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
     return updateSQLite(id, site);
   }
 }
+
+// Google Search Console Data adapter functions
+export interface GoogleSearchConsoleDataRow {
+  id: number;
+  siteId: number;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+  date: string;
+  createdAt: string;
+}
+
+export async function insertGoogleSearchConsoleData(
+  data: Omit<GoogleSearchConsoleDataRow, 'id' | 'createdAt'>
+): Promise<GoogleSearchConsoleDataRow> {
+  if (useSupabase()) {
+    const { insertGoogleSearchConsoleData: insertSupabase } = await import('./db-supabase');
+    return insertSupabase(data);
+  } else if (usePostgres()) {
+    const { insertGoogleSearchConsoleData: insertPostgres } = await import('./db-postgres');
+    return insertPostgres(data);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { insertGoogleSearchConsoleData: insertSQLite } = require('./db');
+    return insertSQLite(data);
+  }
+}
+
+export async function getGoogleSearchConsoleDataBySiteId(
+  siteId: number,
+  limit: number = 100
+): Promise<GoogleSearchConsoleDataRow[]> {
+  if (useSupabase()) {
+    const { getGoogleSearchConsoleDataBySiteId: getSupabase } = await import('./db-supabase');
+    return getSupabase(siteId, limit);
+  } else if (usePostgres()) {
+    const { getGoogleSearchConsoleDataBySiteId: getPostgres } = await import('./db-postgres');
+    return getPostgres(siteId, limit);
+  } else {
+    if (process.env.VERCEL) {
+      return [];
+    }
+    const { getGoogleSearchConsoleDataBySiteId: getSQLite } = require('./db');
+    return getSQLite(siteId, limit);
+  }
+}
+
+export async function bulkInsertGoogleSearchConsoleData(
+  data: Omit<GoogleSearchConsoleDataRow, 'id' | 'createdAt'>[]
+): Promise<void> {
+  if (useSupabase()) {
+    const { bulkInsertGoogleSearchConsoleData: bulkInsertSupabase } = await import('./db-supabase');
+    return bulkInsertSupabase(data);
+  } else if (usePostgres()) {
+    const { bulkInsertGoogleSearchConsoleData: bulkInsertPostgres } = await import('./db-postgres');
+    return bulkInsertPostgres(data);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { bulkInsertGoogleSearchConsoleData: bulkInsertSQLite } = require('./db');
+    return bulkInsertSQLite(data);
+  }
+}
