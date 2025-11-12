@@ -612,3 +612,114 @@ export async function bulkInsertGoogleSearchConsoleData(
     throw error;
   }
 }
+
+// Ahrefs Data functions
+export interface AhrefsDataRow {
+  id: number;
+  siteId: number;
+  domainRating: number;
+  backlinks: number;
+  referringDomains: number;
+  organicKeywords: number;
+  organicTraffic: number;
+  date: string;
+  createdAt: string;
+}
+
+export async function insertAhrefsData(
+  data: Omit<AhrefsDataRow, 'id' | 'createdAt'>
+): Promise<AhrefsDataRow> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized');
+  }
+
+  try {
+    const dataToInsert = {
+      site_id: data.siteId,
+      domain_rating: data.domainRating,
+      backlinks: data.backlinks,
+      referring_domains: data.referringDomains,
+      organic_keywords: data.organicKeywords,
+      organic_traffic: data.organicTraffic,
+      date: data.date,
+    };
+
+    const { data: inserted, error } = await supabase
+      .from('ahrefs_data')
+      .upsert(dataToInsert, {
+        onConflict: 'site_id,date',
+        ignoreDuplicates: false,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '42501' || error.message?.includes('permission denied')) {
+        throw new Error(`RLS Policy Error: ${error.message}. Проверьте политики Row Level Security.`);
+      }
+      throw new Error(`Supabase insert error: ${error.message}`);
+    }
+
+    return {
+      id: inserted.id,
+      siteId: inserted.site_id,
+      domainRating: inserted.domain_rating,
+      backlinks: inserted.backlinks,
+      referringDomains: inserted.referring_domains,
+      organicKeywords: inserted.organic_keywords,
+      organicTraffic: inserted.organic_traffic,
+      date: inserted.date,
+      createdAt: inserted.created_at,
+    };
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+export async function getAhrefsDataBySiteId(
+  siteId: number
+): Promise<AhrefsDataRow | null> {
+  if (!supabase) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('ahrefs_data')
+      .select('*')
+      .eq('site_id', siteId)
+      .order('date', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      if (error.code === '42P01' || error.message.includes('does not exist')) {
+        return null;
+      }
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return null;
+      }
+      throw error;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return {
+      id: data.id,
+      siteId: data.site_id,
+      domainRating: data.domain_rating,
+      backlinks: data.backlinks,
+      referringDomains: data.referring_domains,
+      organicKeywords: data.organic_keywords,
+      organicTraffic: data.organic_traffic,
+      date: data.date,
+      createdAt: data.created_at,
+    };
+  } catch (error: any) {
+    console.error('Error fetching Ahrefs data:', error);
+    return null;
+  }
+}

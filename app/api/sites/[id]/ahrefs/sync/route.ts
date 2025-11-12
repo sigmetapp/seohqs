@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getSiteById, getIntegrations } from '@/lib/db-adapter';
-import { storage } from '@/lib/storage';
+import { getSiteById, getIntegrations, insertAhrefsData } from '@/lib/db-adapter';
+import { fetchAhrefsSiteMetrics } from '@/lib/ahrefs';
+import type { AhrefsData } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -46,28 +47,61 @@ export async function POST(
       );
     }
 
-    // Имитация синхронизации данных
-    // В реальности здесь будет интеграция с Ahrefs API
-    const newData = {
-      siteId,
-      domainRating: Math.floor(Math.random() * 50 + 20),
-      backlinks: Math.floor(Math.random() * 100000 + 10000),
-      referringDomains: Math.floor(Math.random() * 5000 + 500),
-      organicKeywords: Math.floor(Math.random() * 50000 + 5000),
-      organicTraffic: Math.floor(Math.random() * 100000 + 10000),
-      date: new Date().toISOString(),
-    };
+    if (!site.domain) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Домен сайта не указан',
+        },
+        { status: 400 }
+      );
+    }
 
-    // Обновляем данные
-    storage.ahrefsData = storage.ahrefsData.filter((d) => d.siteId !== siteId);
-    storage.ahrefsData.push(newData);
+    // Получаем данные из Ahrefs API
+    let metrics;
+    try {
+      metrics = await fetchAhrefsSiteMetrics(site.domain, ahrefsApiKey);
+    } catch (apiError: any) {
+      // Если API вернул ошибку, возвращаем понятное сообщение
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Ошибка при запросе к Ahrefs API: ${apiError.message}. Проверьте правильность API ключа и домена.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Сохраняем данные в базу
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const savedData = await insertAhrefsData({
+      siteId,
+      domainRating: metrics.domainRating,
+      backlinks: metrics.backlinks,
+      referringDomains: metrics.referringDomains,
+      organicKeywords: metrics.organicKeywords,
+      organicTraffic: metrics.organicTraffic,
+      date: today,
+    });
+
+    // Преобразуем в формат AhrefsData для ответа
+    const ahrefsData: AhrefsData = {
+      siteId: savedData.siteId,
+      domainRating: savedData.domainRating,
+      backlinks: savedData.backlinks,
+      referringDomains: savedData.referringDomains,
+      organicKeywords: savedData.organicKeywords,
+      organicTraffic: savedData.organicTraffic,
+      date: savedData.date,
+    };
 
     return NextResponse.json({
       success: true,
-      data: newData,
+      data: ahrefsData,
       message: 'Данные Ahrefs синхронизированы',
     });
   } catch (error: any) {
+    console.error('Error syncing Ahrefs data:', error);
     return NextResponse.json(
       {
         success: false,

@@ -350,3 +350,83 @@ export function bulkInsertGoogleSearchConsoleData(
 
   insertMany(data);
 }
+
+// Ahrefs Data functions
+export interface AhrefsDataRow {
+  id: number;
+  siteId: number;
+  domainRating: number;
+  backlinks: number;
+  referringDomains: number;
+  organicKeywords: number;
+  organicTraffic: number;
+  date: string;
+  createdAt: string;
+}
+
+export function insertAhrefsData(
+  data: Omit<AhrefsDataRow, 'id' | 'createdAt'>
+): AhrefsDataRow {
+  const database = getDatabase();
+  const stmt = database.prepare(`
+    INSERT INTO ahrefs_data (site_id, domain_rating, backlinks, referring_domains, organic_keywords, organic_traffic, date)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(site_id, date) DO UPDATE SET
+      domain_rating = excluded.domain_rating,
+      backlinks = excluded.backlinks,
+      referring_domains = excluded.referring_domains,
+      organic_keywords = excluded.organic_keywords,
+      organic_traffic = excluded.organic_traffic
+  `);
+
+  stmt.run(
+    data.siteId,
+    data.domainRating,
+    data.backlinks,
+    data.referringDomains,
+    data.organicKeywords,
+    data.organicTraffic,
+    data.date
+  );
+
+  const row = database
+    .prepare('SELECT * FROM ahrefs_data WHERE site_id = ? AND date = ?')
+    .get(data.siteId, data.date) as any;
+
+  return {
+    id: row.id,
+    siteId: row.site_id,
+    domainRating: row.domain_rating,
+    backlinks: row.backlinks,
+    referringDomains: row.referring_domains,
+    organicKeywords: row.organic_keywords,
+    organicTraffic: row.organic_traffic,
+    date: row.date,
+    createdAt: row.created_at,
+  };
+}
+
+export function getAhrefsDataBySiteId(
+  siteId: number
+): AhrefsDataRow | null {
+  const database = getDatabase();
+  const row = database
+    .prepare('SELECT * FROM ahrefs_data WHERE site_id = ? ORDER BY date DESC LIMIT 1')
+    .get(siteId) as any;
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    siteId: row.site_id,
+    domainRating: row.domain_rating,
+    backlinks: row.backlinks,
+    referringDomains: row.referring_domains,
+    organicKeywords: row.organic_keywords,
+    organicTraffic: row.organic_traffic,
+    date: row.date,
+    createdAt: row.created_at,
+  };
+}

@@ -484,3 +484,98 @@ export async function bulkInsertGoogleSearchConsoleData(
     throw error;
   }
 }
+
+// Ahrefs Data functions
+export interface AhrefsDataRow {
+  id: number;
+  siteId: number;
+  domainRating: number;
+  backlinks: number;
+  referringDomains: number;
+  organicKeywords: number;
+  organicTraffic: number;
+  date: string;
+  createdAt: string;
+}
+
+export async function insertAhrefsData(
+  data: Omit<AhrefsDataRow, 'id' | 'createdAt'>
+): Promise<AhrefsDataRow> {
+  if (!isPostgresAvailable()) {
+    throw new Error('PostgreSQL database not configured');
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const result = await db.query(
+      `INSERT INTO ahrefs_data (site_id, domain_rating, backlinks, referring_domains, organic_keywords, organic_traffic, date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (site_id, date) 
+       DO UPDATE SET domain_rating = EXCLUDED.domain_rating, backlinks = EXCLUDED.backlinks, 
+                     referring_domains = EXCLUDED.referring_domains, organic_keywords = EXCLUDED.organic_keywords,
+                     organic_traffic = EXCLUDED.organic_traffic
+       RETURNING id, site_id, domain_rating, backlinks, referring_domains, organic_keywords, organic_traffic, date, created_at`,
+      [data.siteId, data.domainRating, data.backlinks, data.referringDomains, data.organicKeywords, data.organicTraffic, data.date]
+    );
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      siteId: row.site_id,
+      domainRating: row.domain_rating,
+      backlinks: row.backlinks,
+      referringDomains: row.referring_domains,
+      organicKeywords: row.organic_keywords,
+      organicTraffic: row.organic_traffic,
+      date: row.date,
+      createdAt: row.created_at,
+    };
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      throw new Error('Table ahrefs_data does not exist. Please run migrations.');
+    }
+    throw error;
+  }
+}
+
+export async function getAhrefsDataBySiteId(
+  siteId: number
+): Promise<AhrefsDataRow | null> {
+  if (!isPostgresAvailable()) {
+    return null;
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const result = await db.query(
+      `SELECT * FROM ahrefs_data 
+       WHERE site_id = $1 
+       ORDER BY date DESC 
+       LIMIT 1`,
+      [siteId]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      siteId: row.site_id,
+      domainRating: row.domain_rating,
+      backlinks: row.backlinks,
+      referringDomains: row.referring_domains,
+      organicKeywords: row.organic_keywords,
+      organicTraffic: row.organic_traffic,
+      date: row.date,
+      createdAt: row.created_at,
+    };
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      return null;
+    }
+    console.error('Error fetching Ahrefs data:', error);
+    return null;
+  }
+}
