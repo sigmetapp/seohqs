@@ -25,15 +25,17 @@ export default function Home() {
     try {
       setLoading(true);
       const data = await parseCSVFiles();
+      setOffers(data);
+      // Показываем форму загрузки если данных нет
       if (data.length === 0) {
         setShowUpload(true);
       } else {
         setShowUpload(false);
       }
-      setOffers(data);
     } catch (error) {
       console.error('Error loading data:', error);
       setOffers([]);
+      // Всегда показываем форму загрузки при ошибке или отсутствии данных
       setShowUpload(true);
     } finally {
       setLoading(false);
@@ -41,7 +43,9 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // Загружаем данные при монтировании компонента
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleUploadSuccess = () => {
@@ -103,8 +107,8 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Показываем загрузку файлов если данных нет */}
-        {showUpload && (
+        {/* Показываем загрузку файлов если данных нет или пользователь хочет обновить */}
+        {(showUpload || offers.length === 0) && (
           <>
             <FileUpload onUploadSuccess={handleUploadSuccess} />
             {offers.length === 0 && (
