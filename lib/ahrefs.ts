@@ -37,6 +37,12 @@ export async function fetchAhrefsSiteMetrics(
   if (!domain || domain.trim().length === 0) {
     throw new Error('Домен не указан или пуст');
   }
+  
+  // Проверяем формат API ключа (обычно это строка из 32+ символов)
+  const trimmedKey = apiKey.trim();
+  if (trimmedKey.length < 10) {
+    console.warn('[Ahrefs API] Предупреждение: API ключ очень короткий, возможно неверный формат');
+  }
 
   // Очищаем домен от протокола и лишних символов
   const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '').trim();
@@ -47,14 +53,10 @@ export async function fetchAhrefsSiteMetrics(
 
   try {
     // Ahrefs API endpoint для получения метрик сайта
-    // Согласно документации Ahrefs API v3, токен можно передавать в query параметре token
-    // или в заголовке Authorization: Bearer {token}
+    // Согласно документации Ahrefs API v3, для Site Explorer используется endpoint:
+    // POST https://api.ahrefs.com/v3/site-explorer/metrics
+    // Токен передается в query параметре token
     const url = `https://api.ahrefs.com/v3/site-explorer/metrics`;
-    const trimmedKey = apiKey.trim();
-    
-    // Пробуем оба способа: сначала через query параметр (стандартный для Ahrefs)
-    // Если не сработает, можно попробовать через заголовок Authorization
-    const urlWithToken = `${url}?token=${encodeURIComponent(trimmedKey)}`;
     
     // Пробуем сначала без www
     const requestBody = {
@@ -69,20 +71,28 @@ export async function fetchAhrefsSiteMetrics(
         'organic_traffic',
       ],
     };
+    
+    // Ahrefs API v3 требует токен в query параметре token
+    const urlWithToken = `${url}?token=${encodeURIComponent(trimmedKey)}`;
 
-    // Логируем запрос для отладки (без ключа)
-    console.log('[Ahrefs API] Запрос:', {
+    // Логируем запрос для отладки (без полного ключа)
+    console.log('[Ahrefs API] Запрос к Site Explorer:', {
       url: url,
+      method: 'POST',
       originalDomain: domain,
       cleanDomain: cleanDomain,
       domainWithoutWww: domainWithoutWww,
       target: requestBody.target,
+      mode: requestBody.mode,
+      output: requestBody.output,
       metrics: requestBody.metrics,
       apiKeyLength: trimmedKey.length,
-      apiKeyPrefix: trimmedKey.substring(0, 4) + '...',
+      apiKeyPrefix: trimmedKey.substring(0, 6) + '...' + trimmedKey.substring(trimmedKey.length - 4),
+      hasTokenInUrl: true,
     });
     
-    const response = await fetch(urlWithToken, {
+    // Пробуем сначала стандартный способ с токеном в query
+    let response = await fetch(urlWithToken, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -90,6 +100,25 @@ export async function fetchAhrefsSiteMetrics(
       },
       body: JSON.stringify(requestBody),
     });
+    
+    // Если получили 403, пробуем без токена в URL, а в заголовке Authorization
+    if (!response.ok && response.status === 403) {
+      console.log('[Ahrefs API] Пробуем авторизацию через заголовок Authorization...');
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${trimmedKey}`,
+          },
+          body: JSON.stringify(requestBody),
+        });
+      } catch (authError) {
+        console.error('[Ahrefs API] Ошибка при попытке Authorization:', authError);
+        // Продолжаем с оригинальным ответом
+      }
+    }
 
     if (!response.ok) {
       let errorText = '';
@@ -114,16 +143,27 @@ export async function fetchAhrefsSiteMetrics(
           : errorText;
         
         // Логируем детали ошибки для отладки
-        console.error('[Ahrefs API] 403 Forbidden:', {
+        console.error('[Ahrefs API] 403 Forbidden - Детали ошибки:', {
           originalDomain: domain,
           cleanDomain: cleanDomain,
           domainWithoutWww: domainWithoutWww,
           target: requestBody.target,
-          errorText,
+          requestBody: JSON.stringify(requestBody),
+          errorText: errorText.substring(0, 500), // Ограничиваем длину для логов
           errorData,
           url: url,
+          responseStatus: response.status,
+          responseStatusText: response.statusText,
           responseHeaders: Object.fromEntries(response.headers.entries()),
         });
+        
+        // Проверяем, может быть проблема в формате API ключа или доступа
+        console.error('[Ahrefs API] Возможные причины 403:');
+        console.error('1. API ключ неверный или неактивен');
+        console.error('2. API ключ не имеет доступа к Site Explorer API');
+        console.error('3. У аккаунта нет подписки с доступом к API');
+        console.error('4. Формат запроса неверный');
+        console.error('5. Домен не найден в базе Ahrefs (но это не должно блокировать запрос)');
         
         // Пробуем альтернативные варианты домена
         // Если использовали без www, пробуем с www, и наоборот
@@ -251,7 +291,7 @@ export async function fetchAhrefsSiteMetrics(
         }
         
         throw new Error(
-          `Ahrefs API error: 403 Forbidden. ${errorMessage}. Возможные причины: неправильный API ключ, ключ не имеет доступа к домену "${cleanDomain}", ключ был отозван, или домен "${cleanDomain}" не найден в базе Ahrefs. Убедитесь, что: 1) API ключ активен и имеет доступ к Site Explorer, 2) Домен добавлен в ваш проект Ahrefs, 3) У вашего аккаунта есть подписка с доступом к API.`
+          `Ahrefs API error: 403 Forbidden. ${errorMessage}. Возможные причины: 1) API ключ неверный или неактивен, 2) API ключ не имеет доступа к Site Explorer API (проверьте настройки API ключа в Ahrefs), 3) У аккаунта нет подписки с доступом к API, 4) Формат запроса неверный. Для получения данных из Site Explorer не нужно добавлять домен в проект - API должен работать для любого домена, если у API ключа есть доступ к Site Explorer API. Проверьте настройки API ключа в Ahrefs и убедитесь, что у него включен доступ к Site Explorer API.`
         );
       }
 
