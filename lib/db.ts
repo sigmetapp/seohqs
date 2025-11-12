@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
+import type { Site } from './types';
 
 export interface AffiliateOffer {
   id?: number;
@@ -78,4 +79,106 @@ export function getOffersCount(): number {
   const database = getDatabase();
   const result = database.prepare('SELECT COUNT(*) as count FROM affiliate_offers').get() as { count: number };
   return result.count;
+}
+
+// Sites functions
+export function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedAt'>): Site {
+  const database = getDatabase();
+  const stmt = database.prepare(`
+    INSERT INTO sites (name, domain, category, google_search_console_url, ahrefs_api_key, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `);
+
+  const result = stmt.run(
+    site.name,
+    site.domain,
+    site.category || null,
+    site.googleSearchConsoleUrl || null,
+    site.ahrefsApiKey || null
+  );
+
+  return {
+    id: Number(result.lastInsertRowid),
+    name: site.name,
+    domain: site.domain,
+    category: site.category,
+    googleSearchConsoleUrl: site.googleSearchConsoleUrl,
+    ahrefsApiKey: site.ahrefsApiKey,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function getAllSites(): Site[] {
+  const database = getDatabase();
+  const rows = database.prepare('SELECT * FROM sites ORDER BY created_at DESC').all() as any[];
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    domain: row.domain,
+    category: row.category,
+    googleSearchConsoleUrl: row.google_search_console_url,
+    ahrefsApiKey: row.ahrefs_api_key,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export function getSiteById(id: number): Site | null {
+  const database = getDatabase();
+  const row = database.prepare('SELECT * FROM sites WHERE id = ?').get(id) as any;
+  
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    name: row.name,
+    domain: row.domain,
+    category: row.category,
+    googleSearchConsoleUrl: row.google_search_console_url,
+    ahrefsApiKey: row.ahrefs_api_key,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdAt'>>): Site {
+  const database = getDatabase();
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (site.name !== undefined) {
+    updates.push('name = ?');
+    values.push(site.name);
+  }
+  if (site.domain !== undefined) {
+    updates.push('domain = ?');
+    values.push(site.domain);
+  }
+  if (site.category !== undefined) {
+    updates.push('category = ?');
+    values.push(site.category || null);
+  }
+  if (site.googleSearchConsoleUrl !== undefined) {
+    updates.push('google_search_console_url = ?');
+    values.push(site.googleSearchConsoleUrl || null);
+  }
+  if (site.ahrefsApiKey !== undefined) {
+    updates.push('ahrefs_api_key = ?');
+    values.push(site.ahrefsApiKey || null);
+  }
+
+  updates.push("updated_at = datetime('now')");
+  values.push(id);
+
+  const query = `UPDATE sites SET ${updates.join(', ')} WHERE id = ?`;
+  database.prepare(query).run(...values);
+
+  const updated = getSiteById(id);
+  if (!updated) {
+    throw new Error('Site not found after update');
+  }
+  return updated;
 }

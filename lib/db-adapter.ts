@@ -1,4 +1,4 @@
-import type { AffiliateOffer } from './types';
+import type { AffiliateOffer, Site } from './types';
 
 // Определяем, какую БД использовать
 function useSupabase(): boolean {
@@ -87,5 +87,80 @@ export async function getOffersCount(): Promise<number> {
     // Только для локальной разработки
     const { getOffersCount: countSQLite } = require('./db');
     return countSQLite();
+  }
+}
+
+// Sites adapter functions
+export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedAt'>): Promise<Site> {
+  if (useSupabase()) {
+    const { insertSite: insertSupabase } = await import('./db-supabase');
+    return insertSupabase(site);
+  } else if (usePostgres()) {
+    const { insertSite: insertPostgres } = await import('./db-postgres');
+    return insertPostgres(site);
+  } else {
+    // На Vercel не используем SQLite
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    // Только для локальной разработки
+    const { insertSite: insertSQLite } = require('./db');
+    return insertSQLite(site);
+  }
+}
+
+export async function getAllSites(): Promise<Site[]> {
+  if (useSupabase()) {
+    const { getAllSites: getSupabase } = await import('./db-supabase');
+    return getSupabase();
+  } else if (usePostgres()) {
+    const { getAllSites: getPostgres } = await import('./db-postgres');
+    return getPostgres();
+  } else {
+    // На Vercel не используем SQLite
+    if (process.env.VERCEL) {
+      console.warn('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+      return [];
+    }
+    // Только для локальной разработки
+    const { getAllSites: getSQLite } = require('./db');
+    return getSQLite();
+  }
+}
+
+export async function getSiteById(id: number): Promise<Site | null> {
+  if (useSupabase()) {
+    const { getSiteById: getSupabase } = await import('./db-supabase');
+    return getSupabase(id);
+  } else if (usePostgres()) {
+    const { getSiteById: getPostgres } = await import('./db-postgres');
+    return getPostgres(id);
+  } else {
+    // На Vercel не используем SQLite
+    if (process.env.VERCEL) {
+      console.warn('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+      return null;
+    }
+    // Только для локальной разработки
+    const { getSiteById: getSQLite } = require('./db');
+    return getSQLite(id);
+  }
+}
+
+export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdAt'>>): Promise<Site> {
+  if (useSupabase()) {
+    const { updateSite: updateSupabase } = await import('./db-supabase');
+    return updateSupabase(id, site);
+  } else if (usePostgres()) {
+    const { updateSite: updatePostgres } = await import('./db-postgres');
+    return updatePostgres(id, site);
+  } else {
+    // На Vercel не используем SQLite
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    // Только для локальной разработки
+    const { updateSite: updateSQLite } = require('./db');
+    return updateSQLite(id, site);
   }
 }

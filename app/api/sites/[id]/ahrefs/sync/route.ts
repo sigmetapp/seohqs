@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getSiteById } from '@/lib/db-adapter';
 import { storage } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
@@ -10,7 +11,16 @@ export async function POST(
 ) {
   try {
     const siteId = parseInt(params.id);
-    const site = storage.sites.find((s) => s.id === siteId);
+    if (isNaN(siteId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Неверный ID сайта',
+        },
+        { status: 400 }
+      );
+    }
+    const site = await getSiteById(siteId);
 
     if (!site) {
       return NextResponse.json(

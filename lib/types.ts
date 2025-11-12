@@ -59,6 +59,7 @@ export interface Site {
   id: number;
   name: string;
   domain: string;
+  category?: string;
   googleSearchConsoleUrl?: string;
   ahrefsApiKey?: string;
   createdAt: string;

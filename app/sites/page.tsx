@@ -11,13 +11,32 @@ export default function SitesPage() {
   const [newSite, setNewSite] = useState({
     name: '',
     domain: '',
+    category: '',
     googleSearchConsoleUrl: '',
     ahrefsApiKey: '',
   });
+  const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
     loadSites();
+    loadCategories();
   }, []);
+
+  const loadCategories = async () => {
+    try {
+      const response = await fetch('/api/data');
+      const data = await response.json();
+      if (data.success && data.offers) {
+        // Получаем уникальные категории из офферов
+        const uniqueCategories = Array.from(
+          new Set(data.offers.map((offer: any) => offer.topic || offer.category).filter(Boolean))
+        ) as string[];
+        setCategories(uniqueCategories.sort());
+      }
+    } catch (err) {
+      console.error('Error loading categories:', err);
+    }
+  };
 
   const loadSites = async () => {
     try {
@@ -44,7 +63,7 @@ export default function SitesPage() {
       const data = await response.json();
       if (data.success) {
         setShowCreateModal(false);
-        setNewSite({ name: '', domain: '', googleSearchConsoleUrl: '', ahrefsApiKey: '' });
+        setNewSite({ name: '', domain: '', category: '', googleSearchConsoleUrl: '', ahrefsApiKey: '' });
         loadSites();
       } else {
         alert(data.error || 'Ошибка создания сайта');
@@ -101,6 +120,9 @@ export default function SitesPage() {
               >
                 <h3 className="text-xl font-bold mb-2">{site.name}</h3>
                 <p className="text-gray-400 text-sm mb-4">{site.domain}</p>
+                {site.category && (
+                  <p className="text-blue-400 text-xs mb-2">Категория: {site.category}</p>
+                )}
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-500">Google Console:</span>
@@ -152,6 +174,28 @@ export default function SitesPage() {
                     className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
                     placeholder="example.com"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Категория (необязательно)
+                  </label>
+                  <select
+                    value={newSite.category}
+                    onChange={(e) => setNewSite({ ...newSite, category: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="">Выберите категорию</option>
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  {categories.length === 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Загрузите офферы, чтобы увидеть доступные категории
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
