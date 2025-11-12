@@ -92,6 +92,52 @@ export default function Home() {
     }
   };
 
+  const loadCsvFromServer = async (filename?: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch('/api/load-csv', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filename }),
+      });
+
+      const data = await response.json();
+      
+      console.log('Load CSV API Response:', data);
+      if (data.debug) {
+        console.log('Load CSV Debug info:', data.debug);
+      }
+
+      if (data.success) {
+        console.log('✅ CSV файлы успешно загружены:', data.message);
+        if (data.files) {
+          console.log('Загруженные файлы:', data.files);
+        }
+        if (data.debug) {
+          console.log('Debug steps:', data.debug.steps);
+        }
+        await loadData();
+      } else {
+        const errorMsg = data.error || 'Ошибка загрузки CSV файлов';
+        setError(errorMsg);
+        console.error('❌ Ошибка загрузки CSV файлов:', errorMsg);
+        if (data.debug) {
+          console.error('Debug steps:', data.debug.steps);
+          console.error('Debug errors:', data.debug.errors);
+        }
+      }
+    } catch (err: any) {
+      console.error('Load CSV error:', err);
+      setError(err.message || 'Ошибка загрузки CSV файлов');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -171,19 +217,33 @@ export default function Home() {
           <div className="flex flex-wrap gap-4 mb-4">
             <button
               onClick={loadData}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50"
               disabled={loading}
             >
               Обновить данные
             </button>
             <button
               onClick={loadTestData}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded"
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded disabled:opacity-50"
               disabled={loading}
             >
               Загрузить тестовые данные
             </button>
-            <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded cursor-pointer">
+            <button
+              onClick={() => loadCsvFromServer('advertise.csv')}
+              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded disabled:opacity-50"
+              disabled={loading}
+            >
+              Загрузить advertise.csv
+            </button>
+            <button
+              onClick={() => loadCsvFromServer()}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded disabled:opacity-50"
+              disabled={loading}
+            >
+              Загрузить все CSV
+            </button>
+            <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded cursor-pointer disabled:opacity-50">
               <input
                 type="file"
                 accept=".csv"
