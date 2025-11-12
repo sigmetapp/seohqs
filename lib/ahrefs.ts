@@ -43,11 +43,32 @@ export async function fetchAhrefsSiteMetrics(
 
   try {
     // Ahrefs API endpoint для получения метрик сайта
+    // Согласно документации Ahrefs API v3, токен передается в query параметре token
     const url = `https://api.ahrefs.com/v3/site-explorer/metrics`;
+    const trimmedKey = apiKey.trim();
     
-    // Ahrefs API использует token в query параметре
-    // Также можно использовать заголовок Authorization, но query параметр более стандартный
-    const urlWithToken = `${url}?token=${encodeURIComponent(apiKey)}`;
+    // Ahrefs API v3 использует токен в query параметре token
+    const urlWithToken = `${url}?token=${encodeURIComponent(trimmedKey)}`;
+    
+    const requestBody = {
+      target: cleanDomain,
+      mode: 'domain',
+      output: 'json',
+      metrics: [
+        'domain_rating',
+        'backlinks',
+        'referring_domains',
+        'organic_keywords',
+        'organic_traffic',
+      ],
+    };
+
+    // Логируем запрос для отладки (без ключа)
+    console.log('[Ahrefs API] Запрос:', {
+      url: url,
+      domain: cleanDomain,
+      metrics: requestBody.metrics,
+    });
     
     const response = await fetch(urlWithToken, {
       method: 'POST',
@@ -55,18 +76,7 @@ export async function fetchAhrefsSiteMetrics(
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify({
-        target: cleanDomain,
-        mode: 'domain',
-        output: 'json',
-        metrics: [
-          'domain_rating',
-          'backlinks',
-          'referring_domains',
-          'organic_keywords',
-          'organic_traffic',
-        ],
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -91,8 +101,16 @@ export async function fetchAhrefsSiteMetrics(
           ? (Array.isArray(errorData) ? errorData.join(', ') : JSON.stringify(errorData))
           : errorText;
         
+        // Логируем детали ошибки для отладки
+        console.error('[Ahrefs API] 403 Forbidden:', {
+          domain: cleanDomain,
+          errorText,
+          errorData,
+          url: url,
+        });
+        
         throw new Error(
-          `Ahrefs API error: 403 Forbidden. ${errorMessage}. Возможные причины: неправильный API ключ, ключ не имеет доступа к домену "${cleanDomain}", или ключ был отозван.`
+          `Ahrefs API error: 403 Forbidden. ${errorMessage}. Возможные причины: неправильный API ключ, ключ не имеет доступа к домену "${cleanDomain}", ключ был отозван, или домен "${cleanDomain}" не найден в базе Ahrefs. Убедитесь, что: 1) API ключ активен и имеет доступ к Site Explorer, 2) Домен добавлен в ваш проект Ahrefs, 3) У вашего аккаунта есть подписка с доступом к API.`
         );
       }
 
