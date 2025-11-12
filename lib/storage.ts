@@ -8,6 +8,14 @@ export const storage = {
   googleData: [] as any[],
   ahrefsData: [] as any[],
   postbacks: [] as any[],
+  integrations: {
+    id: 1,
+    googleServiceAccountEmail: '',
+    googlePrivateKey: '',
+    ahrefsApiKey: '',
+    googleSearchConsoleUrl: '',
+    updatedAt: new Date().toISOString(),
+  },
   
   counters: {
     projectId: 1,
