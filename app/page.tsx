@@ -24,9 +24,14 @@ export default function Home() {
       try {
         setLoading(true);
         const data = await parseCSVFiles();
+        if (data.length === 0) {
+          console.warn('No data loaded from CSV files. Check if files exist in /public/data/');
+        }
         setOffers(data);
       } catch (error) {
         console.error('Error loading data:', error);
+        // Устанавливаем пустой массив при ошибке, чтобы приложение не зависло
+        setOffers([]);
       } finally {
         setLoading(false);
       }
