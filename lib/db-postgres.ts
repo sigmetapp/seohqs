@@ -274,6 +274,9 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
         googlePrivateKey: '',
         ahrefsApiKey: '',
         googleSearchConsoleUrl: '',
+        googleAccessToken: '',
+        googleRefreshToken: '',
+        googleTokenExpiry: '',
         updatedAt: new Date().toISOString(),
       };
     }
@@ -285,6 +288,9 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
       googlePrivateKey: row.google_private_key || '',
       ahrefsApiKey: row.ahrefs_api_key || '',
       googleSearchConsoleUrl: row.google_search_console_url || '',
+      googleAccessToken: row.google_access_token || '',
+      googleRefreshToken: row.google_refresh_token || '',
+      googleTokenExpiry: row.google_token_expiry || '',
       updatedAt: row.updated_at,
     };
   } catch (error: any) {
@@ -296,6 +302,9 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
         googlePrivateKey: '',
         ahrefsApiKey: '',
         googleSearchConsoleUrl: '',
+        googleAccessToken: '',
+        googleRefreshToken: '',
+        googleTokenExpiry: '',
         updatedAt: new Date().toISOString(),
       };
     }
@@ -306,6 +315,9 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
       googlePrivateKey: '',
       ahrefsApiKey: '',
       googleSearchConsoleUrl: '',
+      googleAccessToken: '',
+      googleRefreshToken: '',
+      googleTokenExpiry: '',
       updatedAt: new Date().toISOString(),
     };
   }
@@ -337,6 +349,18 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
     if (settings.googleSearchConsoleUrl !== undefined) {
       updates.push(`google_search_console_url = $${paramIndex++}`);
       values.push(settings.googleSearchConsoleUrl || null);
+    }
+    if (settings.googleAccessToken !== undefined) {
+      updates.push(`google_access_token = $${paramIndex++}`);
+      values.push(settings.googleAccessToken || null);
+    }
+    if (settings.googleRefreshToken !== undefined) {
+      updates.push(`google_refresh_token = $${paramIndex++}`);
+      values.push(settings.googleRefreshToken || null);
+    }
+    if (settings.googleTokenExpiry !== undefined) {
+      updates.push(`google_token_expiry = $${paramIndex++}`);
+      values.push(settings.googleTokenExpiry || null);
     }
 
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
