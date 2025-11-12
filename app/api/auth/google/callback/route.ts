@@ -67,11 +67,18 @@ export async function GET(request: Request) {
 
     // Сохраняем токены в storage
     // В продакшене это должно быть в БД с шифрованием
+    // Используем non-null assertion, так как мы уже проверили наличие токенов выше
+    const accessToken: string = tokens.access_token!;
+    const refreshToken: string = tokens.refresh_token!;
+    const tokenExpiry: string | undefined = tokens.expiry_date 
+      ? new Date(tokens.expiry_date).toISOString() 
+      : undefined;
+
     storage.integrations = {
       ...storage.integrations,
-      googleAccessToken: tokens.access_token,
-      googleRefreshToken: tokens.refresh_token,
-      googleTokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : undefined,
+      googleAccessToken: accessToken,
+      googleRefreshToken: refreshToken,
+      googleTokenExpiry: tokenExpiry,
       updatedAt: new Date().toISOString(),
     };
 
