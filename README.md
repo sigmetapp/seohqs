@@ -1,0 +1,2 @@
+# Affiliate Catalog
+Initial commit
