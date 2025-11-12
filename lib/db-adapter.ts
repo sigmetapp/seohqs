@@ -2,7 +2,12 @@ import { AffiliateOffer } from './db';
 
 // Определяем, какую БД использовать
 function usePostgres(): boolean {
-  return !!(process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.VERCEL);
+  // На Vercel всегда используем PostgreSQL если есть переменные окружения
+  if (process.env.VERCEL) {
+    return !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
+  }
+  // Локально проверяем переменные окружения
+  return !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
 }
 
 export async function insertOffers(offers: Omit<AffiliateOffer, 'id' | 'createdAt'>[]): Promise<void> {
