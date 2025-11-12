@@ -64,6 +64,9 @@ export interface Site {
   ahrefsApiKey?: string;
   createdAt: string;
   updatedAt: string;
+  // Поля, добавляемые в API response для отображения статуса подключений
+  hasGoogleConsoleConnection?: boolean;
+  hasAhrefsConnection?: boolean;
 }
 
 export interface GoogleSearchConsoleData {
