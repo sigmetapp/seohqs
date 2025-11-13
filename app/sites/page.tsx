@@ -161,16 +161,12 @@ export default function SitesPage() {
   const loadAggregatedData = async () => {
     try {
       setLoadingAggregatedData(true);
-<<<<<<< HEAD
       // Используем selectedPeriodAllSites для вкладки "Все сайты", selectedPeriod для "Все сайты с Google Console"
       const period = activeTab === 'all' ? selectedPeriodAllSites : selectedPeriod;
-      const response = await fetch(`/api/sites/google-console-aggregated?days=${period}`);
-=======
       const url = selectedAccountId 
-        ? `/api/sites/google-console-aggregated?accountId=${selectedAccountId}`
-        : '/api/sites/google-console-aggregated';
+        ? `/api/sites/google-console-aggregated?accountId=${selectedAccountId}&days=${period}`
+        : `/api/sites/google-console-aggregated?days=${period}`;
       const response = await fetch(url);
->>>>>>> cursor/enhance-google-console-sites-tab-0674
       const data = await response.json();
       if (data.success) {
         setGoogleConsoleAggregatedData(data.sites || []);
