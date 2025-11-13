@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Site } from '@/lib/types';
+import { Site, GoogleAccount } from '@/lib/types';
 
 type TabType = 'all' | 'google-console';
 
@@ -43,6 +43,8 @@ export default function SitesPage() {
   const [blurMode, setBlurMode] = useState<boolean>(false); // Режим блюра
   const [hoveredSiteId, setHoveredSiteId] = useState<number | null>(null); // Для интерактивности
   const [hoveredDateIndex, setHoveredDateIndex] = useState<{ siteId: number; index: number } | null>(null); // Для отображения данных конкретной даты
+  const [googleAccounts, setGoogleAccounts] = useState<GoogleAccount[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null); // Выбранный Google аккаунт
   const [dailyData, setDailyData] = useState<Record<number, Array<{
     date: string;
     clicks: number;
@@ -55,11 +57,19 @@ export default function SitesPage() {
   useEffect(() => {
     loadSites();
     loadCategories();
+    loadGoogleAccounts();
     loadAggregatedData(); // Загружаем для обеих вкладок
     if (activeTab === 'google-console') {
       loadGoogleConsoleSites();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    // При изменении выбранного аккаунта перезагружаем данные
+    if (activeTab === 'google-console') {
+      loadAggregatedData();
+    }
+  }, [selectedAccountId, activeTab]);
 
   useEffect(() => {
     if (activeTab === 'google-console' && googleConsoleAggregatedData.length > 0) {
@@ -68,7 +78,7 @@ export default function SitesPage() {
         loadDailyDataForSite(site.id);
       });
     }
-  }, [activeTab, googleConsoleAggregatedData, selectedPeriod]);
+  }, [activeTab, googleConsoleAggregatedData, selectedPeriod, selectedAccountId]);
 
   const loadCategories = async () => {
     try {
@@ -83,6 +93,22 @@ export default function SitesPage() {
       }
     } catch (err) {
       console.error('Error loading categories:', err);
+    }
+  };
+
+  const loadGoogleAccounts = async () => {
+    try {
+      const response = await fetch('/api/google-accounts');
+      const data = await response.json();
+      if (data.success && data.accounts) {
+        setGoogleAccounts(data.accounts);
+        // Если аккаунты есть и ни один не выбран, выбираем первый
+        if (data.accounts.length > 0 && !selectedAccountId) {
+          setSelectedAccountId(data.accounts[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading Google accounts:', err);
     }
   };
 
@@ -105,7 +131,10 @@ export default function SitesPage() {
     try {
       setLoadingGoogleSites(true);
       setGoogleConsoleError(null);
-      const response = await fetch('/api/sites/google-console-sites');
+      const url = selectedAccountId 
+        ? `/api/sites/google-console-sites?accountId=${selectedAccountId}`
+        : '/api/sites/google-console-sites';
+      const response = await fetch(url);
       const data = await response.json();
       if (data.success) {
         setGoogleConsoleSites(data.sites || []);
@@ -130,7 +159,10 @@ export default function SitesPage() {
   const loadAggregatedData = async () => {
     try {
       setLoadingAggregatedData(true);
-      const response = await fetch('/api/sites/google-console-aggregated');
+      const url = selectedAccountId 
+        ? `/api/sites/google-console-aggregated?accountId=${selectedAccountId}`
+        : '/api/sites/google-console-aggregated';
+      const response = await fetch(url);
       const data = await response.json();
       if (data.success) {
         setGoogleConsoleAggregatedData(data.sites || []);
@@ -401,6 +433,23 @@ export default function SitesPage() {
               {/* Контролы для периода и видимости графиков */}
               <div className="sticky top-0 z-50 bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700 shadow-lg backdrop-blur-sm">
                 <div className="flex flex-wrap gap-4 items-center">
+                  {/* Селектор Google аккаунта */}
+                  {googleAccounts.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-400">Google аккаунт:</span>
+                      <select
+                        value={selectedAccountId || ''}
+                        onChange={(e) => setSelectedAccountId(e.target.value ? parseInt(e.target.value) : null)}
+                        className="px-3 py-1 bg-gray-700 text-white rounded text-sm border border-gray-600 focus:border-blue-500 focus:outline-none"
+                      >
+                        {googleAccounts.map((account) => (
+                          <option key={account.id} value={account.id}>
+                            {account.email}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-400">Период:</span>
                     <div className="flex gap-2">

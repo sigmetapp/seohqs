@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllSites, getGoogleSearchConsoleDataBySiteId, getIntegrations } from '@/lib/db-adapter';
+import { getAllSites, getGoogleSearchConsoleDataBySiteId, getIntegrations, getAllGoogleAccounts } from '@/lib/db-adapter';
 import { createSearchConsoleService } from '@/lib/google-search-console';
 import { hasGoogleOAuth } from '@/lib/oauth-utils';
 
@@ -10,17 +10,21 @@ export const runtime = 'nodejs';
  * GET /api/sites/google-console-aggregated
  * Получает агрегированные данные по всем сайтам из Google Search Console
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const accountIdParam = searchParams.get('accountId');
+    const accountId = accountIdParam ? parseInt(accountIdParam) : null;
+
     const sites = await getAllSites();
     const integrations = await getIntegrations();
     const isOAuthConfigured = hasGoogleOAuth(integrations);
     
     // Получаем список сайтов из Google Search Console, если OAuth настроен
     let googleConsoleSites: Array<{ siteUrl: string; permissionLevel: string }> = [];
-    if (isOAuthConfigured) {
+    if (isOAuthConfigured || accountId) {
       try {
-        const searchConsoleService = createSearchConsoleService();
+        const searchConsoleService = createSearchConsoleService(accountId || undefined);
         googleConsoleSites = await searchConsoleService.getSites();
       } catch (error) {
         console.warn('Не удалось получить список сайтов из Google Search Console:', error);

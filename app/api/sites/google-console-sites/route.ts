@@ -8,9 +8,13 @@ export const runtime = 'nodejs';
  * GET /api/sites/google-console-sites
  * Получает список всех сайтов из Google Search Console
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const searchConsoleService = createSearchConsoleService();
+    const { searchParams } = new URL(request.url);
+    const accountIdParam = searchParams.get('accountId');
+    const accountId = accountIdParam ? parseInt(accountIdParam) : undefined;
+    
+    const searchConsoleService = createSearchConsoleService(accountId);
     const sites = await searchConsoleService.getSites();
     
     return NextResponse.json({

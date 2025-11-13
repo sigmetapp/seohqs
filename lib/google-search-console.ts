@@ -1,6 +1,6 @@
 import { google } from 'googleapis';
 import { storage } from './storage';
-import { getIntegrations, updateIntegrations } from './db-adapter';
+import { getIntegrations, updateIntegrations, getGoogleAccountById, updateGoogleAccount } from './db-adapter';
 
 /**
  * Сервис для работы с Google Search Console API
@@ -10,25 +10,46 @@ import { getIntegrations, updateIntegrations } from './db-adapter';
 export class GoogleSearchConsoleService {
   private auth: any;
   private searchConsole: any;
+  private accountId: number | null;
 
-  constructor() {
+  constructor(accountId?: number) {
     // Инициализация будет выполнена асинхронно
+    this.accountId = accountId || null;
   }
 
   private async initializeAuth() {
-    // Пробуем использовать OAuth токены (новый способ)
-    // Сначала пытаемся получить из БД
-    let integrations;
-    try {
-      integrations = await getIntegrations();
-    } catch (error) {
-      console.warn('Не удалось получить integrations из БД, используем storage:', error);
-      integrations = storage.integrations;
+    let accessToken: string = '';
+    let refreshToken: string = '';
+    let tokenExpiry: string = '';
+
+    // Если указан accountId, используем конкретный аккаунт
+    if (this.accountId) {
+      try {
+        const account = await getGoogleAccountById(this.accountId);
+        if (account) {
+          accessToken = account.googleAccessToken || '';
+          refreshToken = account.googleRefreshToken || '';
+          tokenExpiry = account.googleTokenExpiry || '';
+        }
+      } catch (error) {
+        console.warn('Не удалось получить аккаунт из БД:', error);
+      }
     }
 
-    const accessToken = integrations.googleAccessToken || storage.integrations.googleAccessToken;
-    const refreshToken = integrations.googleRefreshToken || storage.integrations.googleRefreshToken;
-    const tokenExpiry = integrations.googleTokenExpiry || storage.integrations.googleTokenExpiry;
+    // Если токены не получены из аккаунта, используем старый способ (для обратной совместимости)
+    if (!accessToken || !refreshToken) {
+      let integrations;
+      try {
+        integrations = await getIntegrations();
+      } catch (error) {
+        console.warn('Не удалось получить integrations из БД, используем storage:', error);
+        integrations = storage.integrations;
+      }
+
+      accessToken = integrations.googleAccessToken || storage.integrations.googleAccessToken;
+      refreshToken = integrations.googleRefreshToken || storage.integrations.googleRefreshToken;
+      tokenExpiry = integrations.googleTokenExpiry || storage.integrations.googleTokenExpiry;
+    }
     
     // Если есть OAuth токены (не пустые строки), используем их
     if (accessToken && accessToken.trim() && refreshToken && refreshToken.trim()) {
@@ -75,7 +96,13 @@ export class GoogleSearchConsoleService {
         
         // Сохраняем обновленные токены в БД
         try {
-          await updateIntegrations(updates);
+          if (this.accountId) {
+            // Обновляем конкретный аккаунт
+            await updateGoogleAccount(this.accountId, updates);
+          } else {
+            // Обновляем старую таблицу для обратной совместимости
+            await updateIntegrations(updates);
+          }
         } catch (error) {
           console.error('Ошибка сохранения обновленных токенов в БД:', error);
         }
@@ -580,8 +607,9 @@ export class GoogleSearchConsoleService {
 
 /**
  * Создает экземпляр сервиса Google Search Console
+ * @param accountId ID Google аккаунта (опционально)
  * @returns Экземпляр GoogleSearchConsoleService
  */
-export function createSearchConsoleService(): GoogleSearchConsoleService {
-  return new GoogleSearchConsoleService();
+export function createSearchConsoleService(accountId?: number): GoogleSearchConsoleService {
+  return new GoogleSearchConsoleService(accountId);
 }
