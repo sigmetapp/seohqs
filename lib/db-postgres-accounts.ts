@@ -9,17 +9,18 @@ function isPostgresAvailable(): boolean {
   return !!process.env.POSTGRES_URL || !!process.env.DATABASE_URL;
 }
 
-export async function getAllGoogleAccounts(): Promise<GoogleAccount[]> {
+export async function getAllGoogleAccounts(userId: number): Promise<GoogleAccount[]> {
   if (!isPostgresAvailable()) {
     return [];
   }
 
   try {
     const db = await getPostgresClient();
-    const result = await db.query('SELECT * FROM google_accounts ORDER BY created_at DESC');
+    const result = await db.query('SELECT * FROM google_accounts WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
     return result.rows.map((row: any) => ({
       id: row.id,
       email: row.email,
+      userId: row.user_id,
       googleAccessToken: row.google_access_token || '',
       googleRefreshToken: row.google_refresh_token || '',
       googleTokenExpiry: row.google_token_expiry || '',
@@ -36,14 +37,14 @@ export async function getAllGoogleAccounts(): Promise<GoogleAccount[]> {
   }
 }
 
-export async function getGoogleAccountById(id: number): Promise<GoogleAccount | null> {
+export async function getGoogleAccountById(id: number, userId: number): Promise<GoogleAccount | null> {
   if (!isPostgresAvailable()) {
     return null;
   }
 
   try {
     const db = await getPostgresClient();
-    const result = await db.query('SELECT * FROM google_accounts WHERE id = $1', [id]);
+    const result = await db.query('SELECT * FROM google_accounts WHERE id = $1 AND user_id = $2', [id, userId]);
     
     if (result.rows.length === 0) {
       return null;
@@ -53,6 +54,7 @@ export async function getGoogleAccountById(id: number): Promise<GoogleAccount | 
     return {
       id: row.id,
       email: row.email,
+      userId: row.user_id,
       googleAccessToken: row.google_access_token || '',
       googleRefreshToken: row.google_refresh_token || '',
       googleTokenExpiry: row.google_token_expiry || '',
@@ -65,7 +67,7 @@ export async function getGoogleAccountById(id: number): Promise<GoogleAccount | 
   }
 }
 
-export async function createGoogleAccount(account: Omit<GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>): Promise<GoogleAccount> {
+export async function createGoogleAccount(account: Omit<GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>, userId: number): Promise<GoogleAccount> {
   if (!isPostgresAvailable()) {
     throw new Error('PostgreSQL database not configured');
   }
@@ -73,11 +75,12 @@ export async function createGoogleAccount(account: Omit<GoogleAccount, 'id' | 'c
   try {
     const db = await getPostgresClient();
     const result = await db.query(
-      `INSERT INTO google_accounts (email, google_access_token, google_refresh_token, google_token_expiry, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `INSERT INTO google_accounts (email, user_id, google_access_token, google_refresh_token, google_token_expiry, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        RETURNING *`,
       [
         account.email,
+        userId,
         account.googleAccessToken || null,
         account.googleRefreshToken || null,
         account.googleTokenExpiry || null,
@@ -88,6 +91,7 @@ export async function createGoogleAccount(account: Omit<GoogleAccount, 'id' | 'c
     return {
       id: row.id,
       email: row.email,
+      userId: row.user_id,
       googleAccessToken: row.google_access_token || '',
       googleRefreshToken: row.google_refresh_token || '',
       googleTokenExpiry: row.google_token_expiry || '',
@@ -99,7 +103,7 @@ export async function createGoogleAccount(account: Omit<GoogleAccount, 'id' | 'c
   }
 }
 
-export async function updateGoogleAccount(id: number, account: Partial<Omit<GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>>): Promise<GoogleAccount> {
+export async function updateGoogleAccount(id: number, account: Partial<Omit<GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>>, userId: number): Promise<GoogleAccount> {
   if (!isPostgresAvailable()) {
     throw new Error('PostgreSQL database not configured');
   }
@@ -129,8 +133,8 @@ export async function updateGoogleAccount(id: number, account: Partial<Omit<Goog
 
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
 
-    values.push(id);
-    const query = `UPDATE google_accounts SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+    values.push(id, userId);
+    const query = `UPDATE google_accounts SET ${updates.join(', ')} WHERE id = $${paramIndex++} AND user_id = $${paramIndex} RETURNING *`;
     const result = await db.query(query, values);
 
     if (result.rows.length === 0) {
@@ -141,6 +145,7 @@ export async function updateGoogleAccount(id: number, account: Partial<Omit<Goog
     return {
       id: row.id,
       email: row.email,
+      userId: row.user_id,
       googleAccessToken: row.google_access_token || '',
       googleRefreshToken: row.google_refresh_token || '',
       googleTokenExpiry: row.google_token_expiry || '',
@@ -152,14 +157,14 @@ export async function updateGoogleAccount(id: number, account: Partial<Omit<Goog
   }
 }
 
-export async function deleteGoogleAccount(id: number): Promise<void> {
+export async function deleteGoogleAccount(id: number, userId: number): Promise<void> {
   if (!isPostgresAvailable()) {
     throw new Error('PostgreSQL database not configured');
   }
 
   try {
     const db = await getPostgresClient();
-    await db.query('DELETE FROM google_accounts WHERE id = $1', [id]);
+    await db.query('DELETE FROM google_accounts WHERE id = $1 AND user_id = $2', [id, userId]);
   } catch (error: any) {
     throw error;
   }

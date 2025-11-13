@@ -89,7 +89,7 @@ export async function getOffersCount(): Promise<number> {
 }
 
 // Sites functions
-export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedAt'>): Promise<Site> {
+export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedAt'>, userId: number): Promise<Site> {
   if (!isPostgresAvailable()) {
     throw new Error('PostgreSQL database not configured. Please set POSTGRES_URL or DATABASE_URL.');
   }
@@ -97,14 +97,15 @@ export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedA
   try {
     const db = await getPostgresClient();
     const result = await db.query(
-      `INSERT INTO sites (name, domain, category, google_search_console_url) 
-       VALUES ($1, $2, $3, $4) 
-       RETURNING id, name, domain, category, google_search_console_url, created_at, updated_at`,
+      `INSERT INTO sites (name, domain, category, google_search_console_url, user_id) 
+       VALUES ($1, $2, $3, $4, $5) 
+       RETURNING id, name, domain, category, google_search_console_url, user_id, created_at, updated_at`,
       [
         site.name,
         site.domain,
         site.category || null,
         site.googleSearchConsoleUrl || null,
+        userId,
       ]
     );
 
@@ -115,6 +116,7 @@ export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedA
       domain: row.domain,
       category: row.category,
       googleSearchConsoleUrl: row.google_search_console_url,
+      userId: row.user_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -126,7 +128,7 @@ export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedA
   }
 }
 
-export async function getAllSites(): Promise<Site[]> {
+export async function getAllSites(userId: number): Promise<Site[]> {
   if (!isPostgresAvailable()) {
     console.warn('PostgreSQL database not configured, returning empty array');
     return [];
@@ -134,13 +136,14 @@ export async function getAllSites(): Promise<Site[]> {
 
   try {
     const db = await getPostgresClient();
-    const result = await db.query('SELECT * FROM sites ORDER BY created_at DESC');
+    const result = await db.query('SELECT * FROM sites WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
     return result.rows.map((row: any) => ({
       id: row.id,
       name: row.name,
       domain: row.domain,
       category: row.category,
       googleSearchConsoleUrl: row.google_search_console_url,
+      userId: row.user_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
@@ -154,14 +157,14 @@ export async function getAllSites(): Promise<Site[]> {
   }
 }
 
-export async function getSiteById(id: number): Promise<Site | null> {
+export async function getSiteById(id: number, userId: number): Promise<Site | null> {
   if (!isPostgresAvailable()) {
     return null;
   }
 
   try {
     const db = await getPostgresClient();
-    const result = await db.query('SELECT * FROM sites WHERE id = $1', [id]);
+    const result = await db.query('SELECT * FROM sites WHERE id = $1 AND user_id = $2', [id, userId]);
     
     if (result.rows.length === 0) {
       return null;
@@ -174,6 +177,7 @@ export async function getSiteById(id: number): Promise<Site | null> {
       domain: row.domain,
       category: row.category,
       googleSearchConsoleUrl: row.google_search_console_url,
+      userId: row.user_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -186,7 +190,7 @@ export async function getSiteById(id: number): Promise<Site | null> {
   }
 }
 
-export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdAt'>>): Promise<Site> {
+export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdAt'>>, userId: number): Promise<Site> {
   if (!isPostgresAvailable()) {
     throw new Error('PostgreSQL database not configured');
   }
@@ -215,9 +219,9 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
     }
 
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
-    values.push(id);
+    values.push(id, userId);
 
-    const query = `UPDATE sites SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+    const query = `UPDATE sites SET ${updates.join(', ')} WHERE id = $${paramIndex++} AND user_id = $${paramIndex} RETURNING *`;
     const result = await db.query(query, values);
 
     const row = result.rows[0];
@@ -227,6 +231,7 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
       domain: row.domain,
       category: row.category,
       googleSearchConsoleUrl: row.google_search_console_url,
+      userId: row.user_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -236,10 +241,11 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
 }
 
 // Integrations functions
-export async function getIntegrations(): Promise<IntegrationsSettings> {
+export async function getIntegrations(userId: number): Promise<IntegrationsSettings> {
   if (!isPostgresAvailable()) {
     return {
       id: 1,
+      userId: userId,
       googleServiceAccountEmail: '',
       googlePrivateKey: '',
       googleSearchConsoleUrl: '',
@@ -249,30 +255,34 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
 
   try {
     const db = await getPostgresClient();
-    const result = await db.query('SELECT * FROM integrations WHERE id = 1');
+    const result = await db.query('SELECT * FROM integrations WHERE user_id = $1', [userId]);
     
     if (result.rows.length === 0) {
       // Если записи нет, создаем её
-      await db.query(
-        `INSERT INTO integrations (id, updated_at) VALUES (1, CURRENT_TIMESTAMP) 
-         ON CONFLICT (id) DO NOTHING`
+      const insertResult = await db.query(
+        `INSERT INTO integrations (user_id, updated_at) VALUES ($1, CURRENT_TIMESTAMP) 
+         RETURNING *`,
+        [userId]
       );
       
+      const row = insertResult.rows[0];
       return {
-        id: 1,
+        id: row.id,
+        userId: row.user_id,
         googleServiceAccountEmail: '',
         googlePrivateKey: '',
         googleSearchConsoleUrl: '',
         googleAccessToken: '',
         googleRefreshToken: '',
         googleTokenExpiry: '',
-        updatedAt: new Date().toISOString(),
+        updatedAt: row.updated_at,
       };
     }
 
     const row = result.rows[0];
     return {
       id: row.id,
+      userId: row.user_id,
       googleServiceAccountEmail: row.google_service_account_email || '',
       googlePrivateKey: row.google_private_key || '',
       googleSearchConsoleUrl: row.google_search_console_url || '',
@@ -286,6 +296,7 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
       // Таблица не существует, возвращаем пустые настройки
       return {
         id: 1,
+        userId: userId,
         googleServiceAccountEmail: '',
         googlePrivateKey: '',
         googleSearchConsoleUrl: '',
@@ -298,6 +309,7 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
     console.error('Error fetching integrations:', error);
     return {
       id: 1,
+      userId: userId,
       googleServiceAccountEmail: '',
       googlePrivateKey: '',
       googleSearchConsoleUrl: '',
@@ -309,7 +321,7 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
   }
 }
 
-export async function updateIntegrations(settings: Partial<Omit<IntegrationsSettings, 'id' | 'updatedAt'>>): Promise<IntegrationsSettings> {
+export async function updateIntegrations(settings: Partial<Omit<IntegrationsSettings, 'id' | 'updatedAt'>>, userId: number): Promise<IntegrationsSettings> {
   if (!isPostgresAvailable()) {
     throw new Error('PostgreSQL database not configured');
   }
@@ -346,20 +358,21 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
     }
 
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(userId);
 
     if (updates.length > 1) {
       // Сначала убедимся, что запись существует
       await db.query(
-        `INSERT INTO integrations (id, updated_at) VALUES (1, CURRENT_TIMESTAMP) 
-         ON CONFLICT (id) DO NOTHING`
+        `INSERT INTO integrations (user_id, updated_at) VALUES ($1, CURRENT_TIMESTAMP) 
+         ON CONFLICT (user_id) DO NOTHING`,
+        [userId]
       );
 
-      values.push(1);
-      const query = `UPDATE integrations SET ${updates.join(', ')} WHERE id = $${paramIndex}`;
+      const query = `UPDATE integrations SET ${updates.join(', ')} WHERE user_id = $${paramIndex}`;
       await db.query(query, values);
     }
 
-    return getIntegrations();
+    return getIntegrations(userId);
   } catch (error: any) {
     throw error;
   }

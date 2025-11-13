@@ -11,10 +11,12 @@ export class GoogleSearchConsoleService {
   private auth: any;
   private searchConsole: any;
   private accountId: number | null;
+  private userId: number | null;
 
-  constructor(accountId?: number) {
+  constructor(accountId?: number, userId?: number) {
     // Инициализация будет выполнена асинхронно
     this.accountId = accountId || null;
+    this.userId = userId || null;
   }
 
   private async initializeAuth() {
@@ -22,10 +24,12 @@ export class GoogleSearchConsoleService {
     let refreshToken: string = '';
     let tokenExpiry: string = '';
 
-    // Если указан accountId, используем конкретный аккаунт
-    if (this.accountId) {
+    // Если указан accountId и userId, используем конкретный аккаунт
+    if (this.accountId !== null && this.userId !== null) {
       try {
-        const account = await getGoogleAccountById(this.accountId);
+        const accountId = this.accountId;
+        const userId = this.userId;
+        const account = await getGoogleAccountById(accountId, userId);
         if (account) {
           accessToken = account.googleAccessToken || '';
           refreshToken = account.googleRefreshToken || '';
@@ -37,10 +41,10 @@ export class GoogleSearchConsoleService {
     }
 
     // Если токены не получены из аккаунта, используем старый способ (для обратной совместимости)
-    if (!accessToken || !refreshToken) {
+    if ((!accessToken || !refreshToken) && this.userId) {
       let integrations;
       try {
-        integrations = await getIntegrations();
+        integrations = await getIntegrations(this.userId);
       } catch (error) {
         console.warn('Не удалось получить integrations из БД, используем storage:', error);
         integrations = storage.integrations;
@@ -96,12 +100,12 @@ export class GoogleSearchConsoleService {
         
         // Сохраняем обновленные токены в БД
         try {
-          if (this.accountId) {
+          if (this.accountId && this.userId) {
             // Обновляем конкретный аккаунт
-            await updateGoogleAccount(this.accountId, updates);
-          } else {
+            await updateGoogleAccount(this.accountId, updates, this.userId);
+          } else if (this.userId) {
             // Обновляем старую таблицу для обратной совместимости
-            await updateIntegrations(updates);
+            await updateIntegrations(updates, this.userId);
           }
         } catch (error) {
           console.error('Ошибка сохранения обновленных токенов в БД:', error);
@@ -608,8 +612,9 @@ export class GoogleSearchConsoleService {
 /**
  * Создает экземпляр сервиса Google Search Console
  * @param accountId ID Google аккаунта (опционально)
+ * @param userId ID пользователя (опционально, но рекомендуется)
  * @returns Экземпляр GoogleSearchConsoleService
  */
-export function createSearchConsoleService(accountId?: number): GoogleSearchConsoleService {
-  return new GoogleSearchConsoleService(accountId);
+export function createSearchConsoleService(accountId?: number, userId?: number): GoogleSearchConsoleService {
+  return new GoogleSearchConsoleService(accountId, userId);
 }

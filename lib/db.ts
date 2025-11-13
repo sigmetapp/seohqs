@@ -85,15 +85,16 @@ export function getOffersCount(): number {
 export function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedAt'>): Site {
   const database = getDatabase();
   const stmt = database.prepare(`
-    INSERT INTO sites (name, domain, category, google_search_console_url, created_at, updated_at)
-    VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+    INSERT INTO sites (name, domain, category, google_search_console_url, user_id, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
   `);
 
   const result = stmt.run(
     site.name,
     site.domain,
     site.category || null,
-    site.googleSearchConsoleUrl || null
+    site.googleSearchConsoleUrl || null,
+    site.userId || null
   );
 
   return {
@@ -102,28 +103,30 @@ export function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedAt'>): 
     domain: site.domain,
     category: site.category,
     googleSearchConsoleUrl: site.googleSearchConsoleUrl,
+    userId: site.userId,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 }
 
-export function getAllSites(): Site[] {
+export function getAllSites(userId: number): Site[] {
   const database = getDatabase();
-  const rows = database.prepare('SELECT * FROM sites ORDER BY created_at DESC').all() as any[];
+  const rows = database.prepare('SELECT * FROM sites WHERE user_id = ? ORDER BY created_at DESC').all(userId) as any[];
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
     domain: row.domain,
     category: row.category,
     googleSearchConsoleUrl: row.google_search_console_url,
+    userId: row.user_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
 }
 
-export function getSiteById(id: number): Site | null {
+export function getSiteById(id: number, userId: number): Site | null {
   const database = getDatabase();
-  const row = database.prepare('SELECT * FROM sites WHERE id = ?').get(id) as any;
+  const row = database.prepare('SELECT * FROM sites WHERE id = ? AND user_id = ?').get(id, userId) as any;
   
   if (!row) {
     return null;
@@ -135,12 +138,13 @@ export function getSiteById(id: number): Site | null {
     domain: row.domain,
     category: row.category,
     googleSearchConsoleUrl: row.google_search_console_url,
+    userId: row.user_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
-export function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdAt'>>): Site {
+export function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdAt'>>, userId: number): Site {
   const database = getDatabase();
   const updates: string[] = [];
   const values: any[] = [];
@@ -163,12 +167,12 @@ export function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdA
   }
 
   updates.push("updated_at = datetime('now')");
-  values.push(id);
+  values.push(id, userId);
 
-  const query = `UPDATE sites SET ${updates.join(', ')} WHERE id = ?`;
+  const query = `UPDATE sites SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`;
   database.prepare(query).run(...values);
 
-  const updated = getSiteById(id);
+  const updated = getSiteById(id, userId);
   if (!updated) {
     throw new Error('Site not found after update');
   }
@@ -176,19 +180,20 @@ export function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdA
 }
 
 // Integrations functions
-export function getIntegrations(): IntegrationsSettings {
+export function getIntegrations(userId: number): IntegrationsSettings {
   const database = getDatabase();
-  const row = database.prepare('SELECT * FROM integrations WHERE id = 1').get() as any;
+  const row = database.prepare('SELECT * FROM integrations WHERE user_id = ?').get(userId) as any;
   
   if (!row) {
     // Если записи нет, создаем её
-    database.prepare(`
-      INSERT INTO integrations (id, updated_at)
-      VALUES (1, datetime('now'))
-    `).run();
+    const result = database.prepare(`
+      INSERT INTO integrations (user_id, updated_at)
+      VALUES (?, datetime('now'))
+    `).run(userId);
     
     return {
-      id: 1,
+      id: Number(result.lastInsertRowid),
+      userId: userId,
       googleServiceAccountEmail: '',
       googlePrivateKey: '',
       googleSearchConsoleUrl: '',
@@ -201,6 +206,7 @@ export function getIntegrations(): IntegrationsSettings {
 
   return {
     id: row.id,
+    userId: row.user_id,
     googleServiceAccountEmail: row.google_service_account_email || '',
     googlePrivateKey: row.google_private_key || '',
     googleSearchConsoleUrl: row.google_search_console_url || '',
@@ -211,7 +217,7 @@ export function getIntegrations(): IntegrationsSettings {
   };
 }
 
-export function updateIntegrations(settings: Partial<Omit<IntegrationsSettings, 'id' | 'updatedAt'>>): IntegrationsSettings {
+export function updateIntegrations(settings: Partial<Omit<IntegrationsSettings, 'id' | 'updatedAt'>>, userId: number): IntegrationsSettings {
   const database = getDatabase();
   const updates: string[] = [];
   const values: any[] = [];
@@ -242,13 +248,14 @@ export function updateIntegrations(settings: Partial<Omit<IntegrationsSettings, 
   }
 
   updates.push("updated_at = datetime('now')");
+  values.push(userId);
 
   if (updates.length > 1) {
-    const query = `UPDATE integrations SET ${updates.join(', ')} WHERE id = 1`;
+    const query = `UPDATE integrations SET ${updates.join(', ')} WHERE user_id = ?`;
     database.prepare(query).run(...values);
   }
 
-  return getIntegrations();
+  return getIntegrations(userId);
 }
 
 // Google Search Console Data functions
@@ -356,13 +363,14 @@ export function bulkInsertGoogleSearchConsoleData(
 }
 
 // Google Accounts functions
-export function getAllGoogleAccounts(): GoogleAccount[] {
+export function getAllGoogleAccounts(userId: number): GoogleAccount[] {
   const database = getDatabase();
   try {
-    const rows = database.prepare('SELECT * FROM google_accounts ORDER BY created_at DESC').all() as any[];
+    const rows = database.prepare('SELECT * FROM google_accounts WHERE user_id = ? ORDER BY created_at DESC').all(userId) as any[];
     return rows.map((row: any) => ({
       id: row.id,
       email: row.email,
+      userId: row.user_id,
       googleAccessToken: row.google_access_token || '',
       googleRefreshToken: row.google_refresh_token || '',
       googleTokenExpiry: row.google_token_expiry || '',
@@ -378,16 +386,17 @@ export function getAllGoogleAccounts(): GoogleAccount[] {
   }
 }
 
-export function getGoogleAccountById(id: number): GoogleAccount | null {
+export function getGoogleAccountById(id: number, userId: number): GoogleAccount | null {
   const database = getDatabase();
   try {
-    const row = database.prepare('SELECT * FROM google_accounts WHERE id = ?').get(id) as any;
+    const row = database.prepare('SELECT * FROM google_accounts WHERE id = ? AND user_id = ?').get(id, userId) as any;
     if (!row) {
       return null;
     }
     return {
       id: row.id,
       email: row.email,
+      userId: row.user_id,
       googleAccessToken: row.google_access_token || '',
       googleRefreshToken: row.google_refresh_token || '',
       googleTokenExpiry: row.google_token_expiry || '',
@@ -403,12 +412,13 @@ export function getGoogleAccountById(id: number): GoogleAccount | null {
 export function createGoogleAccount(account: Omit<GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>): GoogleAccount {
   const database = getDatabase();
   const stmt = database.prepare(`
-    INSERT INTO google_accounts (email, google_access_token, google_refresh_token, google_token_expiry, created_at, updated_at)
-    VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+    INSERT INTO google_accounts (email, user_id, google_access_token, google_refresh_token, google_token_expiry, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
   `);
   
   const result = stmt.run(
     account.email,
+    account.userId || null,
     account.googleAccessToken || null,
     account.googleRefreshToken || null,
     account.googleTokenExpiry || null
@@ -420,6 +430,7 @@ export function createGoogleAccount(account: Omit<GoogleAccount, 'id' | 'created
   return {
     id: row.id,
     email: row.email,
+    userId: row.user_id,
     googleAccessToken: row.google_access_token || '',
     googleRefreshToken: row.google_refresh_token || '',
     googleTokenExpiry: row.google_token_expiry || '',
@@ -428,7 +439,7 @@ export function createGoogleAccount(account: Omit<GoogleAccount, 'id' | 'created
   };
 }
 
-export function updateGoogleAccount(id: number, account: Partial<Omit<GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>>): GoogleAccount {
+export function updateGoogleAccount(id: number, account: Partial<Omit<GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>>, userId: number): GoogleAccount {
   const database = getDatabase();
   const updates: string[] = [];
   const values: any[] = [];
@@ -450,12 +461,12 @@ export function updateGoogleAccount(id: number, account: Partial<Omit<GoogleAcco
     values.push(account.googleTokenExpiry || null);
   }
   updates.push("updated_at = datetime('now')");
-  values.push(id);
+  values.push(id, userId);
 
-  const query = `UPDATE google_accounts SET ${updates.join(', ')} WHERE id = ?`;
+  const query = `UPDATE google_accounts SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`;
   database.prepare(query).run(...values);
 
-  const row = database.prepare('SELECT * FROM google_accounts WHERE id = ?').get(id) as any;
+  const row = database.prepare('SELECT * FROM google_accounts WHERE id = ? AND user_id = ?').get(id, userId) as any;
   if (!row) {
     throw new Error('Google account not found');
   }
@@ -463,6 +474,7 @@ export function updateGoogleAccount(id: number, account: Partial<Omit<GoogleAcco
   return {
     id: row.id,
     email: row.email,
+    userId: row.user_id,
     googleAccessToken: row.google_access_token || '',
     googleRefreshToken: row.google_refresh_token || '',
     googleTokenExpiry: row.google_token_expiry || '',
@@ -471,8 +483,8 @@ export function updateGoogleAccount(id: number, account: Partial<Omit<GoogleAcco
   };
 }
 
-export function deleteGoogleAccount(id: number): void {
+export function deleteGoogleAccount(id: number, userId: number): void {
   const database = getDatabase();
-  database.prepare('DELETE FROM google_accounts WHERE id = ?').run(id);
+  database.prepare('DELETE FROM google_accounts WHERE id = ? AND user_id = ?').run(id, userId);
 }
 

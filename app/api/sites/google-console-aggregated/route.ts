@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getAllSites, getGoogleSearchConsoleDataBySiteId, getIntegrations, getAllGoogleAccounts } from '@/lib/db-adapter';
 import { createSearchConsoleService } from '@/lib/google-search-console';
 import { hasGoogleOAuth } from '@/lib/oauth-utils';
+import { requireAuth } from '@/lib/middleware-auth';
+import { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -12,8 +14,14 @@ export const runtime = 'nodejs';
  * Query параметры:
  *   - days: количество дней для фильтрации показов и кликов (по умолчанию 30)
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { user } = authResult;
+    
     // Получаем параметры из query string
     const { searchParams } = new URL(request.url);
     const daysParam = searchParams.get('days');
@@ -21,15 +29,15 @@ export async function GET(request: Request) {
     const accountIdParam = searchParams.get('accountId');
     const accountId = accountIdParam ? parseInt(accountIdParam) : null;
 
-    const sites = await getAllSites();
-    const integrations = await getIntegrations();
+    const sites = await getAllSites(user.id);
+    const integrations = await getIntegrations(user.id);
     const isOAuthConfigured = hasGoogleOAuth(integrations);
     
     // Получаем список сайтов из Google Search Console, если OAuth настроен
     let googleConsoleSites: Array<{ siteUrl: string; permissionLevel: string }> = [];
     if (isOAuthConfigured || accountId) {
       try {
-        const searchConsoleService = createSearchConsoleService(accountId || undefined);
+        const searchConsoleService = createSearchConsoleService(accountId || undefined, user.id);
         googleConsoleSites = await searchConsoleService.getSites();
       } catch (error) {
         console.warn('Не удалось получить список сайтов из Google Search Console:', error);
@@ -115,7 +123,7 @@ export async function GET(request: Request) {
         let indexedPages: number | null = null;
         if (hasGoogleConsoleConnection && googleConsoleSiteUrl && isOAuthConfigured) {
           try {
-            const searchConsoleService = createSearchConsoleService(accountId || undefined);
+            const searchConsoleService = createSearchConsoleService(accountId || undefined, user.id);
             // Пытаемся получить информацию о проиндексированных страницах через API
             // Используем большой период (180 дней) для получения более полной картины
             const endDateForIndex = new Date();

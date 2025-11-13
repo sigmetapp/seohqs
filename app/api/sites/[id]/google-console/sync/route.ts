@@ -1,15 +1,23 @@
 import { NextResponse } from 'next/server';
 import { getSiteById, bulkInsertGoogleSearchConsoleData } from '@/lib/db-adapter';
 import { createSearchConsoleService } from '@/lib/google-search-console';
+import { requireAuth } from '@/lib/middleware-auth';
+import { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { user } = authResult;
+    
     const siteId = parseInt(params.id);
     if (isNaN(siteId)) {
       return NextResponse.json(
@@ -20,7 +28,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    const site = await getSiteById(siteId);
+    const site = await getSiteById(siteId, user.id);
 
     if (!site) {
       return NextResponse.json(
@@ -33,7 +41,7 @@ export async function POST(
     }
 
     // Получаем данные из Google Search Console API
-    const searchConsoleService = createSearchConsoleService();
+    const searchConsoleService = createSearchConsoleService(undefined, user.id);
     
     // Если URL не указан, пытаемся найти автоматически по домену
     let foundSiteUrl: string | null = null;

@@ -91,13 +91,13 @@ export async function getOffersCount(): Promise<number> {
 }
 
 // Sites adapter functions
-export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedAt'>): Promise<Site> {
+export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedAt'>, userId: number): Promise<Site> {
   if (useSupabase()) {
     const { insertSite: insertSupabase } = await import('./db-supabase');
-    return insertSupabase(site);
+    return insertSupabase({ ...site, userId }, userId);
   } else if (usePostgres()) {
     const { insertSite: insertPostgres } = await import('./db-postgres');
-    return insertPostgres(site);
+    return insertPostgres({ ...site, userId }, userId);
   } else {
     // На Vercel не используем SQLite
     if (process.env.VERCEL) {
@@ -105,17 +105,17 @@ export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedA
     }
     // Только для локальной разработки
     const { insertSite: insertSQLite } = require('./db');
-    return insertSQLite(site);
+    return insertSQLite({ ...site, userId });
   }
 }
 
-export async function getAllSites(): Promise<Site[]> {
+export async function getAllSites(userId: number): Promise<Site[]> {
   if (useSupabase()) {
     const { getAllSites: getSupabase } = await import('./db-supabase');
-    return getSupabase();
+    return getSupabase(userId);
   } else if (usePostgres()) {
     const { getAllSites: getPostgres } = await import('./db-postgres');
-    return getPostgres();
+    return getPostgres(userId);
   } else {
     // На Vercel не используем SQLite
     if (process.env.VERCEL) {
@@ -124,17 +124,17 @@ export async function getAllSites(): Promise<Site[]> {
     }
     // Только для локальной разработки
     const { getAllSites: getSQLite } = require('./db');
-    return getSQLite();
+    return getSQLite(userId);
   }
 }
 
-export async function getSiteById(id: number): Promise<Site | null> {
+export async function getSiteById(id: number, userId: number): Promise<Site | null> {
   if (useSupabase()) {
     const { getSiteById: getSupabase } = await import('./db-supabase');
-    return getSupabase(id);
+    return getSupabase(id, userId);
   } else if (usePostgres()) {
     const { getSiteById: getPostgres } = await import('./db-postgres');
-    return getPostgres(id);
+    return getPostgres(id, userId);
   } else {
     // На Vercel не используем SQLite
     if (process.env.VERCEL) {
@@ -143,17 +143,17 @@ export async function getSiteById(id: number): Promise<Site | null> {
     }
     // Только для локальной разработки
     const { getSiteById: getSQLite } = require('./db');
-    return getSQLite(id);
+    return getSQLite(id, userId);
   }
 }
 
-export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdAt'>>): Promise<Site> {
+export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdAt'>>, userId: number): Promise<Site> {
   if (useSupabase()) {
     const { updateSite: updateSupabase } = await import('./db-supabase');
-    return updateSupabase(id, site);
+    return updateSupabase(id, site, userId);
   } else if (usePostgres()) {
     const { updateSite: updatePostgres } = await import('./db-postgres');
-    return updatePostgres(id, site);
+    return updatePostgres(id, site, userId);
   } else {
     // На Vercel не используем SQLite
     if (process.env.VERCEL) {
@@ -161,18 +161,18 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
     }
     // Только для локальной разработки
     const { updateSite: updateSQLite } = require('./db');
-    return updateSQLite(id, site);
+    return updateSQLite(id, site, userId);
   }
 }
 
 // Integrations adapter functions
-export async function getIntegrations(): Promise<import('./types').IntegrationsSettings> {
+export async function getIntegrations(userId: number): Promise<import('./types').IntegrationsSettings> {
   if (useSupabase()) {
     const { getIntegrations: getSupabase } = await import('./db-supabase');
-    return getSupabase();
+    return getSupabase(userId);
   } else if (usePostgres()) {
     const { getIntegrations: getPostgres } = await import('./db-postgres');
-    return getPostgres();
+    return getPostgres(userId);
   } else {
     // На Vercel не используем SQLite
     if (process.env.VERCEL) {
@@ -180,17 +180,17 @@ export async function getIntegrations(): Promise<import('./types').IntegrationsS
     }
     // Только для локальной разработки
     const { getIntegrations: getSQLite } = require('./db');
-    return getSQLite();
+    return getSQLite(userId);
   }
 }
 
-export async function updateIntegrations(settings: Partial<Omit<import('./types').IntegrationsSettings, 'id' | 'updatedAt'>>): Promise<import('./types').IntegrationsSettings> {
+export async function updateIntegrations(settings: Partial<Omit<import('./types').IntegrationsSettings, 'id' | 'updatedAt'>>, userId: number): Promise<import('./types').IntegrationsSettings> {
   if (useSupabase()) {
     const { updateIntegrations: updateSupabase } = await import('./db-supabase');
-    return updateSupabase(settings);
+    return updateSupabase(settings, userId);
   } else if (usePostgres()) {
     const { updateIntegrations: updatePostgres } = await import('./db-postgres');
-    return updatePostgres(settings);
+    return updatePostgres(settings, userId);
   } else {
     // На Vercel не используем SQLite
     if (process.env.VERCEL) {
@@ -198,88 +198,88 @@ export async function updateIntegrations(settings: Partial<Omit<import('./types'
     }
     // Только для локальной разработки
     const { updateIntegrations: updateSQLite } = require('./db');
-    return updateSQLite(settings);
+    return updateSQLite(settings, userId);
   }
 }
 
 // Google Accounts functions
-export async function getAllGoogleAccounts(): Promise<import('./types').GoogleAccount[]> {
+export async function getAllGoogleAccounts(userId: number): Promise<import('./types').GoogleAccount[]> {
   if (useSupabase()) {
     const { getAllGoogleAccounts: getSupabase } = await import('./db-supabase');
-    return getSupabase();
+    return getSupabase(userId);
   } else if (usePostgres()) {
     const { getAllGoogleAccounts: getPostgres } = await import('./db-postgres-accounts');
-    return getPostgres();
+    return getPostgres(userId);
   } else {
     if (process.env.VERCEL) {
       throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
     }
     const { getAllGoogleAccounts: getSQLite } = require('./db');
-    return getSQLite();
+    return getSQLite(userId);
   }
 }
 
-export async function getGoogleAccountById(id: number): Promise<import('./types').GoogleAccount | null> {
+export async function getGoogleAccountById(id: number, userId: number): Promise<import('./types').GoogleAccount | null> {
   if (useSupabase()) {
     const { getGoogleAccountById: getSupabase } = await import('./db-supabase');
-    return getSupabase(id);
+    return getSupabase(id, userId);
   } else if (usePostgres()) {
     const { getGoogleAccountById: getPostgres } = await import('./db-postgres-accounts');
-    return getPostgres(id);
+    return getPostgres(id, userId);
   } else {
     if (process.env.VERCEL) {
       throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
     }
     const { getGoogleAccountById: getSQLite } = require('./db');
-    return getSQLite(id);
+    return getSQLite(id, userId);
   }
 }
 
-export async function createGoogleAccount(account: Omit<import('./types').GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>): Promise<import('./types').GoogleAccount> {
+export async function createGoogleAccount(account: Omit<import('./types').GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>, userId: number): Promise<import('./types').GoogleAccount> {
   if (useSupabase()) {
     const { createGoogleAccount: createSupabase } = await import('./db-supabase');
-    return createSupabase(account);
+    return createSupabase({ ...account, userId }, userId);
   } else if (usePostgres()) {
     const { createGoogleAccount: createPostgres } = await import('./db-postgres-accounts');
-    return createPostgres(account);
+    return createPostgres({ ...account, userId }, userId);
   } else {
     if (process.env.VERCEL) {
       throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
     }
     const { createGoogleAccount: createSQLite } = require('./db');
-    return createSQLite(account);
+    return createSQLite({ ...account, userId });
   }
 }
 
-export async function updateGoogleAccount(id: number, account: Partial<Omit<import('./types').GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>>): Promise<import('./types').GoogleAccount> {
+export async function updateGoogleAccount(id: number, account: Partial<Omit<import('./types').GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>>, userId: number): Promise<import('./types').GoogleAccount> {
   if (useSupabase()) {
     const { updateGoogleAccount: updateSupabase } = await import('./db-supabase');
-    return updateSupabase(id, account);
+    return updateSupabase(id, account, userId);
   } else if (usePostgres()) {
     const { updateGoogleAccount: updatePostgres } = await import('./db-postgres-accounts');
-    return updatePostgres(id, account);
+    return updatePostgres(id, account, userId);
   } else {
     if (process.env.VERCEL) {
       throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
     }
     const { updateGoogleAccount: updateSQLite } = require('./db');
-    return updateSQLite(id, account);
+    return updateSQLite(id, account, userId);
   }
 }
 
-export async function deleteGoogleAccount(id: number): Promise<void> {
+export async function deleteGoogleAccount(id: number, userId: number): Promise<void> {
   if (useSupabase()) {
     const { deleteGoogleAccount: deleteSupabase } = await import('./db-supabase');
-    return deleteSupabase(id);
+    return deleteSupabase(id, userId);
   } else if (usePostgres()) {
     const { deleteGoogleAccount: deletePostgres } = await import('./db-postgres-accounts');
-    return deletePostgres(id);
+    return deletePostgres(id, userId);
   } else {
     if (process.env.VERCEL) {
       throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
     }
     const { deleteGoogleAccount: deleteSQLite } = require('./db');
-    return deleteSQLite(id);
+    return deleteSQLite(id, userId);
   }
 }
 

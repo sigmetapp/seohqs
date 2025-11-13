@@ -3,10 +3,11 @@ import { getAllSites, insertSite, updateSite, bulkInsertGoogleSearchConsoleData 
 
 /**
  * Загружает все сайты из Google Search Console и их данные
+ * @param userId ID пользователя
  * @returns Результат загрузки
  */
-export async function loadGoogleConsoleSites() {
-  const searchConsoleService = createSearchConsoleService();
+export async function loadGoogleConsoleSites(userId: number) {
+  const searchConsoleService = createSearchConsoleService(undefined, userId);
   
   // Получаем все сайты из Google Search Console
   const googleSites = await searchConsoleService.getSites();
@@ -23,7 +24,7 @@ export async function loadGoogleConsoleSites() {
   }
 
   // Получаем существующие сайты из БД
-  const existingSites = await getAllSites();
+  const existingSites = await getAllSites(userId);
   
   // Функция для нормализации домена
   const normalizeDomain = (siteUrl: string): string => {
@@ -64,7 +65,7 @@ export async function loadGoogleConsoleSites() {
       if (!existingSite.googleSearchConsoleUrl || existingSite.googleSearchConsoleUrl !== googleSite.siteUrl) {
         await updateSite(existingSite.id, {
           googleSearchConsoleUrl: googleSite.siteUrl,
-        });
+        }, userId);
         sitesUpdated++;
       }
     } else {
@@ -74,7 +75,7 @@ export async function loadGoogleConsoleSites() {
         name: siteName,
         domain: normalizedDomain,
         googleSearchConsoleUrl: googleSite.siteUrl,
-      });
+      }, userId);
       sitesLoaded++;
     }
 
@@ -97,7 +98,7 @@ export async function loadGoogleConsoleSites() {
       if (performanceData.rows && performanceData.rows.length > 0) {
         // Находим ID сайта (новый или существующий)
         // Обновляем список сайтов после возможного добавления нового
-        const updatedSites = await getAllSites();
+        const updatedSites = await getAllSites(userId);
         const siteId = updatedSites.find(site => {
           const siteDomain = normalizeDomain(site.domain);
           return siteDomain === normalizedDomain || 

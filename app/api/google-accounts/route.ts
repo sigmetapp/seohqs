@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAllGoogleAccounts, createGoogleAccount, updateGoogleAccount, deleteGoogleAccount, getGoogleAccountById } from '@/lib/db-adapter';
+import { requireAuth } from '@/lib/middleware-auth';
+import { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -8,9 +10,15 @@ export const runtime = 'nodejs';
  * GET /api/google-accounts
  * Получает список всех Google аккаунтов
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const accounts = await getAllGoogleAccounts();
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { user } = authResult;
+    
+    const accounts = await getAllGoogleAccounts(user.id);
     return NextResponse.json({
       success: true,
       accounts: accounts,
@@ -31,8 +39,14 @@ export async function GET() {
  * POST /api/google-accounts
  * Создает новый Google аккаунт
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { user } = authResult;
+    
     const body = await request.json();
     const { email, googleAccessToken, googleRefreshToken, googleTokenExpiry } = body;
 
@@ -51,7 +65,7 @@ export async function POST(request: Request) {
       googleAccessToken: googleAccessToken || '',
       googleRefreshToken: googleRefreshToken || '',
       googleTokenExpiry: googleTokenExpiry || '',
-    });
+    }, user.id);
 
     return NextResponse.json({
       success: true,

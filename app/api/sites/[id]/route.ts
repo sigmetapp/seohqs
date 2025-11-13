@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getSiteById, updateSite, getIntegrations } from '@/lib/db-adapter';
 import { createSearchConsoleService } from '@/lib/google-search-console';
 import { hasGoogleOAuth } from '@/lib/oauth-utils';
+import { requireAuth } from '@/lib/middleware-auth';
+import { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -21,12 +23,12 @@ const extractDomainFromGSCUrl = (siteUrl: string): string => {
 };
 
 // Функция для проверки подключения сайта к Google Search Console
-async function checkGoogleConsoleConnection(site: any): Promise<{
+async function checkGoogleConsoleConnection(site: any, userId: number): Promise<{
   connected: boolean;
   hasOAuth: boolean;
   hasUrl: boolean;
 }> {
-  const integrations = await getIntegrations();
+  const integrations = await getIntegrations(userId);
   const isOAuthConfigured = hasGoogleOAuth(integrations);
   
   if (!isOAuthConfigured) {
@@ -40,7 +42,7 @@ async function checkGoogleConsoleConnection(site: any): Promise<{
   let hasGoogleConsoleConnection = false;
   
   try {
-    const searchConsoleService = createSearchConsoleService();
+    const searchConsoleService = createSearchConsoleService(undefined, userId);
     const googleConsoleSites = await searchConsoleService.getSites();
     
     const normalizedDomain = normalizeDomain(site.domain);
@@ -74,10 +76,16 @@ async function checkGoogleConsoleConnection(site: any): Promise<{
 }
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { user } = authResult;
+    
     const siteId = parseInt(params.id);
     if (isNaN(siteId)) {
       return NextResponse.json(
@@ -89,7 +97,7 @@ export async function GET(
       );
     }
 
-    const site = await getSiteById(siteId);
+    const site = await getSiteById(siteId, user.id);
     
     if (!site) {
       return NextResponse.json(
@@ -102,7 +110,7 @@ export async function GET(
     }
 
     // Проверяем статус подключения Google Console
-    const googleConsoleStatus = await checkGoogleConsoleConnection(site);
+    const googleConsoleStatus = await checkGoogleConsoleConnection(site, user.id);
 
     return NextResponse.json({
       success: true,
@@ -125,10 +133,16 @@ export async function GET(
 }
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { user } = authResult;
+    
     const siteId = parseInt(params.id);
     if (isNaN(siteId)) {
       return NextResponse.json(
@@ -148,10 +162,10 @@ export async function PUT(
       domain,
       category,
       googleSearchConsoleUrl,
-    });
+    }, user.id);
 
     // Проверяем статус подключения Google Console
-    const googleConsoleStatus = await checkGoogleConsoleConnection(updatedSite);
+    const googleConsoleStatus = await checkGoogleConsoleConnection(updatedSite, user.id);
 
     return NextResponse.json({
       success: true,

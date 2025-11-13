@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { loadGoogleConsoleSites } from '@/lib/load-google-console-sites';
+import { requireAuth } from '@/lib/middleware-auth';
+import { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -8,9 +10,15 @@ export const runtime = 'nodejs';
  * POST /api/sites/load-google-console-sites
  * Загружает все сайты из Google Search Console и их данные
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const result = await loadGoogleConsoleSites();
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { user } = authResult;
+    
+    const result = await loadGoogleConsoleSites(user.id);
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('Ошибка загрузки сайтов из Google Search Console:', error);
