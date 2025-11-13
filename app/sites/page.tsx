@@ -330,11 +330,8 @@ export default function SitesPage() {
                       <tr>
                         <th className="px-4 py-3 text-left">Домен</th>
                         <th className="px-4 py-3 text-left">Статус подключения</th>
-                        <th className="px-4 py-3 text-left">Индекс Google</th>
                         <th className="px-4 py-3 text-left">Показы</th>
                         <th className="px-4 py-3 text-left">Клики</th>
-                        <th className="px-4 py-3 text-left">Домены на домен</th>
-                        <th className="px-4 py-3 text-left">Ссылки на домен</th>
                         <th className="px-4 py-3 text-left">Действия</th>
                       </tr>
                     </thead>
@@ -362,15 +359,6 @@ export default function SitesPage() {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            {siteData && typeof siteData.indexedPages === 'number' && siteData.indexedPages > 0 ? (
-                              <span>{siteData.indexedPages.toLocaleString()}</span>
-                            ) : siteData && siteData.indexedPages === 0 ? (
-                              <span className="text-gray-500">0</span>
-                            ) : (
-                              <span className="text-gray-500">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
                             {siteData && siteData.totalImpressions > 0 ? (
                               <span>{siteData.totalImpressions.toLocaleString()}</span>
                             ) : (
@@ -380,20 +368,6 @@ export default function SitesPage() {
                           <td className="px-4 py-3">
                             {siteData && siteData.totalClicks > 0 ? (
                               <span>{siteData.totalClicks.toLocaleString()}</span>
-                            ) : (
-                              <span className="text-gray-500">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {siteData && siteData.referringDomains !== null && siteData.referringDomains !== undefined ? (
-                              <span>{siteData.referringDomains.toLocaleString()}</span>
-                            ) : (
-                              <span className="text-gray-500">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {siteData && siteData.backlinks !== null && siteData.backlinks !== undefined ? (
-                              <span>{siteData.backlinks.toLocaleString()}</span>
                             ) : (
                               <span className="text-gray-500">—</span>
                             )}
