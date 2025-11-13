@@ -92,6 +92,11 @@ export async function GET(request: Request) {
         // Получаем данные Google Search Console из БД
         const gscData = await getGoogleSearchConsoleDataBySiteId(site.id, 1000);
         
+        // Если OAuth настроен и есть данные в БД, считаем сайт подключенным
+        if (isOAuthConfigured && gscData.length > 0 && !hasGoogleConsoleConnection) {
+          hasGoogleConsoleConnection = true;
+        }
+        
         // Фильтруем данные по периоду для показов и кликов
         const filteredGscData = gscData.filter((row) => {
           const rowDate = new Date(row.date);

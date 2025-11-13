@@ -459,7 +459,7 @@ export default function SitesPage() {
               </div>
 
               {/* Карточки сайтов */}
-              <div className="grid grid-cols-1 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {googleConsoleAggregatedData.map((siteData) => {
                   const siteDailyData = dailyData[siteData.id] || [];
                   const isLoading = loadingDailyData[siteData.id];
@@ -478,27 +478,27 @@ export default function SitesPage() {
                   return (
                     <div
                       key={siteData.id}
-                      className="bg-gray-800 rounded-lg p-6 border border-gray-700"
+                      className="bg-gray-800 rounded-lg p-4 border border-gray-700"
                     >
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <h3 className="text-xl font-bold">{siteData.name}</h3>
-                            <p className="text-gray-400 text-sm">{siteData.domain}</p>
+                      <div className="mb-3">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-bold truncate">{siteData.name}</h3>
+                            <p className="text-gray-400 text-xs truncate">{siteData.domain}</p>
                           </div>
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2 ml-2">
                             <div>
                               {siteData.hasGoogleConsoleConnection ? (
-                                <span className="text-green-400 text-sm">✓ Подключено</span>
+                                <span className="text-green-400 text-xs">✓</span>
                               ) : (
-                                <span className="text-yellow-400 text-sm">⚠ Не подключено</span>
+                                <span className="text-yellow-400 text-xs">⚠</span>
                               )}
                             </div>
                             <Link
                               href={`/sites/${siteData.id}`}
-                              className="text-blue-400 hover:text-blue-300 hover:underline text-sm"
+                              className="text-blue-400 hover:text-blue-300 hover:underline text-xs whitespace-nowrap"
                             >
-                              Открыть →
+                              →
                             </Link>
                           </div>
                         </div>
@@ -506,28 +506,28 @@ export default function SitesPage() {
 
                       {/* График */}
                       {isLoading ? (
-                        <div className="h-64 flex items-center justify-center text-gray-400">
-                          Загрузка данных...
+                        <div className="h-32 flex items-center justify-center text-gray-400 text-xs">
+                          Загрузка...
                         </div>
                       ) : siteDailyData.length > 0 ? (
-                        <div className="mb-6">
-                          <h4 className="text-sm font-medium text-gray-400 mb-3">График</h4>
-                          <div className="h-64 bg-gray-900 rounded p-4 relative">
-                            <svg width="100%" height="100%" viewBox="0 0 800 200" preserveAspectRatio="none" className="overflow-visible">
+                        <div className="mb-3">
+                          <h4 className="text-xs font-medium text-gray-400 mb-2">График</h4>
+                          <div className="h-32 bg-gray-900 rounded p-2 relative">
+                              <svg width="100%" height="100%" viewBox="0 0 800 120" preserveAspectRatio="none" className="overflow-visible">
                               {/* Оси */}
                               <line
                                 x1="50"
-                                y1="180"
+                                y1="100"
                                 x2="750"
-                                y2="180"
+                                y2="100"
                                 stroke="#4b5563"
                                 strokeWidth="1"
                               />
                               <line
                                 x1="50"
-                                y1="20"
+                                y1="10"
                                 x2="50"
-                                y2="180"
+                                y2="100"
                                 stroke="#4b5563"
                                 strokeWidth="1"
                               />
@@ -536,11 +536,11 @@ export default function SitesPage() {
                               {siteDailyData.map((item, index) => {
                                 const padding = 50;
                                 const width = 700;
-                                const height = 160;
+                                const height = 90;
                                 const x = padding + (index / (siteDailyData.length - 1 || 1)) * width;
-                                const impressionsY = 180 - (item.impressions / maxImpressions) * height;
-                                const clicksY = 180 - (item.clicks / maxClicks) * height;
-                                const positionY = 180 - (item.position / maxPosition) * height;
+                                const impressionsY = 100 - (item.impressions / maxImpressions) * height;
+                                const clicksY = 100 - (item.clicks / maxClicks) * height;
+                                const positionY = 100 - (item.position / maxPosition) * height;
                                 
                                 return (
                                   <g key={index}>
@@ -549,7 +549,7 @@ export default function SitesPage() {
                                       <circle
                                         cx={x}
                                         cy={impressionsY}
-                                        r="3"
+                                        r="2"
                                         fill="#3b82f6"
                                       />
                                     )}
@@ -558,7 +558,7 @@ export default function SitesPage() {
                                       <circle
                                         cx={x}
                                         cy={clicksY}
-                                        r="3"
+                                        r="2"
                                         fill="#10b981"
                                       />
                                     )}
@@ -567,7 +567,7 @@ export default function SitesPage() {
                                       <circle
                                         cx={x}
                                         cy={positionY}
-                                        r="3"
+                                        r="2"
                                         fill="#f59e0b"
                                       />
                                     )}
@@ -583,14 +583,14 @@ export default function SitesPage() {
                                       points={siteDailyData.map((item, index) => {
                                         const padding = 50;
                                         const width = 700;
-                                        const height = 160;
+                                        const height = 90;
                                         const x = padding + (index / (siteDailyData.length - 1)) * width;
-                                        const y = 180 - (item.impressions / maxImpressions) * height;
+                                        const y = 100 - (item.impressions / maxImpressions) * height;
                                         return `${x},${y}`;
                                       }).join(' ')}
                                       fill="none"
                                       stroke="#3b82f6"
-                                      strokeWidth="2"
+                                      strokeWidth="1.5"
                                     />
                                   )}
                                   {showClicks && (
@@ -598,14 +598,14 @@ export default function SitesPage() {
                                       points={siteDailyData.map((item, index) => {
                                         const padding = 50;
                                         const width = 700;
-                                        const height = 160;
+                                        const height = 90;
                                         const x = padding + (index / (siteDailyData.length - 1)) * width;
-                                        const y = 180 - (item.clicks / maxClicks) * height;
+                                        const y = 100 - (item.clicks / maxClicks) * height;
                                         return `${x},${y}`;
                                       }).join(' ')}
                                       fill="none"
                                       stroke="#10b981"
-                                      strokeWidth="2"
+                                      strokeWidth="1.5"
                                     />
                                   )}
                                   {showPositions && (
@@ -613,78 +613,45 @@ export default function SitesPage() {
                                       points={siteDailyData.map((item, index) => {
                                         const padding = 50;
                                         const width = 700;
-                                        const height = 160;
+                                        const height = 90;
                                         const x = padding + (index / (siteDailyData.length - 1)) * width;
-                                        const y = 180 - (item.position / maxPosition) * height;
+                                        const y = 100 - (item.position / maxPosition) * height;
                                         return `${x},${y}`;
                                       }).join(' ')}
                                       fill="none"
                                       stroke="#f59e0b"
-                                      strokeWidth="2"
+                                      strokeWidth="1.5"
                                     />
                                   )}
                                 </>
                               )}
                             </svg>
                             {/* Легенда */}
-                            <div className="absolute top-2 right-2 flex gap-4 text-xs">
+                            <div className="absolute top-1 right-1 flex gap-2 text-xs">
                               {showImpressions && (
                                 <div className="flex items-center gap-1">
-                                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                                  <span className="text-gray-400">Показы</span>
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                  <span className="text-gray-500 text-[10px]">П</span>
                                 </div>
                               )}
                               {showClicks && (
                                 <div className="flex items-center gap-1">
-                                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                  <span className="text-gray-400">Клики</span>
+                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  <span className="text-gray-500 text-[10px]">К</span>
                                 </div>
                               )}
                               {showPositions && (
                                 <div className="flex items-center gap-1">
-                                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                                  <span className="text-gray-400">Позиции</span>
+                                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                                  <span className="text-gray-500 text-[10px]">Поз</span>
                                 </div>
                               )}
                             </div>
                           </div>
                         </div>
                       ) : (
-                        <div className="h-64 flex items-center justify-center text-gray-500 mb-6">
-                          Нет данных за выбранный период
-                        </div>
-                      )}
-
-                      {/* Таблица */}
-                      {siteDailyData.length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-400 mb-3">Таблица по показам и кликам</h4>
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                              <thead className="bg-gray-700">
-                                <tr>
-                                  <th className="px-3 py-2 text-left">Дата</th>
-                                  <th className="px-3 py-2 text-left">Показы</th>
-                                  <th className="px-3 py-2 text-left">Клики</th>
-                                  <th className="px-3 py-2 text-left">CTR</th>
-                                  <th className="px-3 py-2 text-left">Позиция</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {siteDailyData.map((item, index) => (
-                                  <tr key={index} className="border-t border-gray-700">
-                                    <td className="px-3 py-2">
-                                      {new Date(item.date).toLocaleDateString('ru-RU')}
-                                    </td>
-                                    <td className="px-3 py-2">{item.impressions.toLocaleString()}</td>
-                                    <td className="px-3 py-2">{item.clicks.toLocaleString()}</td>
-                                    <td className="px-3 py-2">{(item.ctr * 100).toFixed(2)}%</td>
-                                    <td className="px-3 py-2">{item.position.toFixed(1)}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+                        <div className="h-32 flex items-center justify-center text-gray-500 text-xs">
+                          Нет данных
                         </div>
                       )}
                     </div>
