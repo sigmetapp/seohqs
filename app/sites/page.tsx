@@ -42,6 +42,7 @@ export default function SitesPage() {
   const [columnsPerRow, setColumnsPerRow] = useState<number>(4); // 1-5 колонок
   const [blurMode, setBlurMode] = useState<boolean>(false); // Режим блюра
   const [hoveredSiteId, setHoveredSiteId] = useState<number | null>(null); // Для интерактивности
+  const [hoveredDateIndex, setHoveredDateIndex] = useState<{ siteId: number; index: number } | null>(null); // Для отображения данных конкретной даты
   const [dailyData, setDailyData] = useState<Record<number, Array<{
     date: string;
     clicks: number;
@@ -503,128 +504,200 @@ export default function SitesPage() {
                     : 1;
                   
                   const isHovered = hoveredSiteId === siteData.id;
+                  const hoveredDate = hoveredDateIndex?.siteId === siteData.id 
+                    ? siteDailyData[hoveredDateIndex.index] 
+                    : null;
                   
                   return (
                     <div
                       key={siteData.id}
-                      className="bg-gray-800 rounded-lg p-4 border border-gray-700 transition-all duration-200 hover:border-blue-500 hover:shadow-lg relative"
+                      className="bg-gray-800 rounded-lg p-5 border border-gray-700 transition-all duration-200 hover:border-blue-500 hover:shadow-lg relative min-h-[420px]"
                       onMouseEnter={() => setHoveredSiteId(siteData.id)}
-                      onMouseLeave={() => setHoveredSiteId(null)}
+                      onMouseLeave={() => {
+                        setHoveredSiteId(null);
+                        setHoveredDateIndex(null);
+                      }}
                     >
-                      <div className="mb-3">
-                        <div className="flex items-start justify-between mb-2">
+                      {/* Заголовок с названием и доменом */}
+                      <div className="mb-4 pb-3 border-b border-gray-700">
+                        <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <h3 className={`text-lg font-bold truncate transition-all duration-200 ${
-                              blurMode && !isHovered ? 'blur-sm select-none' : ''
+                            <h3 className={`text-xl font-bold truncate mb-1 transition-all duration-200 ${
+                              blurMode && !isHovered ? 'blur-sm select-none' : 'text-white'
                             }`}>
                               {siteData.name}
                             </h3>
-                            <p className={`text-gray-400 text-xs truncate transition-all duration-200 ${
-                              blurMode && !isHovered ? 'blur-sm select-none' : ''
+                            <p className={`text-sm truncate transition-all duration-200 ${
+                              blurMode && !isHovered ? 'blur-sm select-none' : 'text-gray-400'
                             }`}>
                               {siteData.domain}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2 ml-2">
-                            <Link
-                              href={`/sites/${siteData.id}`}
-                              className="text-blue-400 hover:text-blue-300 hover:underline text-xs whitespace-nowrap"
-                            >
-                              →
-                            </Link>
-                          </div>
+                          <Link
+                            href={`/sites/${siteData.id}`}
+                            className="text-blue-400 hover:text-blue-300 hover:underline text-sm whitespace-nowrap ml-2"
+                          >
+                            Открыть →
+                          </Link>
                         </div>
                       </div>
 
-                      {/* Интерактивные данные при наведении */}
-                      {isHovered && (
-                        <div className="absolute top-4 left-4 right-4 bg-gray-900/95 rounded-lg p-3 z-10 border border-blue-500 shadow-xl">
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Название:</span>
-                              <span className="text-white font-medium">{siteData.name}</span>
+                      {/* Статистика сайта */}
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700">
+                          <div className="text-xs text-gray-400 mb-1">Показы</div>
+                          <div className="text-lg font-bold text-blue-400">
+                            {siteData.totalImpressions.toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700">
+                          <div className="text-xs text-gray-400 mb-1">Клики</div>
+                          <div className="text-lg font-bold text-green-400">
+                            {siteData.totalClicks.toLocaleString()}
+                          </div>
+                        </div>
+                        {siteData.indexedPages !== null && (
+                          <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700">
+                            <div className="text-xs text-gray-400 mb-1">Индекс</div>
+                            <div className="text-lg font-bold text-yellow-400">
+                              {siteData.indexedPages.toLocaleString()}
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Домен:</span>
-                              <span className="text-white font-medium">{siteData.domain}</span>
+                          </div>
+                        )}
+                        {siteData.referringDomains !== null && (
+                          <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700">
+                            <div className="text-xs text-gray-400 mb-1">Домены</div>
+                            <div className="text-lg font-bold text-purple-400">
+                              {siteData.referringDomains.toLocaleString()}
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Показы:</span>
-                              <span className="text-blue-400 font-medium">{siteData.totalImpressions.toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">Клики:</span>
-                              <span className="text-green-400 font-medium">{siteData.totalClicks.toLocaleString()}</span>
-                            </div>
-                            {siteData.indexedPages !== null && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-400">Индекс:</span>
-                                <span className="text-yellow-400 font-medium">{siteData.indexedPages.toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Всплывающее окно с данными конкретной даты */}
+                      {hoveredDate && (
+                        <div className="absolute top-52 left-1/2 transform -translate-x-1/2 bg-gray-900 rounded-lg p-4 z-30 border-2 border-blue-500 shadow-2xl min-w-[200px]">
+                          <div className="text-xs text-gray-300 mb-3 font-semibold text-center border-b border-gray-700 pb-2">
+                            {new Date(hoveredDate.date).toLocaleDateString('ru-RU', { 
+                              day: '2-digit', 
+                              month: 'short', 
+                              year: 'numeric',
+                              weekday: 'short'
+                            })}
+                          </div>
+                          <div className="space-y-2.5">
+                            {showImpressions && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-gray-400">Показы:</span>
+                                <span className="text-base font-bold text-blue-400">
+                                  {hoveredDate.impressions.toLocaleString()}
+                                </span>
                               </div>
                             )}
-                            {siteData.referringDomains !== null && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-400">Домены:</span>
-                                <span className="text-purple-400 font-medium">{siteData.referringDomains.toLocaleString()}</span>
+                            {showClicks && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-gray-400">Клики:</span>
+                                <span className="text-base font-bold text-green-400">
+                                  {hoveredDate.clicks.toLocaleString()}
+                                </span>
                               </div>
                             )}
-                            {siteData.backlinks !== null && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-400">Ссылки:</span>
-                                <span className="text-pink-400 font-medium">{siteData.backlinks.toLocaleString()}</span>
+                            {showPositions && (
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-gray-400">Позиция:</span>
+                                <span className="text-base font-bold text-yellow-400">
+                                  {hoveredDate.position.toFixed(1)}
+                                </span>
                               </div>
                             )}
+                            <div className="flex justify-between items-center pt-2 border-t border-gray-700">
+                              <span className="text-sm text-gray-400">CTR:</span>
+                              <span className="text-base font-bold text-purple-400">
+                                {(hoveredDate.ctr * 100).toFixed(2)}%
+                              </span>
+                            </div>
                           </div>
                         </div>
                       )}
 
                       {/* График */}
                       {isLoading ? (
-                        <div className="h-32 flex items-center justify-center text-gray-400 text-xs">
+                        <div className="h-48 flex items-center justify-center text-gray-400 text-sm bg-gray-900 rounded-lg">
                           Загрузка...
                         </div>
                       ) : siteDailyData.length > 0 ? (
-                        <div className="mb-3">
-                          <h4 className="text-xs font-medium text-gray-400 mb-2">График</h4>
-                          <div className="h-32 bg-gray-900 rounded p-2 relative">
-                              <svg width="100%" height="100%" viewBox="0 0 800 120" preserveAspectRatio="none" className="overflow-visible">
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-300 mb-3">График за период</h4>
+                          <div className="h-48 bg-gray-900 rounded-lg p-3 relative border border-gray-700">
+                              <svg width="100%" height="100%" viewBox="0 0 800 180" preserveAspectRatio="none" className="overflow-visible">
                               {/* Оси */}
                               <line
                                 x1="50"
-                                y1="100"
+                                y1="160"
                                 x2="750"
-                                y2="100"
+                                y2="160"
                                 stroke="#4b5563"
-                                strokeWidth="1"
+                                strokeWidth="1.5"
                               />
                               <line
                                 x1="50"
-                                y1="10"
+                                y1="20"
                                 x2="50"
-                                y2="100"
+                                y2="160"
                                 stroke="#4b5563"
-                                strokeWidth="1"
+                                strokeWidth="1.5"
                               />
                               
                               {/* Данные */}
                               {siteDailyData.map((item, index) => {
                                 const padding = 50;
                                 const width = 700;
-                                const height = 90;
+                                const height = 140;
                                 const x = padding + (index / (siteDailyData.length - 1 || 1)) * width;
-                                const impressionsY = 100 - (item.impressions / maxImpressions) * height;
-                                const clicksY = 100 - (item.clicks / maxClicks) * height;
-                                const positionY = 100 - (item.position / maxPosition) * height;
+                                const impressionsY = 160 - (item.impressions / maxImpressions) * height;
+                                const clicksY = 160 - (item.clicks / maxClicks) * height;
+                                const positionY = 160 - (item.position / maxPosition) * height;
+                                const isHoveredPoint = hoveredDateIndex?.siteId === siteData.id && hoveredDateIndex?.index === index;
                                 
                                 return (
-                                  <g key={index}>
+                                  <g 
+                                    key={index}
+                                    onMouseEnter={() => setHoveredDateIndex({ siteId: siteData.id, index })}
+                                    onMouseLeave={() => setHoveredDateIndex(null)}
+                                    style={{ cursor: 'pointer' }}
+                                  >
+                                    {/* Интерактивная область для наведения */}
+                                    <rect
+                                      x={x - 15}
+                                      y={20}
+                                      width={30}
+                                      height={140}
+                                      fill="transparent"
+                                    />
+                                    
+                                    {/* Вертикальная линия при наведении */}
+                                    {isHoveredPoint && (
+                                      <line
+                                        x1={x}
+                                        y1={20}
+                                        x2={x}
+                                        y2={160}
+                                        stroke="#60a5fa"
+                                        strokeWidth="2"
+                                        strokeDasharray="4,4"
+                                        opacity="0.5"
+                                      />
+                                    )}
+                                    
                                     {/* Показы */}
                                     {showImpressions && (
                                       <circle
                                         cx={x}
                                         cy={impressionsY}
-                                        r="2"
+                                        r={isHoveredPoint ? "4" : "3"}
                                         fill="#3b82f6"
+                                        className="transition-all duration-200"
+                                        style={{ cursor: 'pointer' }}
                                       />
                                     )}
                                     {/* Клики */}
@@ -632,8 +705,10 @@ export default function SitesPage() {
                                       <circle
                                         cx={x}
                                         cy={clicksY}
-                                        r="2"
+                                        r={isHoveredPoint ? "4" : "3"}
                                         fill="#10b981"
+                                        className="transition-all duration-200"
+                                        style={{ cursor: 'pointer' }}
                                       />
                                     )}
                                     {/* Позиции */}
@@ -641,8 +716,10 @@ export default function SitesPage() {
                                       <circle
                                         cx={x}
                                         cy={positionY}
-                                        r="2"
+                                        r={isHoveredPoint ? "4" : "3"}
                                         fill="#f59e0b"
+                                        className="transition-all duration-200"
+                                        style={{ cursor: 'pointer' }}
                                       />
                                     )}
                                   </g>
@@ -657,14 +734,15 @@ export default function SitesPage() {
                                       points={siteDailyData.map((item, index) => {
                                         const padding = 50;
                                         const width = 700;
-                                        const height = 90;
+                                        const height = 140;
                                         const x = padding + (index / (siteDailyData.length - 1)) * width;
-                                        const y = 100 - (item.impressions / maxImpressions) * height;
+                                        const y = 160 - (item.impressions / maxImpressions) * height;
                                         return `${x},${y}`;
                                       }).join(' ')}
                                       fill="none"
                                       stroke="#3b82f6"
-                                      strokeWidth="1.5"
+                                      strokeWidth="2"
+                                      opacity="0.8"
                                     />
                                   )}
                                   {showClicks && (
@@ -672,14 +750,15 @@ export default function SitesPage() {
                                       points={siteDailyData.map((item, index) => {
                                         const padding = 50;
                                         const width = 700;
-                                        const height = 90;
+                                        const height = 140;
                                         const x = padding + (index / (siteDailyData.length - 1)) * width;
-                                        const y = 100 - (item.clicks / maxClicks) * height;
+                                        const y = 160 - (item.clicks / maxClicks) * height;
                                         return `${x},${y}`;
                                       }).join(' ')}
                                       fill="none"
                                       stroke="#10b981"
-                                      strokeWidth="1.5"
+                                      strokeWidth="2"
+                                      opacity="0.8"
                                     />
                                   )}
                                   {showPositions && (
@@ -687,45 +766,46 @@ export default function SitesPage() {
                                       points={siteDailyData.map((item, index) => {
                                         const padding = 50;
                                         const width = 700;
-                                        const height = 90;
+                                        const height = 140;
                                         const x = padding + (index / (siteDailyData.length - 1)) * width;
-                                        const y = 100 - (item.position / maxPosition) * height;
+                                        const y = 160 - (item.position / maxPosition) * height;
                                         return `${x},${y}`;
                                       }).join(' ')}
                                       fill="none"
                                       stroke="#f59e0b"
-                                      strokeWidth="1.5"
+                                      strokeWidth="2"
+                                      opacity="0.8"
                                     />
                                   )}
                                 </>
                               )}
                             </svg>
                             {/* Легенда */}
-                            <div className="absolute top-1 right-1 flex gap-2 text-xs">
+                            <div className="absolute bottom-2 right-3 flex gap-3 text-xs bg-gray-800/80 px-2 py-1 rounded">
                               {showImpressions && (
-                                <div className="flex items-center gap-1">
-                                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                  <span className="text-gray-500 text-[10px]">П</span>
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                                  <span className="text-gray-300 text-xs">Показы</span>
                                 </div>
                               )}
                               {showClicks && (
-                                <div className="flex items-center gap-1">
-                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                  <span className="text-gray-500 text-[10px]">К</span>
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                  <span className="text-gray-300 text-xs">Клики</span>
                                 </div>
                               )}
                               {showPositions && (
-                                <div className="flex items-center gap-1">
-                                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                                  <span className="text-gray-500 text-[10px]">Поз</span>
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                                  <span className="text-gray-300 text-xs">Позиции</span>
                                 </div>
                               )}
                             </div>
                           </div>
                         </div>
                       ) : (
-                        <div className="h-32 flex items-center justify-center text-gray-500 text-xs">
-                          Нет данных
+                        <div className="h-48 flex items-center justify-center text-gray-500 text-sm bg-gray-900 rounded-lg border border-gray-700">
+                          Нет данных за выбранный период
                         </div>
                       )}
                     </div>
