@@ -1,8 +1,13 @@
 // Google Accounts functions for PostgreSQL
 // This file contains functions for managing Google accounts
 
-import { getPostgresClient, isPostgresAvailable } from './postgres-client';
+import { getPostgresClient } from './postgres-client';
 import { GoogleAccount } from './types';
+
+// Проверяем, доступна ли PostgreSQL БД
+function isPostgresAvailable(): boolean {
+  return !!process.env.POSTGRES_URL || !!process.env.DATABASE_URL;
+}
 
 export async function getAllGoogleAccounts(): Promise<GoogleAccount[]> {
   if (!isPostgresAvailable()) {
