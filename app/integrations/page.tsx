@@ -112,7 +112,44 @@ export default function IntegrationsPage() {
   };
 
   const isGoogleOAuthConfigured = () => {
-    return isConfigured('googleAccessToken') && isConfigured('googleRefreshToken');
+    const accessToken = integrations.googleAccessToken?.trim() || '';
+    const refreshToken = integrations.googleRefreshToken?.trim() || '';
+    return !!(accessToken && refreshToken);
+  };
+
+  const handleResetOAuth = async () => {
+    if (!confirm('Вы уверены, что хотите сбросить авторизацию Google? После этого вам нужно будет авторизоваться заново.')) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setMessage(null);
+      
+      const response = await fetch('/api/integrations/oauth', {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        // Обновляем состояние
+        setIntegrations({
+          ...integrations,
+          googleAccessToken: '',
+          googleRefreshToken: '',
+          googleTokenExpiry: '',
+        });
+        setMessage({ type: 'success', text: 'Авторизация успешно сброшена' });
+        setTimeout(() => setMessage(null), 3000);
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Ошибка сброса авторизации' });
+      }
+    } catch (err) {
+      console.error('Error resetting OAuth:', err);
+      setMessage({ type: 'error', text: 'Ошибка сброса авторизации' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -191,8 +228,19 @@ export default function IntegrationsPage() {
                     </p>
                   </div>
                   {isGoogleOAuthConfigured() ? (
-                    <div className="px-3 py-1 bg-green-900/30 text-green-300 border border-green-700 rounded-full text-xs font-medium">
-                      Авторизовано
+                    <div className="flex items-center gap-2">
+                      <div className="px-3 py-1 bg-green-900/30 text-green-300 border border-green-700 rounded-full text-xs font-medium">
+                        Авторизовано
+                      </div>
+                      <button
+                        onClick={handleResetOAuth}
+                        disabled={saving}
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:cursor-not-allowed rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+                        title="Сбросить авторизацию"
+                      >
+                        <span>🚫</span>
+                        <span>Сбросить</span>
+                      </button>
                     </div>
                   ) : (
                     <button
@@ -207,6 +255,8 @@ export default function IntegrationsPage() {
                 {isGoogleOAuthConfigured() ? (
                   <div className="text-xs text-green-300 mt-2">
                     ✓ Авторизовано в Google Search Console. Вы можете использовать Google Search Console API.
+                    <br />
+                    <span className="text-gray-400">Если возникают проблемы с авторизацией на других страницах, попробуйте сбросить и авторизоваться заново.</span>
                   </div>
                 ) : (
                   <div className="text-xs text-yellow-300 mt-2">

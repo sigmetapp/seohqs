@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAllSites, insertSite, getIntegrations } from '@/lib/db-adapter';
 import { createSearchConsoleService } from '@/lib/google-search-console';
+import { hasGoogleOAuth } from '@/lib/oauth-utils';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -11,11 +12,11 @@ export async function GET() {
     const integrations = await getIntegrations();
     
     // Проверяем статус подключения для каждого сайта
-    const hasGoogleOAuth = !!(integrations.googleAccessToken && integrations.googleRefreshToken);
+    const isOAuthConfigured = hasGoogleOAuth(integrations);
     
     // Если есть OAuth, проверяем наличие сайтов в Google Search Console
     let googleConsoleSites: Array<{ siteUrl: string; permissionLevel: string }> = [];
-    if (hasGoogleOAuth) {
+    if (isOAuthConfigured) {
       try {
         const searchConsoleService = createSearchConsoleService();
         googleConsoleSites = await searchConsoleService.getSites();
@@ -42,7 +43,7 @@ export async function GET() {
     const sitesWithStatus = sites.map(site => {
       let hasGoogleConsoleConnection = false;
       
-      if (hasGoogleOAuth) {
+      if (isOAuthConfigured) {
         // Проверяем, есть ли сайт в Google Search Console
         const normalizedDomain = normalizeDomain(site.domain);
         
@@ -70,7 +71,7 @@ export async function GET() {
         // Детальная информация для отображения причин отсутствия подключения
         googleConsoleStatus: {
           connected: hasGoogleConsoleConnection,
-          hasOAuth: hasGoogleOAuth,
+          hasOAuth: isOAuthConfigured,
           hasUrl: !!site.googleSearchConsoleUrl,
         },
       };

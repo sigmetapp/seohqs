@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSiteById, getIntegrations } from '@/lib/db-adapter';
 import { createSearchConsoleService } from '@/lib/google-search-console';
+import { hasGoogleOAuth } from '@/lib/oauth-utils';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -33,9 +34,8 @@ export async function GET(
     }
 
     const integrations = await getIntegrations();
-    const hasGoogleOAuth = !!(integrations.googleAccessToken && integrations.googleRefreshToken);
     
-    if (!hasGoogleOAuth) {
+    if (!hasGoogleOAuth(integrations)) {
       return NextResponse.json(
         {
           success: false,
