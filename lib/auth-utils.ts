@@ -44,7 +44,22 @@ export async function getSession(): Promise<Session | null> {
       new TextEncoder().encode(SECRET_KEY)
     );
 
-    return payload as Session;
+    // Извлекаем данные из payload
+    const sessionData = payload as { user?: User; exp?: number };
+    
+    if (!sessionData.user) {
+      return null;
+    }
+
+    // Преобразуем exp (expiration timestamp) в строку даты
+    const expires = sessionData.exp 
+      ? new Date(sessionData.exp * 1000).toISOString()
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    return {
+      user: sessionData.user,
+      expires,
+    };
   } catch (error) {
     console.error('Error verifying session:', error);
     return null;
