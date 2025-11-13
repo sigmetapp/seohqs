@@ -149,7 +149,7 @@ export async function getOffersCount(): Promise<number> {
 }
 
 // Sites functions
-export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedAt'>): Promise<Site> {
+export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedAt'>, userId: number): Promise<Site> {
   if (!supabase) {
     throw new Error('Supabase client not initialized. Check environment variables.');
   }
@@ -160,6 +160,7 @@ export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedA
       domain: site.domain,
       category: site.category || null,
       google_search_console_url: site.googleSearchConsoleUrl || null,
+      user_id: userId,
     };
 
     const { data, error } = await supabase
@@ -181,6 +182,7 @@ export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedA
       domain: data.domain,
       category: data.category,
       googleSearchConsoleUrl: data.google_search_console_url,
+      userId: data.user_id,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -192,7 +194,7 @@ export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedA
   }
 }
 
-export async function getAllSites(): Promise<Site[]> {
+export async function getAllSites(userId: number): Promise<Site[]> {
   if (!supabase) {
     console.warn('Supabase client not initialized, returning empty array');
     return [];
@@ -202,6 +204,7 @@ export async function getAllSites(): Promise<Site[]> {
     const { data, error } = await supabase
       .from('sites')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -218,6 +221,7 @@ export async function getAllSites(): Promise<Site[]> {
       domain: row.domain,
       category: row.category,
       googleSearchConsoleUrl: row.google_search_console_url,
+      userId: row.user_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
@@ -227,7 +231,7 @@ export async function getAllSites(): Promise<Site[]> {
   }
 }
 
-export async function getSiteById(id: number): Promise<Site | null> {
+export async function getSiteById(id: number, userId: number): Promise<Site | null> {
   if (!supabase) {
     return null;
   }
@@ -237,6 +241,7 @@ export async function getSiteById(id: number): Promise<Site | null> {
       .from('sites')
       .select('*')
       .eq('id', id)
+      .eq('user_id', userId)
       .single();
 
     if (error) {
@@ -257,6 +262,7 @@ export async function getSiteById(id: number): Promise<Site | null> {
       domain: data.domain,
       category: data.category,
       googleSearchConsoleUrl: data.google_search_console_url,
+      userId: data.user_id,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -266,7 +272,7 @@ export async function getSiteById(id: number): Promise<Site | null> {
   }
 }
 
-export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdAt'>>): Promise<Site> {
+export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdAt'>>, userId: number): Promise<Site> {
   if (!supabase) {
     throw new Error('Supabase client not initialized');
   }
@@ -285,6 +291,7 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
       .from('sites')
       .update(updateData)
       .eq('id', id)
+      .eq('user_id', userId)
       .select()
       .single();
 
@@ -298,6 +305,7 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
       domain: data.domain,
       category: data.category,
       googleSearchConsoleUrl: data.google_search_console_url,
+      userId: data.user_id,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -307,10 +315,11 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
 }
 
 // Integrations functions
-export async function getIntegrations(): Promise<IntegrationsSettings> {
+export async function getIntegrations(userId: number): Promise<IntegrationsSettings> {
   if (!supabase) {
       return {
         id: 1,
+        userId: userId,
         googleServiceAccountEmail: '',
         googlePrivateKey: '',
         googleSearchConsoleUrl: '',
@@ -322,7 +331,7 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
     const { data, error } = await supabase
       .from('integrations')
       .select('*')
-      .eq('id', 1)
+      .eq('user_id', userId)
       .single();
 
     if (error) {
@@ -345,7 +354,7 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
         // Запись не найдена, создаем её
         const { data: newData, error: insertError } = await supabase
           .from('integrations')
-          .insert({ id: 1 })
+          .insert({ user_id: userId })
           .select()
           .single();
 
@@ -353,6 +362,7 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
           console.error('Error creating integrations record:', insertError);
           return {
             id: 1,
+            userId: userId,
             googleServiceAccountEmail: '',
             googlePrivateKey: '',
             googleSearchConsoleUrl: '',
@@ -365,6 +375,7 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
 
         return {
           id: newData.id,
+          userId: newData.user_id,
           googleServiceAccountEmail: newData.google_service_account_email || '',
           googlePrivateKey: newData.google_private_key || '',
           googleSearchConsoleUrl: newData.google_search_console_url || '',
@@ -378,6 +389,7 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
       console.error('Error fetching integrations:', error);
       return {
         id: 1,
+        userId: userId,
         googleServiceAccountEmail: '',
         googlePrivateKey: '',
         googleSearchConsoleUrl: '',
@@ -390,6 +402,7 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
 
     return {
       id: data.id,
+      userId: data.user_id,
       googleServiceAccountEmail: data.google_service_account_email || '',
       googlePrivateKey: data.google_private_key || '',
       googleSearchConsoleUrl: data.google_search_console_url || '',
@@ -402,6 +415,7 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
     console.error('Error fetching integrations:', error);
     return {
       id: 1,
+      userId: userId,
       googleServiceAccountEmail: '',
       googlePrivateKey: '',
       googleSearchConsoleUrl: '',
@@ -413,7 +427,7 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
   }
 }
 
-export async function updateIntegrations(settings: Partial<Omit<IntegrationsSettings, 'id' | 'updatedAt'>>): Promise<IntegrationsSettings> {
+export async function updateIntegrations(settings: Partial<Omit<IntegrationsSettings, 'id' | 'updatedAt'>>, userId: number): Promise<IntegrationsSettings> {
   if (!supabase) {
     throw new Error('Supabase client not initialized');
   }
@@ -423,13 +437,13 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
     const { data: existing } = await supabase
       .from('integrations')
       .select('id')
-      .eq('id', 1)
+      .eq('user_id', userId)
       .single();
 
     if (!existing) {
       await supabase
         .from('integrations')
-        .insert({ id: 1 });
+        .insert({ user_id: userId });
     }
 
     const updateData: any = {
@@ -458,7 +472,7 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
     const { data, error } = await supabase
       .from('integrations')
       .update(updateData)
-      .eq('id', 1)
+      .eq('user_id', userId)
       .select()
       .single();
 
@@ -477,6 +491,7 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
 
     return {
       id: data.id,
+      userId: data.user_id,
       googleServiceAccountEmail: data.google_service_account_email || '',
       googlePrivateKey: data.google_private_key || '',
       googleSearchConsoleUrl: data.google_search_console_url || '',
