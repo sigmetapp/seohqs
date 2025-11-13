@@ -71,16 +71,26 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ### Для продакшена (Vercel)
 
+**Если у вас уже настроены переменные для Google Search Console:**
+
+✅ Используйте те же самые `GOOGLE_CLIENT_ID` и `GOOGLE_CLIENT_SECRET` - они подходят для обоих случаев!
+
+**Добавьте только новую переменную:**
+
 1. Перейдите в ваш проект на [Vercel](https://vercel.com/)
 2. Откройте "Settings" → "Environment Variables"
-3. Добавьте следующие переменные:
+3. Добавьте только:
 
 | Variable | Value | Environment |
 |----------|-------|-------------|
-| `GOOGLE_CLIENT_ID` | Ваш Client ID из Google Cloud Console | Production, Preview, Development |
-| `GOOGLE_CLIENT_SECRET` | Ваш Client Secret из Google Cloud Console | Production, Preview, Development |
 | `AUTH_SECRET` | Случайная строка минимум 32 символа | Production, Preview, Development |
-| `NEXT_PUBLIC_APP_URL` | https://your-domain.com | Production |
+| `NEXT_PUBLIC_APP_URL` | https://your-domain.com | Production (если еще не добавлено) |
+
+**Важно:** В Google Cloud Console добавьте еще один redirect URI в ваш существующий OAuth Client ID:
+- `https://your-domain.com/api/auth/user/google/callback`
+- `http://localhost:3000/api/auth/user/google/callback` (для локальной разработки)
+
+См. подробную инструкцию в файле `VERCEL_ENV_SETUP.md`
 
 **Как сгенерировать AUTH_SECRET:**
 ```bash
