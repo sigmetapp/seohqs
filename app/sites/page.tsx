@@ -399,7 +399,7 @@ export default function SitesPage() {
               )}
               
               {/* Контролы для периода и видимости графиков */}
-              <div className="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700">
+              <div className="sticky top-0 z-50 bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700 shadow-lg backdrop-blur-sm">
                 <div className="flex flex-wrap gap-4 items-center">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-400">Период:</span>
