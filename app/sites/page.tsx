@@ -34,15 +34,37 @@ export default function SitesPage() {
     googleSearchConsoleUrl: '',
   });
   const [categories, setCategories] = useState<string[]>([]);
+  // Состояние для вкладки "Все сайты с Google Console"
+  const [selectedPeriod, setSelectedPeriod] = useState<number>(30); // 7, 30, 90, 180 дней
+  const [showImpressions, setShowImpressions] = useState<boolean>(true);
+  const [showClicks, setShowClicks] = useState<boolean>(true);
+  const [showPositions, setShowPositions] = useState<boolean>(true);
+  const [dailyData, setDailyData] = useState<Record<number, Array<{
+    date: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  }>>>({});
+  const [loadingDailyData, setLoadingDailyData] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     loadSites();
     loadCategories();
+    loadAggregatedData(); // Загружаем для обеих вкладок
     if (activeTab === 'google-console') {
       loadGoogleConsoleSites();
-      loadAggregatedData();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'google-console' && googleConsoleAggregatedData.length > 0) {
+      // Загружаем данные по дням для всех сайтов
+      googleConsoleAggregatedData.forEach((site) => {
+        loadDailyDataForSite(site.id);
+      });
+    }
+  }, [activeTab, googleConsoleAggregatedData, selectedPeriod]);
 
   const loadCategories = async () => {
     try {
@@ -113,6 +135,24 @@ export default function SitesPage() {
       console.error('Error loading aggregated data:', err);
     } finally {
       setLoadingAggregatedData(false);
+    }
+  };
+
+  const loadDailyDataForSite = async (siteId: number) => {
+    try {
+      setLoadingDailyData(prev => ({ ...prev, [siteId]: true }));
+      const response = await fetch(`/api/sites/${siteId}/google-console/daily?days=${selectedPeriod}`);
+      const data = await response.json();
+      if (data.success) {
+        setDailyData(prev => ({
+          ...prev,
+          [siteId]: data.data || []
+        }));
+      }
+    } catch (err) {
+      console.error(`Error loading daily data for site ${siteId}:`, err);
+    } finally {
+      setLoadingDailyData(prev => ({ ...prev, [siteId]: false }));
     }
   };
 
@@ -250,41 +290,93 @@ export default function SitesPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sites.map((site) => (
-                <Link
-                  key={site.id}
-                  href={`/sites/${site.id}`}
-                  className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-blue-500 transition-colors cursor-pointer"
-                >
-                  <h3 className="text-xl font-bold mb-2">{site.name}</h3>
-                  <p className="text-gray-400 text-sm mb-4">{site.domain}</p>
-                  {site.category && (
-                    <p className="text-blue-400 text-xs mb-2">Категория: {site.category}</p>
-                  )}
-                  <div className="space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Google Console:</span>
-                      <div className="flex items-center gap-2">
-                        {site.hasGoogleConsoleConnection ? (
-                          <span className="text-green-400">✓ Подключено</span>
-                        ) : (
-                          <span className="text-yellow-400">
-                            {site.googleConsoleStatus?.hasOAuth && !site.googleConsoleStatus?.hasUrl
-                              ? '⚠ Нет URL'
-                              : !site.googleConsoleStatus?.hasOAuth
-                              ? '⚠ Нет OAuth'
-                              : '✗ Не подключено'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-gray-600 mt-4">
-                    Добавлен: {new Date(site.createdAt).toLocaleDateString('ru-RU')}
-                  </div>
-                </Link>
-              ))}
+            <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-3 text-left">Домен</th>
+                      <th className="px-4 py-3 text-left">Статус подключения</th>
+                      <th className="px-4 py-3 text-left">Индекс Google</th>
+                      <th className="px-4 py-3 text-left">Показы</th>
+                      <th className="px-4 py-3 text-left">Клики</th>
+                      <th className="px-4 py-3 text-left">Домены на домен</th>
+                      <th className="px-4 py-3 text-left">Ссылки на домен</th>
+                      <th className="px-4 py-3 text-left">Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sites.map((site) => {
+                      // Находим соответствующие данные из googleConsoleAggregatedData
+                      const siteData = googleConsoleAggregatedData.find(s => s.id === site.id);
+                      return (
+                        <tr key={site.id} className="border-t border-gray-700 hover:bg-gray-750">
+                          <td className="px-4 py-3">
+                            <div className="font-medium">{site.domain}</div>
+                            <div className="text-xs text-gray-500">{site.name}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            {site.hasGoogleConsoleConnection ? (
+                              <span className="text-green-400">✓ Подключено</span>
+                            ) : (
+                              <span className="text-yellow-400">
+                                {site.googleConsoleStatus?.hasOAuth && !site.googleConsoleStatus?.hasUrl
+                                  ? '⚠ Нет URL'
+                                  : !site.googleConsoleStatus?.hasOAuth
+                                  ? '⚠ Нет OAuth'
+                                  : '✗ Не подключено'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {siteData && siteData.indexedPages !== null && siteData.indexedPages !== undefined ? (
+                              <span>{siteData.indexedPages.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {siteData && siteData.totalImpressions > 0 ? (
+                              <span>{siteData.totalImpressions.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {siteData && siteData.totalClicks > 0 ? (
+                              <span>{siteData.totalClicks.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {siteData && siteData.referringDomains !== null && siteData.referringDomains !== undefined ? (
+                              <span>{siteData.referringDomains.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {siteData && siteData.backlinks !== null && siteData.backlinks !== undefined ? (
+                              <span>{siteData.backlinks.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Link
+                              href={`/sites/${site.id}`}
+                              className="text-blue-400 hover:text-blue-300 hover:underline text-sm"
+                            >
+                              Открыть →
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )
         ) : (
@@ -301,83 +393,293 @@ export default function SitesPage() {
                   </div>
                 </div>
               )}
-              <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-700">
-                      <tr>
-                        <th className="px-4 py-3 text-left">Домен</th>
-                        <th className="px-4 py-3 text-left">Статус подключения</th>
-                        <th className="px-4 py-3 text-left">Индекс Google</th>
-                        <th className="px-4 py-3 text-left">Показы</th>
-                        <th className="px-4 py-3 text-left">Клики</th>
-                        <th className="px-4 py-3 text-left">Домены на домен</th>
-                        <th className="px-4 py-3 text-left">Ссылки на домен</th>
-                        <th className="px-4 py-3 text-left">Действия</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {googleConsoleAggregatedData.map((siteData) => (
-                        <tr key={siteData.id} className="border-t border-gray-700 hover:bg-gray-750">
-                          <td className="px-4 py-3">
-                            <div className="font-medium">{siteData.domain}</div>
-                            <div className="text-xs text-gray-500">{siteData.name}</div>
-                          </td>
-                          <td className="px-4 py-3">
-                            {siteData.hasGoogleConsoleConnection ? (
-                              <span className="text-green-400">✓ Подключено</span>
-                            ) : (
-                              <span className="text-yellow-400">⚠ Не подключено</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {siteData.indexedPages !== null ? (
-                              <span>{siteData.indexedPages.toLocaleString()}</span>
-                            ) : (
-                              <span className="text-gray-500">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {siteData.totalImpressions > 0 ? (
-                              <span>{siteData.totalImpressions.toLocaleString()}</span>
-                            ) : (
-                              <span className="text-gray-500">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {siteData.totalClicks > 0 ? (
-                              <span>{siteData.totalClicks.toLocaleString()}</span>
-                            ) : (
-                              <span className="text-gray-500">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {siteData.referringDomains !== null ? (
-                              <span>{siteData.referringDomains.toLocaleString()}</span>
-                            ) : (
-                              <span className="text-gray-500">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {siteData.backlinks !== null ? (
-                              <span>{siteData.backlinks.toLocaleString()}</span>
-                            ) : (
-                              <span className="text-gray-500">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
+              
+              {/* Контролы для периода и видимости графиков */}
+              <div className="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700">
+                <div className="flex flex-wrap gap-4 items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-400">Период:</span>
+                    <div className="flex gap-2">
+                      {[7, 30, 90, 180].map((days) => (
+                        <button
+                          key={days}
+                          onClick={() => setSelectedPeriod(days)}
+                          className={`px-3 py-1 rounded text-sm ${
+                            selectedPeriod === days
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                        >
+                          {days} дн.
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 ml-auto">
+                    <span className="text-sm text-gray-400">Показать на графике:</span>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={showImpressions}
+                        onChange={(e) => setShowImpressions(e.target.checked)}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-gray-300">Показы</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={showClicks}
+                        onChange={(e) => setShowClicks(e.target.checked)}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-gray-300">Клики</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={showPositions}
+                        onChange={(e) => setShowPositions(e.target.checked)}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-gray-300">Средние позиции</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Карточки сайтов */}
+              <div className="grid grid-cols-1 gap-6">
+                {googleConsoleAggregatedData.map((siteData) => {
+                  const siteDailyData = dailyData[siteData.id] || [];
+                  const isLoading = loadingDailyData[siteData.id];
+                  
+                  // Подготовка данных для графика
+                  const maxImpressions = siteDailyData.length > 0 
+                    ? Math.max(...siteDailyData.map(d => d.impressions), 1) 
+                    : 1;
+                  const maxClicks = siteDailyData.length > 0 
+                    ? Math.max(...siteDailyData.map(d => d.clicks), 1) 
+                    : 1;
+                  const maxPosition = siteDailyData.length > 0 
+                    ? Math.max(...siteDailyData.map(d => d.position), 1) 
+                    : 1;
+                  
+                  return (
+                    <div
+                      key={siteData.id}
+                      className="bg-gray-800 rounded-lg p-6 border border-gray-700"
+                    >
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <h3 className="text-xl font-bold">{siteData.name}</h3>
+                            <p className="text-gray-400 text-sm">{siteData.domain}</p>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div>
+                              {siteData.hasGoogleConsoleConnection ? (
+                                <span className="text-green-400 text-sm">✓ Подключено</span>
+                              ) : (
+                                <span className="text-yellow-400 text-sm">⚠ Не подключено</span>
+                              )}
+                            </div>
                             <Link
                               href={`/sites/${siteData.id}`}
                               className="text-blue-400 hover:text-blue-300 hover:underline text-sm"
                             >
                               Открыть →
                             </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* График */}
+                      {isLoading ? (
+                        <div className="h-64 flex items-center justify-center text-gray-400">
+                          Загрузка данных...
+                        </div>
+                      ) : siteDailyData.length > 0 ? (
+                        <div className="mb-6">
+                          <h4 className="text-sm font-medium text-gray-400 mb-3">График</h4>
+                          <div className="h-64 bg-gray-900 rounded p-4 relative">
+                            <svg width="100%" height="100%" viewBox="0 0 800 200" preserveAspectRatio="none" className="overflow-visible">
+                              {/* Оси */}
+                              <line
+                                x1="50"
+                                y1="180"
+                                x2="750"
+                                y2="180"
+                                stroke="#4b5563"
+                                strokeWidth="1"
+                              />
+                              <line
+                                x1="50"
+                                y1="20"
+                                x2="50"
+                                y2="180"
+                                stroke="#4b5563"
+                                strokeWidth="1"
+                              />
+                              
+                              {/* Данные */}
+                              {siteDailyData.map((item, index) => {
+                                const padding = 50;
+                                const width = 700;
+                                const height = 160;
+                                const x = padding + (index / (siteDailyData.length - 1 || 1)) * width;
+                                const impressionsY = 180 - (item.impressions / maxImpressions) * height;
+                                const clicksY = 180 - (item.clicks / maxClicks) * height;
+                                const positionY = 180 - (item.position / maxPosition) * height;
+                                
+                                return (
+                                  <g key={index}>
+                                    {/* Показы */}
+                                    {showImpressions && (
+                                      <circle
+                                        cx={x}
+                                        cy={impressionsY}
+                                        r="3"
+                                        fill="#3b82f6"
+                                      />
+                                    )}
+                                    {/* Клики */}
+                                    {showClicks && (
+                                      <circle
+                                        cx={x}
+                                        cy={clicksY}
+                                        r="3"
+                                        fill="#10b981"
+                                      />
+                                    )}
+                                    {/* Позиции */}
+                                    {showPositions && (
+                                      <circle
+                                        cx={x}
+                                        cy={positionY}
+                                        r="3"
+                                        fill="#f59e0b"
+                                      />
+                                    )}
+                                  </g>
+                                );
+                              })}
+                              
+                              {/* Линии */}
+                              {siteDailyData.length > 1 && (
+                                <>
+                                  {showImpressions && (
+                                    <polyline
+                                      points={siteDailyData.map((item, index) => {
+                                        const padding = 50;
+                                        const width = 700;
+                                        const height = 160;
+                                        const x = padding + (index / (siteDailyData.length - 1)) * width;
+                                        const y = 180 - (item.impressions / maxImpressions) * height;
+                                        return `${x},${y}`;
+                                      }).join(' ')}
+                                      fill="none"
+                                      stroke="#3b82f6"
+                                      strokeWidth="2"
+                                    />
+                                  )}
+                                  {showClicks && (
+                                    <polyline
+                                      points={siteDailyData.map((item, index) => {
+                                        const padding = 50;
+                                        const width = 700;
+                                        const height = 160;
+                                        const x = padding + (index / (siteDailyData.length - 1)) * width;
+                                        const y = 180 - (item.clicks / maxClicks) * height;
+                                        return `${x},${y}`;
+                                      }).join(' ')}
+                                      fill="none"
+                                      stroke="#10b981"
+                                      strokeWidth="2"
+                                    />
+                                  )}
+                                  {showPositions && (
+                                    <polyline
+                                      points={siteDailyData.map((item, index) => {
+                                        const padding = 50;
+                                        const width = 700;
+                                        const height = 160;
+                                        const x = padding + (index / (siteDailyData.length - 1)) * width;
+                                        const y = 180 - (item.position / maxPosition) * height;
+                                        return `${x},${y}`;
+                                      }).join(' ')}
+                                      fill="none"
+                                      stroke="#f59e0b"
+                                      strokeWidth="2"
+                                    />
+                                  )}
+                                </>
+                              )}
+                            </svg>
+                            {/* Легенда */}
+                            <div className="absolute top-2 right-2 flex gap-4 text-xs">
+                              {showImpressions && (
+                                <div className="flex items-center gap-1">
+                                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                                  <span className="text-gray-400">Показы</span>
+                                </div>
+                              )}
+                              {showClicks && (
+                                <div className="flex items-center gap-1">
+                                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                  <span className="text-gray-400">Клики</span>
+                                </div>
+                              )}
+                              {showPositions && (
+                                <div className="flex items-center gap-1">
+                                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                                  <span className="text-gray-400">Позиции</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="h-64 flex items-center justify-center text-gray-500 mb-6">
+                          Нет данных за выбранный период
+                        </div>
+                      )}
+
+                      {/* Таблица */}
+                      {siteDailyData.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-400 mb-3">Таблица по показам и кликам</h4>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-gray-700">
+                                <tr>
+                                  <th className="px-3 py-2 text-left">Дата</th>
+                                  <th className="px-3 py-2 text-left">Показы</th>
+                                  <th className="px-3 py-2 text-left">Клики</th>
+                                  <th className="px-3 py-2 text-left">CTR</th>
+                                  <th className="px-3 py-2 text-left">Позиция</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {siteDailyData.map((item, index) => (
+                                  <tr key={index} className="border-t border-gray-700">
+                                    <td className="px-3 py-2">
+                                      {new Date(item.date).toLocaleDateString('ru-RU')}
+                                    </td>
+                                    <td className="px-3 py-2">{item.impressions.toLocaleString()}</td>
+                                    <td className="px-3 py-2">{item.clicks.toLocaleString()}</td>
+                                    <td className="px-3 py-2">{(item.ctr * 100).toFixed(2)}%</td>
+                                    <td className="px-3 py-2">{item.position.toFixed(1)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </>
           ) : googleConsoleError ? (
