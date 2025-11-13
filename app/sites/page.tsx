@@ -39,6 +39,9 @@ export default function SitesPage() {
   const [showImpressions, setShowImpressions] = useState<boolean>(true);
   const [showClicks, setShowClicks] = useState<boolean>(true);
   const [showPositions, setShowPositions] = useState<boolean>(true);
+  const [columnsPerRow, setColumnsPerRow] = useState<number>(4); // 1-5 колонок
+  const [blurMode, setBlurMode] = useState<boolean>(false); // Режим блюра
+  const [hoveredSiteId, setHoveredSiteId] = useState<number | null>(null); // Для интерактивности
   const [dailyData, setDailyData] = useState<Record<number, Array<{
     date: string;
     clicks: number;
@@ -415,7 +418,35 @@ export default function SitesPage() {
                       ))}
                     </div>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-400">Колонок в строке:</span>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map((cols) => (
+                        <button
+                          key={cols}
+                          onClick={() => setColumnsPerRow(cols)}
+                          className={`px-3 py-1 rounded text-sm ${
+                            columnsPerRow === cols
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                        >
+                          {cols}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2 ml-auto">
+                    <button
+                      onClick={() => setBlurMode(!blurMode)}
+                      className={`px-3 py-1 rounded text-sm ${
+                        blurMode
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                    >
+                      {blurMode ? '🔓 Размытие' : '🔒 Блюр'}
+                    </button>
                     <span className="text-sm text-gray-400">Показать на графике:</span>
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <input
@@ -449,7 +480,13 @@ export default function SitesPage() {
               </div>
 
               {/* Карточки сайтов */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className={`grid gap-4 ${
+                columnsPerRow === 1 ? 'grid-cols-1' :
+                columnsPerRow === 2 ? 'grid-cols-1 md:grid-cols-2' :
+                columnsPerRow === 3 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
+                columnsPerRow === 4 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
+                'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
+              }`}>
                 {googleConsoleAggregatedData.map((siteData) => {
                   const siteDailyData = dailyData[siteData.id] || [];
                   const isLoading = loadingDailyData[siteData.id];
@@ -465,25 +502,30 @@ export default function SitesPage() {
                     ? Math.max(...siteDailyData.map(d => d.position), 1) 
                     : 1;
                   
+                  const isHovered = hoveredSiteId === siteData.id;
+                  
                   return (
                     <div
                       key={siteData.id}
-                      className="bg-gray-800 rounded-lg p-4 border border-gray-700"
+                      className="bg-gray-800 rounded-lg p-4 border border-gray-700 transition-all duration-200 hover:border-blue-500 hover:shadow-lg relative"
+                      onMouseEnter={() => setHoveredSiteId(siteData.id)}
+                      onMouseLeave={() => setHoveredSiteId(null)}
                     >
                       <div className="mb-3">
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1 min-w-0">
-                            <h3 className="text-lg font-bold truncate">{siteData.name}</h3>
-                            <p className="text-gray-400 text-xs truncate">{siteData.domain}</p>
+                            <h3 className={`text-lg font-bold truncate transition-all duration-200 ${
+                              blurMode && !isHovered ? 'blur-sm select-none' : ''
+                            }`}>
+                              {siteData.name}
+                            </h3>
+                            <p className={`text-gray-400 text-xs truncate transition-all duration-200 ${
+                              blurMode && !isHovered ? 'blur-sm select-none' : ''
+                            }`}>
+                              {siteData.domain}
+                            </p>
                           </div>
                           <div className="flex items-center gap-2 ml-2">
-                            <div>
-                              {siteData.hasGoogleConsoleConnection ? (
-                                <span className="text-green-400 text-xs">✓</span>
-                              ) : (
-                                <span className="text-yellow-400 text-xs">⚠</span>
-                              )}
-                            </div>
                             <Link
                               href={`/sites/${siteData.id}`}
                               className="text-blue-400 hover:text-blue-300 hover:underline text-xs whitespace-nowrap"
@@ -493,6 +535,48 @@ export default function SitesPage() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Интерактивные данные при наведении */}
+                      {isHovered && (
+                        <div className="absolute top-4 left-4 right-4 bg-gray-900/95 rounded-lg p-3 z-10 border border-blue-500 shadow-xl">
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Название:</span>
+                              <span className="text-white font-medium">{siteData.name}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Домен:</span>
+                              <span className="text-white font-medium">{siteData.domain}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Показы:</span>
+                              <span className="text-blue-400 font-medium">{siteData.totalImpressions.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Клики:</span>
+                              <span className="text-green-400 font-medium">{siteData.totalClicks.toLocaleString()}</span>
+                            </div>
+                            {siteData.indexedPages !== null && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Индекс:</span>
+                                <span className="text-yellow-400 font-medium">{siteData.indexedPages.toLocaleString()}</span>
+                              </div>
+                            )}
+                            {siteData.referringDomains !== null && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Домены:</span>
+                                <span className="text-purple-400 font-medium">{siteData.referringDomains.toLocaleString()}</span>
+                              </div>
+                            )}
+                            {siteData.backlinks !== null && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-400">Ссылки:</span>
+                                <span className="text-pink-400 font-medium">{siteData.backlinks.toLocaleString()}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {/* График */}
                       {isLoading ? (
