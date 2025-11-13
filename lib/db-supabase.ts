@@ -160,7 +160,6 @@ export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedA
       domain: site.domain,
       category: site.category || null,
       google_search_console_url: site.googleSearchConsoleUrl || null,
-      ahrefs_api_key: site.ahrefsApiKey || null,
     };
 
     const { data, error } = await supabase
@@ -182,7 +181,6 @@ export async function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedA
       domain: data.domain,
       category: data.category,
       googleSearchConsoleUrl: data.google_search_console_url,
-      ahrefsApiKey: data.ahrefs_api_key,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -220,7 +218,6 @@ export async function getAllSites(): Promise<Site[]> {
       domain: row.domain,
       category: row.category,
       googleSearchConsoleUrl: row.google_search_console_url,
-      ahrefsApiKey: row.ahrefs_api_key,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
@@ -260,7 +257,6 @@ export async function getSiteById(id: number): Promise<Site | null> {
       domain: data.domain,
       category: data.category,
       googleSearchConsoleUrl: data.google_search_console_url,
-      ahrefsApiKey: data.ahrefs_api_key,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -284,7 +280,6 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
     if (site.domain !== undefined) updateData.domain = site.domain;
     if (site.category !== undefined) updateData.category = site.category || null;
     if (site.googleSearchConsoleUrl !== undefined) updateData.google_search_console_url = site.googleSearchConsoleUrl || null;
-    if (site.ahrefsApiKey !== undefined) updateData.ahrefs_api_key = site.ahrefsApiKey || null;
 
     const { data, error } = await supabase
       .from('sites')
@@ -303,7 +298,6 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
       domain: data.domain,
       category: data.category,
       googleSearchConsoleUrl: data.google_search_console_url,
-      ahrefsApiKey: data.ahrefs_api_key,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -315,14 +309,13 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
 // Integrations functions
 export async function getIntegrations(): Promise<IntegrationsSettings> {
   if (!supabase) {
-    return {
-      id: 1,
-      googleServiceAccountEmail: '',
-      googlePrivateKey: '',
-      ahrefsApiKey: '',
-      googleSearchConsoleUrl: '',
-      updatedAt: new Date().toISOString(),
-    };
+      return {
+        id: 1,
+        googleServiceAccountEmail: '',
+        googlePrivateKey: '',
+        googleSearchConsoleUrl: '',
+        updatedAt: new Date().toISOString(),
+      };
   }
 
   try {
@@ -340,7 +333,6 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
           id: 1,
           googleServiceAccountEmail: '',
           googlePrivateKey: '',
-          ahrefsApiKey: '',
           googleSearchConsoleUrl: '',
           googleAccessToken: '',
           googleRefreshToken: '',
@@ -363,7 +355,6 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
             id: 1,
             googleServiceAccountEmail: '',
             googlePrivateKey: '',
-            ahrefsApiKey: '',
             googleSearchConsoleUrl: '',
             googleAccessToken: '',
             googleRefreshToken: '',
@@ -376,7 +367,6 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
           id: newData.id,
           googleServiceAccountEmail: newData.google_service_account_email || '',
           googlePrivateKey: newData.google_private_key || '',
-          ahrefsApiKey: newData.ahrefs_api_key || '',
           googleSearchConsoleUrl: newData.google_search_console_url || '',
           googleAccessToken: newData.google_access_token || '',
           googleRefreshToken: newData.google_refresh_token || '',
@@ -390,7 +380,6 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
         id: 1,
         googleServiceAccountEmail: '',
         googlePrivateKey: '',
-        ahrefsApiKey: '',
         googleSearchConsoleUrl: '',
         googleAccessToken: '',
         googleRefreshToken: '',
@@ -403,7 +392,6 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
       id: data.id,
       googleServiceAccountEmail: data.google_service_account_email || '',
       googlePrivateKey: data.google_private_key || '',
-      ahrefsApiKey: data.ahrefs_api_key || '',
       googleSearchConsoleUrl: data.google_search_console_url || '',
       googleAccessToken: data.google_access_token || '',
       googleRefreshToken: data.google_refresh_token || '',
@@ -416,7 +404,6 @@ export async function getIntegrations(): Promise<IntegrationsSettings> {
       id: 1,
       googleServiceAccountEmail: '',
       googlePrivateKey: '',
-      ahrefsApiKey: '',
       googleSearchConsoleUrl: '',
       googleAccessToken: '',
       googleRefreshToken: '',
@@ -455,9 +442,6 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
     if (settings.googlePrivateKey !== undefined) {
       updateData.google_private_key = settings.googlePrivateKey || null;
     }
-    if (settings.ahrefsApiKey !== undefined) {
-      updateData.ahrefs_api_key = settings.ahrefsApiKey || null;
-    }
     if (settings.googleSearchConsoleUrl !== undefined) {
       updateData.google_search_console_url = settings.googleSearchConsoleUrl || null;
     }
@@ -495,7 +479,6 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
       id: data.id,
       googleServiceAccountEmail: data.google_service_account_email || '',
       googlePrivateKey: data.google_private_key || '',
-      ahrefsApiKey: data.ahrefs_api_key || '',
       googleSearchConsoleUrl: data.google_search_console_url || '',
       googleAccessToken: data.google_access_token || '',
       googleRefreshToken: data.google_refresh_token || '',
@@ -643,113 +626,3 @@ export async function bulkInsertGoogleSearchConsoleData(
   }
 }
 
-// Ahrefs Data functions
-export interface AhrefsDataRow {
-  id: number;
-  siteId: number;
-  domainRating: number;
-  backlinks: number;
-  referringDomains: number;
-  organicKeywords: number;
-  organicTraffic: number;
-  date: string;
-  createdAt: string;
-}
-
-export async function insertAhrefsData(
-  data: Omit<AhrefsDataRow, 'id' | 'createdAt'>
-): Promise<AhrefsDataRow> {
-  if (!supabase) {
-    throw new Error('Supabase client not initialized');
-  }
-
-  try {
-    const dataToInsert = {
-      site_id: data.siteId,
-      domain_rating: data.domainRating,
-      backlinks: data.backlinks,
-      referring_domains: data.referringDomains,
-      organic_keywords: data.organicKeywords,
-      organic_traffic: data.organicTraffic,
-      date: data.date,
-    };
-
-    const { data: inserted, error } = await supabase
-      .from('ahrefs_data')
-      .upsert(dataToInsert, {
-        onConflict: 'site_id,date',
-        ignoreDuplicates: false,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      if (error.code === '42501' || error.message?.includes('permission denied')) {
-        throw new Error(`RLS Policy Error: ${error.message}. Проверьте политики Row Level Security.`);
-      }
-      throw new Error(`Supabase insert error: ${error.message}`);
-    }
-
-    return {
-      id: inserted.id,
-      siteId: inserted.site_id,
-      domainRating: inserted.domain_rating,
-      backlinks: inserted.backlinks,
-      referringDomains: inserted.referring_domains,
-      organicKeywords: inserted.organic_keywords,
-      organicTraffic: inserted.organic_traffic,
-      date: inserted.date,
-      createdAt: inserted.created_at,
-    };
-  } catch (error: any) {
-    throw error;
-  }
-}
-
-export async function getAhrefsDataBySiteId(
-  siteId: number
-): Promise<AhrefsDataRow | null> {
-  if (!supabase) {
-    return null;
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('ahrefs_data')
-      .select('*')
-      .eq('site_id', siteId)
-      .order('date', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (error) {
-      if (error.code === '42P01' || error.message.includes('does not exist')) {
-        return null;
-      }
-      if (error.code === 'PGRST116') {
-        // No rows returned
-        return null;
-      }
-      throw error;
-    }
-
-    if (!data) {
-      return null;
-    }
-
-    return {
-      id: data.id,
-      siteId: data.site_id,
-      domainRating: data.domain_rating,
-      backlinks: data.backlinks,
-      referringDomains: data.referring_domains,
-      organicKeywords: data.organic_keywords,
-      organicTraffic: data.organic_traffic,
-      date: data.date,
-      createdAt: data.created_at,
-    };
-  } catch (error: any) {
-    console.error('Error fetching Ahrefs data:', error);
-    return null;
-  }
-}

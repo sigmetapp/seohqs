@@ -85,16 +85,15 @@ export function getOffersCount(): number {
 export function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedAt'>): Site {
   const database = getDatabase();
   const stmt = database.prepare(`
-    INSERT INTO sites (name, domain, category, google_search_console_url, ahrefs_api_key, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    INSERT INTO sites (name, domain, category, google_search_console_url, created_at, updated_at)
+    VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
   `);
 
   const result = stmt.run(
     site.name,
     site.domain,
     site.category || null,
-    site.googleSearchConsoleUrl || null,
-    site.ahrefsApiKey || null
+    site.googleSearchConsoleUrl || null
   );
 
   return {
@@ -103,7 +102,6 @@ export function insertSite(site: Omit<Site, 'id' | 'createdAt' | 'updatedAt'>): 
     domain: site.domain,
     category: site.category,
     googleSearchConsoleUrl: site.googleSearchConsoleUrl,
-    ahrefsApiKey: site.ahrefsApiKey,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -118,7 +116,6 @@ export function getAllSites(): Site[] {
     domain: row.domain,
     category: row.category,
     googleSearchConsoleUrl: row.google_search_console_url,
-    ahrefsApiKey: row.ahrefs_api_key,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
@@ -138,7 +135,6 @@ export function getSiteById(id: number): Site | null {
     domain: row.domain,
     category: row.category,
     googleSearchConsoleUrl: row.google_search_console_url,
-    ahrefsApiKey: row.ahrefs_api_key,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -164,10 +160,6 @@ export function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'createdA
   if (site.googleSearchConsoleUrl !== undefined) {
     updates.push('google_search_console_url = ?');
     values.push(site.googleSearchConsoleUrl || null);
-  }
-  if (site.ahrefsApiKey !== undefined) {
-    updates.push('ahrefs_api_key = ?');
-    values.push(site.ahrefsApiKey || null);
   }
 
   updates.push("updated_at = datetime('now')");
@@ -199,7 +191,6 @@ export function getIntegrations(): IntegrationsSettings {
       id: 1,
       googleServiceAccountEmail: '',
       googlePrivateKey: '',
-      ahrefsApiKey: '',
       googleSearchConsoleUrl: '',
       googleAccessToken: '',
       googleRefreshToken: '',
@@ -212,7 +203,6 @@ export function getIntegrations(): IntegrationsSettings {
     id: row.id,
     googleServiceAccountEmail: row.google_service_account_email || '',
     googlePrivateKey: row.google_private_key || '',
-    ahrefsApiKey: row.ahrefs_api_key || '',
     googleSearchConsoleUrl: row.google_search_console_url || '',
     googleAccessToken: row.google_access_token || '',
     googleRefreshToken: row.google_refresh_token || '',
@@ -233,10 +223,6 @@ export function updateIntegrations(settings: Partial<Omit<IntegrationsSettings, 
   if (settings.googlePrivateKey !== undefined) {
     updates.push('google_private_key = ?');
     values.push(settings.googlePrivateKey || null);
-  }
-  if (settings.ahrefsApiKey !== undefined) {
-    updates.push('ahrefs_api_key = ?');
-    values.push(settings.ahrefsApiKey || null);
   }
   if (settings.googleSearchConsoleUrl !== undefined) {
     updates.push('google_search_console_url = ?');
@@ -369,82 +355,3 @@ export function bulkInsertGoogleSearchConsoleData(
   insertMany(data);
 }
 
-// Ahrefs Data functions
-export interface AhrefsDataRow {
-  id: number;
-  siteId: number;
-  domainRating: number;
-  backlinks: number;
-  referringDomains: number;
-  organicKeywords: number;
-  organicTraffic: number;
-  date: string;
-  createdAt: string;
-}
-
-export function insertAhrefsData(
-  data: Omit<AhrefsDataRow, 'id' | 'createdAt'>
-): AhrefsDataRow {
-  const database = getDatabase();
-  const stmt = database.prepare(`
-    INSERT INTO ahrefs_data (site_id, domain_rating, backlinks, referring_domains, organic_keywords, organic_traffic, date)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(site_id, date) DO UPDATE SET
-      domain_rating = excluded.domain_rating,
-      backlinks = excluded.backlinks,
-      referring_domains = excluded.referring_domains,
-      organic_keywords = excluded.organic_keywords,
-      organic_traffic = excluded.organic_traffic
-  `);
-
-  stmt.run(
-    data.siteId,
-    data.domainRating,
-    data.backlinks,
-    data.referringDomains,
-    data.organicKeywords,
-    data.organicTraffic,
-    data.date
-  );
-
-  const row = database
-    .prepare('SELECT * FROM ahrefs_data WHERE site_id = ? AND date = ?')
-    .get(data.siteId, data.date) as any;
-
-  return {
-    id: row.id,
-    siteId: row.site_id,
-    domainRating: row.domain_rating,
-    backlinks: row.backlinks,
-    referringDomains: row.referring_domains,
-    organicKeywords: row.organic_keywords,
-    organicTraffic: row.organic_traffic,
-    date: row.date,
-    createdAt: row.created_at,
-  };
-}
-
-export function getAhrefsDataBySiteId(
-  siteId: number
-): AhrefsDataRow | null {
-  const database = getDatabase();
-  const row = database
-    .prepare('SELECT * FROM ahrefs_data WHERE site_id = ? ORDER BY date DESC LIMIT 1')
-    .get(siteId) as any;
-
-  if (!row) {
-    return null;
-  }
-
-  return {
-    id: row.id,
-    siteId: row.site_id,
-    domainRating: row.domain_rating,
-    backlinks: row.backlinks,
-    referringDomains: row.referring_domains,
-    organicKeywords: row.organic_keywords,
-    organicTraffic: row.organic_traffic,
-    date: row.date,
-    createdAt: row.created_at,
-  };
-}

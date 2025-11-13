@@ -26,7 +26,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      ahrefsApiKey,
       googleSearchConsoleUrl,
     } = body;
 
@@ -37,7 +36,6 @@ export async function POST(request: Request) {
     // OAuth токены (googleAccessToken, googleRefreshToken, googleTokenExpiry) 
     // сохраняются через callback и не должны перезаписываться здесь
     const updated = await updateIntegrations({
-      ahrefsApiKey: ahrefsApiKey !== undefined ? ahrefsApiKey : current.ahrefsApiKey,
       googleSearchConsoleUrl: googleSearchConsoleUrl !== undefined ? googleSearchConsoleUrl : current.googleSearchConsoleUrl,
       // OAuth токены не обновляем здесь - они сохраняются через callback
     });
