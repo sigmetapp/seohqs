@@ -131,9 +131,19 @@ export async function GET(request: Request) {
       updatedAt: new Date().toISOString(),
     };
 
+    // Автоматически загружаем все сайты из Google Search Console
+    try {
+      const { loadGoogleConsoleSites } = await import('@/lib/load-google-console-sites');
+      const loadData = await loadGoogleConsoleSites();
+      console.log('[Google OAuth Callback] Сайты загружены:', loadData);
+    } catch (loadError) {
+      console.warn('[Google OAuth Callback] Ошибка при загрузке сайтов:', loadError);
+      // Не прерываем процесс авторизации, если загрузка сайтов не удалась
+    }
+
     // Перенаправляем на страницу интеграций с успешным сообщением
     return NextResponse.redirect(
-      `${baseUrl}/integrations?success=${encodeURIComponent('Google авторизация успешна!')}`
+      `${baseUrl}/integrations?success=${encodeURIComponent('Google авторизация успешна! Сайты загружены из Google Search Console.')}`
     );
   } catch (error: any) {
     console.error('[Google OAuth Callback] Ошибка обработки OAuth callback:', error);
