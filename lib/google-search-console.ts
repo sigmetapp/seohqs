@@ -223,8 +223,39 @@ export class GoogleSearchConsoleService {
       return response.data.siteEntry || [];
     } catch (error: any) {
       console.error('Ошибка получения списка сайтов:', error);
+      
+      const errorMessage = error.response?.data?.error?.message || error.message || '';
+      const errorCode = error.response?.data?.error?.code;
+      
+      // Проверяем, не включен ли API
+      if (errorMessage.includes('has not been used') || 
+          errorMessage.includes('is disabled') ||
+          errorMessage.includes('Enable it by visiting')) {
+        // Извлекаем project ID из сообщения, если есть
+        const projectMatch = errorMessage.match(/project (\d+)/);
+        const projectId = projectMatch ? projectMatch[1] : null;
+        
+        let enableUrl = 'https://console.developers.google.com/apis/api/searchconsole.googleapis.com/overview';
+        if (projectId) {
+          enableUrl += `?project=${projectId}`;
+        }
+        
+        throw new Error(
+          `Google Search Console API не включен в вашем проекте Google Cloud. ` +
+          `Пожалуйста, включите API по ссылке: ${enableUrl} ` +
+          `После включения API подождите несколько минут и попробуйте снова.`
+        );
+      }
+      
+      // Проверяем другие типы ошибок
+      if (errorCode === 403) {
+        throw new Error(
+          'Доступ запрещен. Убедитесь, что ваш Google аккаунт имеет доступ к Google Search Console API.'
+        );
+      }
+      
       throw new Error(
-        error.response?.data?.error?.message || 
+        errorMessage || 
         'Ошибка получения списка сайтов из Google Search Console'
       );
     }
