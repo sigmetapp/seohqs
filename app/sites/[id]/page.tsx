@@ -13,8 +13,12 @@ export default function SiteDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'google' | 'postbacks'>('overview');
   const [googleData, setGoogleData] = useState<GoogleSearchConsoleData[]>([]);
+  const [queries, setQueries] = useState<Array<{ query: string; clicks: number; impressions: number; ctr: number; position: number }>>([]);
+  const [pages, setPages] = useState<Array<{ page: string; clicks: number; impressions: number; ctr: number; position: number }>>([]);
+  const [countries, setCountries] = useState<Array<{ country: string; clicks: number; impressions: number; ctr: number; position: number }>>([]);
   const [postbacks, setPostbacks] = useState<PostbackData[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({
     googleSearchConsoleUrl: '',
@@ -61,11 +65,15 @@ export default function SiteDetailPage() {
     try {
       setLoadingData(true);
       if (activeTab === 'google') {
+        // Загружаем основные данные (по дням)
         const response = await fetch(`/api/sites/${siteId}/google-console`);
         const data = await response.json();
         if (data.success) {
           setGoogleData(data.data || []);
         }
+        
+        // Загружаем детальные данные (запросы, страницы, гео)
+        await loadDetailedData();
       } else if (activeTab === 'postbacks') {
         const response = await fetch(`/api/sites/${siteId}/postbacks`);
         const data = await response.json();
@@ -77,6 +85,37 @@ export default function SiteDetailPage() {
       console.error('Error loading tab data:', err);
     } finally {
       setLoadingData(false);
+    }
+  };
+
+  const loadDetailedData = async () => {
+    try {
+      setLoadingDetails(true);
+      
+      // Загружаем данные параллельно
+      const [queriesRes, pagesRes, countriesRes] = await Promise.all([
+        fetch(`/api/sites/${siteId}/google-console/queries`).catch(() => ({ json: async () => ({ success: false, data: [] }) })),
+        fetch(`/api/sites/${siteId}/google-console/pages`).catch(() => ({ json: async () => ({ success: false, data: [] }) })),
+        fetch(`/api/sites/${siteId}/google-console/countries`).catch(() => ({ json: async () => ({ success: false, data: [] }) })),
+      ]);
+      
+      const queriesData = await queriesRes.json();
+      const pagesData = await pagesRes.json();
+      const countriesData = await countriesRes.json();
+      
+      if (queriesData.success) {
+        setQueries(queriesData.data || []);
+      }
+      if (pagesData.success) {
+        setPages(pagesData.data || []);
+      }
+      if (countriesData.success) {
+        setCountries(countriesData.data || []);
+      }
+    } catch (err) {
+      console.error('Error loading detailed data:', err);
+    } finally {
+      setLoadingDetails(false);
     }
   };
 
@@ -120,6 +159,8 @@ export default function SiteDetailPage() {
       if (data.success) {
         loadTabData();
         alert(`Данные Google Search Console обновлены. Загружено ${data.count || 0} записей.`);
+        // Перезагружаем детальные данные после синхронизации
+        await loadDetailedData();
       } else {
         const errorMessage = data.error || 'Ошибка синхронизации';
         console.error('Google sync error:', errorMessage);
@@ -320,36 +361,157 @@ export default function SiteDetailPage() {
                 </p>
               </div>
             )}
-            {loadingData ? (
+            {loadingData || loadingDetails ? (
               <div className="text-center py-8">Загрузка данных...</div>
-            ) : googleData.length === 0 ? (
+            ) : googleData.length === 0 && queries.length === 0 && pages.length === 0 && countries.length === 0 ? (
               <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-                <p className="text-gray-400">Данные не загружены</p>
+                <p className="text-gray-400">Данные не загружены. Нажмите "Синхронизировать" для загрузки данных.</p>
               </div>
             ) : (
-              <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
-                <table className="w-full">
-                  <thead className="bg-gray-700">
-                    <tr>
-                      <th className="px-4 py-3 text-left">Дата</th>
-                      <th className="px-4 py-3 text-left">Клики</th>
-                      <th className="px-4 py-3 text-left">Показы</th>
-                      <th className="px-4 py-3 text-left">CTR</th>
-                      <th className="px-4 py-3 text-left">Позиция</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {googleData.map((item, index) => (
-                      <tr key={index} className="border-t border-gray-700">
-                        <td className="px-4 py-3">{new Date(item.date).toLocaleDateString('ru-RU')}</td>
-                        <td className="px-4 py-3">{item.clicks}</td>
-                        <td className="px-4 py-3">{item.impressions}</td>
-                        <td className="px-4 py-3">{(item.ctr * 100).toFixed(2)}%</td>
-                        <td className="px-4 py-3">{item.position.toFixed(1)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-6">
+                {/* Общая статистика */}
+                {googleData.length > 0 && (
+                  <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                    <h3 className="text-lg font-bold p-4 border-b border-gray-700">Показы и клики по дням</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-700">
+                          <tr>
+                            <th className="px-4 py-3 text-left">Дата</th>
+                            <th className="px-4 py-3 text-left">Клики</th>
+                            <th className="px-4 py-3 text-left">Показы</th>
+                            <th className="px-4 py-3 text-left">CTR</th>
+                            <th className="px-4 py-3 text-left">Позиция</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {googleData.map((item, index) => (
+                            <tr key={index} className="border-t border-gray-700">
+                              <td className="px-4 py-3">{new Date(item.date).toLocaleDateString('ru-RU')}</td>
+                              <td className="px-4 py-3">{item.clicks}</td>
+                              <td className="px-4 py-3">{item.impressions}</td>
+                              <td className="px-4 py-3">{(item.ctr * 100).toFixed(2)}%</td>
+                              <td className="px-4 py-3">{item.position.toFixed(1)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Поисковые запросы */}
+                {queries.length > 0 && (
+                  <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                    <h3 className="text-lg font-bold p-4 border-b border-gray-700">Поисковые запросы</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-700">
+                          <tr>
+                            <th className="px-4 py-3 text-left">Запрос</th>
+                            <th className="px-4 py-3 text-left">Клики</th>
+                            <th className="px-4 py-3 text-left">Показы</th>
+                            <th className="px-4 py-3 text-left">CTR</th>
+                            <th className="px-4 py-3 text-left">Позиция</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {queries.slice(0, 50).map((item, index) => (
+                            <tr key={index} className="border-t border-gray-700">
+                              <td className="px-4 py-3">{item.query}</td>
+                              <td className="px-4 py-3">{item.clicks}</td>
+                              <td className="px-4 py-3">{item.impressions}</td>
+                              <td className="px-4 py-3">{(item.ctr * 100).toFixed(2)}%</td>
+                              <td className="px-4 py-3">{item.position.toFixed(1)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {queries.length > 50 && (
+                      <div className="p-4 text-sm text-gray-400 border-t border-gray-700">
+                        Показано 50 из {queries.length} запросов
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Страницы */}
+                {pages.length > 0 && (
+                  <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                    <h3 className="text-lg font-bold p-4 border-b border-gray-700">Страницы</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-700">
+                          <tr>
+                            <th className="px-4 py-3 text-left">Страница</th>
+                            <th className="px-4 py-3 text-left">Клики</th>
+                            <th className="px-4 py-3 text-left">Показы</th>
+                            <th className="px-4 py-3 text-left">CTR</th>
+                            <th className="px-4 py-3 text-left">Позиция</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pages.slice(0, 50).map((item, index) => (
+                            <tr key={index} className="border-t border-gray-700">
+                              <td className="px-4 py-3">
+                                <a 
+                                  href={item.page} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:underline truncate block max-w-md"
+                                  title={item.page}
+                                >
+                                  {item.page}
+                                </a>
+                              </td>
+                              <td className="px-4 py-3">{item.clicks}</td>
+                              <td className="px-4 py-3">{item.impressions}</td>
+                              <td className="px-4 py-3">{(item.ctr * 100).toFixed(2)}%</td>
+                              <td className="px-4 py-3">{item.position.toFixed(1)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {pages.length > 50 && (
+                      <div className="p-4 text-sm text-gray-400 border-t border-gray-700">
+                        Показано 50 из {pages.length} страниц
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* География (страны) */}
+                {countries.length > 0 && (
+                  <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                    <h3 className="text-lg font-bold p-4 border-b border-gray-700">География</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-700">
+                          <tr>
+                            <th className="px-4 py-3 text-left">Страна</th>
+                            <th className="px-4 py-3 text-left">Клики</th>
+                            <th className="px-4 py-3 text-left">Показы</th>
+                            <th className="px-4 py-3 text-left">CTR</th>
+                            <th className="px-4 py-3 text-left">Позиция</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {countries.map((item, index) => (
+                            <tr key={index} className="border-t border-gray-700">
+                              <td className="px-4 py-3">{item.country}</td>
+                              <td className="px-4 py-3">{item.clicks}</td>
+                              <td className="px-4 py-3">{item.impressions}</td>
+                              <td className="px-4 py-3">{(item.ctr * 100).toFixed(2)}%</td>
+                              <td className="px-4 py-3">{item.position.toFixed(1)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

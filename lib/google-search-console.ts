@@ -172,7 +172,7 @@ export class GoogleSearchConsoleService {
    * @param searchConsoleUrl URL из Google Search Console (например, https://search.google.com/search-console/...)
    * @returns URL сайта (например, sc-domain:example.com или https://example.com)
    */
-  private extractSiteUrl(searchConsoleUrl: string): string | null {
+  extractSiteUrl(searchConsoleUrl: string): string | null {
     try {
       // Если это прямой URL сайта, возвращаем как есть
       if (searchConsoleUrl.startsWith('sc-domain:') || 
