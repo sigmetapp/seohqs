@@ -80,6 +80,11 @@ export async function GET() {
         // Получаем данные Google Search Console из БД
         const gscData = await getGoogleSearchConsoleDataBySiteId(site.id, 1000);
         
+        // Если OAuth настроен и есть данные в БД, считаем сайт подключенным
+        if (isOAuthConfigured && gscData.length > 0 && !hasGoogleConsoleConnection) {
+          hasGoogleConsoleConnection = true;
+        }
+        
         // Агрегируем данные
         const totalImpressions = gscData.reduce((sum, row) => sum + (row.impressions || 0), 0);
         const totalClicks = gscData.reduce((sum, row) => sum + (row.clicks || 0), 0);
