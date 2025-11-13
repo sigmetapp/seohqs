@@ -32,11 +32,8 @@ export async function GET(
       );
     }
 
-    // Проверяем наличие глобального ключа Ahrefs, если у сайта нет своего
-    const integrations = await getIntegrations();
-    const hasAhrefsConnection = site.ahrefsApiKey || integrations.ahrefsApiKey;
-
     // Проверяем статус подключения Google Console
+    const integrations = await getIntegrations();
     // Подключено, если:
     // 1. У сайта указан googleSearchConsoleUrl И
     // 2. Есть OAuth токены
@@ -50,7 +47,6 @@ export async function GET(
       success: true,
       site: {
         ...site,
-        hasAhrefsConnection: !!hasAhrefsConnection,
         hasGoogleConsoleConnection,
         // Детальная информация для отображения причин отсутствия подключения
         googleConsoleStatus: {
@@ -89,19 +85,17 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, domain, category, googleSearchConsoleUrl, ahrefsApiKey } = body;
+    const { name, domain, category, googleSearchConsoleUrl } = body;
 
     const updatedSite = await updateSite(siteId, {
       name,
       domain,
       category,
       googleSearchConsoleUrl,
-      ahrefsApiKey,
     });
 
-    // Проверяем наличие глобального ключа Ahrefs, если у сайта нет своего
+    // Проверяем статус подключения Google Console
     const integrations = await getIntegrations();
-    const hasAhrefsConnection = updatedSite.ahrefsApiKey || integrations.ahrefsApiKey;
 
     // Проверяем статус подключения Google Console
     const hasGoogleOAuth = !!(integrations.googleAccessToken && integrations.googleRefreshToken);
@@ -114,7 +108,6 @@ export async function PUT(
       success: true,
       site: {
         ...updatedSite,
-        hasAhrefsConnection: !!hasAhrefsConnection,
         hasGoogleConsoleConnection,
         // Детальная информация для отображения причин отсутствия подключения
         googleConsoleStatus: {

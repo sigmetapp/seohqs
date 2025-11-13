@@ -17,12 +17,10 @@ export async function GET() {
         site.googleSearchConsoleUrl && 
         hasGoogleOAuth
       );
-      const hasAhrefsConnection = !!(site.ahrefsApiKey || integrations.ahrefsApiKey);
       
       return {
         ...site,
         hasGoogleConsoleConnection,
-        hasAhrefsConnection,
         // Детальная информация для отображения причин отсутствия подключения
         googleConsoleStatus: {
           connected: hasGoogleConsoleConnection,
@@ -51,7 +49,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, domain, category, googleSearchConsoleUrl, ahrefsApiKey } = body;
+    const { name, domain, category, googleSearchConsoleUrl } = body;
 
     if (!name || !domain) {
       return NextResponse.json(
@@ -68,7 +66,6 @@ export async function POST(request: Request) {
       domain,
       category: category || undefined,
       googleSearchConsoleUrl: googleSearchConsoleUrl || undefined,
-      ahrefsApiKey: ahrefsApiKey || undefined,
     });
 
     return NextResponse.json({

@@ -6,7 +6,6 @@ export const storage = {
   links: [] as any[],
   sites: [] as any[],
   googleData: [] as any[],
-  ahrefsData: [] as any[],
   postbacks: [] as any[],
   integrations: {
     id: 1,
@@ -15,7 +14,6 @@ export const storage = {
     googleAccessToken: '',
     googleRefreshToken: '',
     googleTokenExpiry: '',
-    ahrefsApiKey: '',
     googleSearchConsoleUrl: '',
     updatedAt: new Date().toISOString(),
   },
