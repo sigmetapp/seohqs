@@ -12,6 +12,7 @@ export default function SitesPage() {
   const [googleConsoleSites, setGoogleConsoleSites] = useState<Array<{ siteUrl: string; permissionLevel: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [loadingGoogleSites, setLoadingGoogleSites] = useState(false);
+  const [googleConsoleError, setGoogleConsoleError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newSite, setNewSite] = useState({
     name: '',
@@ -63,13 +64,18 @@ export default function SitesPage() {
   const loadGoogleConsoleSites = async () => {
     try {
       setLoadingGoogleSites(true);
+      setGoogleConsoleError(null);
       const response = await fetch('/api/sites/google-console-sites');
       const data = await response.json();
       if (data.success) {
         setGoogleConsoleSites(data.sites || []);
+        setGoogleConsoleError(null);
+      } else {
+        setGoogleConsoleError(data.error || 'Ошибка загрузки сайтов из Google Search Console');
       }
     } catch (err) {
       console.error('Error loading Google Console sites:', err);
+      setGoogleConsoleError('Ошибка загрузки сайтов из Google Search Console');
     } finally {
       setLoadingGoogleSites(false);
     }
@@ -78,20 +84,26 @@ export default function SitesPage() {
   const handleLoadGoogleSites = async () => {
     try {
       setLoadingGoogleSites(true);
+      setGoogleConsoleError(null);
       const response = await fetch('/api/sites/load-google-console-sites', {
         method: 'POST',
       });
       const data = await response.json();
       if (data.success) {
         alert(`Успешно! Загружено ${data.sitesLoaded} новых сайтов, обновлено ${data.sitesUpdated} существующих, загружено ${data.dataLoaded} записей данных`);
+        setGoogleConsoleError(null);
         loadSites();
         loadGoogleConsoleSites();
       } else {
-        alert(data.error || 'Ошибка загрузки сайтов');
+        const errorMsg = data.error || 'Ошибка загрузки сайтов';
+        setGoogleConsoleError(errorMsg);
+        alert(errorMsg);
       }
     } catch (err) {
       console.error('Error loading Google Console sites:', err);
-      alert('Ошибка загрузки сайтов из Google Console');
+      const errorMsg = 'Ошибка загрузки сайтов из Google Console';
+      setGoogleConsoleError(errorMsg);
+      alert(errorMsg);
     } finally {
       setLoadingGoogleSites(false);
     }
@@ -243,6 +255,32 @@ export default function SitesPage() {
           loadingGoogleSites ? (
             <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
               <div className="text-gray-400">Загрузка сайтов из Google Console...</div>
+            </div>
+          ) : googleConsoleError ? (
+            <div className="bg-gray-800 rounded-lg p-8 border border-red-500">
+              <div className="text-red-400 mb-4">
+                <h3 className="text-xl font-bold mb-2">Ошибка загрузки сайтов</h3>
+                <p className="text-sm whitespace-pre-line">{googleConsoleError}</p>
+              </div>
+              {googleConsoleError.includes('не включен') || googleConsoleError.includes('Enable it by visiting') ? (
+                <div className="mt-4 space-y-2">
+                  <p className="text-gray-300 text-sm">
+                    Для решения проблемы:
+                  </p>
+                  <ol className="text-gray-300 text-sm list-decimal list-inside space-y-1 ml-4">
+                    <li>Перейдите по ссылке выше, чтобы включить Google Search Console API</li>
+                    <li>Нажмите кнопку "Enable" (Включить)</li>
+                    <li>Подождите 2-3 минуты для распространения изменений</li>
+                    <li>Попробуйте загрузить сайты снова</li>
+                  </ol>
+                </div>
+              ) : null}
+              <button
+                onClick={loadGoogleConsoleSites}
+                className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+              >
+                Попробовать снова
+              </button>
             </div>
           ) : googleConsoleSites.length === 0 ? (
             <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">

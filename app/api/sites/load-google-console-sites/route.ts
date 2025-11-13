@@ -19,6 +19,9 @@ export async function POST() {
     
     if (errorMessage.includes('OAuth') || errorMessage.includes('авторизоваться')) {
       errorMessage = 'Ошибка аутентификации. Убедитесь, что вы авторизованы через Google в разделе Интеграции.';
+    } else if (errorMessage.includes('не включен') || errorMessage.includes('is disabled') || errorMessage.includes('has not been used')) {
+      // Сообщение об ошибке уже содержит ссылку на включение API
+      // Оставляем его как есть
     }
     
     return NextResponse.json(
