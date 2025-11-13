@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { updateIntegrations } from '@/lib/db-adapter';
 import { storage } from '@/lib/storage';
+import { requireAuth } from '@/lib/middleware-auth';
+import { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -9,14 +11,20 @@ export const runtime = 'nodejs';
  * DELETE /api/integrations/oauth
  * Сбрасывает OAuth токены Google (удаляет авторизацию)
  */
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { user } = authResult;
+    
     // Удаляем токены из БД
     await updateIntegrations({
       googleAccessToken: '',
       googleRefreshToken: '',
       googleTokenExpiry: '',
-    });
+    }, user.id);
 
     // Также очищаем storage для обратной совместимости
     storage.integrations = {

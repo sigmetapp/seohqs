@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getGoogleAccountById, updateGoogleAccount, deleteGoogleAccount } from '@/lib/db-adapter';
+import { requireAuth } from '@/lib/middleware-auth';
+import { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -9,10 +11,16 @@ export const runtime = 'nodejs';
  * Получает Google аккаунт по ID
  */
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { user } = authResult;
+    
     const id = parseInt(params.id);
     if (isNaN(id)) {
       return NextResponse.json(
@@ -24,7 +32,7 @@ export async function GET(
       );
     }
 
-    const account = await getGoogleAccountById(id);
+    const account = await getGoogleAccountById(id, user.id);
     if (!account) {
       return NextResponse.json(
         {
@@ -56,10 +64,16 @@ export async function GET(
  * Обновляет Google аккаунт
  */
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { user } = authResult;
+    
     const id = parseInt(params.id);
     if (isNaN(id)) {
       return NextResponse.json(
@@ -79,7 +93,7 @@ export async function PUT(
       ...(googleAccessToken !== undefined && { googleAccessToken }),
       ...(googleRefreshToken !== undefined && { googleRefreshToken }),
       ...(googleTokenExpiry !== undefined && { googleTokenExpiry }),
-    });
+    }, user.id);
 
     return NextResponse.json({
       success: true,
@@ -102,10 +116,16 @@ export async function PUT(
  * Удаляет Google аккаунт
  */
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { user } = authResult;
+    
     const id = parseInt(params.id);
     if (isNaN(id)) {
       return NextResponse.json(
@@ -117,7 +137,7 @@ export async function DELETE(
       );
     }
 
-    await deleteGoogleAccount(id);
+    await deleteGoogleAccount(id, user.id);
 
     return NextResponse.json({
       success: true,

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { storage } from '@/lib/storage';
 import { updateIntegrations, getAllGoogleAccounts, createGoogleAccount, updateGoogleAccount } from '@/lib/db-adapter';
+import { getCurrentUser } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -126,11 +127,19 @@ export async function GET(request: Request) {
       console.warn('[Google OAuth Callback] Не удалось получить email пользователя:', error);
     }
 
+    // Получаем текущего пользователя из сессии
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.redirect(
+        `${baseUrl}/integrations?error=${encodeURIComponent('Требуется авторизация пользователя')}`
+      );
+    }
+
     // Сохраняем в новую таблицу google_accounts
     if (userEmail) {
       try {
         // Проверяем, существует ли уже аккаунт с таким email
-        const existingAccounts = await getAllGoogleAccounts();
+        const existingAccounts = await getAllGoogleAccounts(currentUser.id);
         const existingAccount = existingAccounts.find(acc => acc.email === userEmail);
         
         if (existingAccount) {
@@ -139,7 +148,7 @@ export async function GET(request: Request) {
             googleAccessToken: accessToken,
             googleRefreshToken: refreshToken,
             googleTokenExpiry: tokenExpiry,
-          });
+          }, currentUser.id);
         } else {
           // Создаем новый аккаунт
           await createGoogleAccount({
@@ -147,7 +156,7 @@ export async function GET(request: Request) {
             googleAccessToken: accessToken,
             googleRefreshToken: refreshToken,
             googleTokenExpiry: tokenExpiry,
-          });
+          }, currentUser.id);
         }
       } catch (error) {
         console.error('[Google OAuth Callback] Ошибка сохранения аккаунта:', error);
@@ -160,7 +169,7 @@ export async function GET(request: Request) {
       googleAccessToken: accessToken,
       googleRefreshToken: refreshToken,
       googleTokenExpiry: tokenExpiry,
-    });
+    }, currentUser.id);
 
     // Также обновляем storage для обратной совместимости
     storage.integrations = {
