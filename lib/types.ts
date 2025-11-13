@@ -103,3 +103,14 @@ export interface IntegrationsSettings {
   googleSearchConsoleUrl?: string;
   updatedAt: string;
 }
+
+// Типы для Google аккаунтов
+export interface GoogleAccount {
+  id: number;
+  email: string;
+  googleAccessToken?: string;
+  googleRefreshToken?: string;
+  googleTokenExpiry?: string;
+  createdAt: string;
+  updatedAt: string;
+}

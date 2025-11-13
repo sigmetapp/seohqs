@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { AffiliateOffer, Site, IntegrationsSettings } from './types';
+import type { AffiliateOffer, Site, IntegrationsSettings, GoogleAccount } from './types';
 
 export async function insertOffers(offers: Omit<AffiliateOffer, 'id' | 'created_at'>[]): Promise<void> {
   if (!supabase) {
@@ -620,6 +620,197 @@ export async function bulkInsertGoogleSearchConsoleData(
         throw new Error(`RLS Policy Error: ${error.message}. Проверьте политики Row Level Security.`);
       }
       throw new Error(`Supabase bulk insert error: ${error.message}`);
+    }
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+// Google Accounts functions
+export async function getAllGoogleAccounts(): Promise<GoogleAccount[]> {
+  if (!supabase) {
+    console.warn('Supabase client not initialized, returning empty array');
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('google_accounts')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        // Таблица не существует, возвращаем пустой массив
+        return [];
+      }
+      console.error('Error fetching Google accounts:', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      email: row.email,
+      googleAccessToken: row.google_access_token || '',
+      googleRefreshToken: row.google_refresh_token || '',
+      googleTokenExpiry: row.google_token_expiry || '',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  } catch (error: any) {
+    console.error('Error fetching Google accounts:', error);
+    return [];
+  }
+}
+
+export async function getGoogleAccountById(id: number): Promise<GoogleAccount | null> {
+  if (!supabase) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('google_accounts')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // Запись не найдена
+        return null;
+      }
+      console.error('Error fetching Google account:', error);
+      return null;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return {
+      id: data.id,
+      email: data.email,
+      googleAccessToken: data.google_access_token || '',
+      googleRefreshToken: data.google_refresh_token || '',
+      googleTokenExpiry: data.google_token_expiry || '',
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+  } catch (error: any) {
+    console.error('Error fetching Google account:', error);
+    return null;
+  }
+}
+
+export async function createGoogleAccount(account: Omit<GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>): Promise<GoogleAccount> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized. Check environment variables.');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('google_accounts')
+      .insert({
+        email: account.email,
+        google_access_token: account.googleAccessToken || null,
+        google_refresh_token: account.googleRefreshToken || null,
+        google_token_expiry: account.googleTokenExpiry || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') {
+        throw new Error('Аккаунт с таким email уже существует');
+      }
+      throw new Error(`Supabase insert error: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('Failed to create Google account');
+    }
+
+    return {
+      id: data.id,
+      email: data.email,
+      googleAccessToken: data.google_access_token || '',
+      googleRefreshToken: data.google_refresh_token || '',
+      googleTokenExpiry: data.google_token_expiry || '',
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+export async function updateGoogleAccount(id: number, account: Partial<Omit<GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>>): Promise<GoogleAccount> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized. Check environment variables.');
+  }
+
+  try {
+    const updates: any = {};
+    if (account.email !== undefined) {
+      updates.email = account.email;
+    }
+    if (account.googleAccessToken !== undefined) {
+      updates.google_access_token = account.googleAccessToken || null;
+    }
+    if (account.googleRefreshToken !== undefined) {
+      updates.google_refresh_token = account.googleRefreshToken || null;
+    }
+    if (account.googleTokenExpiry !== undefined) {
+      updates.google_token_expiry = account.googleTokenExpiry || null;
+    }
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('google_accounts')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        throw new Error('Google account not found');
+      }
+      throw new Error(`Supabase update error: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('Failed to update Google account');
+    }
+
+    return {
+      id: data.id,
+      email: data.email,
+      googleAccessToken: data.google_access_token || '',
+      googleRefreshToken: data.google_refresh_token || '',
+      googleTokenExpiry: data.google_token_expiry || '',
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+export async function deleteGoogleAccount(id: number): Promise<void> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized. Check environment variables.');
+  }
+
+  try {
+    const { error } = await supabase
+      .from('google_accounts')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Supabase delete error: ${error.message}`);
     }
   } catch (error: any) {
     throw error;

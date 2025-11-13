@@ -202,6 +202,87 @@ export async function updateIntegrations(settings: Partial<Omit<import('./types'
   }
 }
 
+// Google Accounts functions
+export async function getAllGoogleAccounts(): Promise<import('./types').GoogleAccount[]> {
+  if (useSupabase()) {
+    const { getAllGoogleAccounts: getSupabase } = await import('./db-supabase');
+    return getSupabase();
+  } else if (usePostgres()) {
+    const { getAllGoogleAccounts: getPostgres } = await import('./db-postgres-accounts');
+    return getPostgres();
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { getAllGoogleAccounts: getSQLite } = require('./db');
+    return getSQLite();
+  }
+}
+
+export async function getGoogleAccountById(id: number): Promise<import('./types').GoogleAccount | null> {
+  if (useSupabase()) {
+    const { getGoogleAccountById: getSupabase } = await import('./db-supabase');
+    return getSupabase(id);
+  } else if (usePostgres()) {
+    const { getGoogleAccountById: getPostgres } = await import('./db-postgres-accounts');
+    return getPostgres(id);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { getGoogleAccountById: getSQLite } = require('./db');
+    return getSQLite(id);
+  }
+}
+
+export async function createGoogleAccount(account: Omit<import('./types').GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>): Promise<import('./types').GoogleAccount> {
+  if (useSupabase()) {
+    const { createGoogleAccount: createSupabase } = await import('./db-supabase');
+    return createSupabase(account);
+  } else if (usePostgres()) {
+    const { createGoogleAccount: createPostgres } = await import('./db-postgres-accounts');
+    return createPostgres(account);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { createGoogleAccount: createSQLite } = require('./db');
+    return createSQLite(account);
+  }
+}
+
+export async function updateGoogleAccount(id: number, account: Partial<Omit<import('./types').GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>>): Promise<import('./types').GoogleAccount> {
+  if (useSupabase()) {
+    const { updateGoogleAccount: updateSupabase } = await import('./db-supabase');
+    return updateSupabase(id, account);
+  } else if (usePostgres()) {
+    const { updateGoogleAccount: updatePostgres } = await import('./db-postgres-accounts');
+    return updatePostgres(id, account);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { updateGoogleAccount: updateSQLite } = require('./db');
+    return updateSQLite(id, account);
+  }
+}
+
+export async function deleteGoogleAccount(id: number): Promise<void> {
+  if (useSupabase()) {
+    const { deleteGoogleAccount: deleteSupabase } = await import('./db-supabase');
+    return deleteSupabase(id);
+  } else if (usePostgres()) {
+    const { deleteGoogleAccount: deletePostgres } = await import('./db-postgres-accounts');
+    return deletePostgres(id);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { deleteGoogleAccount: deleteSQLite } = require('./db');
+    return deleteSQLite(id);
+  }
+}
+
 // Google Search Console Data adapter functions
 export interface GoogleSearchConsoleDataRow {
   id: number;

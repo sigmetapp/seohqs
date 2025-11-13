@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import type { Site, IntegrationsSettings } from './types';
+import type { Site, IntegrationsSettings, GoogleAccount } from './types';
 
 export interface AffiliateOffer {
   id?: number;
@@ -353,5 +353,126 @@ export function bulkInsertGoogleSearchConsoleData(
   });
 
   insertMany(data);
+}
+
+// Google Accounts functions
+export function getAllGoogleAccounts(): GoogleAccount[] {
+  const database = getDatabase();
+  try {
+    const rows = database.prepare('SELECT * FROM google_accounts ORDER BY created_at DESC').all() as any[];
+    return rows.map((row: any) => ({
+      id: row.id,
+      email: row.email,
+      googleAccessToken: row.google_access_token || '',
+      googleRefreshToken: row.google_refresh_token || '',
+      googleTokenExpiry: row.google_token_expiry || '',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  } catch (error: any) {
+    if (error.message?.includes('no such table')) {
+      return [];
+    }
+    console.error('Error fetching Google accounts:', error);
+    return [];
+  }
+}
+
+export function getGoogleAccountById(id: number): GoogleAccount | null {
+  const database = getDatabase();
+  try {
+    const row = database.prepare('SELECT * FROM google_accounts WHERE id = ?').get(id) as any;
+    if (!row) {
+      return null;
+    }
+    return {
+      id: row.id,
+      email: row.email,
+      googleAccessToken: row.google_access_token || '',
+      googleRefreshToken: row.google_refresh_token || '',
+      googleTokenExpiry: row.google_token_expiry || '',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } catch (error: any) {
+    console.error('Error fetching Google account:', error);
+    return null;
+  }
+}
+
+export function createGoogleAccount(account: Omit<GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>): GoogleAccount {
+  const database = getDatabase();
+  const stmt = database.prepare(`
+    INSERT INTO google_accounts (email, google_access_token, google_refresh_token, google_token_expiry, created_at, updated_at)
+    VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+  `);
+  
+  const result = stmt.run(
+    account.email,
+    account.googleAccessToken || null,
+    account.googleRefreshToken || null,
+    account.googleTokenExpiry || null
+  );
+
+  const id = Number(result.lastInsertRowid);
+  const row = database.prepare('SELECT * FROM google_accounts WHERE id = ?').get(id) as any;
+  
+  return {
+    id: row.id,
+    email: row.email,
+    googleAccessToken: row.google_access_token || '',
+    googleRefreshToken: row.google_refresh_token || '',
+    googleTokenExpiry: row.google_token_expiry || '',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function updateGoogleAccount(id: number, account: Partial<Omit<GoogleAccount, 'id' | 'createdAt' | 'updatedAt'>>): GoogleAccount {
+  const database = getDatabase();
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (account.email !== undefined) {
+    updates.push('email = ?');
+    values.push(account.email);
+  }
+  if (account.googleAccessToken !== undefined) {
+    updates.push('google_access_token = ?');
+    values.push(account.googleAccessToken || null);
+  }
+  if (account.googleRefreshToken !== undefined) {
+    updates.push('google_refresh_token = ?');
+    values.push(account.googleRefreshToken || null);
+  }
+  if (account.googleTokenExpiry !== undefined) {
+    updates.push('google_token_expiry = ?');
+    values.push(account.googleTokenExpiry || null);
+  }
+  updates.push("updated_at = datetime('now')");
+  values.push(id);
+
+  const query = `UPDATE google_accounts SET ${updates.join(', ')} WHERE id = ?`;
+  database.prepare(query).run(...values);
+
+  const row = database.prepare('SELECT * FROM google_accounts WHERE id = ?').get(id) as any;
+  if (!row) {
+    throw new Error('Google account not found');
+  }
+
+  return {
+    id: row.id,
+    email: row.email,
+    googleAccessToken: row.google_access_token || '',
+    googleRefreshToken: row.google_refresh_token || '',
+    googleTokenExpiry: row.google_token_expiry || '',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function deleteGoogleAccount(id: number): void {
+  const database = getDatabase();
+  database.prepare('DELETE FROM google_accounts WHERE id = ?').run(id);
 }
 

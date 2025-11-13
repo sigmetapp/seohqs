@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { storage } from '@/lib/storage';
-import { updateIntegrations } from '@/lib/db-adapter';
+import { updateIntegrations, getAllGoogleAccounts, createGoogleAccount, updateGoogleAccount } from '@/lib/db-adapter';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -115,7 +115,47 @@ export async function GET(request: Request) {
       ? new Date(tokens.expiry_date).toISOString() 
       : '';
 
-    // Сохраняем в БД
+    // Получаем информацию о пользователе для получения email
+    oauth2Client.setCredentials(tokens);
+    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+    let userEmail = '';
+    try {
+      const userInfo = await oauth2.userinfo.get();
+      userEmail = userInfo.data.email || '';
+    } catch (error) {
+      console.warn('[Google OAuth Callback] Не удалось получить email пользователя:', error);
+    }
+
+    // Сохраняем в новую таблицу google_accounts
+    if (userEmail) {
+      try {
+        // Проверяем, существует ли уже аккаунт с таким email
+        const existingAccounts = await getAllGoogleAccounts();
+        const existingAccount = existingAccounts.find(acc => acc.email === userEmail);
+        
+        if (existingAccount) {
+          // Обновляем существующий аккаунт
+          await updateGoogleAccount(existingAccount.id, {
+            googleAccessToken: accessToken,
+            googleRefreshToken: refreshToken,
+            googleTokenExpiry: tokenExpiry,
+          });
+        } else {
+          // Создаем новый аккаунт
+          await createGoogleAccount({
+            email: userEmail,
+            googleAccessToken: accessToken,
+            googleRefreshToken: refreshToken,
+            googleTokenExpiry: tokenExpiry,
+          });
+        }
+      } catch (error) {
+        console.error('[Google OAuth Callback] Ошибка сохранения аккаунта:', error);
+        // Продолжаем выполнение, даже если не удалось сохранить в новую таблицу
+      }
+    }
+
+    // Также сохраняем в старую таблицу integrations для обратной совместимости
     await updateIntegrations({
       googleAccessToken: accessToken,
       googleRefreshToken: refreshToken,
