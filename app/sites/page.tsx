@@ -10,8 +10,21 @@ export default function SitesPage() {
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [sites, setSites] = useState<Site[]>([]);
   const [googleConsoleSites, setGoogleConsoleSites] = useState<Array<{ siteUrl: string; permissionLevel: string }>>([]);
+  const [googleConsoleAggregatedData, setGoogleConsoleAggregatedData] = useState<Array<{
+    id: number;
+    domain: string;
+    name: string;
+    hasGoogleConsoleConnection: boolean;
+    googleConsoleSiteUrl: string | null;
+    totalImpressions: number;
+    totalClicks: number;
+    indexedPages: number | null;
+    referringDomains: number | null;
+    backlinks: number | null;
+  }>>([]);
   const [loading, setLoading] = useState(true);
   const [loadingGoogleSites, setLoadingGoogleSites] = useState(false);
+  const [loadingAggregatedData, setLoadingAggregatedData] = useState(false);
   const [googleConsoleError, setGoogleConsoleError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newSite, setNewSite] = useState({
@@ -27,6 +40,7 @@ export default function SitesPage() {
     loadCategories();
     if (activeTab === 'google-console') {
       loadGoogleConsoleSites();
+      loadAggregatedData();
     }
   }, [activeTab]);
 
@@ -71,13 +85,34 @@ export default function SitesPage() {
         setGoogleConsoleSites(data.sites || []);
         setGoogleConsoleError(null);
       } else {
-        setGoogleConsoleError(data.error || 'Ошибка загрузки сайтов из Google Search Console');
+        // Не устанавливаем ошибку, если сайты уже загружены из БД
+        if (sites.length === 0) {
+          setGoogleConsoleError(data.error || 'Ошибка загрузки сайтов из Google Search Console');
+        }
       }
     } catch (err) {
       console.error('Error loading Google Console sites:', err);
-      setGoogleConsoleError('Ошибка загрузки сайтов из Google Search Console');
+      // Не устанавливаем ошибку, если сайты уже загружены из БД
+      if (sites.length === 0) {
+        setGoogleConsoleError('Ошибка загрузки сайтов из Google Search Console');
+      }
     } finally {
       setLoadingGoogleSites(false);
+    }
+  };
+
+  const loadAggregatedData = async () => {
+    try {
+      setLoadingAggregatedData(true);
+      const response = await fetch('/api/sites/google-console-aggregated');
+      const data = await response.json();
+      if (data.success) {
+        setGoogleConsoleAggregatedData(data.sites || []);
+      }
+    } catch (err) {
+      console.error('Error loading aggregated data:', err);
+    } finally {
+      setLoadingAggregatedData(false);
     }
   };
 
@@ -92,8 +127,9 @@ export default function SitesPage() {
       if (data.success) {
         alert(`Успешно! Загружено ${data.sitesLoaded} новых сайтов, обновлено ${data.sitesUpdated} существующих, загружено ${data.dataLoaded} записей данных`);
         setGoogleConsoleError(null);
-        loadSites();
-        loadGoogleConsoleSites();
+        await loadSites();
+        await loadGoogleConsoleSites();
+        await loadAggregatedData();
       } else {
         const errorMsg = data.error || 'Ошибка загрузки сайтов';
         setGoogleConsoleError(errorMsg);
@@ -252,10 +288,98 @@ export default function SitesPage() {
             </div>
           )
         ) : (
-          loadingGoogleSites ? (
+          loadingAggregatedData || loadingGoogleSites ? (
             <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-              <div className="text-gray-400">Загрузка сайтов из Google Console...</div>
+              <div className="text-gray-400">Загрузка данных...</div>
             </div>
+          ) : googleConsoleAggregatedData.length > 0 ? (
+            <>
+              {googleConsoleError && (
+                <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4 mb-4">
+                  <div className="text-yellow-300 text-sm">
+                    <strong>Предупреждение:</strong> {googleConsoleError}
+                  </div>
+                </div>
+              )}
+              <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-700">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Домен</th>
+                        <th className="px-4 py-3 text-left">Статус подключения</th>
+                        <th className="px-4 py-3 text-left">Индекс Google</th>
+                        <th className="px-4 py-3 text-left">Показы</th>
+                        <th className="px-4 py-3 text-left">Клики</th>
+                        <th className="px-4 py-3 text-left">Домены на домен</th>
+                        <th className="px-4 py-3 text-left">Ссылки на домен</th>
+                        <th className="px-4 py-3 text-left">Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {googleConsoleAggregatedData.map((siteData) => (
+                        <tr key={siteData.id} className="border-t border-gray-700 hover:bg-gray-750">
+                          <td className="px-4 py-3">
+                            <div className="font-medium">{siteData.domain}</div>
+                            <div className="text-xs text-gray-500">{siteData.name}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            {siteData.hasGoogleConsoleConnection ? (
+                              <span className="text-green-400">✓ Подключено</span>
+                            ) : (
+                              <span className="text-yellow-400">⚠ Не подключено</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {siteData.indexedPages !== null ? (
+                              <span>{siteData.indexedPages.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {siteData.totalImpressions > 0 ? (
+                              <span>{siteData.totalImpressions.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {siteData.totalClicks > 0 ? (
+                              <span>{siteData.totalClicks.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {siteData.referringDomains !== null ? (
+                              <span>{siteData.referringDomains.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {siteData.backlinks !== null ? (
+                              <span>{siteData.backlinks.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Link
+                              href={`/sites/${siteData.id}`}
+                              className="text-blue-400 hover:text-blue-300 hover:underline text-sm"
+                            >
+                              Открыть →
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
           ) : googleConsoleError ? (
             <div className="bg-gray-800 rounded-lg p-8 border border-red-500">
               <div className="text-red-400 mb-4">
@@ -276,15 +400,18 @@ export default function SitesPage() {
                 </div>
               ) : null}
               <button
-                onClick={loadGoogleConsoleSites}
+                onClick={() => {
+                  loadGoogleConsoleSites();
+                  loadAggregatedData();
+                }}
                 className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
               >
                 Попробовать снова
               </button>
             </div>
-          ) : googleConsoleSites.length === 0 ? (
+          ) : (
             <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-              <p className="text-gray-400 mb-4">Сайты из Google Search Console не найдены</p>
+              <p className="text-gray-400 mb-4">Сайты не найдены</p>
               <p className="text-gray-500 text-sm mb-4">
                 Убедитесь, что вы авторизованы через Google в разделе Интеграции
               </p>
@@ -294,56 +421,6 @@ export default function SitesPage() {
               >
                 Загрузить сайты из Google Console
               </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {googleConsoleSites.map((googleSite, index) => {
-                const domain = normalizeGoogleConsoleDomain(googleSite.siteUrl);
-                const existingSite = sites.find(site => {
-                  const siteDomain = normalizeGoogleConsoleDomain(site.domain);
-                  return siteDomain === domain || 
-                         siteDomain === `www.${domain}` ||
-                         domain === `www.${siteDomain}`;
-                });
-
-                return (
-                  <div
-                    key={index}
-                    className={`bg-gray-800 rounded-lg p-6 border ${
-                      existingSite 
-                        ? 'border-green-500 hover:border-green-400' 
-                        : 'border-gray-700 hover:border-blue-500'
-                    } transition-colors`}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="text-xl font-bold">{domain}</h3>
-                      {existingSite && (
-                        <Link
-                          href={`/sites/${existingSite.id}`}
-                          className="text-green-400 text-xs hover:underline"
-                        >
-                          Открыть →
-                        </Link>
-                      )}
-                    </div>
-                    <p className="text-gray-400 text-sm mb-2">{googleSite.siteUrl}</p>
-                    <div className="space-y-2 text-xs mt-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-500">Уровень доступа:</span>
-                        <span className="text-blue-400">{googleSite.permissionLevel}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-500">Статус:</span>
-                        {existingSite ? (
-                          <span className="text-green-400">✓ В базе данных</span>
-                        ) : (
-                          <span className="text-yellow-400">⚠ Не добавлен</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           )
         )}
