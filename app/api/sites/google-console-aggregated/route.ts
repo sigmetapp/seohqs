@@ -104,34 +104,58 @@ export async function GET(request: Request) {
         
         // Получаем данные о проиндексированных страницах из Google Search Console API
         // Это стабильные данные, не зависящие от выбранного периода
+        // Используем Promise.race с таймаутом, чтобы не блокировать загрузку страницы
         let indexedPages: number | null = null;
         if (hasGoogleConsoleConnection && googleConsoleSiteUrl && isOAuthConfigured) {
           try {
             const searchConsoleService = createSearchConsoleService();
             // Пытаемся получить информацию о проиндексированных страницах через API
             // Используем большой период (180 дней) для получения более полной картины
+            const endDateForIndex = new Date();
+            const startDateForIndex = new Date();
+            startDateForIndex.setDate(startDateForIndex.getDate() - 180);
+            
+            // Добавляем таймаут для запроса (10 секунд)
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout')), 10000)
+            );
+            
             try {
-              const endDateForIndex = new Date();
-              const startDateForIndex = new Date();
-              startDateForIndex.setDate(startDateForIndex.getDate() - 180);
-              
-              const performanceData = await searchConsoleService.getPerformanceData(
+              const performanceDataPromise = searchConsoleService.getPerformanceData(
                 googleConsoleSiteUrl,
                 startDateForIndex.toISOString().split('T')[0],
                 endDateForIndex.toISOString().split('T')[0],
                 ['page']
               );
               
+              const performanceData = await Promise.race([performanceDataPromise, timeoutPromise]) as any;
+              
               // Подсчитываем количество уникальных страниц, которые получили показы
+              // Это приблизительное значение, так как Google Search Console API не предоставляет
+              // точное количество всех проиндексированных страниц
               if (performanceData.rows && performanceData.rows.length > 0) {
-                indexedPages = performanceData.rows.length;
+                // Используем Set для подсчета уникальных страниц
+                const uniquePages = new Set(performanceData.rows.map((row: any) => row.keys[0]));
+                indexedPages = uniquePages.size;
+                console.log(`Получено индексированных страниц для ${site.domain}: ${indexedPages}`);
+              } else {
+                console.log(`Нет данных о страницах для ${site.domain}`);
               }
-            } catch (apiError) {
-              console.warn(`Не удалось получить данные об индексации через API для сайта ${site.domain}:`, apiError);
+            } catch (apiError: any) {
+              if (apiError?.message === 'Timeout') {
+                console.warn(`Таймаут при получении данных об индексации для сайта ${site.domain}`);
+              } else {
+                console.warn(`Не удалось получить данные об индексации через API для сайта ${site.domain}:`, apiError?.message || apiError);
+              }
+              // Если не удалось получить через API, оставляем null
+              indexedPages = null;
             }
-          } catch (error) {
-            console.warn(`Не удалось получить данные об индексации для сайта ${site.domain}:`, error);
+          } catch (error: any) {
+            console.warn(`Не удалось получить данные об индексации для сайта ${site.domain}:`, error?.message || error);
+            indexedPages = null;
           }
+        } else {
+          console.log(`Сайт ${site.domain} не подключен к Google Search Console или OAuth не настроен`);
         }
         
         // Данные о доменах и ссылках (стабильные данные, не зависят от периода)

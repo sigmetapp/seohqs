@@ -134,6 +134,12 @@ export default function SitesPage() {
       const data = await response.json();
       if (data.success) {
         setGoogleConsoleAggregatedData(data.sites || []);
+        // Отладочная информация
+        console.log('Загружены агрегированные данные:', data.sites?.map((s: any) => ({
+          id: s.id,
+          domain: s.domain,
+          indexedPages: s.indexedPages
+        })));
       }
     } catch (err) {
       console.error('Error loading aggregated data:', err);
@@ -356,8 +362,10 @@ export default function SitesPage() {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            {siteData && siteData.indexedPages !== null && siteData.indexedPages !== undefined ? (
+                            {siteData && typeof siteData.indexedPages === 'number' && siteData.indexedPages > 0 ? (
                               <span>{siteData.indexedPages.toLocaleString()}</span>
+                            ) : siteData && siteData.indexedPages === 0 ? (
+                              <span className="text-gray-500">0</span>
                             ) : (
                               <span className="text-gray-500">—</span>
                             )}
