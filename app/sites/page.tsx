@@ -666,11 +666,11 @@ export default function SitesPage() {
                                     onMouseLeave={() => setHoveredDateIndex(null)}
                                     style={{ cursor: 'pointer' }}
                                   >
-                                    {/* Интерактивная область для наведения */}
+                                    {/* Интерактивная область для наведения - увеличена */}
                                     <rect
-                                      x={x - 15}
+                                      x={x - 20}
                                       y={20}
-                                      width={30}
+                                      width={40}
                                       height={155}
                                       fill="transparent"
                                     />
@@ -691,7 +691,7 @@ export default function SitesPage() {
                                         <circle
                                           cx={x}
                                           cy={175}
-                                          r="4"
+                                          r="5"
                                           fill="#60a5fa"
                                         />
                                       </>
@@ -703,12 +703,12 @@ export default function SitesPage() {
                                         <circle
                                           cx={x}
                                           cy={impressionsY}
-                                          r={isHoveredPoint ? "5" : "3.5"}
+                                          r={isHoveredPoint ? "7" : "5"}
                                           fill="#3b82f6"
-                                          stroke={isHoveredPoint ? "#60a5fa" : "none"}
-                                          strokeWidth={isHoveredPoint ? "2" : "0"}
+                                          stroke={isHoveredPoint ? "#60a5fa" : "#1e40af"}
+                                          strokeWidth={isHoveredPoint ? "2.5" : "1.5"}
                                           className="transition-all duration-200"
-                                          style={{ cursor: 'pointer', filter: isHoveredPoint ? 'drop-shadow(0 0 4px rgba(59, 130, 246, 0.8))' : 'none' }}
+                                          style={{ cursor: 'pointer', filter: isHoveredPoint ? 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.9))' : 'drop-shadow(0 0 2px rgba(59, 130, 246, 0.5))' }}
                                         />
                                       </>
                                     )}
@@ -718,12 +718,12 @@ export default function SitesPage() {
                                         <circle
                                           cx={x}
                                           cy={clicksY}
-                                          r={isHoveredPoint ? "5" : "3.5"}
+                                          r={isHoveredPoint ? "7" : "5"}
                                           fill="#10b981"
-                                          stroke={isHoveredPoint ? "#34d399" : "none"}
-                                          strokeWidth={isHoveredPoint ? "2" : "0"}
+                                          stroke={isHoveredPoint ? "#34d399" : "#047857"}
+                                          strokeWidth={isHoveredPoint ? "2.5" : "1.5"}
                                           className="transition-all duration-200"
-                                          style={{ cursor: 'pointer', filter: isHoveredPoint ? 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.8))' : 'none' }}
+                                          style={{ cursor: 'pointer', filter: isHoveredPoint ? 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.9))' : 'drop-shadow(0 0 2px rgba(16, 185, 129, 0.5))' }}
                                         />
                                       </>
                                     )}
@@ -733,12 +733,12 @@ export default function SitesPage() {
                                         <circle
                                           cx={x}
                                           cy={positionY}
-                                          r={isHoveredPoint ? "5" : "3.5"}
+                                          r={isHoveredPoint ? "7" : "5"}
                                           fill="#f59e0b"
-                                          stroke={isHoveredPoint ? "#fbbf24" : "none"}
-                                          strokeWidth={isHoveredPoint ? "2" : "0"}
+                                          stroke={isHoveredPoint ? "#fbbf24" : "#d97706"}
+                                          strokeWidth={isHoveredPoint ? "2.5" : "1.5"}
                                           className="transition-all duration-200"
-                                          style={{ cursor: 'pointer', filter: isHoveredPoint ? 'drop-shadow(0 0 4px rgba(245, 158, 11, 0.8))' : 'none' }}
+                                          style={{ cursor: 'pointer', filter: isHoveredPoint ? 'drop-shadow(0 0 6px rgba(245, 158, 11, 0.9))' : 'drop-shadow(0 0 2px rgba(245, 158, 11, 0.5))' }}
                                         />
                                       </>
                                     )}
