@@ -25,9 +25,11 @@ export class GoogleSearchConsoleService {
     let tokenExpiry: string = '';
 
     // Если указан accountId и userId, используем конкретный аккаунт
-    if (this.accountId && this.userId) {
+    if (this.accountId !== null && this.userId !== null) {
       try {
-        const account = await getGoogleAccountById(this.accountId, this.userId);
+        const accountId = this.accountId;
+        const userId = this.userId;
+        const account = await getGoogleAccountById(accountId, userId);
         if (account) {
           accessToken = account.googleAccessToken || '';
           refreshToken = account.googleRefreshToken || '';
