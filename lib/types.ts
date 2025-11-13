@@ -30,6 +30,7 @@ export interface LinkProject {
   name: string;
   domain: string;
   description?: string;
+  userId?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,6 +62,7 @@ export interface Site {
   domain: string;
   category?: string;
   googleSearchConsoleUrl?: string;
+  userId?: number;
   createdAt: string;
   updatedAt: string;
   // Поля, добавляемые в API response для отображения статуса подключений
@@ -95,6 +97,7 @@ export interface PostbackData {
 // Типы для настроек интеграций
 export interface IntegrationsSettings {
   id: number;
+  userId?: number;
   googleServiceAccountEmail?: string;
   googlePrivateKey?: string;
   googleAccessToken?: string;
@@ -108,6 +111,7 @@ export interface IntegrationsSettings {
 export interface GoogleAccount {
   id: number;
   email: string;
+  userId?: number;
   googleAccessToken?: string;
   googleRefreshToken?: string;
   googleTokenExpiry?: string;

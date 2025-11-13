@@ -2,14 +2,22 @@ import { NextResponse } from 'next/server';
 import { getAllSites, insertSite, getIntegrations } from '@/lib/db-adapter';
 import { createSearchConsoleService } from '@/lib/google-search-console';
 import { hasGoogleOAuth } from '@/lib/oauth-utils';
+import { requireAuth } from '@/lib/middleware-auth';
+import { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const sites = await getAllSites();
-    const integrations = await getIntegrations();
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { user } = authResult;
+    
+    const sites = await getAllSites(user.id);
+    const integrations = await getIntegrations(user.id);
     
     // Проверяем статус подключения для каждого сайта
     const isOAuthConfigured = hasGoogleOAuth(integrations);
@@ -93,8 +101,14 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { user } = authResult;
+    
     const body = await request.json();
     const { name, domain, category, googleSearchConsoleUrl } = body;
 
@@ -113,7 +127,7 @@ export async function POST(request: Request) {
       domain,
       category: category || undefined,
       googleSearchConsoleUrl: googleSearchConsoleUrl || undefined,
-    });
+    }, user.id);
 
     return NextResponse.json({
       success: true,
