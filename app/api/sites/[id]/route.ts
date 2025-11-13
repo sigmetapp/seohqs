@@ -41,9 +41,9 @@ async function checkGoogleConsoleConnection(site: any, userId: number): Promise<
   
   let hasGoogleConsoleConnection = false;
   
-  try {
-    const searchConsoleService = createSearchConsoleService();
-    const googleConsoleSites = await searchConsoleService.getSites();
+      try {
+        const searchConsoleService = createSearchConsoleService(undefined, user.id);
+        const googleConsoleSites = await searchConsoleService.getSites();
     
     const normalizedDomain = normalizeDomain(site.domain);
     

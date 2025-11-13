@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     let googleConsoleSites: Array<{ siteUrl: string; permissionLevel: string }> = [];
     if (isOAuthConfigured || accountId) {
       try {
-        const searchConsoleService = createSearchConsoleService(accountId || undefined);
+        const searchConsoleService = createSearchConsoleService(accountId || undefined, user.id);
         googleConsoleSites = await searchConsoleService.getSites();
       } catch (error) {
         console.warn('Не удалось получить список сайтов из Google Search Console:', error);
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
         let indexedPages: number | null = null;
         if (hasGoogleConsoleConnection && googleConsoleSiteUrl && isOAuthConfigured) {
           try {
-            const searchConsoleService = createSearchConsoleService(accountId || undefined);
+            const searchConsoleService = createSearchConsoleService(accountId || undefined, user.id);
             // Пытаемся получить информацию о проиндексированных страницах через API
             // Используем большой период (180 дней) для получения более полной картины
             const endDateForIndex = new Date();

@@ -53,7 +53,7 @@ export async function GET(
       );
     }
 
-    const searchConsoleService = createSearchConsoleService();
+    const searchConsoleService = createSearchConsoleService(undefined, user.id);
     
     // Получаем URL сайта в Google Search Console
     let siteUrl: string | null = null;

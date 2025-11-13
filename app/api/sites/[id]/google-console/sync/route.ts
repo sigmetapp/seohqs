@@ -41,7 +41,7 @@ export async function POST(
     }
 
     // Получаем данные из Google Search Console API
-    const searchConsoleService = createSearchConsoleService();
+    const searchConsoleService = createSearchConsoleService(undefined, user.id);
     
     // Если URL не указан, пытаемся найти автоматически по домену
     let foundSiteUrl: string | null = null;

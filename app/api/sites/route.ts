@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     let googleConsoleSites: Array<{ siteUrl: string; permissionLevel: string }> = [];
     if (isOAuthConfigured) {
       try {
-        const searchConsoleService = createSearchConsoleService();
+        const searchConsoleService = createSearchConsoleService(undefined, user.id);
         googleConsoleSites = await searchConsoleService.getSites();
       } catch (error) {
         // Если не удалось получить список сайтов (например, токен истек), просто игнорируем

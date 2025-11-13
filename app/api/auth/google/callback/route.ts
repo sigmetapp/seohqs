@@ -183,7 +183,7 @@ export async function GET(request: Request) {
     // Автоматически загружаем все сайты из Google Search Console
     try {
       const { loadGoogleConsoleSites } = await import('@/lib/load-google-console-sites');
-      const loadData = await loadGoogleConsoleSites();
+      const loadData = await loadGoogleConsoleSites(currentUser.id);
       console.log('[Google OAuth Callback] Сайты загружены:', loadData);
     } catch (loadError) {
       console.warn('[Google OAuth Callback] Ошибка при загрузке сайтов:', loadError);
