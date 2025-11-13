@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSiteById, updateSite, getIntegrations } from '@/lib/db-adapter';
 import { createSearchConsoleService } from '@/lib/google-search-console';
+import { hasGoogleOAuth } from '@/lib/oauth-utils';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -26,9 +27,9 @@ async function checkGoogleConsoleConnection(site: any): Promise<{
   hasUrl: boolean;
 }> {
   const integrations = await getIntegrations();
-  const hasGoogleOAuth = !!(integrations.googleAccessToken && integrations.googleRefreshToken);
+  const isOAuthConfigured = hasGoogleOAuth(integrations);
   
-  if (!hasGoogleOAuth) {
+  if (!isOAuthConfigured) {
     return {
       connected: false,
       hasOAuth: false,
@@ -67,7 +68,7 @@ async function checkGoogleConsoleConnection(site: any): Promise<{
   
   return {
     connected: hasGoogleConsoleConnection,
-    hasOAuth: hasGoogleOAuth,
+    hasOAuth: isOAuthConfigured,
     hasUrl: !!site.googleSearchConsoleUrl,
   };
 }
