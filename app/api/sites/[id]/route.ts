@@ -1,8 +1,76 @@
 import { NextResponse } from 'next/server';
 import { getSiteById, updateSite, getIntegrations } from '@/lib/db-adapter';
+import { createSearchConsoleService } from '@/lib/google-search-console';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+// Функция для нормализации домена
+const normalizeDomain = (domain: string): string => {
+  return domain.toLowerCase().trim().replace(/^www\./, '').replace(/^https?:\/\//, '').split('/')[0];
+};
+
+// Функция для извлечения домена из URL Google Search Console
+const extractDomainFromGSCUrl = (siteUrl: string): string => {
+  let domain = siteUrl.replace(/^sc-domain:/, '');
+  domain = domain.replace(/^https?:\/\//, '');
+  domain = domain.replace(/^www\./, '');
+  domain = domain.split('/')[0];
+  return domain.toLowerCase().trim();
+};
+
+// Функция для проверки подключения сайта к Google Search Console
+async function checkGoogleConsoleConnection(site: any): Promise<{
+  connected: boolean;
+  hasOAuth: boolean;
+  hasUrl: boolean;
+}> {
+  const integrations = await getIntegrations();
+  const hasGoogleOAuth = !!(integrations.googleAccessToken && integrations.googleRefreshToken);
+  
+  if (!hasGoogleOAuth) {
+    return {
+      connected: false,
+      hasOAuth: false,
+      hasUrl: !!site.googleSearchConsoleUrl,
+    };
+  }
+  
+  let hasGoogleConsoleConnection = false;
+  
+  try {
+    const searchConsoleService = createSearchConsoleService();
+    const googleConsoleSites = await searchConsoleService.getSites();
+    
+    const normalizedDomain = normalizeDomain(site.domain);
+    
+    // Проверяем по URL, если он указан
+    if (site.googleSearchConsoleUrl) {
+      const gscDomain = extractDomainFromGSCUrl(site.googleSearchConsoleUrl);
+      hasGoogleConsoleConnection = googleConsoleSites.some(gscSite => {
+        const gscSiteDomain = extractDomainFromGSCUrl(gscSite.siteUrl);
+        return gscSiteDomain === normalizedDomain || gscSiteDomain === gscDomain;
+      });
+    } else {
+      // Если URL не указан, проверяем по домену
+      hasGoogleConsoleConnection = googleConsoleSites.some(gscSite => {
+        const gscSiteDomain = extractDomainFromGSCUrl(gscSite.siteUrl);
+        return gscSiteDomain === normalizedDomain || 
+               gscSiteDomain === `www.${normalizedDomain}` ||
+               normalizedDomain === `www.${gscSiteDomain}`;
+      });
+    }
+  } catch (error) {
+    // Если не удалось получить список сайтов, считаем, что не подключено
+    console.warn('Не удалось проверить подключение к Google Search Console:', error);
+  }
+  
+  return {
+    connected: hasGoogleConsoleConnection,
+    hasOAuth: hasGoogleOAuth,
+    hasUrl: !!site.googleSearchConsoleUrl,
+  };
+}
 
 export async function GET(
   request: Request,
@@ -33,27 +101,14 @@ export async function GET(
     }
 
     // Проверяем статус подключения Google Console
-    const integrations = await getIntegrations();
-    // Подключено, если:
-    // 1. У сайта указан googleSearchConsoleUrl И
-    // 2. Есть OAuth токены
-    const hasGoogleOAuth = !!(integrations.googleAccessToken && integrations.googleRefreshToken);
-    const hasGoogleConsoleConnection = !!(
-      site.googleSearchConsoleUrl && 
-      hasGoogleOAuth
-    );
+    const googleConsoleStatus = await checkGoogleConsoleConnection(site);
 
     return NextResponse.json({
       success: true,
       site: {
         ...site,
-        hasGoogleConsoleConnection,
-        // Детальная информация для отображения причин отсутствия подключения
-        googleConsoleStatus: {
-          connected: hasGoogleConsoleConnection,
-          hasOAuth: hasGoogleOAuth,
-          hasUrl: !!site.googleSearchConsoleUrl,
-        },
+        hasGoogleConsoleConnection: googleConsoleStatus.connected,
+        googleConsoleStatus,
       },
     });
   } catch (error: any) {
@@ -95,26 +150,14 @@ export async function PUT(
     });
 
     // Проверяем статус подключения Google Console
-    const integrations = await getIntegrations();
-
-    // Проверяем статус подключения Google Console
-    const hasGoogleOAuth = !!(integrations.googleAccessToken && integrations.googleRefreshToken);
-    const hasGoogleConsoleConnection = !!(
-      updatedSite.googleSearchConsoleUrl && 
-      hasGoogleOAuth
-    );
+    const googleConsoleStatus = await checkGoogleConsoleConnection(updatedSite);
 
     return NextResponse.json({
       success: true,
       site: {
         ...updatedSite,
-        hasGoogleConsoleConnection,
-        // Детальная информация для отображения причин отсутствия подключения
-        googleConsoleStatus: {
-          connected: hasGoogleConsoleConnection,
-          hasOAuth: hasGoogleOAuth,
-          hasUrl: !!updatedSite.googleSearchConsoleUrl,
-        },
+        hasGoogleConsoleConnection: googleConsoleStatus.connected,
+        googleConsoleStatus,
       },
     });
   } catch (error: any) {
