@@ -9,9 +9,16 @@ export const runtime = 'nodejs';
 /**
  * GET /api/sites/google-console-aggregated
  * Получает агрегированные данные по всем сайтам из Google Search Console
+ * Query параметры:
+ *   - days: количество дней для фильтрации показов и кликов (по умолчанию 30)
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // Получаем параметр days из query string
+    const { searchParams } = new URL(request.url);
+    const daysParam = searchParams.get('days');
+    const days = daysParam ? parseInt(daysParam) : 30; // По умолчанию 30 дней
+
     const sites = await getAllSites();
     const integrations = await getIntegrations();
     const isOAuthConfigured = hasGoogleOAuth(integrations);
@@ -40,6 +47,11 @@ export async function GET() {
       domain = domain.split('/')[0];
       return domain.toLowerCase().trim();
     };
+
+    // Вычисляем дату начала периода для фильтрации
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
     
     // Получаем агрегированные данные для каждого сайта
     const sitesWithData = await Promise.all(
@@ -80,25 +92,52 @@ export async function GET() {
         // Получаем данные Google Search Console из БД
         const gscData = await getGoogleSearchConsoleDataBySiteId(site.id, 1000);
         
-        // Агрегируем данные
-        const totalImpressions = gscData.reduce((sum, row) => sum + (row.impressions || 0), 0);
-        const totalClicks = gscData.reduce((sum, row) => sum + (row.clicks || 0), 0);
+        // Фильтруем данные по периоду для показов и кликов
+        const filteredGscData = gscData.filter((row) => {
+          const rowDate = new Date(row.date);
+          return rowDate >= startDate && rowDate <= endDate;
+        });
+        
+        // Агрегируем данные за выбранный период (только показы и клики фильтруются)
+        const totalImpressions = filteredGscData.reduce((sum, row) => sum + (row.impressions || 0), 0);
+        const totalClicks = filteredGscData.reduce((sum, row) => sum + (row.clicks || 0), 0);
         
         // Получаем данные о проиндексированных страницах из Google Search Console API
+        // Это стабильные данные, не зависящие от выбранного периода
         let indexedPages: number | null = null;
         if (hasGoogleConsoleConnection && googleConsoleSiteUrl && isOAuthConfigured) {
           try {
             const searchConsoleService = createSearchConsoleService();
-            // Пытаемся получить информацию о проиндексированных страницах
-            // Это может быть доступно через URL Inspection API или через sitemap
-            // Пока оставляем null, так как для этого нужен отдельный API вызов
-            indexedPages = null;
+            // Пытаемся получить информацию о проиндексированных страницах через API
+            // Используем большой период (180 дней) для получения более полной картины
+            try {
+              const endDateForIndex = new Date();
+              const startDateForIndex = new Date();
+              startDateForIndex.setDate(startDateForIndex.getDate() - 180);
+              
+              const performanceData = await searchConsoleService.getPerformanceData(
+                googleConsoleSiteUrl,
+                startDateForIndex.toISOString().split('T')[0],
+                endDateForIndex.toISOString().split('T')[0],
+                ['page']
+              );
+              
+              // Подсчитываем количество уникальных страниц, которые получили показы
+              if (performanceData.rows && performanceData.rows.length > 0) {
+                indexedPages = performanceData.rows.length;
+              }
+            } catch (apiError) {
+              console.warn(`Не удалось получить данные об индексации через API для сайта ${site.domain}:`, apiError);
+            }
           } catch (error) {
             console.warn(`Не удалось получить данные об индексации для сайта ${site.domain}:`, error);
           }
         }
         
-        // Данные Ahrefs пока не реализованы, возвращаем null
+        // Данные о доменах и ссылках (стабильные данные, не зависят от периода)
+        // Эти данные обычно получаются из инструментов для анализа backlinks (Ahrefs, Majestic и т.д.)
+        // Google Search Console не предоставляет эти данные напрямую
+        // Пока возвращаем null, так как требуется интеграция с внешними сервисами
         const referringDomains: number | null = null;
         const backlinks: number | null = null;
         

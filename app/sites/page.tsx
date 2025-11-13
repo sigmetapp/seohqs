@@ -34,6 +34,8 @@ export default function SitesPage() {
     googleSearchConsoleUrl: '',
   });
   const [categories, setCategories] = useState<string[]>([]);
+  // Состояние для вкладки "Все сайты" - период для показов и кликов
+  const [selectedPeriodAllSites, setSelectedPeriodAllSites] = useState<number>(30); // 7, 30, 90, 180 дней
   // Состояние для вкладки "Все сайты с Google Console"
   const [selectedPeriod, setSelectedPeriod] = useState<number>(30); // 7, 30, 90, 180 дней
   const [showImpressions, setShowImpressions] = useState<boolean>(true);
@@ -55,7 +57,7 @@ export default function SitesPage() {
     if (activeTab === 'google-console') {
       loadGoogleConsoleSites();
     }
-  }, [activeTab]);
+  }, [activeTab, selectedPeriodAllSites]); // Перезагружаем при изменении периода для вкладки "Все сайты"
 
   useEffect(() => {
     if (activeTab === 'google-console' && googleConsoleAggregatedData.length > 0) {
@@ -126,7 +128,9 @@ export default function SitesPage() {
   const loadAggregatedData = async () => {
     try {
       setLoadingAggregatedData(true);
-      const response = await fetch('/api/sites/google-console-aggregated');
+      // Используем selectedPeriodAllSites для вкладки "Все сайты", selectedPeriod для "Все сайты с Google Console"
+      const period = activeTab === 'all' ? selectedPeriodAllSites : selectedPeriod;
+      const response = await fetch(`/api/sites/google-console-aggregated?days=${period}`);
       const data = await response.json();
       if (data.success) {
         setGoogleConsoleAggregatedData(data.sites || []);
@@ -290,21 +294,44 @@ export default function SitesPage() {
               </button>
             </div>
           ) : (
-            <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-700">
-                    <tr>
-                      <th className="px-4 py-3 text-left">Домен</th>
-                      <th className="px-4 py-3 text-left">Статус подключения</th>
-                      <th className="px-4 py-3 text-left">Индекс Google</th>
-                      <th className="px-4 py-3 text-left">Показы</th>
-                      <th className="px-4 py-3 text-left">Клики</th>
-                      <th className="px-4 py-3 text-left">Домены на домен</th>
-                      <th className="px-4 py-3 text-left">Ссылки на домен</th>
-                      <th className="px-4 py-3 text-left">Действия</th>
-                    </tr>
-                  </thead>
+            <>
+              {/* Кнопки выбора периода для вкладки "Все сайты" */}
+              <div className="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700">
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-400">Период для показов и кликов:</span>
+                  <div className="flex gap-2">
+                    {[7, 30, 90, 180].map((days) => (
+                      <button
+                        key={days}
+                        onClick={() => setSelectedPeriodAllSites(days)}
+                        className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                          selectedPeriodAllSites === days
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        }`}
+                      >
+                        {days} дней
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-700">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Домен</th>
+                        <th className="px-4 py-3 text-left">Статус подключения</th>
+                        <th className="px-4 py-3 text-left">Индекс Google</th>
+                        <th className="px-4 py-3 text-left">Показы</th>
+                        <th className="px-4 py-3 text-left">Клики</th>
+                        <th className="px-4 py-3 text-left">Домены на домен</th>
+                        <th className="px-4 py-3 text-left">Ссылки на домен</th>
+                        <th className="px-4 py-3 text-left">Действия</th>
+                      </tr>
+                    </thead>
                   <tbody>
                     {sites.map((site) => {
                       // Находим соответствующие данные из googleConsoleAggregatedData
@@ -378,6 +405,7 @@ export default function SitesPage() {
                 </table>
               </div>
             </div>
+            </>
           )
         ) : (
           loadingAggregatedData || loadingGoogleSites ? (
