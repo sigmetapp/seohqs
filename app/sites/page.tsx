@@ -38,8 +38,8 @@ export default function SitesPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<number>(30); // 7, 30, 90, 180 дней
   const [showImpressions, setShowImpressions] = useState<boolean>(true);
   const [showClicks, setShowClicks] = useState<boolean>(true);
-  const [showPositions, setShowPositions] = useState<boolean>(true);
-  const [columnsPerRow, setColumnsPerRow] = useState<number>(4); // 1-5 колонок
+  const [showPositions, setShowPositions] = useState<boolean>(false);
+  const [columnsPerRow, setColumnsPerRow] = useState<number>(3); // 1-5 колонок
   const [blurMode, setBlurMode] = useState<boolean>(false); // Режим блюра
   const [hoveredSiteId, setHoveredSiteId] = useState<number | null>(null); // Для интерактивности
   const [hoveredDateIndex, setHoveredDateIndex] = useState<{ siteId: number; index: number } | null>(null); // Для отображения данных конкретной даты
@@ -511,7 +511,7 @@ export default function SitesPage() {
                   return (
                     <div
                       key={siteData.id}
-                      className="bg-gray-800 rounded-lg p-5 border border-gray-700 transition-all duration-200 hover:border-blue-500 hover:shadow-lg relative min-h-[420px]"
+                      className="bg-gray-800 rounded-lg p-5 border border-gray-700 transition-all duration-200 hover:border-blue-500 hover:shadow-lg relative min-h-[380px]"
                       onMouseEnter={() => setHoveredSiteId(siteData.id)}
                       onMouseLeave={() => {
                         setHoveredSiteId(null);
@@ -540,38 +540,6 @@ export default function SitesPage() {
                             Открыть →
                           </Link>
                         </div>
-                      </div>
-
-                      {/* Статистика сайта */}
-                      <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700">
-                          <div className="text-xs text-gray-400 mb-1">Показы</div>
-                          <div className="text-lg font-bold text-blue-400">
-                            {siteData.totalImpressions.toLocaleString()}
-                          </div>
-                        </div>
-                        <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700">
-                          <div className="text-xs text-gray-400 mb-1">Клики</div>
-                          <div className="text-lg font-bold text-green-400">
-                            {siteData.totalClicks.toLocaleString()}
-                          </div>
-                        </div>
-                        {siteData.indexedPages !== null && (
-                          <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700">
-                            <div className="text-xs text-gray-400 mb-1">Индекс</div>
-                            <div className="text-lg font-bold text-yellow-400">
-                              {siteData.indexedPages.toLocaleString()}
-                            </div>
-                          </div>
-                        )}
-                        {siteData.referringDomains !== null && (
-                          <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700">
-                            <div className="text-xs text-gray-400 mb-1">Домены</div>
-                            <div className="text-lg font-bold text-purple-400">
-                              {siteData.referringDomains.toLocaleString()}
-                            </div>
-                          </div>
-                        )}
                       </div>
 
                       {/* Всплывающее окно с данными конкретной даты */}
@@ -622,41 +590,73 @@ export default function SitesPage() {
 
                       {/* График */}
                       {isLoading ? (
-                        <div className="h-48 flex items-center justify-center text-gray-400 text-sm bg-gray-900 rounded-lg">
-                          Загрузка...
+                        <div className="h-64 flex items-center justify-center text-gray-400 text-sm bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl border border-gray-700">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            <span>Загрузка данных...</span>
+                          </div>
                         </div>
                       ) : siteDailyData.length > 0 ? (
                         <div>
-                          <h4 className="text-sm font-semibold text-gray-300 mb-3">График за период</h4>
-                          <div className="h-48 bg-gray-900 rounded-lg p-3 relative border border-gray-700">
-                              <svg width="100%" height="100%" viewBox="0 0 800 180" preserveAspectRatio="none" className="overflow-visible">
+                          <div className="h-64 bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 rounded-xl p-4 relative border border-gray-700 shadow-inner">
+                              <svg width="100%" height="100%" viewBox="0 0 800 200" preserveAspectRatio="none" className="overflow-visible">
+                              {/* Определения градиентов */}
+                              <defs>
+                                <linearGradient id={`impressionsGradient-${siteData.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
+                                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                                </linearGradient>
+                                <linearGradient id={`clicksGradient-${siteData.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+                                  <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                                </linearGradient>
+                                <linearGradient id={`positionsGradient-${siteData.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.3" />
+                                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+                                </linearGradient>
+                              </defs>
+                              
+                              {/* Фоновая сетка */}
+                              {[0, 1, 2, 3, 4].map((i) => (
+                                <line
+                                  key={`grid-h-${i}`}
+                                  x1="50"
+                                  y1={20 + (i * 35)}
+                                  x2="750"
+                                  y2={20 + (i * 35)}
+                                  stroke="#374151"
+                                  strokeWidth="0.5"
+                                  opacity="0.3"
+                                />
+                              ))}
+                              
                               {/* Оси */}
                               <line
                                 x1="50"
-                                y1="160"
+                                y1="175"
                                 x2="750"
-                                y2="160"
-                                stroke="#4b5563"
-                                strokeWidth="1.5"
+                                y2="175"
+                                stroke="#6b7280"
+                                strokeWidth="2"
                               />
                               <line
                                 x1="50"
                                 y1="20"
                                 x2="50"
-                                y2="160"
-                                stroke="#4b5563"
-                                strokeWidth="1.5"
+                                y2="175"
+                                stroke="#6b7280"
+                                strokeWidth="2"
                               />
                               
                               {/* Данные */}
                               {siteDailyData.map((item, index) => {
                                 const padding = 50;
                                 const width = 700;
-                                const height = 140;
+                                const height = 155;
                                 const x = padding + (index / (siteDailyData.length - 1 || 1)) * width;
-                                const impressionsY = 160 - (item.impressions / maxImpressions) * height;
-                                const clicksY = 160 - (item.clicks / maxClicks) * height;
-                                const positionY = 160 - (item.position / maxPosition) * height;
+                                const impressionsY = 175 - (item.impressions / maxImpressions) * height;
+                                const clicksY = 175 - (item.clicks / maxClicks) * height;
+                                const positionY = 175 - (item.position / maxPosition) * height;
                                 const isHoveredPoint = hoveredDateIndex?.siteId === siteData.id && hoveredDateIndex?.index === index;
                                 
                                 return (
@@ -671,141 +671,205 @@ export default function SitesPage() {
                                       x={x - 15}
                                       y={20}
                                       width={30}
-                                      height={140}
+                                      height={155}
                                       fill="transparent"
                                     />
                                     
                                     {/* Вертикальная линия при наведении */}
                                     {isHoveredPoint && (
-                                      <line
-                                        x1={x}
-                                        y1={20}
-                                        x2={x}
-                                        y2={160}
-                                        stroke="#60a5fa"
-                                        strokeWidth="2"
-                                        strokeDasharray="4,4"
-                                        opacity="0.5"
-                                      />
+                                      <>
+                                        <line
+                                          x1={x}
+                                          y1={20}
+                                          x2={x}
+                                          y2={175}
+                                          stroke="#60a5fa"
+                                          strokeWidth="2"
+                                          opacity="0.6"
+                                        />
+                                        {/* Точка на оси */}
+                                        <circle
+                                          cx={x}
+                                          cy={175}
+                                          r="4"
+                                          fill="#60a5fa"
+                                        />
+                                      </>
                                     )}
                                     
                                     {/* Показы */}
                                     {showImpressions && (
-                                      <circle
-                                        cx={x}
-                                        cy={impressionsY}
-                                        r={isHoveredPoint ? "4" : "3"}
-                                        fill="#3b82f6"
-                                        className="transition-all duration-200"
-                                        style={{ cursor: 'pointer' }}
-                                      />
+                                      <>
+                                        <circle
+                                          cx={x}
+                                          cy={impressionsY}
+                                          r={isHoveredPoint ? "5" : "3.5"}
+                                          fill="#3b82f6"
+                                          stroke={isHoveredPoint ? "#60a5fa" : "none"}
+                                          strokeWidth={isHoveredPoint ? "2" : "0"}
+                                          className="transition-all duration-200"
+                                          style={{ cursor: 'pointer', filter: isHoveredPoint ? 'drop-shadow(0 0 4px rgba(59, 130, 246, 0.8))' : 'none' }}
+                                        />
+                                      </>
                                     )}
                                     {/* Клики */}
                                     {showClicks && (
-                                      <circle
-                                        cx={x}
-                                        cy={clicksY}
-                                        r={isHoveredPoint ? "4" : "3"}
-                                        fill="#10b981"
-                                        className="transition-all duration-200"
-                                        style={{ cursor: 'pointer' }}
-                                      />
+                                      <>
+                                        <circle
+                                          cx={x}
+                                          cy={clicksY}
+                                          r={isHoveredPoint ? "5" : "3.5"}
+                                          fill="#10b981"
+                                          stroke={isHoveredPoint ? "#34d399" : "none"}
+                                          strokeWidth={isHoveredPoint ? "2" : "0"}
+                                          className="transition-all duration-200"
+                                          style={{ cursor: 'pointer', filter: isHoveredPoint ? 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.8))' : 'none' }}
+                                        />
+                                      </>
                                     )}
                                     {/* Позиции */}
                                     {showPositions && (
-                                      <circle
-                                        cx={x}
-                                        cy={positionY}
-                                        r={isHoveredPoint ? "4" : "3"}
-                                        fill="#f59e0b"
-                                        className="transition-all duration-200"
-                                        style={{ cursor: 'pointer' }}
-                                      />
+                                      <>
+                                        <circle
+                                          cx={x}
+                                          cy={positionY}
+                                          r={isHoveredPoint ? "5" : "3.5"}
+                                          fill="#f59e0b"
+                                          stroke={isHoveredPoint ? "#fbbf24" : "none"}
+                                          strokeWidth={isHoveredPoint ? "2" : "0"}
+                                          className="transition-all duration-200"
+                                          style={{ cursor: 'pointer', filter: isHoveredPoint ? 'drop-shadow(0 0 4px rgba(245, 158, 11, 0.8))' : 'none' }}
+                                        />
+                                      </>
                                     )}
                                   </g>
                                 );
                               })}
                               
-                              {/* Линии */}
+                              {/* Линии с градиентом */}
                               {siteDailyData.length > 1 && (
                                 <>
                                   {showImpressions && (
-                                    <polyline
-                                      points={siteDailyData.map((item, index) => {
-                                        const padding = 50;
-                                        const width = 700;
-                                        const height = 140;
-                                        const x = padding + (index / (siteDailyData.length - 1)) * width;
-                                        const y = 160 - (item.impressions / maxImpressions) * height;
-                                        return `${x},${y}`;
-                                      }).join(' ')}
-                                      fill="none"
-                                      stroke="#3b82f6"
-                                      strokeWidth="2"
-                                      opacity="0.8"
-                                    />
+                                    <>
+                                      {/* Область под линией */}
+                                      <polygon
+                                        points={`50,175 ${siteDailyData.map((item, index) => {
+                                          const padding = 50;
+                                          const width = 700;
+                                          const height = 155;
+                                          const x = padding + (index / (siteDailyData.length - 1)) * width;
+                                          const y = 175 - (item.impressions / maxImpressions) * height;
+                                          return `${x},${y}`;
+                                        }).join(' ')} 750,175`}
+                                        fill={`url(#impressionsGradient-${siteData.id})`}
+                                      />
+                                      {/* Линия */}
+                                      <polyline
+                                        points={siteDailyData.map((item, index) => {
+                                          const padding = 50;
+                                          const width = 700;
+                                          const height = 155;
+                                          const x = padding + (index / (siteDailyData.length - 1)) * width;
+                                          const y = 175 - (item.impressions / maxImpressions) * height;
+                                          return `${x},${y}`;
+                                        }).join(' ')}
+                                        fill="none"
+                                        stroke="#3b82f6"
+                                        strokeWidth="2.5"
+                                        opacity="0.9"
+                                      />
+                                    </>
                                   )}
                                   {showClicks && (
-                                    <polyline
-                                      points={siteDailyData.map((item, index) => {
-                                        const padding = 50;
-                                        const width = 700;
-                                        const height = 140;
-                                        const x = padding + (index / (siteDailyData.length - 1)) * width;
-                                        const y = 160 - (item.clicks / maxClicks) * height;
-                                        return `${x},${y}`;
-                                      }).join(' ')}
-                                      fill="none"
-                                      stroke="#10b981"
-                                      strokeWidth="2"
-                                      opacity="0.8"
-                                    />
+                                    <>
+                                      <polygon
+                                        points={`50,175 ${siteDailyData.map((item, index) => {
+                                          const padding = 50;
+                                          const width = 700;
+                                          const height = 155;
+                                          const x = padding + (index / (siteDailyData.length - 1)) * width;
+                                          const y = 175 - (item.clicks / maxClicks) * height;
+                                          return `${x},${y}`;
+                                        }).join(' ')} 750,175`}
+                                        fill={`url(#clicksGradient-${siteData.id})`}
+                                      />
+                                      <polyline
+                                        points={siteDailyData.map((item, index) => {
+                                          const padding = 50;
+                                          const width = 700;
+                                          const height = 155;
+                                          const x = padding + (index / (siteDailyData.length - 1)) * width;
+                                          const y = 175 - (item.clicks / maxClicks) * height;
+                                          return `${x},${y}`;
+                                        }).join(' ')}
+                                        fill="none"
+                                        stroke="#10b981"
+                                        strokeWidth="2.5"
+                                        opacity="0.9"
+                                      />
+                                    </>
                                   )}
                                   {showPositions && (
-                                    <polyline
-                                      points={siteDailyData.map((item, index) => {
-                                        const padding = 50;
-                                        const width = 700;
-                                        const height = 140;
-                                        const x = padding + (index / (siteDailyData.length - 1)) * width;
-                                        const y = 160 - (item.position / maxPosition) * height;
-                                        return `${x},${y}`;
-                                      }).join(' ')}
-                                      fill="none"
-                                      stroke="#f59e0b"
-                                      strokeWidth="2"
-                                      opacity="0.8"
-                                    />
+                                    <>
+                                      <polygon
+                                        points={`50,175 ${siteDailyData.map((item, index) => {
+                                          const padding = 50;
+                                          const width = 700;
+                                          const height = 155;
+                                          const x = padding + (index / (siteDailyData.length - 1)) * width;
+                                          const y = 175 - (item.position / maxPosition) * height;
+                                          return `${x},${y}`;
+                                        }).join(' ')} 750,175`}
+                                        fill={`url(#positionsGradient-${siteData.id})`}
+                                      />
+                                      <polyline
+                                        points={siteDailyData.map((item, index) => {
+                                          const padding = 50;
+                                          const width = 700;
+                                          const height = 155;
+                                          const x = padding + (index / (siteDailyData.length - 1)) * width;
+                                          const y = 175 - (item.position / maxPosition) * height;
+                                          return `${x},${y}`;
+                                        }).join(' ')}
+                                        fill="none"
+                                        stroke="#f59e0b"
+                                        strokeWidth="2.5"
+                                        opacity="0.9"
+                                      />
+                                    </>
                                   )}
                                 </>
                               )}
                             </svg>
                             {/* Легенда */}
-                            <div className="absolute bottom-2 right-3 flex gap-3 text-xs bg-gray-800/80 px-2 py-1 rounded">
+                            <div className="absolute bottom-3 right-3 flex gap-4 text-xs bg-gray-800/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-gray-700 shadow-lg">
                               {showImpressions && (
-                                <div className="flex items-center gap-1.5">
-                                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                                  <span className="text-gray-300 text-xs">Показы</span>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 bg-blue-500 rounded-full shadow-sm"></div>
+                                  <span className="text-gray-200 text-xs font-medium">Показы</span>
                                 </div>
                               )}
                               {showClicks && (
-                                <div className="flex items-center gap-1.5">
-                                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                  <span className="text-gray-300 text-xs">Клики</span>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 bg-green-500 rounded-full shadow-sm"></div>
+                                  <span className="text-gray-200 text-xs font-medium">Клики</span>
                                 </div>
                               )}
                               {showPositions && (
-                                <div className="flex items-center gap-1.5">
-                                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                                  <span className="text-gray-300 text-xs">Позиции</span>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 bg-yellow-500 rounded-full shadow-sm"></div>
+                                  <span className="text-gray-200 text-xs font-medium">Позиции</span>
                                 </div>
                               )}
                             </div>
                           </div>
                         </div>
                       ) : (
-                        <div className="h-48 flex items-center justify-center text-gray-500 text-sm bg-gray-900 rounded-lg border border-gray-700">
-                          Нет данных за выбранный период
+                        <div className="h-64 flex items-center justify-center text-gray-500 text-sm bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl border border-gray-700">
+                          <div className="text-center">
+                            <div className="text-gray-400 mb-1">Нет данных</div>
+                            <div className="text-xs text-gray-500">за выбранный период</div>
+                          </div>
                         </div>
                       )}
                     </div>
