@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { GoogleSearchConsoleData, PostbackData } from '@/lib/types';
 
@@ -25,6 +25,10 @@ export default function SiteDetailPage() {
   });
   const [availableSites, setAvailableSites] = useState<Array<{ siteUrl: string; permissionLevel: string }>>([]);
   const [loadingSites, setLoadingSites] = useState(false);
+  const [postbacksLiveStatus, setPostbacksLiveStatus] = useState<'offline' | 'connecting' | 'online'>('offline');
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundReady, setSoundReady] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     if (siteId) {
@@ -45,6 +49,98 @@ export default function SiteDetailPage() {
       loadTabData();
     }
   }, [site, activeTab]);
+
+  useEffect(() => {
+    if (!soundEnabled || soundReady) {
+      return;
+    }
+
+    const unlockAudio = () => {
+      setSoundReady(true);
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+
+    window.addEventListener('pointerdown', unlockAudio);
+    window.addEventListener('keydown', unlockAudio);
+
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+  }, [soundEnabled, soundReady]);
+
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => undefined);
+        audioContextRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'postbacks' || !siteId) {
+      setPostbacksLiveStatus('offline');
+      return;
+    }
+
+    let eventSource: EventSource | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const connect = () => {
+      if (cancelled) {
+        return;
+      }
+
+      setPostbacksLiveStatus('connecting');
+      eventSource = new EventSource(`/api/sites/${siteId}/postbacks/stream`);
+
+      eventSource.onopen = () => {
+        if (!cancelled) {
+          setPostbacksLiveStatus('online');
+        }
+      };
+
+      eventSource.onmessage = (event) => {
+        if (!event?.data) {
+          return;
+        }
+
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload?.id) {
+            handleIncomingPostback(payload);
+          }
+        } catch (error) {
+          console.error('Ошибка обработки live-постбека:', error);
+        }
+      };
+
+      eventSource.onerror = () => {
+        if (cancelled) {
+          return;
+        }
+        setPostbacksLiveStatus('offline');
+        eventSource?.close();
+        reconnectTimer = setTimeout(connect, 4000);
+      };
+    };
+
+    connect();
+
+    return () => {
+      cancelled = true;
+      setPostbacksLiveStatus('offline');
+      if (eventSource) {
+        eventSource.close();
+      }
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+    };
+  }, [activeTab, siteId, handleIncomingPostback]);
 
   const loadSite = async () => {
     try {
@@ -78,7 +174,11 @@ export default function SiteDetailPage() {
         const response = await fetch(`/api/sites/${siteId}/postbacks`);
         const data = await response.json();
         if (data.success) {
-          setPostbacks(data.postbacks || []);
+          const sortedPostbacks = (data.postbacks || []).sort(
+            (a: PostbackData, b: PostbackData) =>
+              new Date(b.date).getTime() - new Date(a.date).getTime()
+          );
+          setPostbacks(sortedPostbacks);
         }
       }
     } catch (err) {
@@ -118,6 +218,71 @@ export default function SiteDetailPage() {
       setLoadingDetails(false);
     }
   };
+
+  const playNotificationSound = useCallback(() => {
+    if (!soundEnabled || !soundReady) {
+      return;
+    }
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const audioCtor: typeof AudioContext | undefined =
+      window.AudioContext ||
+      (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+    if (!audioCtor) {
+      return;
+    }
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new audioCtor();
+    }
+
+    const audioContext = audioContextRef.current;
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.type = 'triangle';
+    oscillator.frequency.value = 880;
+    gainNode.gain.value = 0.08;
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.25);
+
+    oscillator.onended = () => {
+      oscillator.disconnect();
+      gainNode.disconnect();
+    };
+  }, [soundEnabled, soundReady]);
+
+  const handleIncomingPostback = useCallback(
+    (incoming: PostbackData) => {
+      let shouldPlaySound = false;
+      setPostbacks((prev) => {
+        const exists = prev.some((item) => item.id === incoming.id);
+        if (exists) {
+          return prev.map((item) => (item.id === incoming.id ? incoming : item));
+        }
+        shouldPlaySound = true;
+        return [incoming, ...prev].sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+      });
+
+      if (shouldPlaySound) {
+        playNotificationSound();
+      }
+    },
+    [playNotificationSound]
+  );
 
   const handleSyncGoogle = async () => {
     try {
@@ -520,6 +685,41 @@ export default function SiteDetailPage() {
         {activeTab === 'postbacks' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">Постбеки с партнерок</h2>
+            <div className="flex flex-wrap items-center justify-between gap-4 text-sm">
+              <div className="flex items-center gap-2 text-gray-300">
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    postbacksLiveStatus === 'online'
+                      ? 'bg-green-400 animate-pulse'
+                      : postbacksLiveStatus === 'connecting'
+                      ? 'bg-yellow-400 animate-pulse'
+                      : 'bg-gray-500'
+                  }`}
+                  aria-hidden="true"
+                />
+                <span className="text-gray-400">
+                  {postbacksLiveStatus === 'online'
+                    ? 'Live обновления активны'
+                    : postbacksLiveStatus === 'connecting'
+                    ? 'Подключение к live обновлениям...'
+                    : 'Live обновления отключены'}
+                </span>
+              </div>
+              <label className="flex items-center gap-2 text-gray-300 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-600 bg-gray-800 accent-blue-500"
+                  checked={soundEnabled}
+                  onChange={(event) => setSoundEnabled(event.target.checked)}
+                />
+                <span>{soundEnabled ? 'Звук включен' : 'Звук выключен'}</span>
+              </label>
+            </div>
+            {soundEnabled && !soundReady && (
+              <p className="text-xs text-yellow-400">
+                Кликните по странице, чтобы включить звук уведомлений в браузере.
+              </p>
+            )}
             {loadingData ? (
               <div className="text-center py-8">Загрузка данных...</div>
             ) : postbacks.length === 0 ? (
@@ -541,9 +741,11 @@ export default function SiteDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {postbacks.map((postback, index) => (
-                      <tr key={index} className="border-t border-gray-700">
-                        <td className="px-4 py-3">{new Date(postback.date).toLocaleString('ru-RU')}</td>
+                    {postbacks.map((postback) => (
+                      <tr key={postback.id} className="border-t border-gray-700">
+                        <td className="px-4 py-3">
+                          {new Date(postback.date).toLocaleString('ru-RU')}
+                        </td>
                         <td className="px-4 py-3">{postback.network}</td>
                         <td className="px-4 py-3">{postback.event}</td>
                         <td className="px-4 py-3">
