@@ -85,6 +85,7 @@ export interface GoogleSearchConsoleData {
 }
 
 export interface PostbackData {
+  id: number;
   siteId: number;
   network: string;
   event: string;

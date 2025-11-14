@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
+import { emitPostbackEvent } from '@/lib/postback-events';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -49,6 +50,7 @@ export async function POST(
     };
 
     storage.postbacks.push(newPostback);
+    emitPostbackEvent(newPostback);
 
     return NextResponse.json({
       success: true,
