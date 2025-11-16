@@ -107,6 +107,24 @@ export async function GET(request: Request) {
       prompt: 'consent',
     });
 
+    // Парсим authUrl, чтобы проверить, какой redirect_uri там используется
+    try {
+      const authUrlObj = new URL(authUrl);
+      const redirectUriInUrl = authUrlObj.searchParams.get('redirect_uri');
+      console.log('[User Google OAuth] Redirect URI в authUrl:', redirectUriInUrl);
+      console.log('[User Google OAuth] Redirect URI, который мы передали:', redirectUri);
+      if (redirectUriInUrl !== redirectUri) {
+        console.error('[User Google OAuth] ВНИМАНИЕ: redirect_uri в authUrl не совпадает с переданным!', {
+          inUrl: redirectUriInUrl,
+          expected: redirectUri
+        });
+      }
+    } catch (e) {
+      console.warn('[User Google OAuth] Не удалось распарсить authUrl:', e);
+    }
+
+    console.log('[User Google OAuth] Полный authUrl (первые 200 символов):', authUrl.substring(0, 200));
+
     // Сохраняем redirect_uri в state
     const state = Buffer.from(JSON.stringify({ redirect_uri: redirectUri })).toString('base64');
 
@@ -114,6 +132,11 @@ export async function GET(request: Request) {
       success: true,
       authUrl: `${authUrl}&state=${state}`,
       redirectUri: redirectUri,
+      debug: {
+        redirectUriInAuthUrl: new URL(authUrl).searchParams.get('redirect_uri'),
+        redirectUriExpected: redirectUri,
+        clientId: clientId?.substring(0, 20) + '...',
+      },
     });
   } catch (error: any) {
     console.error('Ошибка создания OAuth URL:', error);
