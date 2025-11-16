@@ -14,6 +14,7 @@ export default function SitesPage() {
     googleConsoleSiteUrl: string | null;
     totalImpressions: number;
     totalClicks: number;
+    totalPostbacks: number;
     indexedPages: number | null;
     referringDomains: number | null;
     backlinks: number | null;
@@ -200,11 +201,12 @@ export default function SitesPage() {
                     <thead className="bg-gray-700">
                       <tr>
                         <th className="px-4 py-3 text-left">Домен</th>
-                        <th className="px-4 py-3 text-left">Статус подключения</th>
-                        <th className="px-4 py-3 text-left">Показы</th>
-                        <th className="px-4 py-3 text-left">Клики</th>
+                        <th className="px-4 py-3 text-center" style={{ width: '60px' }}>✓</th>
                         <th className="px-4 py-3 text-left">Задачи</th>
                         <th className="px-4 py-3 text-left">Link Profile</th>
+                        <th className="px-4 py-3 text-left">Показы</th>
+                        <th className="px-4 py-3 text-left">Клики</th>
+                        <th className="px-4 py-3 text-left">Постбеки</th>
                         <th className="px-4 py-3 text-left">Действия</th>
                       </tr>
                     </thead>
@@ -219,31 +221,11 @@ export default function SitesPage() {
                             <div className="font-medium">{site.domain}</div>
                             <div className="text-xs text-gray-500">{site.name}</div>
                           </td>
-                          <td className="px-4 py-3">
-                            {site.hasGoogleConsoleConnection ? (
-                              <span className="text-green-400">✓ Подключено</span>
+                          <td className="px-4 py-3 text-center">
+                            {siteData?.hasGoogleConsoleConnection ? (
+                              <span className="text-green-400 text-xl" title="Подключено">✓</span>
                             ) : (
-                              <span className="text-yellow-400">
-                                {site.googleConsoleStatus?.hasOAuth && !site.googleConsoleStatus?.hasUrl
-                                  ? '⚠ Нет URL'
-                                  : !site.googleConsoleStatus?.hasOAuth
-                                  ? '⚠ Нет OAuth'
-                                  : '✗ Не подключено'}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {siteData && siteData.totalImpressions > 0 ? (
-                              <span>{siteData.totalImpressions.toLocaleString()}</span>
-                            ) : (
-                              <span className="text-gray-500">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {siteData && siteData.totalClicks > 0 ? (
-                              <span>{siteData.totalClicks.toLocaleString()}</span>
-                            ) : (
-                              <span className="text-gray-500">—</span>
+                              <span className="text-gray-500 text-xl" title="Не подключено">✗</span>
                             )}
                           </td>
                           <td className="px-4 py-3">
@@ -264,6 +246,27 @@ export default function SitesPage() {
                               <span className="text-gray-500">...</span>
                             ) : stats ? (
                               <span>{stats.links}</span>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {siteData && siteData.totalImpressions > 0 ? (
+                              <span>{siteData.totalImpressions.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {siteData && siteData.totalClicks > 0 ? (
+                              <span>{siteData.totalClicks.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {siteData && siteData.totalPostbacks !== undefined ? (
+                              <span>{siteData.totalPostbacks.toLocaleString()}</span>
                             ) : (
                               <span className="text-gray-500">—</span>
                             )}
