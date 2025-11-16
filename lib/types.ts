@@ -129,6 +129,49 @@ export interface SiteTask {
   deadline?: string;
   comments?: string;
   priority?: number; // 1-10
+  assigneeId?: number;
+  assignee?: {
+    id: number;
+    email: string;
+    name?: string;
+  };
+  tags?: string[];
+  estimatedTime?: number; // в минутах
+  actualTime?: number; // в минутах
+  parentTaskId?: number;
+  subtasks?: SiteTask[];
   createdAt: string;
   updatedAt: string;
+}
+
+// Типы для сообщений задач
+export interface TaskMessage {
+  id: number;
+  taskId: number;
+  userId?: number;
+  user?: {
+    id: number;
+    email: string;
+    name?: string;
+  };
+  message: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Типы для активности задач
+export interface TaskActivity {
+  id: number;
+  taskId: number;
+  userId?: number;
+  user?: {
+    id: number;
+    email: string;
+    name?: string;
+  };
+  action: string;
+  fieldName?: string;
+  oldValue?: string;
+  newValue?: string;
+  createdAt: string;
 }
