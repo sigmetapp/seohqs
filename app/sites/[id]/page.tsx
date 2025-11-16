@@ -1215,7 +1215,7 @@ export default function SiteDetailPage() {
                     onClick={() => {
                       setShowTaskModal(false);
                       setEditingTask(null);
-                      setTaskForm({ title: '', description: '', status: 'pending', deadline: '' });
+                      setTaskForm({ title: '', description: '', status: 'pending', deadline: '', comments: '', priority: '' });
                     }}
                     className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
                   >
