@@ -30,12 +30,20 @@ export default function SitesPage() {
   const [categories, setCategories] = useState<string[]>([]);
   // Состояние для вкладки "Все сайты" - период для показов и кликов
   const [selectedPeriodAllSites, setSelectedPeriodAllSites] = useState<number>(30); // 7, 30, 90, 180 дней
+  const [sitesStats, setSitesStats] = useState<Record<number, { tasks: { total: number; open: number; closed: number }; links: number }>>({});
+  const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
     loadSites();
     loadCategories();
     loadAggregatedData();
   }, [selectedPeriodAllSites]);
+
+  useEffect(() => {
+    if (sites.length > 0) {
+      loadSitesStats();
+    }
+  }, [sites]);
 
   const loadCategories = async () => {
     try {
@@ -81,6 +89,28 @@ export default function SitesPage() {
       console.error('Error loading aggregated data:', err);
     } finally {
       setLoadingAggregatedData(false);
+    }
+  };
+
+  const loadSitesStats = async () => {
+    try {
+      setLoadingStats(true);
+      const response = await fetch('/api/sites/stats');
+      const data = await response.json();
+      if (data.success && data.stats) {
+        const statsMap: Record<number, { tasks: { total: number; open: number; closed: number }; links: number }> = {};
+        data.stats.forEach((stat: any) => {
+          statsMap[stat.siteId] = {
+            tasks: stat.tasks,
+            links: stat.links,
+          };
+        });
+        setSitesStats(statsMap);
+      }
+    } catch (err) {
+      console.error('Error loading sites stats:', err);
+    } finally {
+      setLoadingStats(false);
     }
   };
 
@@ -173,6 +203,8 @@ export default function SitesPage() {
                         <th className="px-4 py-3 text-left">Статус подключения</th>
                         <th className="px-4 py-3 text-left">Показы</th>
                         <th className="px-4 py-3 text-left">Клики</th>
+                        <th className="px-4 py-3 text-left">Задачи</th>
+                        <th className="px-4 py-3 text-left">Link Profile</th>
                         <th className="px-4 py-3 text-left">Действия</th>
                       </tr>
                     </thead>
@@ -180,6 +212,7 @@ export default function SitesPage() {
                     {sites.map((site) => {
                       // Находим соответствующие данные из googleConsoleAggregatedData
                       const siteData = googleConsoleAggregatedData.find(s => s.id === site.id);
+                      const stats = sitesStats[site.id];
                       return (
                         <tr key={site.id} className="border-t border-gray-700 hover:bg-gray-750">
                           <td className="px-4 py-3">
@@ -209,6 +242,28 @@ export default function SitesPage() {
                           <td className="px-4 py-3">
                             {siteData && siteData.totalClicks > 0 ? (
                               <span>{siteData.totalClicks.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {loadingStats ? (
+                              <span className="text-gray-500">...</span>
+                            ) : stats ? (
+                              <div className="text-sm">
+                                <div>Всего: {stats.tasks.total}</div>
+                                <div className="text-green-400">Открыто: {stats.tasks.open}</div>
+                                <div className="text-gray-500">Закрыто: {stats.tasks.closed}</div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-500">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {loadingStats ? (
+                              <span className="text-gray-500">...</span>
+                            ) : stats ? (
+                              <span>{stats.links}</span>
                             ) : (
                               <span className="text-gray-500">—</span>
                             )}
