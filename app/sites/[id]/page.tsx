@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { GoogleSearchConsoleData, PostbackData, SiteTask } from '@/lib/types';
+import { GoogleSearchConsoleData, PostbackData, SiteTask, ProjectLink } from '@/lib/types';
 
 export default function SiteDetailPage() {
   const params = useParams();
@@ -41,6 +41,11 @@ export default function SiteDetailPage() {
   const [overviewGoogleData, setOverviewGoogleData] = useState<GoogleSearchConsoleData[]>([]);
   const [linkProject, setLinkProject] = useState<any>(null);
   const [loadingLinkProject, setLoadingLinkProject] = useState(false);
+  const [linkProjectLinks, setLinkProjectLinks] = useState<ProjectLink[]>([]);
+  const [loadingLinkProjectLinks, setLoadingLinkProjectLinks] = useState(false);
+  const [showUploadLinksModal, setShowUploadLinksModal] = useState(false);
+  const [uploadLinksText, setUploadLinksText] = useState('');
+  const [checkingLinks, setCheckingLinks] = useState(false);
 
   useEffect(() => {
     if (siteId) {
@@ -164,11 +169,84 @@ export default function SiteDetailPage() {
       const data = await response.json();
       if (data.success) {
         setLinkProject(data.project);
+        if (data.project?.id) {
+          loadLinkProjectLinks(data.project.id);
+        }
       }
     } catch (err) {
       console.error('Error loading link project:', err);
     } finally {
       setLoadingLinkProject(false);
+    }
+  };
+
+  const loadLinkProjectLinks = async (projectId: number) => {
+    try {
+      setLoadingLinkProjectLinks(true);
+      const response = await fetch(`/api/link-profile/projects/${projectId}/links`);
+      const data = await response.json();
+      if (data.success) {
+        setLinkProjectLinks(data.links || []);
+      }
+    } catch (err) {
+      console.error('Error loading link project links:', err);
+    } finally {
+      setLoadingLinkProjectLinks(false);
+    }
+  };
+
+  const handleUploadLinks = async () => {
+    if (!linkProject?.id) return;
+    try {
+      const urlLines = uploadLinksText
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+      if (urlLines.length === 0) {
+        alert('Введите хотя бы один URL');
+        return;
+      }
+
+      const response = await fetch(`/api/link-profile/projects/${linkProject.id}/links`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: urlLines }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setShowUploadLinksModal(false);
+        setUploadLinksText('');
+        loadLinkProjectLinks(linkProject.id);
+      } else {
+        alert(data.error || 'Ошибка загрузки ссылок');
+      }
+    } catch (err) {
+      console.error('Error uploading links:', err);
+      alert('Ошибка загрузки ссылок');
+    }
+  };
+
+  const handleCheckLinks = async () => {
+    if (!linkProject?.id) return;
+    try {
+      setCheckingLinks(true);
+      const response = await fetch(`/api/link-profile/projects/${linkProject.id}/links/check`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (data.success) {
+        loadLinkProjectLinks(linkProject.id);
+        alert(`Проверено ${data.checked} ссылок`);
+      } else {
+        alert(data.error || 'Ошибка проверки ссылок');
+      }
+    } catch (err) {
+      console.error('Error checking links:', err);
+      alert('Ошибка проверки ссылок');
+    } finally {
+      setCheckingLinks(false);
     }
   };
 
@@ -941,15 +1019,117 @@ export default function SiteDetailPage() {
             {loadingLinkProject ? (
               <div className="text-center py-8">Загрузка проекта...</div>
             ) : linkProject ? (
-              <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-                <p className="text-gray-400 mb-4">Проект для этого сайта готов</p>
-                <a
-                  href={`/link-profile/projects/${linkProject.id}`}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded inline-block"
-                >
-                  Открыть проект и добавить ссылки
-                </a>
-              </div>
+              <>
+                {/* Статистика */}
+                {!loadingLinkProjectLinks && (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                      <div className="text-2xl font-bold">{linkProjectLinks.length}</div>
+                      <div className="text-sm text-gray-400">Всего ссылок</div>
+                    </div>
+                    <div className="bg-gray-800 rounded-lg p-4 border border-green-700">
+                      <div className="text-2xl font-bold text-green-400">
+                        {linkProjectLinks.filter((l) => l.status === 'indexed').length}
+                      </div>
+                      <div className="text-sm text-gray-400">Проиндексировано</div>
+                    </div>
+                    <div className="bg-gray-800 rounded-lg p-4 border border-red-700">
+                      <div className="text-2xl font-bold text-red-400">
+                        {linkProjectLinks.filter((l) => l.status === 'not_found').length}
+                      </div>
+                      <div className="text-sm text-gray-400">Не найдено</div>
+                    </div>
+                    <div className="bg-gray-800 rounded-lg p-4 border border-yellow-700">
+                      <div className="text-2xl font-bold text-yellow-400">
+                        {linkProjectLinks.filter((l) => l.status === 'pending').length}
+                      </div>
+                      <div className="text-sm text-gray-400">Ожидает проверки</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Действия */}
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setShowUploadLinksModal(true)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+                  >
+                    + Загрузить ссылки
+                  </button>
+                  <button
+                    onClick={handleCheckLinks}
+                    disabled={checkingLinks || linkProjectLinks.length === 0}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded disabled:opacity-50"
+                  >
+                    {checkingLinks ? 'Проверка...' : 'Проверить все ссылки'}
+                  </button>
+                </div>
+
+                {/* Таблица ссылок */}
+                {loadingLinkProjectLinks ? (
+                  <div className="text-center py-8">Загрузка ссылок...</div>
+                ) : (
+                  <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                    <table className="w-full">
+                      <thead className="bg-gray-700">
+                        <tr>
+                          <th className="px-4 py-3 text-left">URL</th>
+                          <th className="px-4 py-3 text-left">Целевой URL</th>
+                          <th className="px-4 py-3 text-left">Статус</th>
+                          <th className="px-4 py-3 text-left">Последняя проверка</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {linkProjectLinks.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
+                              Ссылки не загружены
+                            </td>
+                          </tr>
+                        ) : (
+                          linkProjectLinks.map((link) => (
+                            <tr key={link.id} className="border-t border-gray-700">
+                              <td className="px-4 py-3">
+                                <a
+                                  href={link.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:underline"
+                                >
+                                  {link.url}
+                                </a>
+                              </td>
+                              <td className="px-4 py-3 text-gray-400">{link.targetUrl}</td>
+                              <td className="px-4 py-3">
+                                <span
+                                  className={`px-2 py-1 rounded text-xs ${
+                                    link.status === 'indexed'
+                                      ? 'bg-green-900 text-green-300'
+                                      : link.status === 'not_found'
+                                      ? 'bg-red-900 text-red-300'
+                                      : 'bg-yellow-900 text-yellow-300'
+                                  }`}
+                                >
+                                  {link.status === 'indexed'
+                                    ? 'Проиндексировано'
+                                    : link.status === 'not_found'
+                                    ? 'Не найдено'
+                                    : 'Ожидает'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-gray-400 text-sm">
+                                {link.lastChecked
+                                  ? new Date(link.lastChecked).toLocaleString('ru-RU')
+                                  : '—'}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
                 <p className="text-gray-400 mb-4">Ошибка загрузки проекта</p>
@@ -1187,6 +1367,39 @@ export default function SiteDetailPage() {
                     Отмена
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Модальное окно загрузки ссылок */}
+        {showUploadLinksModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl border border-gray-700">
+              <h2 className="text-2xl font-bold mb-4">Загрузить ссылки</h2>
+              <p className="text-gray-400 text-sm mb-4">
+                Введите URL ссылок по одному на строку. Формат: URL страницы, где размещена ссылка
+              </p>
+              <textarea
+                value={uploadLinksText}
+                onChange={(e) => setUploadLinksText(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none font-mono text-sm"
+                rows={10}
+                placeholder="https://example.com/page1&#10;https://example.com/page2&#10;https://example.com/page3"
+              />
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={handleUploadLinks}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+                >
+                  Загрузить
+                </button>
+                <button
+                  onClick={() => setShowUploadLinksModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+                >
+                  Отмена
+                </button>
               </div>
             </div>
           </div>
