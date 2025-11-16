@@ -39,8 +39,8 @@ export default function SiteDetailPage() {
   const [loadingSites, setLoadingSites] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<number>(30);
   const [overviewGoogleData, setOverviewGoogleData] = useState<GoogleSearchConsoleData[]>([]);
-  const [linkProjects, setLinkProjects] = useState<any[]>([]);
-  const [loadingLinkProjects, setLoadingLinkProjects] = useState(false);
+  const [linkProject, setLinkProject] = useState<any>(null);
+  const [loadingLinkProject, setLoadingLinkProject] = useState(false);
 
   useEffect(() => {
     if (siteId) {
@@ -63,7 +63,7 @@ export default function SiteDetailPage() {
       } else if (activeTab === 'tasks') {
         loadTasks();
       } else if (activeTab === 'link-profile') {
-        loadLinkProjects();
+        loadLinkProject();
       } else {
         loadTabData();
       }
@@ -157,26 +157,18 @@ export default function SiteDetailPage() {
     }
   };
 
-  const loadLinkProjects = async () => {
+  const loadLinkProject = async () => {
     try {
-      setLoadingLinkProjects(true);
-      const response = await fetch('/api/link-profile/projects');
+      setLoadingLinkProject(true);
+      const response = await fetch(`/api/sites/${siteId}/link-profile-project`);
       const data = await response.json();
       if (data.success) {
-        // Фильтруем проекты по домену сайта
-        const siteDomain = site?.domain?.toLowerCase();
-        const matchingProjects = (data.projects || []).filter((project: any) => {
-          const projectDomain = project.domain?.toLowerCase();
-          if (!siteDomain || !projectDomain) return false;
-          // Проверяем точное совпадение или поддомен
-          return projectDomain === siteDomain || projectDomain.includes(siteDomain) || siteDomain.includes(projectDomain);
-        });
-        setLinkProjects(matchingProjects);
+        setLinkProject(data.project);
       }
     } catch (err) {
-      console.error('Error loading link projects:', err);
+      console.error('Error loading link project:', err);
     } finally {
-      setLoadingLinkProjects(false);
+      setLoadingLinkProject(false);
     }
   };
 
@@ -945,49 +937,22 @@ export default function SiteDetailPage() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">Link Profile</h2>
-              <a
-                href="/link-profile"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
-              >
-                Управление проектами
-              </a>
             </div>
-            {loadingLinkProjects ? (
-              <div className="text-center py-8">Загрузка проектов...</div>
-            ) : linkProjects.length === 0 ? (
+            {loadingLinkProject ? (
+              <div className="text-center py-8">Загрузка проекта...</div>
+            ) : linkProject ? (
               <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-                <p className="text-gray-400 mb-4">Проекты Link Profile для этого сайта не найдены</p>
+                <p className="text-gray-400 mb-4">Проект для этого сайта готов</p>
                 <a
-                  href="/link-profile"
+                  href={`/link-profile/projects/${linkProject.id}`}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded inline-block"
                 >
-                  Создать проект
+                  Открыть проект и добавить ссылки
                 </a>
               </div>
             ) : (
-              <div className="space-y-4">
-                {linkProjects.map((project) => (
-                  <div
-                    key={project.id}
-                    className="bg-gray-800 rounded-lg p-6 border border-gray-700"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-xl font-bold mb-2">{project.name}</h3>
-                        <p className="text-gray-400 text-sm">{project.domain}</p>
-                        {project.description && (
-                          <p className="text-gray-500 text-sm mt-2">{project.description}</p>
-                        )}
-                      </div>
-                      <a
-                        href={`/link-profile/projects/${project.id}`}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-                      >
-                        Открыть проект
-                      </a>
-                    </div>
-                  </div>
-                ))}
+              <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
+                <p className="text-gray-400 mb-4">Ошибка загрузки проекта</p>
               </div>
             )}
           </div>
