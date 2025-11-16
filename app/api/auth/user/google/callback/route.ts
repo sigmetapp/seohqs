@@ -27,14 +27,29 @@ export async function GET(request: Request) {
   let baseOrigin = process.env.NEXT_PUBLIC_APP_URL;
   if (!baseOrigin) {
     if (host) {
-      baseOrigin = `${finalProtocol}://${host}`;
+      // Для Vercel используем основной домен, а не внутренний preview URL
+      if (isVercel && process.env.NEXT_PUBLIC_VERCEL_URL) {
+        baseOrigin = process.env.NEXT_PUBLIC_VERCEL_URL;
+      } else {
+        baseOrigin = `${finalProtocol}://${host}`;
+      }
     } else {
       baseOrigin = origin;
     }
   }
   
-  // Убираем завершающий слэш из baseOrigin
-  baseOrigin = baseOrigin.replace(/\/+$/, '');
+  // Убираем завершающий слэш и пробелы из baseOrigin
+  const originalBaseOrigin = baseOrigin;
+  baseOrigin = baseOrigin.trim().replace(/\/+$/, '');
+  
+  // Предупреждаем, если был завершающий слэш
+  if (originalBaseOrigin !== baseOrigin) {
+    console.warn('[User Google OAuth Callback] NEXT_PUBLIC_APP_URL имел завершающий слэш и был нормализован:', {
+      original: originalBaseOrigin,
+      normalized: baseOrigin
+    });
+  }
+  
   const baseUrl = baseOrigin;
   
   try {
@@ -90,7 +105,10 @@ export async function GET(request: Request) {
     // Определяем redirect_uri для OAuth
     // Можно явно указать через переменную окружения GOOGLE_OAUTH_REDIRECT_URI
     let oauthRedirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI;
-    if (!oauthRedirectUri) {
+    if (oauthRedirectUri) {
+      // Убираем завершающий слэш из явно указанного redirect_uri
+      oauthRedirectUri = oauthRedirectUri.trim().replace(/\/+$/, '');
+    } else {
       oauthRedirectUri = `${baseOrigin}/api/auth/user/google/callback`;
     }
     
