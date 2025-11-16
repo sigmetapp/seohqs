@@ -75,18 +75,24 @@ export async function GET(request: Request) {
     console.log('[User Google OAuth] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
     console.log('[User Google OAuth] GOOGLE_OAUTH_REDIRECT_URI:', process.env.GOOGLE_OAUTH_REDIRECT_URI);
 
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    // Используем отдельные переменные для авторизации пользователей
+    // Если не установлены, используем общие (для обратной совместимости)
+    const clientId = process.env.GOOGLE_USER_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_USER_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
       return NextResponse.json(
         {
           success: false,
-          error: 'GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET должны быть установлены в переменных окружения.',
+          error: 'GOOGLE_USER_CLIENT_ID и GOOGLE_USER_CLIENT_SECRET (или GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET) должны быть установлены в переменных окружения.',
         },
         { status: 500 }
       );
     }
+
+    console.log('[User Google OAuth] Используется Client ID для авторизации пользователей');
+    console.log('[User Google OAuth] GOOGLE_USER_CLIENT_ID установлен:', !!process.env.GOOGLE_USER_CLIENT_ID);
+    console.log('[User Google OAuth] GOOGLE_CLIENT_ID установлен:', !!process.env.GOOGLE_CLIENT_ID);
 
     const oauth2Client = new google.auth.OAuth2(
       clientId,

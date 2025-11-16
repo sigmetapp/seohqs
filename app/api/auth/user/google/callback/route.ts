@@ -95,12 +95,20 @@ export async function GET(request: Request) {
       }
     }
 
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    // Используем отдельные переменные для авторизации пользователей
+    // Если не установлены, используем общие (для обратной совместимости)
+    const clientId = process.env.GOOGLE_USER_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_USER_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
-      return NextResponse.redirect(new URL('/indexing?error=config', request.url));
+      return NextResponse.redirect(
+        new URL('/indexing?error=' + encodeURIComponent('GOOGLE_USER_CLIENT_ID и GOOGLE_USER_CLIENT_SECRET (или GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET) должны быть установлены'), request.url)
+      );
     }
+
+    console.log('[User Google OAuth Callback] Используется Client ID для авторизации пользователей');
+    console.log('[User Google OAuth Callback] GOOGLE_USER_CLIENT_ID установлен:', !!process.env.GOOGLE_USER_CLIENT_ID);
+    console.log('[User Google OAuth Callback] GOOGLE_CLIENT_ID установлен:', !!process.env.GOOGLE_CLIENT_ID);
 
     // Определяем redirect_uri для OAuth
     // Можно явно указать через переменную окружения GOOGLE_OAUTH_REDIRECT_URI
