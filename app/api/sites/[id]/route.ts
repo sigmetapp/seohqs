@@ -4,6 +4,7 @@ import { createSearchConsoleService } from '@/lib/google-search-console';
 import { hasGoogleOAuth } from '@/lib/oauth-utils';
 import { requireAuth } from '@/lib/middleware-auth';
 import { NextRequest } from 'next/server';
+import { cache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -163,6 +164,19 @@ export async function PUT(
       category,
       googleSearchConsoleUrl,
     }, user.id);
+
+    // Инвалидируем кеш списка сайтов
+    cache.delete(`sites-list-${user.id}`);
+    // Также инвалидируем кеш агрегированных данных для всех периодов
+    cache.delete(`google-console-aggregated-${user.id}-default-30`);
+    cache.delete(`google-console-aggregated-${user.id}-default-7`);
+    cache.delete(`google-console-aggregated-${user.id}-default-90`);
+    cache.delete(`google-console-aggregated-${user.id}-default-180`);
+    // Инвалидируем кеш для конкретного сайта
+    cache.delete(`google-console-daily-${siteId}-30`);
+    cache.delete(`google-console-daily-${siteId}-7`);
+    cache.delete(`google-console-daily-${siteId}-90`);
+    cache.delete(`google-console-daily-${siteId}-180`);
 
     // Проверяем статус подключения Google Console
     const googleConsoleStatus = await checkGoogleConsoleConnection(updatedSite, user.id);
