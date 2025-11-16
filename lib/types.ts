@@ -118,3 +118,15 @@ export interface GoogleAccount {
   createdAt: string;
   updatedAt: string;
 }
+
+// Типы для задач сайтов
+export interface SiteTask {
+  id: number;
+  siteId: number;
+  title: string;
+  description?: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  deadline?: string;
+  createdAt: string;
+  updatedAt: string;
+}
