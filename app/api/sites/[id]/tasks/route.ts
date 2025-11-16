@@ -32,6 +32,8 @@ async function getTasksBySiteId(siteId: number): Promise<SiteTask[]> {
       description: task.description,
       status: task.status,
       deadline: task.deadline,
+      comments: task.comments,
+      priority: task.priority,
       createdAt: task.created_at,
       updatedAt: task.updated_at,
     }));
@@ -52,6 +54,8 @@ async function getTasksBySiteId(siteId: number): Promise<SiteTask[]> {
       description: task.description,
       status: task.status,
       deadline: task.deadline,
+      comments: task.comments,
+      priority: task.priority,
       createdAt: task.created_at,
       updatedAt: task.updated_at,
     }));
@@ -70,6 +74,8 @@ async function getTasksBySiteId(siteId: number): Promise<SiteTask[]> {
       description: task.description,
       status: task.status,
       deadline: task.deadline,
+      comments: task.comments,
+      priority: task.priority,
       createdAt: task.created_at,
       updatedAt: task.updated_at,
     }));
@@ -95,6 +101,8 @@ async function createTask(siteId: number, task: Omit<SiteTask, 'id' | 'siteId' |
         description: task.description || null,
         status: task.status || 'pending',
         deadline: task.deadline || null,
+        comments: task.comments || null,
+        priority: task.priority || null,
       })
       .select()
       .single();
@@ -106,6 +114,8 @@ async function createTask(siteId: number, task: Omit<SiteTask, 'id' | 'siteId' |
       description: data.description,
       status: data.status,
       deadline: data.deadline,
+      comments: data.comments,
+      priority: data.priority,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -115,10 +125,10 @@ async function createTask(siteId: number, task: Omit<SiteTask, 'id' | 'siteId' |
       connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
     });
     const result = await pool.query(
-      `INSERT INTO site_tasks (site_id, title, description, status, deadline)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO site_tasks (site_id, title, description, status, deadline, comments, priority)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [siteId, task.title, task.description || null, task.status || 'pending', task.deadline || null]
+      [siteId, task.title, task.description || null, task.status || 'pending', task.deadline || null, task.comments || null, task.priority || null]
     );
     await pool.end();
     const data = result.rows[0];
@@ -129,6 +139,8 @@ async function createTask(siteId: number, task: Omit<SiteTask, 'id' | 'siteId' |
       description: data.description,
       status: data.status,
       deadline: data.deadline,
+      comments: data.comments,
+      priority: data.priority,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -139,9 +151,9 @@ async function createTask(siteId: number, task: Omit<SiteTask, 'id' | 'siteId' |
     const dbPath = join(process.cwd(), 'data', 'affiliate.db');
     const db = new Database(dbPath);
     const result = db.prepare(
-      `INSERT INTO site_tasks (site_id, title, description, status, deadline, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
-    ).run(siteId, task.title, task.description || null, task.status || 'pending', task.deadline || null);
+      `INSERT INTO site_tasks (site_id, title, description, status, deadline, comments, priority, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+    ).run(siteId, task.title, task.description || null, task.status || 'pending', task.deadline || null, task.comments || null, task.priority || null);
     const taskData = db.prepare('SELECT * FROM site_tasks WHERE id = ?').get(result.lastInsertRowid);
     db.close();
     return {
@@ -151,6 +163,8 @@ async function createTask(siteId: number, task: Omit<SiteTask, 'id' | 'siteId' |
       description: taskData.description,
       status: taskData.status,
       deadline: taskData.deadline,
+      comments: taskData.comments,
+      priority: taskData.priority,
       createdAt: taskData.created_at,
       updatedAt: taskData.updated_at,
     };
@@ -209,7 +223,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { title, description, status, deadline } = body;
+    const { title, description, status, deadline, comments, priority } = body;
 
     if (!title) {
       return NextResponse.json(
@@ -223,6 +237,8 @@ export async function POST(
       description,
       status: status || 'pending',
       deadline,
+      comments,
+      priority: priority ? Math.max(1, Math.min(10, parseInt(priority))) : undefined,
     });
 
     return NextResponse.json({

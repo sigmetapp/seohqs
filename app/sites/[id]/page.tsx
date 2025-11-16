@@ -11,7 +11,7 @@ export default function SiteDetailPage() {
 
   const [site, setSite] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'google' | 'postbacks'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'google' | 'postbacks' | 'link-profile'>('overview');
   const [googleData, setGoogleData] = useState<GoogleSearchConsoleData[]>([]);
   const [queries, setQueries] = useState<Array<{ query: string; clicks: number; impressions: number; ctr: number; position: number }>>([]);
   const [pages, setPages] = useState<Array<{ page: string; clicks: number; impressions: number; ctr: number; position: number }>>([]);
@@ -29,6 +29,8 @@ export default function SiteDetailPage() {
     description: '',
     status: 'pending' as 'pending' | 'in_progress' | 'completed',
     deadline: '',
+    comments: '',
+    priority: '',
   });
   const [editForm, setEditForm] = useState({
     googleSearchConsoleUrl: '',
@@ -37,6 +39,8 @@ export default function SiteDetailPage() {
   const [loadingSites, setLoadingSites] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<number>(30);
   const [overviewGoogleData, setOverviewGoogleData] = useState<GoogleSearchConsoleData[]>([]);
+  const [linkProjects, setLinkProjects] = useState<any[]>([]);
+  const [loadingLinkProjects, setLoadingLinkProjects] = useState(false);
 
   useEffect(() => {
     if (siteId) {
@@ -58,6 +62,8 @@ export default function SiteDetailPage() {
         loadOverviewData();
       } else if (activeTab === 'tasks') {
         loadTasks();
+      } else if (activeTab === 'link-profile') {
+        loadLinkProjects();
       } else {
         loadTabData();
       }
@@ -148,6 +154,29 @@ export default function SiteDetailPage() {
       console.error('Error loading tasks:', err);
     } finally {
       setLoadingTasks(false);
+    }
+  };
+
+  const loadLinkProjects = async () => {
+    try {
+      setLoadingLinkProjects(true);
+      const response = await fetch('/api/link-profile/projects');
+      const data = await response.json();
+      if (data.success) {
+        // Фильтруем проекты по домену сайта
+        const siteDomain = site?.domain?.toLowerCase();
+        const matchingProjects = (data.projects || []).filter((project: any) => {
+          const projectDomain = project.domain?.toLowerCase();
+          if (!siteDomain || !projectDomain) return false;
+          // Проверяем точное совпадение или поддомен
+          return projectDomain === siteDomain || projectDomain.includes(siteDomain) || siteDomain.includes(projectDomain);
+        });
+        setLinkProjects(matchingProjects);
+      }
+    } catch (err) {
+      console.error('Error loading link projects:', err);
+    } finally {
+      setLoadingLinkProjects(false);
     }
   };
 
@@ -273,7 +302,7 @@ export default function SiteDetailPage() {
       const data = await response.json();
       if (data.success) {
         setShowTaskModal(false);
-        setTaskForm({ title: '', description: '', status: 'pending', deadline: '' });
+        setTaskForm({ title: '', description: '', status: 'pending', deadline: '', comments: '', priority: '' });
         loadTasks();
       } else {
         alert(data.error || 'Ошибка создания задачи');
@@ -296,7 +325,7 @@ export default function SiteDetailPage() {
       if (data.success) {
         setShowTaskModal(false);
         setEditingTask(null);
-        setTaskForm({ title: '', description: '', status: 'pending', deadline: '' });
+        setTaskForm({ title: '', description: '', status: 'pending', deadline: '', comments: '', priority: '' });
         loadTasks();
       } else {
         alert(data.error || 'Ошибка обновления задачи');
@@ -333,10 +362,12 @@ export default function SiteDetailPage() {
         description: task.description || '',
         status: task.status,
         deadline: task.deadline ? new Date(task.deadline).toISOString().split('T')[0] : '',
+        comments: task.comments || '',
+        priority: task.priority?.toString() || '',
       });
     } else {
       setEditingTask(null);
-      setTaskForm({ title: '', description: '', status: 'pending', deadline: '' });
+      setTaskForm({ title: '', description: '', status: 'pending', deadline: '', comments: '', priority: '' });
     }
     setShowTaskModal(true);
   };
@@ -371,6 +402,7 @@ export default function SiteDetailPage() {
             {[
               { id: 'overview', label: 'Обзор' },
               { id: 'tasks', label: 'Задачи' },
+              { id: 'link-profile', label: 'Link Profile' },
               { id: 'google', label: 'Google Console' },
               { id: 'postbacks', label: 'Постбеки' },
             ].map((tab) => (
@@ -515,72 +547,169 @@ export default function SiteDetailPage() {
                 </button>
               </div>
             ) : (
-              <div className="space-y-3">
-                {tasks.map((task) => {
-                  const isOverdue = task.deadline && new Date(task.deadline) < new Date() && task.status !== 'completed';
-                  const statusColors = {
-                    pending: 'bg-yellow-600',
-                    in_progress: 'bg-blue-600',
-                    completed: 'bg-green-600',
-                  };
-                  const statusLabels = {
-                    pending: 'В ожидании',
-                    in_progress: 'В работе',
-                    completed: 'Завершено',
-                  };
-                  return (
-                    <div
-                      key={task.id}
-                      className={`bg-gray-800 rounded-lg p-4 border ${
-                        isOverdue ? 'border-red-500' : 'border-gray-700'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-bold">{task.title}</h3>
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[task.status]}`}>
-                              {statusLabels[task.status]}
-                            </span>
-                            {isOverdue && (
-                              <span className="px-2 py-1 rounded text-xs font-medium bg-red-600">
-                                Просрочено
-                              </span>
-                            )}
-                          </div>
-                          {task.description && (
-                            <p className="text-gray-400 text-sm mb-2">{task.description}</p>
-                          )}
-                          <div className="flex items-center gap-4 text-sm text-gray-400">
-                            {task.deadline && (
-                              <span>
-                                Срок: {new Date(task.deadline).toLocaleDateString('ru-RU')}
-                              </span>
-                            )}
-                            <span>
-                              Создано: {new Date(task.createdAt).toLocaleDateString('ru-RU')}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => openTaskModal(task)}
-                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+              <>
+                {/* Активные задачи */}
+                {tasks.filter(t => t.status !== 'completed').length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-xl font-semibold mb-3">Активные задачи</h3>
+                    {tasks
+                      .filter(t => t.status !== 'completed')
+                      .sort((a, b) => (b.priority || 0) - (a.priority || 0))
+                      .map((task) => {
+                        const isOverdue = task.deadline && new Date(task.deadline) < new Date() && task.status !== 'completed';
+                        const statusColors = {
+                          pending: 'bg-yellow-600',
+                          in_progress: 'bg-blue-600',
+                          completed: 'bg-green-600',
+                        };
+                        const statusLabels = {
+                          pending: 'В ожидании',
+                          in_progress: 'В работе',
+                          completed: 'Завершено',
+                        };
+                        const priorityColor = task.priority 
+                          ? task.priority >= 8 ? 'text-red-400 border-red-400' 
+                            : task.priority >= 5 ? 'text-yellow-400 border-yellow-400' 
+                            : 'text-green-400 border-green-400'
+                          : 'text-gray-400 border-gray-400';
+                        return (
+                          <div
+                            key={task.id}
+                            className={`bg-gray-800 rounded-lg p-5 border ${
+                              isOverdue ? 'border-red-500' : 'border-gray-700'
+                            }`}
                           >
-                            Редактировать
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTask(task.id)}
-                            className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="text-lg font-bold">{task.title}</h3>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[task.status]}`}>
+                                    {statusLabels[task.status]}
+                                  </span>
+                                  {task.priority && (
+                                    <span className={`px-2 py-1 rounded text-xs font-medium ${priorityColor} border`}>
+                                      Приоритет: {task.priority}/10
+                                    </span>
+                                  )}
+                                  {isOverdue && (
+                                    <span className="px-2 py-1 rounded text-xs font-medium bg-red-600">
+                                      Просрочено
+                                    </span>
+                                  )}
+                                </div>
+                                {task.description && (
+                                  <p className="text-gray-400 text-sm mb-3">{task.description}</p>
+                                )}
+                                {task.comments && (
+                                  <div className="bg-gray-900 rounded p-3 mb-3 border border-gray-700">
+                                    <div className="text-xs text-gray-500 mb-1">Комментарии (процесс реализации):</div>
+                                    <p className="text-gray-300 text-sm whitespace-pre-wrap">{task.comments}</p>
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-4 text-sm text-gray-400">
+                                  {task.deadline && (
+                                    <span>
+                                      Срок: {new Date(task.deadline).toLocaleDateString('ru-RU')}
+                                    </span>
+                                  )}
+                                  <span>
+                                    Создано: {new Date(task.createdAt).toLocaleDateString('ru-RU')}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 ml-4">
+                                <button
+                                  onClick={() => openTaskModal(task)}
+                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                                >
+                                  Редактировать
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTask(task.id)}
+                                  className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                                >
+                                  Удалить
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+                
+                {/* Завершенные задачи */}
+                {tasks.filter(t => t.status === 'completed').length > 0 && (
+                  <div className="space-y-3 mt-8">
+                    <h3 className="text-xl font-semibold mb-3">Завершенные</h3>
+                    {tasks
+                      .filter(t => t.status === 'completed')
+                      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                      .map((task) => {
+                        const statusColors = {
+                          pending: 'bg-yellow-600',
+                          in_progress: 'bg-blue-600',
+                          completed: 'bg-green-600',
+                        };
+                        const statusLabels = {
+                          pending: 'В ожидании',
+                          in_progress: 'В работе',
+                          completed: 'Завершено',
+                        };
+                        return (
+                          <div
+                            key={task.id}
+                            className="bg-gray-800 rounded-lg p-5 border border-gray-700 opacity-75"
                           >
-                            Удалить
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="text-lg font-bold line-through">{task.title}</h3>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[task.status]}`}>
+                                    {statusLabels[task.status]}
+                                  </span>
+                                </div>
+                                {task.description && (
+                                  <p className="text-gray-500 text-sm mb-3 line-through">{task.description}</p>
+                                )}
+                                {task.comments && (
+                                  <div className="bg-gray-900 rounded p-3 mb-3 border border-gray-700">
+                                    <div className="text-xs text-gray-500 mb-1">Комментарии:</div>
+                                    <p className="text-gray-400 text-sm whitespace-pre-wrap">{task.comments}</p>
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                  {task.deadline && (
+                                    <span>
+                                      Срок: {new Date(task.deadline).toLocaleDateString('ru-RU')}
+                                    </span>
+                                  )}
+                                  <span>
+                                    Завершено: {new Date(task.updatedAt).toLocaleDateString('ru-RU')}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 ml-4">
+                                <button
+                                  onClick={() => openTaskModal(task)}
+                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                                >
+                                  Редактировать
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTask(task.id)}
+                                  className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                                >
+                                  Удалить
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -812,6 +941,58 @@ export default function SiteDetailPage() {
           </div>
         )}
 
+        {activeTab === 'link-profile' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Link Profile</h2>
+              <a
+                href="/link-profile"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+              >
+                Управление проектами
+              </a>
+            </div>
+            {loadingLinkProjects ? (
+              <div className="text-center py-8">Загрузка проектов...</div>
+            ) : linkProjects.length === 0 ? (
+              <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
+                <p className="text-gray-400 mb-4">Проекты Link Profile для этого сайта не найдены</p>
+                <a
+                  href="/link-profile"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded inline-block"
+                >
+                  Создать проект
+                </a>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {linkProjects.map((project) => (
+                  <div
+                    key={project.id}
+                    className="bg-gray-800 rounded-lg p-6 border border-gray-700"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-xl font-bold mb-2">{project.name}</h3>
+                        <p className="text-gray-400 text-sm">{project.domain}</p>
+                        {project.description && (
+                          <p className="text-gray-500 text-sm mt-2">{project.description}</p>
+                        )}
+                      </div>
+                      <a
+                        href={`/link-profile/projects/${project.id}`}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                      >
+                        Открыть проект
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'postbacks' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">Постбеки с партнерок</h2>
@@ -994,6 +1175,32 @@ export default function SiteDetailPage() {
                     value={taskForm.deadline}
                     onChange={(e) => setTaskForm({ ...taskForm, deadline: e.target.value })}
                     className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Приоритет (1-10)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={taskForm.priority}
+                    onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    placeholder="Приоритет от 1 до 10"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Комментарии (процесс реализации)
+                  </label>
+                  <textarea
+                    value={taskForm.comments}
+                    onChange={(e) => setTaskForm({ ...taskForm, comments: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    rows={5}
+                    placeholder="Опишите процесс реализации задачи..."
                   />
                 </div>
                 <div className="flex gap-2">

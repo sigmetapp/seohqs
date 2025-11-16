@@ -127,6 +127,8 @@ export interface SiteTask {
   description?: string;
   status: 'pending' | 'in_progress' | 'completed';
   deadline?: string;
+  comments?: string;
+  priority?: number; // 1-10
   createdAt: string;
   updatedAt: string;
 }

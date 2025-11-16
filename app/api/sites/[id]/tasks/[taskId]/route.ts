@@ -31,6 +31,14 @@ async function updateTask(taskId: number, updates: Partial<SiteTask>): Promise<S
     updateFields.push(`deadline = $${paramIndex++}`);
     updateValues.push(updates.deadline);
   }
+  if (updates.comments !== undefined) {
+    updateFields.push(`comments = $${paramIndex++}`);
+    updateValues.push(updates.comments);
+  }
+  if (updates.priority !== undefined) {
+    updateFields.push(`priority = $${paramIndex++}`);
+    updateValues.push(updates.priority);
+  }
 
   if (updateFields.length === 0) {
     throw new Error('Нет полей для обновления');
@@ -51,6 +59,8 @@ async function updateTask(taskId: number, updates: Partial<SiteTask>): Promise<S
     if (updates.description !== undefined) updateObj.description = updates.description;
     if (updates.status !== undefined) updateObj.status = updates.status;
     if (updates.deadline !== undefined) updateObj.deadline = updates.deadline;
+    if (updates.comments !== undefined) updateObj.comments = updates.comments;
+    if (updates.priority !== undefined) updateObj.priority = updates.priority;
     
     const { data, error } = await supabase
       .from('site_tasks')
@@ -66,6 +76,8 @@ async function updateTask(taskId: number, updates: Partial<SiteTask>): Promise<S
       description: data.description,
       status: data.status,
       deadline: data.deadline,
+      comments: data.comments,
+      priority: data.priority,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -88,6 +100,8 @@ async function updateTask(taskId: number, updates: Partial<SiteTask>): Promise<S
       description: data.description,
       status: data.status,
       deadline: data.deadline,
+      comments: data.comments,
+      priority: data.priority,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -115,6 +129,14 @@ async function updateTask(taskId: number, updates: Partial<SiteTask>): Promise<S
     if (updates.deadline !== undefined) {
       sqliteFields.push('deadline = ?');
       sqliteValues.push(updates.deadline);
+    }
+    if (updates.comments !== undefined) {
+      sqliteFields.push('comments = ?');
+      sqliteValues.push(updates.comments);
+    }
+    if (updates.priority !== undefined) {
+      sqliteFields.push('priority = ?');
+      sqliteValues.push(updates.priority);
     }
     sqliteFields.push("updated_at = datetime('now')");
     sqliteValues.push(taskId);
@@ -191,13 +213,15 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, description, status, deadline } = body;
+    const { title, description, status, deadline, comments, priority } = body;
 
     const task = await updateTask(taskId, {
       title,
       description,
       status,
       deadline,
+      comments,
+      priority: priority ? Math.max(1, Math.min(10, parseInt(priority))) : undefined,
     });
 
     return NextResponse.json({
