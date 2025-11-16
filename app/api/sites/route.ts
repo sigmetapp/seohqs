@@ -4,6 +4,7 @@ import { createSearchConsoleService } from '@/lib/google-search-console';
 import { hasGoogleOAuth } from '@/lib/oauth-utils';
 import { requireAuth } from '@/lib/middleware-auth';
 import { NextRequest } from 'next/server';
+import { cache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -15,6 +16,17 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
     const { user } = authResult;
+    
+    // Проверяем кеш (кеш на 12 часов)
+    const cacheKey = `sites-list-${user.id}`;
+    const cachedData = cache.get<any>(cacheKey);
+    if (cachedData) {
+      return NextResponse.json({
+        success: true,
+        sites: cachedData,
+        cached: true,
+      });
+    }
     
     const sites = await getAllSites(user.id);
     const integrations = await getIntegrations(user.id);
@@ -85,9 +97,13 @@ export async function GET(request: NextRequest) {
       };
     });
     
+    // Сохраняем в кеш на 12 часов (43200000 мс)
+    cache.set(cacheKey, sitesWithStatus, 12 * 60 * 60 * 1000);
+    
     return NextResponse.json({
       success: true,
       sites: sitesWithStatus,
+      cached: false,
     });
   } catch (error: any) {
     console.error('Error fetching sites:', error);
@@ -128,6 +144,14 @@ export async function POST(request: NextRequest) {
       category: category || undefined,
       googleSearchConsoleUrl: googleSearchConsoleUrl || undefined,
     }, user.id);
+
+    // Инвалидируем кеш списка сайтов
+    cache.delete(`sites-list-${user.id}`);
+    // Также инвалидируем кеш агрегированных данных
+    cache.delete(`google-console-aggregated-${user.id}-default-30`);
+    cache.delete(`google-console-aggregated-${user.id}-default-7`);
+    cache.delete(`google-console-aggregated-${user.id}-default-90`);
+    cache.delete(`google-console-aggregated-${user.id}-default-180`);
 
     return NextResponse.json({
       success: true,
