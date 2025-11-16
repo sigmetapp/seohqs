@@ -11,13 +11,51 @@ export const runtime = 'nodejs';
  * Обрабатывает callback от Google OAuth
  */
 export async function GET(request: Request) {
+  // Определяем базовый URL и origin вне блока try, чтобы они были доступны в catch
+  const { searchParams, origin } = new URL(request.url);
+  
+  // Определяем правильный origin с учетом заголовков (для продакшена с прокси/CDN)
+  const headers = request.headers;
+  const host = headers.get('host') || headers.get('x-forwarded-host');
+  const protocol = headers.get('x-forwarded-proto') || (origin.startsWith('https') ? 'https' : 'http');
+  
+  // Используем NEXT_PUBLIC_APP_URL если установлен, иначе определяем из заголовков
+  let baseOrigin = process.env.NEXT_PUBLIC_APP_URL;
+  if (!baseOrigin) {
+    if (host) {
+      baseOrigin = `${protocol}://${host}`;
+    } else {
+      baseOrigin = origin;
+    }
+  }
+  
+  // Убираем завершающий слэш из baseOrigin
+  baseOrigin = baseOrigin.replace(/\/+$/, '');
+  const baseUrl = baseOrigin;
+  
   try {
-    const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
     const state = searchParams.get('state');
+    const error = searchParams.get('error');
+
+    // Обрабатываем ошибку от Google
+    if (error) {
+      console.error('[User Google OAuth Callback] Error from Google:', error);
+      const redirectUriForError = `${baseOrigin}/api/auth/user/google/callback`;
+      console.error('[User Google OAuth Callback] Expected Redirect URI:', redirectUriForError);
+      
+      let userMessage = error;
+      if (error === 'redirect_uri_mismatch') {
+        userMessage = `Ошибка redirect_uri_mismatch. Добавьте в Google Cloud Console следующий Redirect URI: ${redirectUriForError}`;
+      }
+      
+      return NextResponse.redirect(
+        new URL(`/indexing?error=${encodeURIComponent(userMessage)}`, request.url)
+      );
+    }
 
     if (!code) {
-      return NextResponse.redirect(new URL('/?error=no_code', request.url));
+      return NextResponse.redirect(new URL('/indexing?error=no_code', request.url));
     }
 
     // Парсим state для получения redirect_uri
@@ -35,15 +73,20 @@ export async function GET(request: Request) {
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
-      return NextResponse.redirect(new URL('/?error=config', request.url));
+      return NextResponse.redirect(new URL('/indexing?error=config', request.url));
     }
 
     // Определяем redirect_uri для OAuth
-    const headers = request.headers;
-    const host = headers.get('host') || headers.get('x-forwarded-host');
-    const protocol = headers.get('x-forwarded-proto') || 'https';
-    const baseOrigin = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
-    const oauthRedirectUri = `${baseOrigin.replace(/\/+$/, '')}/api/auth/user/google/callback`;
+    // Используем baseOrigin, определенный выше
+    const oauthRedirectUri = `${baseOrigin}/api/auth/user/google/callback`;
+    
+    // Логируем для отладки
+    console.log('[User Google OAuth Callback] Redirect URI:', oauthRedirectUri);
+    console.log('[User Google OAuth Callback] Base Origin:', baseOrigin);
+    console.log('[User Google OAuth Callback] Request Origin:', origin);
+    console.log('[User Google OAuth Callback] Host:', host);
+    console.log('[User Google OAuth Callback] Protocol:', protocol);
+    console.log('[User Google OAuth Callback] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
 
     const oauth2Client = new google.auth.OAuth2(
       clientId,
@@ -64,7 +107,7 @@ export async function GET(request: Request) {
     const userInfo = await oauth2.userinfo.get();
 
     if (!userInfo.data.email) {
-      return NextResponse.redirect(new URL('/?error=no_email', request.url));
+      return NextResponse.redirect(new URL('/indexing?error=no_email', request.url));
     }
 
     // Создаем или обновляем пользователя в БД
@@ -114,10 +157,24 @@ export async function GET(request: Request) {
     // Устанавливаем cookie
     await setSessionCookie(sessionToken);
 
-    // Перенаправляем на главную страницу
-    return NextResponse.redirect(new URL(redirectUri, request.url));
+    // Перенаправляем на указанную страницу или на главную
+    const finalRedirectUri = redirectUri === '/' ? '/indexing' : redirectUri;
+    return NextResponse.redirect(new URL(finalRedirectUri, request.url));
   } catch (error: any) {
-    console.error('Ошибка обработки OAuth callback:', error);
-    return NextResponse.redirect(new URL('/?error=auth_failed', request.url));
+    console.error('[User Google OAuth Callback] Ошибка обработки OAuth callback:', error);
+    
+    // Проверяем, не является ли это ошибкой redirect_uri_mismatch
+    const errorMessage = error.message || 'Ошибка авторизации';
+    let userMessage = 'Ошибка авторизации';
+    
+    if (errorMessage.includes('redirect_uri_mismatch') || errorMessage.includes('redirect_uri')) {
+      // Используем baseOrigin, определенный выше
+      const redirectUriForError = `${baseOrigin}/api/auth/user/google/callback`;
+      
+      userMessage = `Ошибка redirect_uri_mismatch. Добавьте в Google Cloud Console следующий Redirect URI: ${redirectUriForError}`;
+      console.error('[User Google OAuth Callback] Redirect URI для добавления в Google Cloud Console:', redirectUriForError);
+    }
+    
+    return NextResponse.redirect(new URL(`/indexing?error=${encodeURIComponent(userMessage)}`, request.url));
   }
 }

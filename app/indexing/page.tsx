@@ -152,6 +152,16 @@ export default function IndexingPage() {
 
   useEffect(() => {
     checkIndexingStatus();
+    
+    // Проверяем URL параметры для сообщений об ошибках от OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    
+    if (error) {
+      setIndexingError(decodeURIComponent(error));
+      // Убираем параметр из URL
+      window.history.replaceState({}, '', '/indexing');
+    }
   }, []);
 
   return (

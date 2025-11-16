@@ -33,6 +33,14 @@ export async function GET(request: Request) {
     // Определяем redirect_uri
     const redirectUri = searchParams.get('redirect_uri') || 
       `${baseOrigin}/api/auth/user/google/callback`;
+    
+    // Логируем redirect_uri для отладки
+    console.log('[User Google OAuth] Redirect URI:', redirectUri);
+    console.log('[User Google OAuth] Base Origin:', baseOrigin);
+    console.log('[User Google OAuth] Request Origin:', origin);
+    console.log('[User Google OAuth] Host:', host);
+    console.log('[User Google OAuth] Protocol:', protocol);
+    console.log('[User Google OAuth] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
