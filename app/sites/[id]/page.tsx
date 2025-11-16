@@ -31,7 +31,13 @@ export default function SiteDetailPage() {
     deadline: '',
     comments: '',
     priority: '',
+    assigneeId: '',
+    tags: '',
+    estimatedTime: '',
+    actualTime: '',
   });
+  const [users, setUsers] = useState<Array<{ id: number; email: string; name?: string }>>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [editForm, setEditForm] = useState({
     googleSearchConsoleUrl: '',
   });
@@ -367,12 +373,34 @@ export default function SiteDetailPage() {
       const response = await fetch(`/api/sites/${siteId}/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(taskForm),
+        body: JSON.stringify({
+          title: taskForm.title,
+          description: taskForm.description,
+          status: taskForm.status,
+          deadline: taskForm.deadline || undefined,
+          comments: taskForm.comments,
+          priority: taskForm.priority ? parseInt(taskForm.priority) : undefined,
+          assigneeId: taskForm.assigneeId ? parseInt(taskForm.assigneeId) : undefined,
+          tags: taskForm.tags ? taskForm.tags.split(',').map(t => t.trim()).filter(t => t) : undefined,
+          estimatedTime: taskForm.estimatedTime ? parseInt(taskForm.estimatedTime) : undefined,
+          actualTime: taskForm.actualTime ? parseInt(taskForm.actualTime) : undefined,
+        }),
       });
       const data = await response.json();
       if (data.success) {
         setShowTaskModal(false);
-        setTaskForm({ title: '', description: '', status: 'pending', deadline: '', comments: '', priority: '' });
+        setTaskForm({ 
+          title: '', 
+          description: '', 
+          status: 'pending', 
+          deadline: '', 
+          comments: '', 
+          priority: '',
+          assigneeId: '',
+          tags: '',
+          estimatedTime: '',
+          actualTime: '',
+        });
         loadTasks();
       } else {
         alert(data.error || 'Ошибка создания задачи');
@@ -389,13 +417,35 @@ export default function SiteDetailPage() {
       const response = await fetch(`/api/sites/${siteId}/tasks/${editingTask.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(taskForm),
+        body: JSON.stringify({
+          title: taskForm.title,
+          description: taskForm.description,
+          status: taskForm.status,
+          deadline: taskForm.deadline || undefined,
+          comments: taskForm.comments,
+          priority: taskForm.priority ? parseInt(taskForm.priority) : undefined,
+          assigneeId: taskForm.assigneeId ? parseInt(taskForm.assigneeId) : undefined,
+          tags: taskForm.tags ? taskForm.tags.split(',').map(t => t.trim()).filter(t => t) : undefined,
+          estimatedTime: taskForm.estimatedTime ? parseInt(taskForm.estimatedTime) : undefined,
+          actualTime: taskForm.actualTime ? parseInt(taskForm.actualTime) : undefined,
+        }),
       });
       const data = await response.json();
       if (data.success) {
         setShowTaskModal(false);
         setEditingTask(null);
-        setTaskForm({ title: '', description: '', status: 'pending', deadline: '', comments: '', priority: '' });
+        setTaskForm({ 
+          title: '', 
+          description: '', 
+          status: 'pending', 
+          deadline: '', 
+          comments: '', 
+          priority: '',
+          assigneeId: '',
+          tags: '',
+          estimatedTime: '',
+          actualTime: '',
+        });
         loadTasks();
       } else {
         alert(data.error || 'Ошибка обновления задачи');
@@ -434,12 +484,45 @@ export default function SiteDetailPage() {
         deadline: task.deadline ? new Date(task.deadline).toISOString().split('T')[0] : '',
         comments: task.comments || '',
         priority: task.priority?.toString() || '',
+        assigneeId: task.assigneeId?.toString() || '',
+        tags: task.tags?.join(', ') || '',
+        estimatedTime: task.estimatedTime?.toString() || '',
+        actualTime: task.actualTime?.toString() || '',
       });
     } else {
       setEditingTask(null);
-      setTaskForm({ title: '', description: '', status: 'pending', deadline: '', comments: '', priority: '' });
+      setTaskForm({ 
+        title: '', 
+        description: '', 
+        status: 'pending', 
+        deadline: '', 
+        comments: '', 
+        priority: '',
+        assigneeId: '',
+        tags: '',
+        estimatedTime: '',
+        actualTime: '',
+      });
     }
     setShowTaskModal(true);
+    if (users.length === 0) loadUsers();
+  };
+
+  const loadUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const response = await fetch('/api/users');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setUsers(data.users || []);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading users:', err);
+    } finally {
+      setLoadingUsers(false);
+    }
   };
 
   if (loading && !site) {
@@ -652,7 +735,12 @@ export default function SiteDetailPage() {
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2">
-                                  <h3 className="text-lg font-bold">{task.title}</h3>
+                                  <h3 
+                                    className="text-lg font-bold cursor-pointer hover:text-blue-400 transition-colors"
+                                    onClick={() => router.push(`/sites/${siteId}/tasks/${task.id}`)}
+                                  >
+                                    {task.title}
+                                  </h3>
                                   <span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[task.status]}`}>
                                     {statusLabels[task.status]}
                                   </span>
@@ -688,6 +776,12 @@ export default function SiteDetailPage() {
                                 </div>
                               </div>
                               <div className="flex gap-2 ml-4">
+                                <button
+                                  onClick={() => router.push(`/sites/${siteId}/tasks/${task.id}`)}
+                                  className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm"
+                                >
+                                  Открыть
+                                </button>
                                 <button
                                   onClick={() => openTaskModal(task)}
                                   className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
@@ -734,7 +828,12 @@ export default function SiteDetailPage() {
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2">
-                                  <h3 className="text-lg font-bold line-through">{task.title}</h3>
+                                  <h3 
+                                    className="text-lg font-bold line-through cursor-pointer hover:text-blue-400 transition-colors"
+                                    onClick={() => router.push(`/sites/${siteId}/tasks/${task.id}`)}
+                                  >
+                                    {task.title}
+                                  </h3>
                                   <span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[task.status]}`}>
                                     {statusLabels[task.status]}
                                   </span>
@@ -760,6 +859,12 @@ export default function SiteDetailPage() {
                                 </div>
                               </div>
                               <div className="flex gap-2 ml-4">
+                                <button
+                                  onClick={() => router.push(`/sites/${siteId}/tasks/${task.id}`)}
+                                  className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm"
+                                >
+                                  Открыть
+                                </button>
                                 <button
                                   onClick={() => openTaskModal(task)}
                                   className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
@@ -1268,7 +1373,7 @@ export default function SiteDetailPage() {
         {/* Модальное окно задачи */}
         {showTaskModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
+            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700">
               <h2 className="text-2xl font-bold mb-4">
                 {editingTask ? 'Редактировать задачу' : 'Создать задачу'}
               </h2>
@@ -1322,18 +1427,78 @@ export default function SiteDetailPage() {
                     className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Приоритет (1-10)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={taskForm.priority}
+                      onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                      placeholder="Приоритет от 1 до 10"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Исполнитель
+                    </label>
+                    <select
+                      value={taskForm.assigneeId}
+                      onChange={(e) => setTaskForm({ ...taskForm, assigneeId: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                      disabled={loadingUsers}
+                    >
+                      <option value="">Не назначен</option>
+                      {users.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name || user.email}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Оценка времени (минуты)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={taskForm.estimatedTime}
+                      onChange={(e) => setTaskForm({ ...taskForm, estimatedTime: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                      placeholder="Оценка в минутах"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Фактическое время (минуты)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={taskForm.actualTime}
+                      onChange={(e) => setTaskForm({ ...taskForm, actualTime: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                      placeholder="Фактическое время в минутах"
+                    />
+                  </div>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Приоритет (1-10)
+                    Теги (через запятую)
                   </label>
                   <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={taskForm.priority}
-                    onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
+                    type="text"
+                    value={taskForm.tags}
+                    onChange={(e) => setTaskForm({ ...taskForm, tags: e.target.value })}
                     className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="Приоритет от 1 до 10"
+                    placeholder="bug, feature, urgent"
                   />
                 </div>
                 <div>
@@ -1360,7 +1525,18 @@ export default function SiteDetailPage() {
                     onClick={() => {
                       setShowTaskModal(false);
                       setEditingTask(null);
-                      setTaskForm({ title: '', description: '', status: 'pending', deadline: '', comments: '', priority: '' });
+                      setTaskForm({ 
+                        title: '', 
+                        description: '', 
+                        status: 'pending', 
+                        deadline: '', 
+                        comments: '', 
+                        priority: '',
+                        assigneeId: '',
+                        tags: '',
+                        estimatedTime: '',
+                        actualTime: '',
+                      });
                     }}
                     className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
                   >

@@ -34,6 +34,11 @@ async function getTasksBySiteId(siteId: number): Promise<SiteTask[]> {
       deadline: task.deadline,
       comments: task.comments,
       priority: task.priority,
+      assigneeId: task.assignee_id,
+      tags: Array.isArray(task.tags) ? task.tags : [],
+      estimatedTime: task.estimated_time,
+      actualTime: task.actual_time,
+      parentTaskId: task.parent_task_id,
       createdAt: task.created_at,
       updatedAt: task.updated_at,
     }));
@@ -56,6 +61,11 @@ async function getTasksBySiteId(siteId: number): Promise<SiteTask[]> {
       deadline: task.deadline,
       comments: task.comments,
       priority: task.priority,
+      assigneeId: task.assignee_id,
+      tags: task.tags || [],
+      estimatedTime: task.estimated_time,
+      actualTime: task.actual_time,
+      parentTaskId: task.parent_task_id,
       createdAt: task.created_at,
       updatedAt: task.updated_at,
     }));
@@ -76,6 +86,11 @@ async function getTasksBySiteId(siteId: number): Promise<SiteTask[]> {
       deadline: task.deadline,
       comments: task.comments,
       priority: task.priority,
+      assigneeId: task.assignee_id,
+      tags: task.tags ? (typeof task.tags === 'string' ? JSON.parse(task.tags) : task.tags) : [],
+      estimatedTime: task.estimated_time,
+      actualTime: task.actual_time,
+      parentTaskId: task.parent_task_id,
       createdAt: task.created_at,
       updatedAt: task.updated_at,
     }));
@@ -103,6 +118,11 @@ async function createTask(siteId: number, task: Omit<SiteTask, 'id' | 'siteId' |
         deadline: task.deadline || null,
         comments: task.comments || null,
         priority: task.priority || null,
+        assignee_id: task.assigneeId || null,
+        tags: Array.isArray(task.tags) ? task.tags : [],
+        estimated_time: task.estimatedTime || null,
+        actual_time: task.actualTime || null,
+        parent_task_id: task.parentTaskId || null,
       })
       .select()
       .single();
@@ -116,6 +136,11 @@ async function createTask(siteId: number, task: Omit<SiteTask, 'id' | 'siteId' |
       deadline: data.deadline,
       comments: data.comments,
       priority: data.priority,
+      assigneeId: data.assignee_id,
+      tags: Array.isArray(data.tags) ? data.tags : [],
+      estimatedTime: data.estimated_time,
+      actualTime: data.actual_time,
+      parentTaskId: data.parent_task_id,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -125,10 +150,23 @@ async function createTask(siteId: number, task: Omit<SiteTask, 'id' | 'siteId' |
       connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
     });
     const result = await pool.query(
-      `INSERT INTO site_tasks (site_id, title, description, status, deadline, comments, priority)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO site_tasks (site_id, title, description, status, deadline, comments, priority, assignee_id, tags, estimated_time, actual_time, parent_task_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
-      [siteId, task.title, task.description || null, task.status || 'pending', task.deadline || null, task.comments || null, task.priority || null]
+      [
+        siteId, 
+        task.title, 
+        task.description || null, 
+        task.status || 'pending', 
+        task.deadline || null, 
+        task.comments || null, 
+        task.priority || null,
+        task.assigneeId || null,
+        Array.isArray(task.tags) ? task.tags : [],
+        task.estimatedTime || null,
+        task.actualTime || null,
+        task.parentTaskId || null,
+      ]
     );
     await pool.end();
     const data = result.rows[0];
@@ -141,6 +179,11 @@ async function createTask(siteId: number, task: Omit<SiteTask, 'id' | 'siteId' |
       deadline: data.deadline,
       comments: data.comments,
       priority: data.priority,
+      assigneeId: data.assignee_id,
+      tags: data.tags || [],
+      estimatedTime: data.estimated_time,
+      actualTime: data.actual_time,
+      parentTaskId: data.parent_task_id,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -151,10 +194,23 @@ async function createTask(siteId: number, task: Omit<SiteTask, 'id' | 'siteId' |
     const dbPath = join(process.cwd(), 'data', 'affiliate.db');
     const db = new Database(dbPath);
     const result = db.prepare(
-      `INSERT INTO site_tasks (site_id, title, description, status, deadline, comments, priority, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
-    ).run(siteId, task.title, task.description || null, task.status || 'pending', task.deadline || null, task.comments || null, task.priority || null);
-    const taskData = db.prepare('SELECT * FROM site_tasks WHERE id = ?').get(result.lastInsertRowid);
+      `INSERT INTO site_tasks (site_id, title, description, status, deadline, comments, priority, assignee_id, tags, estimated_time, actual_time, parent_task_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+    ).run(
+      siteId, 
+      task.title, 
+      task.description || null, 
+      task.status || 'pending', 
+      task.deadline || null, 
+      task.comments || null, 
+      task.priority || null,
+      task.assigneeId || null,
+      JSON.stringify(Array.isArray(task.tags) ? task.tags : []),
+      task.estimatedTime || null,
+      task.actualTime || null,
+      task.parentTaskId || null,
+    );
+    const taskData: any = db.prepare('SELECT * FROM site_tasks WHERE id = ?').get(result.lastInsertRowid);
     db.close();
     return {
       id: taskData.id,
@@ -165,6 +221,11 @@ async function createTask(siteId: number, task: Omit<SiteTask, 'id' | 'siteId' |
       deadline: taskData.deadline,
       comments: taskData.comments,
       priority: taskData.priority,
+      assigneeId: taskData.assignee_id,
+      tags: taskData.tags ? (typeof taskData.tags === 'string' ? JSON.parse(taskData.tags) : taskData.tags) : [],
+      estimatedTime: taskData.estimated_time,
+      actualTime: taskData.actual_time,
+      parentTaskId: taskData.parent_task_id,
       createdAt: taskData.created_at,
       updatedAt: taskData.updated_at,
     };
@@ -223,7 +284,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { title, description, status, deadline, comments, priority } = body;
+    const { title, description, status, deadline, comments, priority, assigneeId, tags, estimatedTime, actualTime, parentTaskId } = body;
 
     if (!title) {
       return NextResponse.json(
@@ -239,6 +300,11 @@ export async function POST(
       deadline,
       comments,
       priority: priority ? Math.max(1, Math.min(10, parseInt(priority))) : undefined,
+      assigneeId: assigneeId ? parseInt(assigneeId) : undefined,
+      tags: Array.isArray(tags) ? tags : (tags ? tags.split(',').map((t: string) => t.trim()).filter((t: string) => t) : undefined),
+      estimatedTime: estimatedTime ? parseInt(estimatedTime) : undefined,
+      actualTime: actualTime ? parseInt(actualTime) : undefined,
+      parentTaskId: parentTaskId ? parseInt(parentTaskId) : undefined,
     });
 
     return NextResponse.json({
