@@ -17,6 +17,7 @@ export interface DbUser {
   name?: string;
   picture?: string;
   googleId?: string;
+  passwordHash?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -65,6 +66,7 @@ function createOrUpdateUserSQLite(user: Omit<DbUser, 'id' | 'createdAt' | 'updat
       name: updated.name,
       picture: updated.picture,
       googleId: updated.google_id,
+      passwordHash: updated.password_hash,
       createdAt: updated.created_at,
       updatedAt: updated.updated_at,
     };
@@ -87,6 +89,7 @@ function createOrUpdateUserSQLite(user: Omit<DbUser, 'id' | 'createdAt' | 'updat
       name: newUser.name,
       picture: newUser.picture,
       googleId: newUser.google_id,
+      passwordHash: newUser.password_hash,
       createdAt: newUser.created_at,
       updatedAt: newUser.updated_at,
     };
@@ -116,6 +119,7 @@ function getUserByGoogleIdSQLite(googleId: string): DbUser | null {
       name: row.name,
       picture: row.picture,
       googleId: row.google_id,
+      passwordHash: row.password_hash,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -150,6 +154,7 @@ function getUserByEmailSQLite(email: string): DbUser | null {
       name: row.name,
       picture: row.picture,
       googleId: row.google_id,
+      passwordHash: row.password_hash,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -200,6 +205,7 @@ async function createOrUpdateUserPostgres(user: Omit<DbUser, 'id' | 'createdAt' 
         name: updated.name,
         picture: updated.picture,
         googleId: updated.google_id,
+        passwordHash: updated.password_hash,
         createdAt: updated.created_at,
         updatedAt: updated.updated_at,
       };
@@ -218,6 +224,7 @@ async function createOrUpdateUserPostgres(user: Omit<DbUser, 'id' | 'createdAt' 
         name: newUser.name,
         picture: newUser.picture,
         googleId: newUser.google_id,
+        passwordHash: newUser.password_hash,
         createdAt: newUser.created_at,
         updatedAt: newUser.updated_at,
       };
@@ -244,6 +251,7 @@ async function getUserByGoogleIdPostgres(googleId: string): Promise<DbUser | nul
       name: row.name,
       picture: row.picture,
       googleId: row.google_id,
+      passwordHash: row.password_hash,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -274,6 +282,7 @@ async function getUserByEmailPostgres(email: string): Promise<DbUser | null> {
       name: row.name,
       picture: row.picture,
       googleId: row.google_id,
+      passwordHash: row.password_hash,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -336,6 +345,7 @@ async function createOrUpdateUserSupabase(user: Omit<DbUser, 'id' | 'createdAt' 
       name: data.name,
       picture: data.picture,
       googleId: data.google_id,
+      passwordHash: data.password_hash,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -360,6 +370,7 @@ async function createOrUpdateUserSupabase(user: Omit<DbUser, 'id' | 'createdAt' 
       name: data.name,
       picture: data.picture,
       googleId: data.google_id,
+      passwordHash: data.password_hash,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -386,6 +397,7 @@ async function getUserByGoogleIdSupabase(googleId: string): Promise<DbUser | nul
     name: data.name,
     picture: data.picture,
     googleId: data.google_id,
+    passwordHash: data.password_hash,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
@@ -411,6 +423,7 @@ async function getUserByEmailSupabase(email: string): Promise<DbUser | null> {
     name: data.name,
     picture: data.picture,
     googleId: data.google_id,
+    passwordHash: data.password_hash,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
@@ -453,5 +466,184 @@ export async function getUserByEmail(email: string): Promise<DbUser | null> {
       throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
     }
     return getUserByEmailSQLite(email);
+  }
+}
+
+// Функции для работы с паролями
+
+// SQLite версия
+function updateUserPasswordSQLite(userId: number, passwordHash: string): void {
+  const Database = require('better-sqlite3');
+  const { join } = require('path');
+  const { existsSync, mkdirSync } = require('fs');
+  
+  const dbDir = join(process.cwd(), 'data');
+  if (!existsSync(dbDir)) {
+    mkdirSync(dbDir, { recursive: true });
+  }
+  
+  const dbPath = join(dbDir, 'affiliate.db');
+  const db = new Database(dbPath);
+  
+  db.prepare(`
+    UPDATE users 
+    SET password_hash = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(passwordHash, userId);
+}
+
+// PostgreSQL версия
+async function updateUserPasswordPostgres(userId: number, passwordHash: string): Promise<void> {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+  });
+  
+  try {
+    await pool.query(`
+      UPDATE users 
+      SET password_hash = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `, [passwordHash, userId]);
+  } finally {
+    await pool.end();
+  }
+}
+
+// Supabase версия
+async function updateUserPasswordSupabase(userId: number, passwordHash: string): Promise<void> {
+  const { supabase } = await import('./supabase');
+  if (!supabase) {
+    throw new Error('Supabase client not initialized');
+  }
+  
+  const { error } = await supabase
+    .from('users')
+    .update({
+      password_hash: passwordHash,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId);
+  
+  if (error) throw error;
+}
+
+// Экспортируемая функция для обновления пароля
+export async function updateUserPassword(userId: number, passwordHash: string): Promise<void> {
+  if (useSupabase()) {
+    return updateUserPasswordSupabase(userId, passwordHash);
+  } else if (usePostgres()) {
+    return updateUserPasswordPostgres(userId, passwordHash);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    return updateUserPasswordSQLite(userId, passwordHash);
+  }
+}
+
+// Функция для получения пользователя по ID
+async function getUserByIdSupabase(userId: number): Promise<DbUser | null> {
+  const { supabase } = await import('./supabase');
+  if (!supabase) {
+    return null;
+  }
+  
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  
+  if (error || !data) return null;
+  
+  return {
+    id: data.id,
+    email: data.email,
+    name: data.name,
+    picture: data.picture,
+    googleId: data.google_id,
+    passwordHash: data.password_hash,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+async function getUserByIdPostgres(userId: number): Promise<DbUser | null> {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+  });
+  
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    if (result.rows.length === 0) return null;
+    
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      picture: row.picture,
+      googleId: row.google_id,
+      passwordHash: row.password_hash,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } catch (error: any) {
+    if (error.code === '42P01') {
+      return null;
+    }
+    throw error;
+  } finally {
+    await pool.end();
+  }
+}
+
+function getUserByIdSQLite(userId: number): DbUser | null {
+  const Database = require('better-sqlite3');
+  const { join } = require('path');
+  const { existsSync, mkdirSync } = require('fs');
+  
+  const dbDir = join(process.cwd(), 'data');
+  if (!existsSync(dbDir)) {
+    mkdirSync(dbDir, { recursive: true });
+  }
+  
+  const dbPath = join(dbDir, 'affiliate.db');
+  const db = new Database(dbPath);
+  
+  try {
+    const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+    if (!row) return null;
+    
+    return {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      picture: row.picture,
+      googleId: row.google_id,
+      passwordHash: row.password_hash,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } catch (error: any) {
+    if (error.message?.includes('no such table')) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function getUserById(userId: number): Promise<DbUser | null> {
+  if (useSupabase()) {
+    return getUserByIdSupabase(userId);
+  } else if (usePostgres()) {
+    return getUserByIdPostgres(userId);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    return getUserByIdSQLite(userId);
   }
 }

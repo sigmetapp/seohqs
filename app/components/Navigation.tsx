@@ -102,7 +102,12 @@ export default function Navigation() {
                     className="h-8 w-8 rounded-full"
                   />
                 )}
-                <span className="text-gray-300 text-sm">{user.name || user.email}</span>
+                <Link
+                  href="/profile"
+                  className="text-gray-300 text-sm hover:text-white transition-colors"
+                >
+                  {user.name || user.email}
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
