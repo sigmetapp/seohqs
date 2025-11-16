@@ -51,14 +51,14 @@ export async function GET(request: Request) {
     
     // Определяем redirect_uri
     // Можно явно указать через переменную окружения GOOGLE_OAUTH_REDIRECT_URI
-    let redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI;
-    if (redirectUri) {
+    let redirectUri: string;
+    if (process.env.GOOGLE_OAUTH_REDIRECT_URI) {
       // Убираем завершающий слэш из явно указанного redirect_uri
-      redirectUri = redirectUri.trim().replace(/\/+$/, '');
+      redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI.trim().replace(/\/+$/, '');
     } else {
-      redirectUri = searchParams.get('redirect_uri');
-      if (redirectUri) {
-        redirectUri = redirectUri.trim().replace(/\/+$/, '');
+      const redirectUriFromParams = searchParams.get('redirect_uri');
+      if (redirectUriFromParams) {
+        redirectUri = redirectUriFromParams.trim().replace(/\/+$/, '');
       } else {
         redirectUri = `${baseOrigin}/api/auth/user/google/callback`;
       }
