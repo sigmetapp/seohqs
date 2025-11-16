@@ -5,6 +5,7 @@ import { hasGoogleOAuth } from '@/lib/oauth-utils';
 import { requireAuth } from '@/lib/middleware-auth';
 import { NextRequest } from 'next/server';
 import { cache } from '@/lib/cache';
+import { getPostgresClient } from '@/lib/postgres-client';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -192,6 +193,46 @@ export async function GET(request: NextRequest) {
         const referringDomains: number | null = null;
         const backlinks: number | null = null;
         
+        // Получаем количество постбеков за выбранный период
+        let totalPostbacks = 0;
+        try {
+          if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+            const { createClient } = await import('@supabase/supabase-js');
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+            if (supabaseKey) {
+              const supabase = createClient(supabaseUrl, supabaseKey);
+              const { count } = await supabase
+                .from('postbacks')
+                .select('*', { count: 'exact', head: true })
+                .eq('site_id', site.id)
+                .gte('date', startDate.toISOString())
+                .lte('date', endDate.toISOString());
+              totalPostbacks = count || 0;
+            }
+          } else if (process.env.POSTGRES_URL || process.env.DATABASE_URL) {
+            const db = await getPostgresClient();
+            const postbacksResult = await db.query(
+              `SELECT COUNT(*) as count FROM postbacks 
+               WHERE site_id = $1 AND date >= $2 AND date <= $3`,
+              [site.id, startDate, endDate]
+            );
+            totalPostbacks = parseInt(postbacksResult.rows[0]?.count || '0', 10);
+          } else if (!process.env.VERCEL) {
+            // Для локальной разработки используем storage
+            const { storage } = require('@/lib/storage');
+            const sitePostbacks = storage.postbacks.filter((p: any) => {
+              if (p.siteId !== site.id) return false;
+              const postbackDate = new Date(p.date);
+              return postbackDate >= startDate && postbackDate <= endDate;
+            });
+            totalPostbacks = sitePostbacks.length;
+          }
+        } catch (error: any) {
+          console.warn(`Не удалось получить постбеки для сайта ${site.domain}:`, error?.message || error);
+          totalPostbacks = 0;
+        }
+        
         return {
           id: site.id,
           domain: site.domain,
@@ -200,6 +241,7 @@ export async function GET(request: NextRequest) {
           googleConsoleSiteUrl,
           totalImpressions,
           totalClicks,
+          totalPostbacks,
           indexedPages,
           referringDomains,
           backlinks,
