@@ -55,7 +55,6 @@ export default function Navigation() {
 
   const navItems = [
     { href: '/', label: 'Индексатор ссылок', icon: '🔗' },
-    { href: '/link-profile', label: 'Ссылочный профиль', icon: '📊' },
     { href: '/sites', label: 'Панель сайтов', icon: '🌐' },
     { href: '/dashboard-gc', label: 'Dashboard GC', icon: '📈' },
     { href: '/integrations', label: 'Интеграции', icon: '⚙️' },
