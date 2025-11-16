@@ -87,11 +87,19 @@ class SimpleCache {
    */
   cleanup(): void {
     const now = Date.now();
-    for (const [key, entry] of this.cache.entries()) {
+    const keysToDelete: string[] = [];
+    
+    // Собираем ключи для удаления
+    this.cache.forEach((entry, key) => {
       if (now - entry.timestamp > entry.ttl) {
-        this.cache.delete(key);
+        keysToDelete.push(key);
       }
-    }
+    });
+    
+    // Удаляем истекшие записи
+    keysToDelete.forEach(key => {
+      this.cache.delete(key);
+    });
   }
 }
 
