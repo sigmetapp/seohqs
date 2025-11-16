@@ -17,11 +17,15 @@ export async function GET(request: Request) {
     const host = headers.get('host') || headers.get('x-forwarded-host');
     const protocol = headers.get('x-forwarded-proto') || (origin.startsWith('https') ? 'https' : 'http');
     
+    // Для Vercel всегда используем https
+    const isVercel = process.env.VERCEL || host?.includes('vercel.app');
+    const finalProtocol = isVercel ? 'https' : protocol;
+    
     // Используем NEXT_PUBLIC_APP_URL если установлен, иначе определяем из заголовков
     let baseOrigin = process.env.NEXT_PUBLIC_APP_URL;
     if (!baseOrigin) {
       if (host) {
-        baseOrigin = `${protocol}://${host}`;
+        baseOrigin = `${finalProtocol}://${host}`;
       } else {
         baseOrigin = origin;
       }
@@ -31,8 +35,12 @@ export async function GET(request: Request) {
     baseOrigin = baseOrigin.replace(/\/+$/, '');
     
     // Определяем redirect_uri
-    const redirectUri = searchParams.get('redirect_uri') || 
-      `${baseOrigin}/api/auth/user/google/callback`;
+    // Можно явно указать через переменную окружения GOOGLE_OAUTH_REDIRECT_URI
+    let redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI;
+    if (!redirectUri) {
+      redirectUri = searchParams.get('redirect_uri') || 
+        `${baseOrigin}/api/auth/user/google/callback`;
+    }
     
     // Логируем redirect_uri для отладки
     console.log('[User Google OAuth] Redirect URI:', redirectUri);
@@ -40,7 +48,10 @@ export async function GET(request: Request) {
     console.log('[User Google OAuth] Request Origin:', origin);
     console.log('[User Google OAuth] Host:', host);
     console.log('[User Google OAuth] Protocol:', protocol);
+    console.log('[User Google OAuth] Final Protocol:', finalProtocol);
+    console.log('[User Google OAuth] Is Vercel:', isVercel);
     console.log('[User Google OAuth] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
+    console.log('[User Google OAuth] GOOGLE_OAUTH_REDIRECT_URI:', process.env.GOOGLE_OAUTH_REDIRECT_URI);
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;

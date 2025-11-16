@@ -19,11 +19,15 @@ export async function GET(request: Request) {
   const host = headers.get('host') || headers.get('x-forwarded-host');
   const protocol = headers.get('x-forwarded-proto') || (origin.startsWith('https') ? 'https' : 'http');
   
+  // Для Vercel всегда используем https
+  const isVercel = process.env.VERCEL || host?.includes('vercel.app');
+  const finalProtocol = isVercel ? 'https' : protocol;
+  
   // Используем NEXT_PUBLIC_APP_URL если установлен, иначе определяем из заголовков
   let baseOrigin = process.env.NEXT_PUBLIC_APP_URL;
   if (!baseOrigin) {
     if (host) {
-      baseOrigin = `${protocol}://${host}`;
+      baseOrigin = `${finalProtocol}://${host}`;
     } else {
       baseOrigin = origin;
     }
@@ -41,12 +45,19 @@ export async function GET(request: Request) {
     // Обрабатываем ошибку от Google
     if (error) {
       console.error('[User Google OAuth Callback] Error from Google:', error);
-      const redirectUriForError = `${baseOrigin}/api/auth/user/google/callback`;
+      
+      // Определяем redirect_uri для сообщения об ошибке
+      const redirectUriForError = process.env.GOOGLE_OAUTH_REDIRECT_URI || 
+        `${baseOrigin}/api/auth/user/google/callback`;
       console.error('[User Google OAuth Callback] Expected Redirect URI:', redirectUriForError);
+      console.error('[User Google OAuth Callback] Base Origin:', baseOrigin);
+      console.error('[User Google OAuth Callback] Host:', host);
+      console.error('[User Google OAuth Callback] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
+      console.error('[User Google OAuth Callback] GOOGLE_OAUTH_REDIRECT_URI:', process.env.GOOGLE_OAUTH_REDIRECT_URI);
       
       let userMessage = error;
       if (error === 'redirect_uri_mismatch') {
-        userMessage = `Ошибка redirect_uri_mismatch. Добавьте в Google Cloud Console следующий Redirect URI: ${redirectUriForError}`;
+        userMessage = `Ошибка redirect_uri_mismatch. Убедитесь, что в Google Cloud Console добавлен следующий Redirect URI: ${redirectUriForError}\n\nТакже проверьте переменные окружения:\n- NEXT_PUBLIC_APP_URL=${process.env.NEXT_PUBLIC_APP_URL || 'не установлена'}\n- GOOGLE_OAUTH_REDIRECT_URI=${process.env.GOOGLE_OAUTH_REDIRECT_URI || 'не установлена'}`;
       }
       
       return NextResponse.redirect(
@@ -77,8 +88,11 @@ export async function GET(request: Request) {
     }
 
     // Определяем redirect_uri для OAuth
-    // Используем baseOrigin, определенный выше
-    const oauthRedirectUri = `${baseOrigin}/api/auth/user/google/callback`;
+    // Можно явно указать через переменную окружения GOOGLE_OAUTH_REDIRECT_URI
+    let oauthRedirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI;
+    if (!oauthRedirectUri) {
+      oauthRedirectUri = `${baseOrigin}/api/auth/user/google/callback`;
+    }
     
     // Логируем для отладки
     console.log('[User Google OAuth Callback] Redirect URI:', oauthRedirectUri);
@@ -86,7 +100,10 @@ export async function GET(request: Request) {
     console.log('[User Google OAuth Callback] Request Origin:', origin);
     console.log('[User Google OAuth Callback] Host:', host);
     console.log('[User Google OAuth Callback] Protocol:', protocol);
+    console.log('[User Google OAuth Callback] Final Protocol:', finalProtocol);
+    console.log('[User Google OAuth Callback] Is Vercel:', isVercel);
     console.log('[User Google OAuth Callback] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
+    console.log('[User Google OAuth Callback] GOOGLE_OAUTH_REDIRECT_URI:', process.env.GOOGLE_OAUTH_REDIRECT_URI);
 
     const oauth2Client = new google.auth.OAuth2(
       clientId,
@@ -168,11 +185,15 @@ export async function GET(request: Request) {
     let userMessage = 'Ошибка авторизации';
     
     if (errorMessage.includes('redirect_uri_mismatch') || errorMessage.includes('redirect_uri')) {
-      // Используем baseOrigin, определенный выше
-      const redirectUriForError = `${baseOrigin}/api/auth/user/google/callback`;
+      // Используем baseOrigin, определенный выше, или переменную окружения
+      const redirectUriForError = process.env.GOOGLE_OAUTH_REDIRECT_URI || 
+        `${baseOrigin}/api/auth/user/google/callback`;
       
-      userMessage = `Ошибка redirect_uri_mismatch. Добавьте в Google Cloud Console следующий Redirect URI: ${redirectUriForError}`;
+      userMessage = `Ошибка redirect_uri_mismatch. Убедитесь, что в Google Cloud Console добавлен следующий Redirect URI: ${redirectUriForError}\n\nТакже проверьте переменные окружения:\n- NEXT_PUBLIC_APP_URL=${process.env.NEXT_PUBLIC_APP_URL || 'не установлена'}\n- GOOGLE_OAUTH_REDIRECT_URI=${process.env.GOOGLE_OAUTH_REDIRECT_URI || 'не установлена'}`;
       console.error('[User Google OAuth Callback] Redirect URI для добавления в Google Cloud Console:', redirectUriForError);
+      console.error('[User Google OAuth Callback] Base Origin:', baseOrigin);
+      console.error('[User Google OAuth Callback] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL);
+      console.error('[User Google OAuth Callback] GOOGLE_OAUTH_REDIRECT_URI:', process.env.GOOGLE_OAUTH_REDIRECT_URI);
     }
     
     return NextResponse.redirect(new URL(`/indexing?error=${encodeURIComponent(userMessage)}`, request.url));
