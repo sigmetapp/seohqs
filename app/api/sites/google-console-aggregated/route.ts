@@ -4,6 +4,7 @@ import { createSearchConsoleService } from '@/lib/google-search-console';
 import { hasGoogleOAuth } from '@/lib/oauth-utils';
 import { requireAuth } from '@/lib/middleware-auth';
 import { NextRequest } from 'next/server';
+import { cache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -28,6 +29,17 @@ export async function GET(request: NextRequest) {
     const days = daysParam ? parseInt(daysParam) : 30; // По умолчанию 30 дней
     const accountIdParam = searchParams.get('accountId');
     const accountId = accountIdParam ? parseInt(accountIdParam) : null;
+
+    // Проверяем кеш (кеш на 12 часов, так как данные Google Search Console обновляются раз в сутки)
+    const cacheKey = `google-console-aggregated-${user.id}-${accountId || 'default'}-${days}`;
+    const cachedData = cache.get<any>(cacheKey);
+    if (cachedData) {
+      return NextResponse.json({
+        success: true,
+        sites: cachedData,
+        cached: true,
+      });
+    }
 
     const sites = await getAllSites(user.id);
     const integrations = await getIntegrations(user.id);
@@ -195,9 +207,13 @@ export async function GET(request: NextRequest) {
       })
     );
     
+    // Сохраняем в кеш на 12 часов (43200000 мс)
+    cache.set(cacheKey, sitesWithData, 12 * 60 * 60 * 1000);
+    
     return NextResponse.json({
       success: true,
       sites: sitesWithData,
+      cached: false,
     });
   } catch (error: any) {
     console.error('Ошибка получения агрегированных данных:', error);

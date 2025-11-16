@@ -321,6 +321,12 @@ export default function SitesPage() {
             >
               Все сайты с Google Console
             </button>
+            <Link
+              href="/sites/dashboard-gc"
+              className="px-4 py-2 font-medium transition-colors text-gray-400 hover:text-gray-300"
+            >
+              Dashboard GC →
+            </Link>
           </div>
         </div>
 

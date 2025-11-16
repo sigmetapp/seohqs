@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { loadGoogleConsoleSites } from '@/lib/load-google-console-sites';
 import { requireAuth } from '@/lib/middleware-auth';
 import { NextRequest } from 'next/server';
+import { cache } from '@/lib/cache';
+import { getAllSites, getAllGoogleAccounts } from '@/lib/db-adapter';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -19,6 +21,29 @@ export async function POST(request: NextRequest) {
     const { user } = authResult;
     
     const result = await loadGoogleConsoleSites(user.id);
+    
+    // Инвалидируем кеш для всех сайтов пользователя
+    // Очищаем кеш агрегированных данных для всех периодов
+    const sites = await getAllSites(user.id);
+    const accounts = await getAllGoogleAccounts(user.id);
+    
+    for (const site of sites) {
+      // Очищаем кеш daily данных для всех периодов
+      for (const days of [7, 30, 90, 180]) {
+        cache.delete(`google-console-daily-${site.id}-${days}`);
+      }
+    }
+    
+    // Очищаем кеш агрегированных данных для всех периодов и аккаунтов
+    for (const days of [7, 30, 90, 180]) {
+      // Очищаем для default (без accountId)
+      cache.delete(`google-console-aggregated-${user.id}-default-${days}`);
+      // Очищаем для всех аккаунтов пользователя
+      for (const account of accounts) {
+        cache.delete(`google-console-aggregated-${user.id}-${account.id}-${days}`);
+      }
+    }
+    
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('Ошибка загрузки сайтов из Google Search Console:', error);
