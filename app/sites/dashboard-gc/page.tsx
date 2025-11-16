@@ -441,7 +441,6 @@ export default function DashboardGCPage() {
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [dailyData, setDailyData] = useState<Record<number, DailyData[]>>({});
   const [loadingDailyData, setLoadingDailyData] = useState<Record<number, boolean>>({});
-  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 20 }); // Ленивая загрузка - показываем первые 20
   const [error, setError] = useState<string | null>(null);
 
   // Загрузка Google аккаунтов
@@ -476,7 +475,6 @@ export default function DashboardGCPage() {
         const data = await response.json();
         if (data.success) {
           setSites(data.sites || []);
-          setVisibleRange({ start: 0, end: 20 }); // Сбрасываем видимый диапазон
         } else {
           setError(data.error || 'Ошибка загрузки данных');
         }
@@ -490,15 +488,14 @@ export default function DashboardGCPage() {
     loadAggregatedData();
   }, [selectedPeriod, selectedAccountId]);
 
-  // Ленивая загрузка данных по дням только для видимых сайтов
+  // Загрузка данных по дням для всех сайтов
   useEffect(() => {
-    const visibleSites = sites.slice(visibleRange.start, visibleRange.end);
-    visibleSites.forEach((site) => {
+    sites.forEach((site) => {
       if (!dailyData[site.id] && !loadingDailyData[site.id]) {
         loadDailyDataForSite(site.id);
       }
     });
-  }, [sites, visibleRange]);
+  }, [sites]);
 
   const loadDailyDataForSite = useCallback(async (siteId: number) => {
     try {
@@ -518,26 +515,10 @@ export default function DashboardGCPage() {
     }
   }, [selectedPeriod]);
 
-  // Обработка прокрутки для ленивой загрузки
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    const scrollTop = target.scrollTop;
-    const scrollHeight = target.scrollHeight;
-    const clientHeight = target.clientHeight;
-    
-    // Загружаем больше элементов при прокрутке вниз (за 200px до конца)
-    if (scrollTop + clientHeight >= scrollHeight - 200) {
-      setVisibleRange(prev => ({
-        start: 0,
-        end: Math.min(prev.end + 10, sites.length)
-      }));
-    }
-  }, [sites.length]);
-
-  // Видимые сайты для рендеринга
+  // Видимые сайты для рендеринга - показываем все сайты
   const visibleSites = useMemo(() => {
-    return sites.slice(0, visibleRange.end);
-  }, [sites, visibleRange.end]);
+    return sites;
+  }, [sites]);
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -675,11 +656,7 @@ export default function DashboardGCPage() {
             </div>
 
             {/* Карточки сайтов с ленивой загрузкой */}
-            <div 
-              className="overflow-y-auto"
-              style={{ maxHeight: 'calc(100vh - 300px)' }}
-              onScroll={handleScroll}
-            >
+            <div>
               <div className={`grid gap-4 ${
                 columnsPerRow === 1 ? 'grid-cols-1' :
                 columnsPerRow === 2 ? 'grid-cols-1 md:grid-cols-2' :
@@ -709,13 +686,6 @@ export default function DashboardGCPage() {
               ))}
               </div>
             </div>
-
-            {/* Индикатор загрузки дополнительных элементов */}
-            {visibleRange.end < sites.length && (
-              <div className="text-center mt-4 text-gray-400 text-sm">
-                Загружено {visibleRange.end} из {sites.length} сайтов
-              </div>
-            )}
           </>
         )}
       </div>
