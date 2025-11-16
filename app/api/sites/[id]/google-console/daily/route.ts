@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getGoogleSearchConsoleDataBySiteId } from '@/lib/db-adapter';
+import { cache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -24,6 +25,18 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const daysParam = searchParams.get('days');
     const days = daysParam ? parseInt(daysParam) : 30; // По умолчанию 30 дней
+
+    // Проверяем кеш (кеш на 12 часов)
+    const cacheKey = `google-console-daily-${siteId}-${days}`;
+    const cachedData = cache.get<any>(cacheKey);
+    if (cachedData) {
+      return NextResponse.json({
+        success: true,
+        data: cachedData,
+        count: cachedData.length,
+        cached: true,
+      });
+    }
 
     // Вычисляем дату начала периода
     const endDate = new Date();
@@ -54,10 +67,14 @@ export async function GET(
       date: item.date,
     }));
 
+    // Сохраняем в кеш на 12 часов
+    cache.set(cacheKey, formattedData, 12 * 60 * 60 * 1000);
+
     return NextResponse.json({
       success: true,
       data: formattedData,
       count: formattedData.length,
+      cached: false,
     });
   } catch (error: any) {
     console.error('Ошибка получения данных Google Search Console:', error);

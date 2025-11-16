@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getSiteById, bulkInsertGoogleSearchConsoleData } from '@/lib/db-adapter';
+import { getSiteById, bulkInsertGoogleSearchConsoleData, getAllGoogleAccounts } from '@/lib/db-adapter';
 import { createSearchConsoleService } from '@/lib/google-search-console';
 import { requireAuth } from '@/lib/middleware-auth';
 import { NextRequest } from 'next/server';
+import { cache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -85,6 +86,22 @@ export async function POST(
 
     // Сохраняем данные в БД
     await bulkInsertGoogleSearchConsoleData(dataToInsert);
+
+    // Инвалидируем кеш для этого сайта (для всех периодов)
+    for (const days of [7, 30, 90, 180]) {
+      cache.delete(`google-console-daily-${siteId}-${days}`);
+    }
+    
+    // Также инвалидируем агрегированные данные для всех аккаунтов и периодов
+    const accounts = await getAllGoogleAccounts(user.id);
+    for (const days of [7, 30, 90, 180]) {
+      // Очищаем для default (без accountId)
+      cache.delete(`google-console-aggregated-${user.id}-default-${days}`);
+      // Очищаем для всех аккаунтов пользователя
+      for (const account of accounts) {
+        cache.delete(`google-console-aggregated-${user.id}-${account.id}-${days}`);
+      }
+    }
 
     return NextResponse.json({
       success: true,
