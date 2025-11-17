@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllSites, getGoogleSearchConsoleDataBySiteId, getIntegrations, getAllGoogleAccounts } from '@/lib/db-adapter';
+import { getAllSites, getGoogleSearchConsoleDataBySiteId, getIntegrations, getAllGoogleAccounts, getSitesByTag, getSiteTags } from '@/lib/db-adapter';
 import { createSearchConsoleService } from '@/lib/google-search-console';
 import { hasGoogleOAuth } from '@/lib/oauth-utils';
 import { requireAuth } from '@/lib/middleware-auth';
@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
     const days = daysParam ? parseInt(daysParam) : 30; // По умолчанию 30 дней
     const accountIdParam = searchParams.get('accountId');
     const accountId = accountIdParam ? parseInt(accountIdParam) : null;
+    const tagIdsParam = searchParams.get('tagIds');
+    const tagIds = tagIdsParam ? tagIdsParam.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
 
     // Проверяем кеш (кеш на 12 часов, так как данные Google Search Console обновляются раз в сутки)
     const cacheKey = `google-console-aggregated-${user.id}-${accountId || 'default'}-${days}`;
@@ -42,7 +44,18 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const sites = await getAllSites(user.id);
+    let sites = await getAllSites(user.id);
+    
+    // Фильтруем сайты по тегам, если указаны
+    if (tagIds.length > 0) {
+      const siteIdsByTags = new Set<number>();
+      for (const tagId of tagIds) {
+        const siteIds = await getSitesByTag(tagId, user.id);
+        siteIds.forEach(id => siteIdsByTags.add(id));
+      }
+      sites = sites.filter(site => siteIdsByTags.has(site.id));
+    }
+    
     const integrations = await getIntegrations(user.id);
     const isOAuthConfigured = hasGoogleOAuth(integrations);
     
@@ -76,9 +89,15 @@ export async function GET(request: NextRequest) {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     
+    // Загружаем теги для всех сайтов
+    const sitesWithTags = await Promise.all(sites.map(async (site) => {
+      const tags = await getSiteTags(site.id);
+      return { ...site, tags };
+    }));
+    
     // Получаем агрегированные данные для каждого сайта
     const sitesWithData = await Promise.all(
-      sites.map(async (site) => {
+      sitesWithTags.map(async (site) => {
         // Проверяем подключение к Google Search Console
         let hasGoogleConsoleConnection = false;
         let googleConsoleSiteUrl: string | null = null;

@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import type { Site, IntegrationsSettings, GoogleAccount } from './types';
+import type { Site, IntegrationsSettings, GoogleAccount, Tag } from './types';
 
 export interface AffiliateOffer {
   id?: number;
@@ -486,5 +486,143 @@ export function updateGoogleAccount(id: number, account: Partial<Omit<GoogleAcco
 export function deleteGoogleAccount(id: number, userId: number): void {
   const database = getDatabase();
   database.prepare('DELETE FROM google_accounts WHERE id = ? AND user_id = ?').run(id, userId);
+}
+
+// Tags functions
+export function createTag(tag: Omit<Tag, 'id' | 'createdAt' | 'updatedAt'>): Tag {
+  const database = getDatabase();
+  const stmt = database.prepare(`
+    INSERT INTO tags (name, color, user_id, created_at, updated_at)
+    VALUES (?, ?, ?, datetime('now'), datetime('now'))
+  `);
+
+  const result = stmt.run(
+    tag.name,
+    tag.color || '#3b82f6',
+    tag.userId || null
+  );
+
+  return {
+    id: Number(result.lastInsertRowid),
+    name: tag.name,
+    color: tag.color || '#3b82f6',
+    userId: tag.userId,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function getAllTags(userId: number): Tag[] {
+  const database = getDatabase();
+  const rows = database.prepare('SELECT * FROM tags WHERE user_id = ? ORDER BY name').all(userId) as any[];
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    color: row.color || '#3b82f6',
+    userId: row.user_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export function getTagById(id: number, userId: number): Tag | null {
+  const database = getDatabase();
+  const row = database.prepare('SELECT * FROM tags WHERE id = ? AND user_id = ?').get(id, userId) as any;
+  
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    name: row.name,
+    color: row.color || '#3b82f6',
+    userId: row.user_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function updateTag(id: number, tag: Partial<Omit<Tag, 'id' | 'createdAt'>>, userId: number): Tag {
+  const database = getDatabase();
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (tag.name !== undefined) {
+    updates.push('name = ?');
+    values.push(tag.name);
+  }
+  if (tag.color !== undefined) {
+    updates.push('color = ?');
+    values.push(tag.color);
+  }
+
+  updates.push("updated_at = datetime('now')");
+  values.push(id, userId);
+
+  const query = `UPDATE tags SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`;
+  database.prepare(query).run(...values);
+
+  const updated = getTagById(id, userId);
+  if (!updated) {
+    throw new Error('Tag not found after update');
+  }
+  return updated;
+}
+
+export function deleteTag(id: number, userId: number): void {
+  const database = getDatabase();
+  database.prepare('DELETE FROM tags WHERE id = ? AND user_id = ?').run(id, userId);
+}
+
+// Site tags functions
+export function assignTagToSite(siteId: number, tagId: number): void {
+  const database = getDatabase();
+  try {
+    database.prepare(`
+      INSERT INTO site_tags (site_id, tag_id, created_at)
+      VALUES (?, ?, datetime('now'))
+    `).run(siteId, tagId);
+  } catch (error: any) {
+    // Игнорируем ошибку, если связь уже существует
+    if (!error.message?.includes('UNIQUE constraint')) {
+      throw error;
+    }
+  }
+}
+
+export function removeTagFromSite(siteId: number, tagId: number): void {
+  const database = getDatabase();
+  database.prepare('DELETE FROM site_tags WHERE site_id = ? AND tag_id = ?').run(siteId, tagId);
+}
+
+export function getSiteTags(siteId: number): Tag[] {
+  const database = getDatabase();
+  const rows = database.prepare(`
+    SELECT t.* FROM tags t
+    INNER JOIN site_tags st ON t.id = st.tag_id
+    WHERE st.site_id = ?
+    ORDER BY t.name
+  `).all(siteId) as any[];
+  
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    color: row.color || '#3b82f6',
+    userId: row.user_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export function getSitesByTag(tagId: number, userId: number): number[] {
+  const database = getDatabase();
+  const rows = database.prepare(`
+    SELECT s.id FROM sites s
+    INNER JOIN site_tags st ON s.id = st.site_id
+    WHERE st.tag_id = ? AND s.user_id = ?
+  `).all(tagId, userId) as any[];
+  
+  return rows.map((row) => row.id);
 }
 

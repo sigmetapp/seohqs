@@ -350,3 +350,149 @@ export async function bulkInsertGoogleSearchConsoleData(
   }
 }
 
+// Tags adapter functions
+export async function createTag(tag: Omit<import('./types').Tag, 'id' | 'createdAt' | 'updatedAt'>, userId: number): Promise<import('./types').Tag> {
+  if (useSupabase()) {
+    const { createTag: createSupabase } = await import('./db-supabase');
+    return createSupabase(tag, userId);
+  } else if (usePostgres()) {
+    const { createTag: createPostgres } = await import('./db-postgres');
+    return createPostgres(tag, userId);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { createTag: createSQLite } = require('./db');
+    return createSQLite({ ...tag, userId });
+  }
+}
+
+export async function getAllTags(userId: number): Promise<import('./types').Tag[]> {
+  if (useSupabase()) {
+    const { getAllTags: getSupabase } = await import('./db-supabase');
+    return getSupabase(userId);
+  } else if (usePostgres()) {
+    const { getAllTags: getPostgres } = await import('./db-postgres');
+    return getPostgres(userId);
+  } else {
+    if (process.env.VERCEL) {
+      return [];
+    }
+    const { getAllTags: getSQLite } = require('./db');
+    return getSQLite(userId);
+  }
+}
+
+export async function getTagById(id: number, userId: number): Promise<import('./types').Tag | null> {
+  if (useSupabase()) {
+    const { getTagById: getSupabase } = await import('./db-supabase');
+    return getSupabase(id, userId);
+  } else if (usePostgres()) {
+    const { getTagById: getPostgres } = await import('./db-postgres');
+    return getPostgres(id, userId);
+  } else {
+    if (process.env.VERCEL) {
+      return null;
+    }
+    const { getTagById: getSQLite } = require('./db');
+    return getSQLite(id, userId);
+  }
+}
+
+export async function updateTag(id: number, tag: Partial<Omit<import('./types').Tag, 'id' | 'createdAt'>>, userId: number): Promise<import('./types').Tag> {
+  if (useSupabase()) {
+    const { updateTag: updateSupabase } = await import('./db-supabase');
+    return updateSupabase(id, tag, userId);
+  } else if (usePostgres()) {
+    const { updateTag: updatePostgres } = await import('./db-postgres');
+    return updatePostgres(id, tag, userId);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { updateTag: updateSQLite } = require('./db');
+    return updateSQLite(id, tag, userId);
+  }
+}
+
+export async function deleteTag(id: number, userId: number): Promise<void> {
+  if (useSupabase()) {
+    const { deleteTag: deleteSupabase } = await import('./db-supabase');
+    return deleteSupabase(id, userId);
+  } else if (usePostgres()) {
+    const { deleteTag: deletePostgres } = await import('./db-postgres');
+    return deletePostgres(id, userId);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { deleteTag: deleteSQLite } = require('./db');
+    return deleteSQLite(id, userId);
+  }
+}
+
+// Site tags adapter functions
+export async function assignTagToSite(siteId: number, tagId: number): Promise<void> {
+  if (useSupabase()) {
+    const { assignTagToSite: assignSupabase } = await import('./db-supabase');
+    return assignSupabase(siteId, tagId);
+  } else if (usePostgres()) {
+    const { assignTagToSite: assignPostgres } = await import('./db-postgres');
+    return assignPostgres(siteId, tagId);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { assignTagToSite: assignSQLite } = require('./db');
+    return assignSQLite(siteId, tagId);
+  }
+}
+
+export async function removeTagFromSite(siteId: number, tagId: number): Promise<void> {
+  if (useSupabase()) {
+    const { removeTagFromSite: removeSupabase } = await import('./db-supabase');
+    return removeSupabase(siteId, tagId);
+  } else if (usePostgres()) {
+    const { removeTagFromSite: removePostgres } = await import('./db-postgres');
+    return removePostgres(siteId, tagId);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { removeTagFromSite: removeSQLite } = require('./db');
+    return removeSQLite(siteId, tagId);
+  }
+}
+
+export async function getSiteTags(siteId: number): Promise<import('./types').Tag[]> {
+  if (useSupabase()) {
+    const { getSiteTags: getSupabase } = await import('./db-supabase');
+    return getSupabase(siteId);
+  } else if (usePostgres()) {
+    const { getSiteTags: getPostgres } = await import('./db-postgres');
+    return getPostgres(siteId);
+  } else {
+    if (process.env.VERCEL) {
+      return [];
+    }
+    const { getSiteTags: getSQLite } = require('./db');
+    return getSQLite(siteId);
+  }
+}
+
+export async function getSitesByTag(tagId: number, userId: number): Promise<number[]> {
+  if (useSupabase()) {
+    const { getSitesByTag: getSupabase } = await import('./db-supabase');
+    return getSupabase(tagId, userId);
+  } else if (usePostgres()) {
+    const { getSitesByTag: getPostgres } = await import('./db-postgres');
+    return getPostgres(tagId, userId);
+  } else {
+    if (process.env.VERCEL) {
+      return [];
+    }
+    const { getSitesByTag: getSQLite } = require('./db');
+    return getSQLite(tagId, userId);
+  }
+}
+

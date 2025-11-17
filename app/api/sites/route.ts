@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllSites, insertSite, getIntegrations } from '@/lib/db-adapter';
+import { getAllSites, insertSite, getIntegrations, getSiteTags } from '@/lib/db-adapter';
 import { createSearchConsoleService } from '@/lib/google-search-console';
 import { hasGoogleOAuth } from '@/lib/oauth-utils';
 import { requireAuth } from '@/lib/middleware-auth';
@@ -60,7 +60,13 @@ export async function GET(request: NextRequest) {
       return domain.toLowerCase().trim();
     };
     
-    const sitesWithStatus = sites.map(site => {
+    // Загружаем теги для всех сайтов
+    const sitesWithTags = await Promise.all(sites.map(async (site) => {
+      const tags = await getSiteTags(site.id);
+      return { ...site, tags };
+    }));
+    
+    const sitesWithStatus = sitesWithTags.map(site => {
       let hasGoogleConsoleConnection = false;
       
       if (isOAuthConfigured) {

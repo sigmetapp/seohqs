@@ -1,5 +1,5 @@
 import { getPostgresClient } from './postgres-client';
-import type { AffiliateOffer, Site, IntegrationsSettings } from './types';
+import type { AffiliateOffer, Site, IntegrationsSettings, Tag } from './types';
 
 // Проверяем, доступна ли PostgreSQL БД
 function isPostgresAvailable(): boolean {
@@ -501,6 +501,253 @@ export async function bulkInsertGoogleSearchConsoleData(
       throw new Error('Table google_search_console_data does not exist. Please run migrations.');
     }
     throw error;
+  }
+}
+
+// Tags functions
+export async function createTag(tag: Omit<Tag, 'id' | 'createdAt' | 'updatedAt'>, userId: number): Promise<Tag> {
+  if (!isPostgresAvailable()) {
+    throw new Error('PostgreSQL database not configured. Please set POSTGRES_URL or DATABASE_URL.');
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const result = await db.query(
+      `INSERT INTO tags (name, color, user_id, created_at, updated_at) 
+       VALUES ($1, $2, $3, NOW(), NOW())
+       RETURNING id, name, color, user_id, created_at, updated_at`,
+      [tag.name, tag.color || '#3b82f6', userId]
+    );
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      name: row.name,
+      color: row.color || '#3b82f6',
+      userId: row.user_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      throw new Error('Table tags does not exist. Please run migrations.');
+    }
+    if (error?.code === '23505') {
+      throw new Error('Tag with this name already exists');
+    }
+    throw error;
+  }
+}
+
+export async function getAllTags(userId: number): Promise<Tag[]> {
+  if (!isPostgresAvailable()) {
+    return [];
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const result = await db.query(
+      'SELECT * FROM tags WHERE user_id = $1 ORDER BY name',
+      [userId]
+    );
+
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      color: row.color || '#3b82f6',
+      userId: row.user_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      return [];
+    }
+    console.error('Error fetching tags:', error);
+    return [];
+  }
+}
+
+export async function getTagById(id: number, userId: number): Promise<Tag | null> {
+  if (!isPostgresAvailable()) {
+    return null;
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const result = await db.query(
+      'SELECT * FROM tags WHERE id = $1 AND user_id = $2',
+      [id, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      name: row.name,
+      color: row.color || '#3b82f6',
+      userId: row.user_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      return null;
+    }
+    console.error('Error fetching tag:', error);
+    return null;
+  }
+}
+
+export async function updateTag(id: number, tag: Partial<Omit<Tag, 'id' | 'createdAt'>>, userId: number): Promise<Tag> {
+  if (!isPostgresAvailable()) {
+    throw new Error('PostgreSQL database not configured');
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (tag.name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(tag.name);
+    }
+    if (tag.color !== undefined) {
+      updates.push(`color = $${paramIndex++}`);
+      values.push(tag.color);
+    }
+
+    updates.push(`updated_at = NOW()`);
+    values.push(id, userId);
+
+    const query = `UPDATE tags SET ${updates.join(', ')} WHERE id = $${paramIndex++} AND user_id = $${paramIndex++}`;
+    await db.query(query, values);
+
+    const updated = await getTagById(id, userId);
+    if (!updated) {
+      throw new Error('Tag not found after update');
+    }
+    return updated;
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      throw new Error('Table tags does not exist. Please run migrations.');
+    }
+    throw error;
+  }
+}
+
+export async function deleteTag(id: number, userId: number): Promise<void> {
+  if (!isPostgresAvailable()) {
+    throw new Error('PostgreSQL database not configured');
+  }
+
+  try {
+    const db = await getPostgresClient();
+    await db.query('DELETE FROM tags WHERE id = $1 AND user_id = $2', [id, userId]);
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      return;
+    }
+    throw error;
+  }
+}
+
+// Site tags functions
+export async function assignTagToSite(siteId: number, tagId: number): Promise<void> {
+  if (!isPostgresAvailable()) {
+    throw new Error('PostgreSQL database not configured');
+  }
+
+  try {
+    const db = await getPostgresClient();
+    await db.query(
+      `INSERT INTO site_tags (site_id, tag_id, created_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (site_id, tag_id) DO NOTHING`,
+      [siteId, tagId]
+    );
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      throw new Error('Table site_tags does not exist. Please run migrations.');
+    }
+    throw error;
+  }
+}
+
+export async function removeTagFromSite(siteId: number, tagId: number): Promise<void> {
+  if (!isPostgresAvailable()) {
+    throw new Error('PostgreSQL database not configured');
+  }
+
+  try {
+    const db = await getPostgresClient();
+    await db.query('DELETE FROM site_tags WHERE site_id = $1 AND tag_id = $2', [siteId, tagId]);
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      return;
+    }
+    throw error;
+  }
+}
+
+export async function getSiteTags(siteId: number): Promise<Tag[]> {
+  if (!isPostgresAvailable()) {
+    return [];
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const result = await db.query(
+      `SELECT t.* FROM tags t
+       INNER JOIN site_tags st ON t.id = st.tag_id
+       WHERE st.site_id = $1
+       ORDER BY t.name`,
+      [siteId]
+    );
+
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      color: row.color || '#3b82f6',
+      userId: row.user_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      return [];
+    }
+    console.error('Error fetching site tags:', error);
+    return [];
+  }
+}
+
+export async function getSitesByTag(tagId: number, userId: number): Promise<number[]> {
+  if (!isPostgresAvailable()) {
+    return [];
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const result = await db.query(
+      `SELECT s.id FROM sites s
+       INNER JOIN site_tags st ON s.id = st.site_id
+       WHERE st.tag_id = $1 AND s.user_id = $2`,
+      [tagId, userId]
+    );
+
+    return result.rows.map((row: any) => row.id);
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      return [];
+    }
+    console.error('Error fetching sites by tag:', error);
+    return [];
   }
 }
 
