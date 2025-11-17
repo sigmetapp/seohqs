@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { Site, Tag } from '@/lib/types';
 
@@ -40,6 +40,12 @@ export default function SitesPage() {
   const [tagModalSiteId, setTagModalSiteId] = useState<number | null>(null);
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#3b82f6');
+  const [showEditTagModal, setShowEditTagModal] = useState(false);
+  const [editingTagId, setEditingTagId] = useState<number | null>(null);
+  const [domainSearch, setDomainSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<Site[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadSites();
@@ -188,6 +194,81 @@ export default function SitesPage() {
     }
   };
 
+  const handleSearchSiteByDomain = async () => {
+    if (!domainSearch.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    setSearching(true);
+    try {
+      // Ищем сайт по домену среди существующих сайтов
+      const normalizedSearch = domainSearch.toLowerCase().trim().replace(/^www\./, '').replace(/^https?:\/\//, '').split('/')[0];
+      const matchingSites = sites.filter(site => {
+        const normalizedDomain = site.domain.toLowerCase().trim().replace(/^www\./, '').replace(/^https?:\/\//, '').split('/')[0];
+        return normalizedDomain.includes(normalizedSearch) || normalizedSearch.includes(normalizedDomain);
+      });
+      setSearchResults(matchingSites);
+    } catch (err) {
+      console.error('Error searching sites:', err);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // Обновляем результаты поиска при изменении сайтов
+  useEffect(() => {
+    if (showEditTagModal && domainSearch.trim()) {
+      handleSearchSiteByDomain();
+    }
+  }, [sites]);
+
+  // Debounce для поиска (только когда открыто модальное окно редактирования)
+  useEffect(() => {
+    if (!showEditTagModal) {
+      return;
+    }
+    
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    if (domainSearch.trim()) {
+      searchTimeoutRef.current = setTimeout(() => {
+        handleSearchSiteByDomain();
+      }, 300);
+    } else {
+      setSearchResults([]);
+    }
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [domainSearch, showEditTagModal]);
+
+  const handleAddSiteToTag = async (siteId: number, tagId: number) => {
+    try {
+      const response = await fetch(`/api/sites/${siteId}/tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tagId }),
+      });
+      if (response.ok) {
+        loadSites();
+        // Обновляем результаты поиска
+        setSearchResults(prev => prev.map(site => {
+          if (site.id === siteId) {
+            return { ...site, tags: [...(site.tags || []), tags.find(t => t.id === tagId)!] };
+          }
+          return site;
+        }));
+      }
+    } catch (err) {
+      console.error('Error adding site to tag:', err);
+    }
+  };
+
   // Фильтрация сайтов по тегам
   const filteredSites = useMemo(() => {
     if (selectedTagIds.length === 0) {
@@ -278,24 +359,42 @@ export default function SitesPage() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {tags.map((tag) => (
-                      <button
+                      <div
                         key={tag.id}
-                        onClick={() => {
-                          setSelectedTagIds(prev =>
-                            prev.includes(tag.id)
-                              ? prev.filter(id => id !== tag.id)
-                              : [...prev, tag.id]
-                          );
-                        }}
-                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                          selectedTagIds.includes(tag.id)
-                            ? 'ring-2 ring-blue-500'
-                            : ''
-                        }`}
-                        style={{ backgroundColor: tag.color + '40', color: tag.color, borderColor: tag.color }}
+                        className="inline-flex items-center gap-1"
                       >
-                        {tag.name}
-                      </button>
+                        <button
+                          onClick={() => {
+                            setSelectedTagIds(prev =>
+                              prev.includes(tag.id)
+                                ? prev.filter(id => id !== tag.id)
+                                : [...prev, tag.id]
+                            );
+                          }}
+                          className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                            selectedTagIds.includes(tag.id)
+                              ? 'ring-2 ring-blue-500'
+                              : ''
+                          }`}
+                          style={{ backgroundColor: tag.color + '40', color: tag.color, borderColor: tag.color }}
+                        >
+                          {tag.name}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingTagId(tag.id);
+                            setShowEditTagModal(true);
+                            setDomainSearch('');
+                            setSearchResults([]);
+                          }}
+                          className="text-gray-400 hover:text-gray-300 p-1"
+                          title="Редактировать тег"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      </div>
                     ))}
                     {selectedTagIds.length > 0 && (
                       <button
@@ -360,10 +459,20 @@ export default function SitesPage() {
                               {(site.tags || []).map((tag) => (
                                 <span
                                   key={tag.id}
-                                  className="px-2 py-0.5 rounded text-xs"
+                                  className="px-2 py-0.5 rounded text-xs inline-flex items-center gap-1"
                                   style={{ backgroundColor: tag.color + '40', color: tag.color }}
                                 >
                                   {tag.name}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemoveTag(site.id, tag.id);
+                                    }}
+                                    className="hover:bg-opacity-20 rounded px-0.5"
+                                    title="Удалить тег"
+                                  >
+                                    ×
+                                  </button>
                                 </span>
                               ))}
                             </div>
@@ -545,6 +654,108 @@ export default function SitesPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Модальное окно редактирования тега */}
+        {showEditTagModal && editingTagId && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700 max-h-[90vh] overflow-y-auto">
+              <h2 className="text-2xl font-bold mb-4">
+                Редактировать тег: {tags.find(t => t.id === editingTagId)?.name}
+              </h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Добавить сайт по домену:
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={domainSearch}
+                      onChange={(e) => {
+                        setDomainSearch(e.target.value);
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSearchSiteByDomain();
+                        }
+                      }}
+                      className="flex-1 px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                      placeholder="Введите домен (например: example.com)"
+                    />
+                    <button
+                      onClick={handleSearchSiteByDomain}
+                      disabled={searching || !domainSearch.trim()}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {searching ? '...' : 'Найти'}
+                    </button>
+                  </div>
+                </div>
+
+                {searchResults.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Найденные сайты:
+                    </label>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {searchResults.map((site) => {
+                        const isTagAssigned = (site.tags || []).some(t => t.id === editingTagId);
+                        return (
+                          <div
+                            key={site.id}
+                            className="flex items-center justify-between p-2 bg-gray-700 rounded"
+                          >
+                            <div>
+                              <div className="font-medium text-sm">{site.domain}</div>
+                              <div className="text-xs text-gray-400">{site.name}</div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                if (isTagAssigned) {
+                                  handleRemoveTag(site.id, editingTagId);
+                                } else {
+                                  handleAddSiteToTag(site.id, editingTagId);
+                                }
+                              }}
+                              className={`px-3 py-1 rounded text-xs ${
+                                isTagAssigned
+                                  ? 'bg-red-600 hover:bg-red-700'
+                                  : 'bg-blue-600 hover:bg-blue-700'
+                              }`}
+                            >
+                              {isTagAssigned ? 'Удалить' : 'Добавить'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {domainSearch.trim() && searchResults.length === 0 && !searching && (
+                  <div className="text-sm text-gray-400 text-center py-4">
+                    Сайты не найдены
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-4 border-t border-gray-700">
+                  <button
+                    onClick={() => {
+                      setShowEditTagModal(false);
+                      setEditingTagId(null);
+                      setDomainSearch('');
+                      setSearchResults([]);
+                    }}
+                    className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+                  >
+                    Закрыть
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
