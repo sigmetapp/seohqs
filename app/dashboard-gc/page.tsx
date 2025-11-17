@@ -71,9 +71,12 @@ const SiteCard = memo(({
     ? Math.max(...dailyData.map(d => d.position), 1) * 3
     : 3;
 
+  // Получаем последние значения для отображения на графике
+  const lastData = dailyData.length > 0 ? dailyData[dailyData.length - 1] : null;
+
   return (
     <div
-      className="bg-gray-800 rounded-lg p-5 border border-gray-700 transition-all duration-200 hover:border-blue-500 hover:shadow-lg relative min-h-[380px]"
+      className="bg-gray-800 rounded-lg p-5 border border-gray-700 transition-all duration-200 hover:border-blue-500 hover:shadow-lg relative"
       onMouseEnter={onHover}
       onMouseLeave={onHoverLeave}
     >
@@ -101,9 +104,9 @@ const SiteCard = memo(({
         </div>
       </div>
 
-      {/* Всплывающее окно с данными конкретной даты */}
+      {/* Всплывающее окно с данными конкретной даты - позиционируем выше графика, чтобы не было под мышкой */}
       {hoveredDate && (
-        <div className="absolute top-52 left-1/2 transform -translate-x-1/2 bg-gray-900 rounded-lg p-4 z-30 border-2 border-blue-500 shadow-2xl min-w-[200px]">
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 -translate-y-full mb-2 bg-gray-900 rounded-lg p-4 z-30 border-2 border-blue-500 shadow-2xl min-w-[200px] pointer-events-none">
           <div className="text-xs text-gray-300 mb-3 font-semibold text-center border-b border-gray-700 pb-2">
             {new Date(hoveredDate.date).toLocaleDateString('ru-RU', { 
               day: '2-digit', 
@@ -149,15 +152,15 @@ const SiteCard = memo(({
 
       {/* График */}
       {isLoading ? (
-        <div className="h-64 flex items-center justify-center text-gray-400 text-sm bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl border border-gray-700">
+        <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             <span>Загрузка данных...</span>
           </div>
         </div>
       ) : dailyData.length > 0 ? (
-        <div>
-          <div className="h-64 bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 rounded-xl p-4 relative border border-gray-700 shadow-inner">
+        <div className="relative">
+          <div className="h-64 relative">
             <svg width="100%" height="100%" viewBox="0 0 800 200" preserveAspectRatio="none" className="overflow-visible">
               {/* Определения градиентов */}
               <defs>
@@ -391,31 +394,30 @@ const SiteCard = memo(({
                 </>
               )}
             </svg>
-            {/* Легенда */}
-            <div className="absolute bottom-3 right-3 flex gap-4 text-xs bg-gray-800/90 backdrop-blur-sm px-3 py-2 rounded-lg border border-gray-700 shadow-lg">
-              {showImpressions && (
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full shadow-sm"></div>
-                  <span className="text-gray-200 text-xs font-medium">Показы</span>
-                </div>
-              )}
-              {showClicks && (
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-green-500 rounded-full shadow-sm"></div>
-                  <span className="text-gray-200 text-xs font-medium">Клики</span>
-                </div>
-              )}
-              {showPositions && (
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-yellow-500 rounded-full shadow-sm"></div>
-                  <span className="text-gray-200 text-xs font-medium">Позиции</span>
-                </div>
-              )}
-            </div>
+            
+            {/* Значки и цифры на графике - показы и клики */}
+            {lastData && (
+              <div className="absolute top-3 left-3 flex flex-col gap-2">
+                {showImpressions && (
+                  <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span className="text-xs font-semibold text-blue-400">Показы:</span>
+                    <span className="text-xs font-bold text-white">{lastData.impressions.toLocaleString()}</span>
+                  </div>
+                )}
+                {showClicks && (
+                  <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-xs font-semibold text-green-400">Клики:</span>
+                    <span className="text-xs font-bold text-white">{lastData.clicks.toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       ) : (
-        <div className="h-64 flex items-center justify-center text-gray-500 text-sm bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl border border-gray-700">
+        <div className="h-64 flex items-center justify-center text-gray-500 text-sm">
           <div className="text-center">
             <div className="text-gray-400 mb-1">Нет данных</div>
             <div className="text-xs text-gray-500">за выбранный период</div>
@@ -583,13 +585,13 @@ export default function DashboardGCPage() {
           </div>
         ) : (
           <>
-            {/* Контролы */}
-            <div className="sticky top-0 z-50 bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700 shadow-lg backdrop-blur-sm">
-              <div className="flex flex-wrap gap-4 items-center">
+            {/* Контролы - зафиксированы в одну строку */}
+            <div className="sticky top-0 z-50 bg-gray-800 rounded-lg p-3 mb-6 border border-gray-700 shadow-lg backdrop-blur-sm">
+              <div className="flex flex-nowrap gap-4 items-center overflow-x-auto">
                 {/* Фильтр по тегам */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-400">Фильтр по тегам:</span>
-                  <div className="flex flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-sm text-gray-400 whitespace-nowrap">Фильтр по тегам:</span>
+                  <div className="flex gap-2 flex-nowrap">
                     {tags.map((tag) => (
                       <button
                         key={tag.id}
@@ -600,7 +602,7 @@ export default function DashboardGCPage() {
                               : [...prev, tag.id]
                           );
                         }}
-                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                        className={`px-3 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
                           selectedTagIds.includes(tag.id)
                             ? 'ring-2 ring-blue-500'
                             : ''
@@ -613,38 +615,23 @@ export default function DashboardGCPage() {
                     {selectedTagIds.length > 0 && (
                       <button
                         onClick={() => setSelectedTagIds([])}
-                        className="px-3 py-1 rounded text-xs bg-gray-700 hover:bg-gray-600 text-gray-300"
+                        className="px-3 py-1 rounded text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 whitespace-nowrap"
                       >
                         Сбросить
                       </button>
                     )}
                   </div>
                 </div>
-                {/* Селектор Google аккаунта */}
-                {googleAccounts.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-400">Google аккаунт:</span>
-                    <select
-                      value={selectedAccountId || ''}
-                      onChange={(e) => setSelectedAccountId(e.target.value ? parseInt(e.target.value) : null)}
-                      className="px-3 py-1 bg-gray-700 text-white rounded text-sm border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    >
-                      {googleAccounts.map((account) => (
-                        <option key={account.id} value={account.id}>
-                          {account.email}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-400">Период:</span>
+                
+                {/* Период */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-sm text-gray-400 whitespace-nowrap">Период:</span>
                   <div className="flex gap-2">
                     {[7, 30, 90, 180].map((days) => (
                       <button
                         key={days}
                         onClick={() => setSelectedPeriod(days)}
-                        className={`px-3 py-1 rounded text-sm ${
+                        className={`px-3 py-1 rounded text-sm whitespace-nowrap ${
                           selectedPeriod === days
                             ? 'bg-blue-600 text-white'
                             : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -655,14 +642,16 @@ export default function DashboardGCPage() {
                     ))}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-400">Колонок в строке:</span>
+                
+                {/* Колонок в строке */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-sm text-gray-400 whitespace-nowrap">Колонок в строке:</span>
                   <div className="flex gap-2">
                     {[1, 2, 3, 4, 5].map((cols) => (
                       <button
                         key={cols}
                         onClick={() => setColumnsPerRow(cols)}
-                        className={`px-3 py-1 rounded text-sm ${
+                        className={`px-3 py-1 rounded text-sm whitespace-nowrap ${
                           columnsPerRow === cols
                             ? 'bg-blue-600 text-white'
                             : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -673,10 +662,12 @@ export default function DashboardGCPage() {
                     ))}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 ml-auto">
+                
+                {/* Блюр */}
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={() => setBlurMode(!blurMode)}
-                    className={`px-3 py-1 rounded text-sm ${
+                    className={`px-3 py-1 rounded text-sm whitespace-nowrap ${
                       blurMode
                         ? 'bg-purple-600 text-white'
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -684,8 +675,12 @@ export default function DashboardGCPage() {
                   >
                     {blurMode ? '🔓 Размытие' : '🔒 Блюр'}
                   </button>
-                  <span className="text-sm text-gray-400">Показать на графике:</span>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                </div>
+                
+                {/* Показать на графике */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-sm text-gray-400 whitespace-nowrap">Показать на графике:</span>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap">
                     <input
                       type="checkbox"
                       checked={showImpressions}
@@ -694,7 +689,7 @@ export default function DashboardGCPage() {
                     />
                     <span className="text-gray-300">Показы</span>
                   </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap">
                     <input
                       type="checkbox"
                       checked={showClicks}
@@ -703,7 +698,7 @@ export default function DashboardGCPage() {
                     />
                     <span className="text-gray-300">Клики</span>
                   </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap">
                     <input
                       type="checkbox"
                       checked={showPositions}
