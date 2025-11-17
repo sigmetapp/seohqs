@@ -73,6 +73,18 @@ export interface Site {
     hasOAuth: boolean;
     hasUrl: boolean;
   };
+  // Теги сайта
+  tags?: Tag[];
+}
+
+// Типы для тегов
+export interface Tag {
+  id: number;
+  name: string;
+  color: string;
+  userId?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface GoogleSearchConsoleData {

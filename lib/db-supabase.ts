@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { AffiliateOffer, Site, IntegrationsSettings, GoogleAccount } from './types';
+import type { AffiliateOffer, Site, IntegrationsSettings, GoogleAccount, Tag } from './types';
 
 export async function insertOffers(offers: Omit<AffiliateOffer, 'id' | 'created_at'>[]): Promise<void> {
   if (!supabase) {
@@ -838,6 +838,315 @@ export async function deleteGoogleAccount(id: number, userId: number): Promise<v
     }
   } catch (error: any) {
     throw error;
+  }
+}
+
+// Tags functions
+export async function createTag(tag: Omit<Tag, 'id' | 'createdAt' | 'updatedAt'>, userId: number): Promise<Tag> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized. Check environment variables.');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('tags')
+      .insert({
+        name: tag.name,
+        color: tag.color || '#3b82f6',
+        user_id: userId,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') {
+        throw new Error('Tag with this name already exists');
+      }
+      if (error.code === '42501' || error.message?.includes('permission denied')) {
+        throw new Error(`RLS Policy Error: ${error.message}. Проверьте политики Row Level Security.`);
+      }
+      throw new Error(`Supabase insert error: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('Failed to create tag');
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      color: data.color || '#3b82f6',
+      userId: data.user_id,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+export async function getAllTags(userId: number): Promise<Tag[]> {
+  if (!supabase) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('tags')
+      .select('*')
+      .eq('user_id', userId)
+      .order('name', { ascending: true });
+
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return [];
+      }
+      console.error('Error fetching tags:', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      color: row.color || '#3b82f6',
+      userId: row.user_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  } catch (error: any) {
+    console.error('Error fetching tags:', error);
+    return [];
+  }
+}
+
+export async function getTagById(id: number, userId: number): Promise<Tag | null> {
+  if (!supabase) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('tags')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      console.error('Error fetching tag:', error);
+      return null;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      color: data.color || '#3b82f6',
+      userId: data.user_id,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+  } catch (error: any) {
+    console.error('Error fetching tag:', error);
+    return null;
+  }
+}
+
+export async function updateTag(id: number, tag: Partial<Omit<Tag, 'id' | 'createdAt'>>, userId: number): Promise<Tag> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized. Check environment variables.');
+  }
+
+  try {
+    const updates: any = {};
+    if (tag.name !== undefined) {
+      updates.name = tag.name;
+    }
+    if (tag.color !== undefined) {
+      updates.color = tag.color;
+    }
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('tags')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        throw new Error('Tag not found');
+      }
+      throw new Error(`Supabase update error: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('Failed to update tag');
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      color: data.color || '#3b82f6',
+      userId: data.user_id,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+export async function deleteTag(id: number, userId: number): Promise<void> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized. Check environment variables.');
+  }
+
+  try {
+    const { error } = await supabase
+      .from('tags')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      throw new Error(`Supabase delete error: ${error.message}`);
+    }
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+// Site tags functions
+export async function assignTagToSite(siteId: number, tagId: number): Promise<void> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized. Check environment variables.');
+  }
+
+  try {
+    const { error } = await supabase
+      .from('site_tags')
+      .insert({
+        site_id: siteId,
+        tag_id: tagId,
+      });
+
+    if (error) {
+      if (error.code === '23505') {
+        // Tag already assigned, ignore
+        return;
+      }
+      if (error.code === '42501' || error.message?.includes('permission denied')) {
+        throw new Error(`RLS Policy Error: ${error.message}. Проверьте политики Row Level Security.`);
+      }
+      throw new Error(`Supabase insert error: ${error.message}`);
+    }
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+export async function removeTagFromSite(siteId: number, tagId: number): Promise<void> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized. Check environment variables.');
+  }
+
+  try {
+    const { error } = await supabase
+      .from('site_tags')
+      .delete()
+      .eq('site_id', siteId)
+      .eq('tag_id', tagId);
+
+    if (error) {
+      throw new Error(`Supabase delete error: ${error.message}`);
+    }
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+export async function getSiteTags(siteId: number): Promise<Tag[]> {
+  if (!supabase) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('site_tags')
+      .select(`
+        tag_id,
+        tags (
+          id,
+          name,
+          color,
+          user_id,
+          created_at,
+          updated_at
+        )
+      `)
+      .eq('site_id', siteId);
+
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return [];
+      }
+      console.error('Error fetching site tags:', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.tags.id,
+      name: row.tags.name,
+      color: row.tags.color || '#3b82f6',
+      userId: row.tags.user_id,
+      createdAt: row.tags.created_at,
+      updatedAt: row.tags.updated_at,
+    }));
+  } catch (error: any) {
+    console.error('Error fetching site tags:', error);
+    return [];
+  }
+}
+
+export async function getSitesByTag(tagId: number, userId: number): Promise<number[]> {
+  if (!supabase) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('site_tags')
+      .select(`
+        site_id,
+        sites!inner (
+          id,
+          user_id
+        )
+      `)
+      .eq('tag_id', tagId)
+      .eq('sites.user_id', userId);
+
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return [];
+      }
+      console.error('Error fetching sites by tag:', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => row.site_id);
+  } catch (error: any) {
+    console.error('Error fetching sites by tag:', error);
+    return [];
   }
 }
 

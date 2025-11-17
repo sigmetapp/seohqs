@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import Link from 'next/link';
-import { GoogleAccount } from '@/lib/types';
+import { GoogleAccount, Tag } from '@/lib/types';
 
 type SiteData = {
   id: number;
@@ -442,6 +442,8 @@ export default function DashboardGCPage() {
   const [dailyData, setDailyData] = useState<Record<number, DailyData[]>>({});
   const [loadingDailyData, setLoadingDailyData] = useState<Record<number, boolean>>({});
   const [error, setError] = useState<string | null>(null);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
   // Загрузка Google аккаунтов
   useEffect(() => {
@@ -462,15 +464,37 @@ export default function DashboardGCPage() {
     loadGoogleAccounts();
   }, []);
 
+  // Загрузка тегов
+  useEffect(() => {
+    const loadTags = async () => {
+      try {
+        const response = await fetch('/api/tags');
+        const data = await response.json();
+        if (data.success) {
+          setTags(data.tags || []);
+        }
+      } catch (err) {
+        console.error('Error loading tags:', err);
+      }
+    };
+    loadTags();
+  }, []);
+
   // Загрузка агрегированных данных
   useEffect(() => {
     const loadAggregatedData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const url = selectedAccountId 
+        let url = selectedAccountId 
           ? `/api/sites/google-console-aggregated?accountId=${selectedAccountId}&days=${selectedPeriod}`
           : `/api/sites/google-console-aggregated?days=${selectedPeriod}`;
+        
+        // Добавляем фильтр по тегам, если выбраны
+        if (selectedTagIds.length > 0) {
+          url += `&tagIds=${selectedTagIds.join(',')}`;
+        }
+        
         const response = await fetch(url);
         const data = await response.json();
         if (data.success) {
@@ -486,7 +510,7 @@ export default function DashboardGCPage() {
       }
     };
     loadAggregatedData();
-  }, [selectedPeriod, selectedAccountId]);
+  }, [selectedPeriod, selectedAccountId, selectedTagIds]);
 
   // Загрузка данных по дням для всех сайтов
   useEffect(() => {
@@ -515,8 +539,9 @@ export default function DashboardGCPage() {
     }
   }, [selectedPeriod]);
 
-  // Видимые сайты для рендеринга - показываем все сайты
+  // Видимые сайты для рендеринга - фильтруем по тегам
   const visibleSites = useMemo(() => {
+    // Фильтрация уже происходит на сервере через API
     return sites;
   }, [sites]);
 
@@ -559,6 +584,40 @@ export default function DashboardGCPage() {
             {/* Контролы */}
             <div className="sticky top-0 z-50 bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700 shadow-lg backdrop-blur-sm">
               <div className="flex flex-wrap gap-4 items-center">
+                {/* Фильтр по тегам */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-400">Фильтр по тегам:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((tag) => (
+                      <button
+                        key={tag.id}
+                        onClick={() => {
+                          setSelectedTagIds(prev =>
+                            prev.includes(tag.id)
+                              ? prev.filter(id => id !== tag.id)
+                              : [...prev, tag.id]
+                          );
+                        }}
+                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                          selectedTagIds.includes(tag.id)
+                            ? 'ring-2 ring-blue-500'
+                            : ''
+                        }`}
+                        style={{ backgroundColor: tag.color + '40', color: tag.color }}
+                      >
+                        {tag.name}
+                      </button>
+                    ))}
+                    {selectedTagIds.length > 0 && (
+                      <button
+                        onClick={() => setSelectedTagIds([])}
+                        className="px-3 py-1 rounded text-xs bg-gray-700 hover:bg-gray-600 text-gray-300"
+                      >
+                        Сбросить
+                      </button>
+                    )}
+                  </div>
+                </div>
                 {/* Селектор Google аккаунта */}
                 {googleAccounts.length > 0 && (
                   <div className="flex items-center gap-2">

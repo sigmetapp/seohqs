@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Site } from '@/lib/types';
+import { Site, Tag } from '@/lib/types';
 
 export default function SitesPage() {
   const [sites, setSites] = useState<Site[]>([]);
@@ -33,11 +33,19 @@ export default function SitesPage() {
   const [selectedPeriodAllSites, setSelectedPeriodAllSites] = useState<number>(30); // 7, 30, 90, 180 дней
   const [sitesStats, setSitesStats] = useState<Record<number, { tasks: { total: number; open: number; closed: number }; links: number }>>({});
   const [loadingStats, setLoadingStats] = useState(false);
+  // Теги
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [showTagModal, setShowTagModal] = useState(false);
+  const [tagModalSiteId, setTagModalSiteId] = useState<number | null>(null);
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState('#3b82f6');
 
   useEffect(() => {
     loadSites();
     loadCategories();
     loadAggregatedData();
+    loadTags();
   }, [selectedPeriodAllSites]);
 
   useEffect(() => {
@@ -115,6 +123,82 @@ export default function SitesPage() {
     }
   };
 
+  const loadTags = async () => {
+    try {
+      const response = await fetch('/api/tags');
+      const data = await response.json();
+      if (data.success) {
+        setTags(data.tags || []);
+      }
+    } catch (err) {
+      console.error('Error loading tags:', err);
+    }
+  };
+
+  const handleCreateTag = async () => {
+    if (!newTagName.trim()) {
+      alert('Введите название тега');
+      return;
+    }
+    try {
+      const response = await fetch('/api/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newTagName, color: newTagColor }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setNewTagName('');
+        setNewTagColor('#3b82f6');
+        loadTags();
+      } else {
+        alert(data.error || 'Ошибка создания тега');
+      }
+    } catch (err) {
+      console.error('Error creating tag:', err);
+      alert('Ошибка создания тега');
+    }
+  };
+
+  const handleAssignTag = async (siteId: number, tagId: number) => {
+    try {
+      const response = await fetch(`/api/sites/${siteId}/tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tagId }),
+      });
+      if (response.ok) {
+        loadSites();
+      }
+    } catch (err) {
+      console.error('Error assigning tag:', err);
+    }
+  };
+
+  const handleRemoveTag = async (siteId: number, tagId: number) => {
+    try {
+      const response = await fetch(`/api/sites/${siteId}/tags?tagId=${tagId}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        loadSites();
+      }
+    } catch (err) {
+      console.error('Error removing tag:', err);
+    }
+  };
+
+  // Фильтрация сайтов по тегам
+  const filteredSites = useMemo(() => {
+    if (selectedTagIds.length === 0) {
+      return sites;
+    }
+    return sites.filter(site => {
+      const siteTagIds = (site.tags || []).map(t => t.id);
+      return selectedTagIds.some(tagId => siteTagIds.includes(tagId));
+    });
+  }, [sites, selectedTagIds]);
+
   const handleCreateSite = async () => {
     try {
       const response = await fetch('/api/sites', {
@@ -158,11 +242,17 @@ export default function SitesPage() {
   return (
     <main className="min-h-screen bg-gray-900 text-white p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
+        <div className="mb-8 flex justify-between items-start">
           <div>
             <h1 className="text-4xl font-bold mb-2">Панель сайтов</h1>
             <p className="text-gray-400">Мониторинг сайтов: Google Console, постбеки</p>
           </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+          >
+            + Добавить сайт
+          </button>
         </div>
 
 
@@ -173,8 +263,51 @@ export default function SitesPage() {
             </div>
           ) : (
             <>
-              {/* Кнопки выбора периода для вкладки "Все сайты" */}
-              <div className="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700">
+              {/* Фильтры и настройки */}
+              <div className="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700 space-y-4">
+                {/* Фильтр по тегам */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm text-gray-400">Фильтр по тегам:</span>
+                    <button
+                      onClick={() => setShowTagModal(true)}
+                      className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
+                    >
+                      + Создать тег
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((tag) => (
+                      <button
+                        key={tag.id}
+                        onClick={() => {
+                          setSelectedTagIds(prev =>
+                            prev.includes(tag.id)
+                              ? prev.filter(id => id !== tag.id)
+                              : [...prev, tag.id]
+                          );
+                        }}
+                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                          selectedTagIds.includes(tag.id)
+                            ? 'ring-2 ring-blue-500'
+                            : ''
+                        }`}
+                        style={{ backgroundColor: tag.color + '40', color: tag.color, borderColor: tag.color }}
+                      >
+                        {tag.name}
+                      </button>
+                    ))}
+                    {selectedTagIds.length > 0 && (
+                      <button
+                        onClick={() => setSelectedTagIds([])}
+                        className="px-3 py-1 rounded text-xs bg-gray-700 hover:bg-gray-600 text-gray-300"
+                      >
+                        Сбросить
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {/* Кнопки выбора периода */}
                 <div className="flex items-center gap-4">
                   <span className="text-sm text-gray-400">Период для показов и кликов:</span>
                   <div className="flex gap-2">
@@ -201,6 +334,7 @@ export default function SitesPage() {
                     <thead className="bg-gray-700">
                       <tr>
                         <th className="px-4 py-3 text-left">Домен</th>
+                        <th className="px-4 py-3 text-left">Теги</th>
                         <th className="px-4 py-3 text-center" style={{ width: '60px' }}>✓</th>
                         <th className="px-4 py-3 text-left">Задачи</th>
                         <th className="px-4 py-3 text-left">Link Profile</th>
@@ -211,7 +345,7 @@ export default function SitesPage() {
                       </tr>
                     </thead>
                   <tbody>
-                    {sites.map((site) => {
+                    {filteredSites.map((site) => {
                       // Находим соответствующие данные из googleConsoleAggregatedData
                       const siteData = googleConsoleAggregatedData.find(s => s.id === site.id);
                       const stats = sitesStats[site.id];
@@ -220,6 +354,28 @@ export default function SitesPage() {
                           <td className="px-4 py-3">
                             <div className="font-medium">{site.domain}</div>
                             <div className="text-xs text-gray-500">{site.name}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-1 mb-1">
+                              {(site.tags || []).map((tag) => (
+                                <span
+                                  key={tag.id}
+                                  className="px-2 py-0.5 rounded text-xs"
+                                  style={{ backgroundColor: tag.color + '40', color: tag.color }}
+                                >
+                                  {tag.name}
+                                </span>
+                              ))}
+                            </div>
+                            <button
+                              onClick={() => {
+                                setTagModalSiteId(site.id);
+                                setShowTagModal(true);
+                              }}
+                              className="text-xs text-blue-400 hover:text-blue-300"
+                            >
+                              + Добавить тег
+                            </button>
                           </td>
                           <td className="px-4 py-3 text-center">
                             {siteData?.hasGoogleConsoleConnection ? (
@@ -289,6 +445,109 @@ export default function SitesPage() {
             </>
           )
         }
+
+        {/* Модальное окно управления тегами */}
+        {showTagModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700 max-h-[90vh] overflow-y-auto">
+              <h2 className="text-2xl font-bold mb-4">
+                {tagModalSiteId ? 'Управление тегами сайта' : 'Создать тег'}
+              </h2>
+              
+              {tagModalSiteId ? (
+                // Управление тегами для конкретного сайта
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Присвоить тег:
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {tags.map((tag) => {
+                        const site = sites.find(s => s.id === tagModalSiteId);
+                        const isAssigned = (site?.tags || []).some(t => t.id === tag.id);
+                        return (
+                          <button
+                            key={tag.id}
+                            onClick={() => {
+                              if (isAssigned) {
+                                handleRemoveTag(tagModalSiteId, tag.id);
+                              } else {
+                                handleAssignTag(tagModalSiteId, tag.id);
+                              }
+                            }}
+                            className={`px-3 py-1 rounded text-sm ${
+                              isAssigned ? 'ring-2 ring-blue-500' : ''
+                            }`}
+                            style={{ backgroundColor: tag.color + '40', color: tag.color }}
+                          >
+                            {tag.name} {isAssigned ? '✓' : '+'}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setShowTagModal(false);
+                        setTagModalSiteId(null);
+                      }}
+                      className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+                    >
+                      Закрыть
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // Создание нового тега
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Название тега
+                    </label>
+                    <input
+                      type="text"
+                      value={newTagName}
+                      onChange={(e) => setNewTagName(e.target.value)}
+                      className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                      placeholder="Название тега"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Цвет
+                    </label>
+                    <input
+                      type="color"
+                      value={newTagColor}
+                      onChange={(e) => setNewTagColor(e.target.value)}
+                      className="w-full h-10 bg-gray-700 rounded border border-gray-600"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCreateTag}
+                      className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+                    >
+                      Создать
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowTagModal(false);
+                        setTagModalSiteId(null);
+                        setNewTagName('');
+                        setNewTagColor('#3b82f6');
+                      }}
+                      className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Модальное окно создания сайта */}
         {showCreateModal && (
