@@ -59,15 +59,17 @@ const SiteCard = memo(({
     : null;
 
   // Подготовка данных для графика
+  // Увеличиваем максимальные значения в 3 раза для лучшей визуализации
+  // Это позволяет графику отображаться в середине шкалы, а не заполнять всю высоту
   const maxImpressions = dailyData.length > 0 
-    ? Math.max(...dailyData.map(d => d.impressions), 1) 
-    : 1;
+    ? Math.max(...dailyData.map(d => d.impressions), 1) * 3
+    : 3;
   const maxClicks = dailyData.length > 0 
-    ? Math.max(...dailyData.map(d => d.clicks), 1) 
-    : 1;
+    ? Math.max(...dailyData.map(d => d.clicks), 1) * 3
+    : 3;
   const maxPosition = dailyData.length > 0 
-    ? Math.max(...dailyData.map(d => d.position), 1) 
-    : 1;
+    ? Math.max(...dailyData.map(d => d.position), 1) * 3
+    : 3;
 
   return (
     <div
