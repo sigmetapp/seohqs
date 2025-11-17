@@ -591,76 +591,70 @@ export default function DashboardGCPage() {
                 {/* Фильтр по тегам */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="text-sm text-gray-400 whitespace-nowrap">Фильтр по тегам:</span>
-                  <div className="flex gap-2 flex-nowrap">
+                  <select
+                    value={selectedTagIds.length > 0 ? selectedTagIds[0] : ''}
+                    onChange={(e) => {
+                      const tagId = e.target.value ? parseInt(e.target.value) : null;
+                      setSelectedTagIds(tagId ? [tagId] : []);
+                    }}
+                    className="px-3 py-1.5 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-8"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%9ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 0.5rem center',
+                      paddingRight: '2rem'
+                    }}
+                  >
+                    <option value="">Все теги</option>
                     {tags.map((tag) => (
-                      <button
-                        key={tag.id}
-                        onClick={() => {
-                          setSelectedTagIds(prev =>
-                            prev.includes(tag.id)
-                              ? prev.filter(id => id !== tag.id)
-                              : [...prev, tag.id]
-                          );
-                        }}
-                        className={`px-3 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-                          selectedTagIds.includes(tag.id)
-                            ? 'ring-2 ring-blue-500'
-                            : ''
-                        }`}
-                        style={{ backgroundColor: tag.color + '40', color: tag.color }}
-                      >
+                      <option key={tag.id} value={tag.id}>
                         {tag.name}
-                      </button>
+                      </option>
                     ))}
-                    {selectedTagIds.length > 0 && (
-                      <button
-                        onClick={() => setSelectedTagIds([])}
-                        className="px-3 py-1 rounded text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 whitespace-nowrap"
-                      >
-                        Сбросить
-                      </button>
-                    )}
-                  </div>
+                  </select>
                 </div>
                 
                 {/* Период */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="text-sm text-gray-400 whitespace-nowrap">Период:</span>
-                  <div className="flex gap-2">
-                    {[7, 30, 90, 180].map((days) => (
-                      <button
-                        key={days}
-                        onClick={() => setSelectedPeriod(days)}
-                        className={`px-3 py-1 rounded text-sm whitespace-nowrap ${
-                          selectedPeriod === days
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        }`}
-                      >
-                        {days} дн.
-                      </button>
-                    ))}
-                  </div>
+                  <select
+                    value={selectedPeriod}
+                    onChange={(e) => setSelectedPeriod(parseInt(e.target.value))}
+                    className="px-3 py-1.5 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-8"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%9ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 0.5rem center',
+                      paddingRight: '2rem'
+                    }}
+                  >
+                    <option value="7">7 дн.</option>
+                    <option value="30">30 дн.</option>
+                    <option value="90">90 дн.</option>
+                    <option value="180">180 дн.</option>
+                  </select>
                 </div>
                 
                 {/* Колонок в строке */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="text-sm text-gray-400 whitespace-nowrap">Колонок в строке:</span>
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map((cols) => (
-                      <button
-                        key={cols}
-                        onClick={() => setColumnsPerRow(cols)}
-                        className={`px-3 py-1 rounded text-sm whitespace-nowrap ${
-                          columnsPerRow === cols
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        }`}
-                      >
-                        {cols}
-                      </button>
-                    ))}
-                  </div>
+                  <select
+                    value={columnsPerRow}
+                    onChange={(e) => setColumnsPerRow(parseInt(e.target.value))}
+                    className="px-3 py-1.5 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-8"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%9ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 0.5rem center',
+                      paddingRight: '2rem'
+                    }}
+                  >
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                  </select>
                 </div>
                 
                 {/* Блюр */}
