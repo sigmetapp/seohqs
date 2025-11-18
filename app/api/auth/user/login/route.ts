@@ -110,9 +110,50 @@ export async function POST(request: Request) {
         await updateTeamMemberPassword(teamMember.id, teamMember.ownerId, newPasswordHash, true);
       }
 
-      // Создаем сессию для владельца аккаунта (чтобы участник имел доступ к данным владельца)
+      // Используем собственный userId участника для изоляции данных
+      // Если userId отсутствует, создаем пользователя (для обратной совместимости)
+      let userId = teamMember.userId;
+      
+      if (!userId) {
+        // Создаем запись пользователя для участника команды
+        const { createOrUpdateUser } = await import('@/lib/db-users');
+        const dbUser = await createOrUpdateUser({
+          email: teamMember.email,
+          name: teamMember.name || undefined,
+          ownerId: teamMember.ownerId,
+        });
+        userId = dbUser.id;
+        
+        // Обновляем team_member с user_id
+        // Это делается через прямой SQL запрос, так как нет функции для обновления user_id
+        const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL);
+        if (useSupabase) {
+          const { supabase } = await import('@/lib/supabase');
+          if (supabase) {
+            await supabase
+              .from('team_members')
+              .update({ user_id: userId })
+              .eq('id', teamMember.id);
+          }
+        } else if (process.env.POSTGRES_URL || process.env.DATABASE_URL) {
+          const { Pool } = require('pg');
+          const pool = new Pool({
+            connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+          });
+          try {
+            await pool.query(
+              'UPDATE team_members SET user_id = $1 WHERE id = $2',
+              [userId, teamMember.id]
+            );
+          } finally {
+            await pool.end();
+          }
+        }
+      }
+
+      // Создаем сессию с собственным userId участника для изоляции данных
       const sessionUser = {
-        id: teamMember.ownerId, // Используем ID владельца для доступа к данным
+        id: userId, // Используем собственный ID участника для изоляции данных
         email: teamMember.email,
         name: teamMember.name,
       };
@@ -127,7 +168,7 @@ export async function POST(request: Request) {
           : 'Вход выполнен успешно',
         requiresPasswordChange: teamMember.firstLogin && !newPassword,
         user: {
-          id: teamMember.ownerId,
+          id: userId,
           email: teamMember.email,
           name: teamMember.name,
           isTeamMember: true,

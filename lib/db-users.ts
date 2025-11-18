@@ -76,13 +76,14 @@ function createOrUpdateUserSQLite(user: Omit<DbUser, 'id' | 'createdAt' | 'updat
   } else {
     // Создаем нового пользователя
     const result = db.prepare(`
-      INSERT INTO users (email, name, picture, google_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+      INSERT INTO users (email, name, picture, google_id, owner_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
     `).run(
       user.email,
       user.name || null,
       user.picture || null,
-      user.googleId || null
+      user.googleId || null,
+      user.ownerId || null
     );
     
     const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(result.lastInsertRowid));
@@ -93,6 +94,7 @@ function createOrUpdateUserSQLite(user: Omit<DbUser, 'id' | 'createdAt' | 'updat
       picture: newUser.picture,
       googleId: newUser.google_id,
       passwordHash: newUser.password_hash,
+      ownerId: newUser.owner_id,
       createdAt: newUser.created_at,
       updatedAt: newUser.updated_at,
     };
@@ -215,10 +217,10 @@ async function createOrUpdateUserPostgres(user: Omit<DbUser, 'id' | 'createdAt' 
     } else {
       // Создаем нового пользователя
       const result = await pool.query(`
-        INSERT INTO users (email, name, picture, google_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO users (email, name, picture, google_id, owner_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING *
-      `, [user.email, user.name || null, user.picture || null, user.googleId || null]);
+      `, [user.email, user.name || null, user.picture || null, user.googleId || null, user.ownerId || null]);
       
       const newUser = result.rows[0];
       return {
@@ -228,6 +230,7 @@ async function createOrUpdateUserPostgres(user: Omit<DbUser, 'id' | 'createdAt' 
         picture: newUser.picture,
         googleId: newUser.google_id,
         passwordHash: newUser.password_hash,
+        ownerId: newUser.owner_id,
         createdAt: newUser.created_at,
         updatedAt: newUser.updated_at,
       };
@@ -361,6 +364,7 @@ async function createOrUpdateUserSupabase(user: Omit<DbUser, 'id' | 'createdAt' 
         name: user.name || null,
         picture: user.picture || null,
         google_id: user.googleId || null,
+        owner_id: user.ownerId || null,
       })
       .select()
       .single();
@@ -374,6 +378,7 @@ async function createOrUpdateUserSupabase(user: Omit<DbUser, 'id' | 'createdAt' 
       picture: data.picture,
       googleId: data.google_id,
       passwordHash: data.password_hash,
+      ownerId: data.owner_id,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -664,6 +669,7 @@ export async function getUserById(userId: number): Promise<DbUser | null> {
 export interface TeamMember {
   id: number;
   ownerId: number;
+  userId?: number; // ID пользователя в таблице users (для изоляции данных)
   email: string;
   name?: string;
   username: string;
@@ -849,6 +855,7 @@ async function getTeamMembersSupabase(ownerId: number): Promise<TeamMember[]> {
   return data.map((row: any) => ({
     id: row.id,
     ownerId: row.owner_id,
+    userId: row.user_id,
     email: row.email,
     name: row.name,
     username: row.username,
@@ -875,6 +882,7 @@ async function getTeamMembersPostgres(ownerId: number): Promise<TeamMember[]> {
     return result.rows.map((row: any) => ({
       id: row.id,
       ownerId: row.owner_id,
+      userId: row.user_id,
       email: row.email,
       name: row.name,
       username: row.username,
@@ -908,6 +916,7 @@ function getTeamMembersSQLite(ownerId: number): TeamMember[] {
     return rows.map((row: any) => ({
       id: row.id,
       ownerId: row.owner_id,
+      userId: row.user_id,
       email: row.email,
       name: row.name,
       username: row.username,
@@ -958,6 +967,7 @@ async function getInactiveTeamMemberByEmailSupabase(ownerId: number, email: stri
   return {
     id: data.id,
     ownerId: data.owner_id,
+    userId: data.user_id,
     email: data.email,
     name: data.name,
     username: data.username,
@@ -987,6 +997,7 @@ async function getInactiveTeamMemberByEmailPostgres(ownerId: number, email: stri
     return {
       id: row.id,
       ownerId: row.owner_id,
+      userId: row.user_id,
       email: row.email,
       name: row.name,
       username: row.username,
@@ -1022,6 +1033,7 @@ function getInactiveTeamMemberByEmailSQLite(ownerId: number, email: string): Tea
     return {
       id: row.id,
       ownerId: row.owner_id,
+      userId: row.user_id,
       email: row.email,
       name: row.name,
       username: row.username,
@@ -1069,8 +1081,43 @@ async function reactivateTeamMemberSupabase(
     throw new Error('Supabase client not initialized');
   }
   
+  // Получаем текущую запись участника для получения owner_id и email
+  const { data: existingMember, error: fetchError } = await supabase
+    .from('team_members')
+    .select('owner_id, email')
+    .eq('id', memberId)
+    .single();
+  
+  if (fetchError || !existingMember) throw new Error('Team member not found');
+  
+  // Проверяем, есть ли уже user_id, если нет - создаем пользователя
+  const { data: currentMember } = await supabase
+    .from('team_members')
+    .select('user_id')
+    .eq('id', memberId)
+    .single();
+  
+  let userId = currentMember?.user_id;
+  
+  if (!userId) {
+    // Создаем запись пользователя с owner_id для изоляции данных
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .insert({
+        email: existingMember.email,
+        name: updates.name || null,
+        owner_id: existingMember.owner_id,
+      })
+      .select()
+      .single();
+    
+    if (userError) throw userError;
+    userId = userData.id;
+  }
+  
   const updateData: any = {
     is_active: true,
+    user_id: userId,
     username: updates.username,
     password_hash: updates.passwordHash,
     first_login: true,
@@ -1093,6 +1140,7 @@ async function reactivateTeamMemberSupabase(
   return {
     id: data.id,
     ownerId: data.owner_id,
+    userId: data.user_id,
     email: data.email,
     name: data.name,
     username: data.username,
@@ -1114,12 +1162,37 @@ async function reactivateTeamMemberPostgres(
   });
   
   try {
+    // Получаем текущую запись участника для получения owner_id и email
+    const existingResult = await pool.query(
+      'SELECT owner_id, email, user_id FROM team_members WHERE id = $1',
+      [memberId]
+    );
+    
+    if (existingResult.rows.length === 0) throw new Error('Team member not found');
+    
+    const existingMember = existingResult.rows[0];
+    let userId = existingMember.user_id;
+    
+    // Если user_id отсутствует, создаем пользователя
+    if (!userId) {
+      const userResult = await pool.query(`
+        INSERT INTO users (email, name, owner_id, created_at, updated_at)
+        VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING id
+      `, [existingMember.email, updates.name || null, existingMember.owner_id]);
+      
+      userId = userResult.rows[0].id;
+    }
+    
     const updateFields: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
     
     updateFields.push(`is_active = $${paramIndex++}`);
     values.push(true);
+    
+    updateFields.push(`user_id = $${paramIndex++}`);
+    values.push(userId);
     
     updateFields.push(`username = $${paramIndex++}`);
     values.push(updates.username);
@@ -1148,6 +1221,7 @@ async function reactivateTeamMemberPostgres(
     return {
       id: row.id,
       ownerId: row.owner_id,
+      userId: row.user_id,
       email: row.email,
       name: row.name,
       username: row.username,
@@ -1178,10 +1252,33 @@ function reactivateTeamMemberSQLite(
   const dbPath = join(dbDir, 'affiliate.db');
   const db = new Database(dbPath);
   
+  // Получаем текущую запись участника для получения owner_id и email
+  const existingRow = db.prepare('SELECT owner_id, email, user_id FROM team_members WHERE id = ?').get(memberId) as any;
+  
+  if (!existingRow) throw new Error('Team member not found');
+  
+  let userId = existingRow.user_id;
+  
+  // Если user_id отсутствует, создаем пользователя
+  if (!userId) {
+    const userResult = db.prepare(`
+      INSERT INTO users (email, name, owner_id, created_at, updated_at)
+      VALUES (?, ?, ?, datetime('now'), datetime('now'))
+    `).run(
+      existingRow.email,
+      updates.name || null,
+      existingRow.owner_id
+    );
+    
+    userId = Number(userResult.lastInsertRowid);
+  }
+  
   const updateFields: string[] = [];
   const values: any[] = [];
   
   updateFields.push('is_active = 1');
+  updateFields.push('user_id = ?');
+  values.push(userId);
   updateFields.push('username = ?');
   values.push(updates.username);
   
@@ -1206,6 +1303,7 @@ function reactivateTeamMemberSQLite(
   return {
     id: row.id,
     ownerId: row.owner_id,
+    userId: row.user_id,
     email: row.email,
     name: row.name,
     username: row.username,
@@ -1236,10 +1334,25 @@ async function createTeamMemberSupabase(member: Omit<TeamMember, 'id' | 'created
     throw new Error('Supabase client not initialized');
   }
   
+  // Сначала создаем запись пользователя с owner_id для изоляции данных
+  const { data: userData, error: userError } = await supabase
+    .from('users')
+    .insert({
+      email: member.email,
+      name: member.name || null,
+      owner_id: member.ownerId, // Связываем с владельцем команды
+    })
+    .select()
+    .single();
+  
+  if (userError) throw userError;
+  
+  // Затем создаем запись участника команды с user_id
   const { data, error } = await supabase
     .from('team_members')
     .insert({
       owner_id: member.ownerId,
+      user_id: userData.id, // Связываем с созданным пользователем
       email: member.email,
       name: member.name || null,
       username: member.username,
@@ -1255,6 +1368,7 @@ async function createTeamMemberSupabase(member: Omit<TeamMember, 'id' | 'created
   return {
     id: data.id,
     ownerId: data.owner_id,
+    userId: data.user_id,
     email: data.email,
     name: data.name,
     username: data.username,
@@ -1273,16 +1387,27 @@ async function createTeamMemberPostgres(member: Omit<TeamMember, 'id' | 'created
   });
   
   try {
+    // Сначала создаем запись пользователя с owner_id для изоляции данных
+    const userResult = await pool.query(`
+      INSERT INTO users (email, name, owner_id, created_at, updated_at)
+      VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING id
+    `, [member.email, member.name || null, member.ownerId]);
+    
+    const userId = userResult.rows[0].id;
+    
+    // Затем создаем запись участника команды с user_id
     const result = await pool.query(`
-      INSERT INTO team_members (owner_id, email, name, username, password_hash, is_active, first_login)
-      VALUES ($1, $2, $3, $4, $5, true, true)
+      INSERT INTO team_members (owner_id, user_id, email, name, username, password_hash, is_active, first_login)
+      VALUES ($1, $2, $3, $4, $5, $6, true, true)
       RETURNING *
-    `, [member.ownerId, member.email, member.name || null, member.username, member.passwordHash]);
+    `, [member.ownerId, userId, member.email, member.name || null, member.username, member.passwordHash]);
     
     const row = result.rows[0];
     return {
       id: row.id,
       ownerId: row.owner_id,
+      userId: row.user_id,
       email: row.email,
       name: row.name,
       username: row.username,
@@ -1310,11 +1435,25 @@ function createTeamMemberSQLite(member: Omit<TeamMember, 'id' | 'createdAt' | 'u
   const dbPath = join(dbDir, 'affiliate.db');
   const db = new Database(dbPath);
   
+  // Сначала создаем запись пользователя с owner_id для изоляции данных
+  const userResult = db.prepare(`
+    INSERT INTO users (email, name, owner_id, created_at, updated_at)
+    VALUES (?, ?, ?, datetime('now'), datetime('now'))
+  `).run(
+    member.email,
+    member.name || null,
+    member.ownerId
+  );
+  
+  const userId = Number(userResult.lastInsertRowid);
+  
+  // Затем создаем запись участника команды с user_id
   const result = db.prepare(`
-    INSERT INTO team_members (owner_id, email, name, username, password_hash, is_active, first_login, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, 1, 1, datetime('now'), datetime('now'))
+    INSERT INTO team_members (owner_id, user_id, email, name, username, password_hash, is_active, first_login, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, 1, 1, datetime('now'), datetime('now'))
   `).run(
     member.ownerId,
+    userId,
     member.email,
     member.name || null,
     member.username,
@@ -1326,6 +1465,7 @@ function createTeamMemberSQLite(member: Omit<TeamMember, 'id' | 'createdAt' | 'u
   return {
     id: row.id,
     ownerId: row.owner_id,
+    userId: row.user_id,
     email: row.email,
     name: row.name,
     username: row.username,
@@ -1521,6 +1661,7 @@ async function getTeamMemberByEmailSupabase(email: string): Promise<TeamMember |
   return {
     id: data.id,
     ownerId: data.owner_id,
+    userId: data.user_id,
     email: data.email,
     name: data.name,
     username: data.username,
@@ -1550,6 +1691,7 @@ async function getTeamMemberByEmailPostgres(email: string): Promise<TeamMember |
     return {
       id: row.id,
       ownerId: row.owner_id,
+      userId: row.user_id,
       email: row.email,
       name: row.name,
       username: row.username,
@@ -1584,6 +1726,7 @@ function getTeamMemberByEmailSQLite(email: string): TeamMember | null {
     return {
       id: row.id,
       ownerId: row.owner_id,
+      userId: row.user_id,
       email: row.email,
       name: row.name,
       username: row.username,
@@ -1619,6 +1762,7 @@ async function getTeamMemberByUsernameSupabase(username: string): Promise<TeamMe
   return {
     id: data.id,
     ownerId: data.owner_id,
+    userId: data.user_id,
     email: data.email,
     name: data.name,
     username: data.username,
@@ -1648,6 +1792,7 @@ async function getTeamMemberByUsernamePostgres(username: string): Promise<TeamMe
     return {
       id: row.id,
       ownerId: row.owner_id,
+      userId: row.user_id,
       email: row.email,
       name: row.name,
       username: row.username,
@@ -1682,6 +1827,7 @@ function getTeamMemberByUsernameSQLite(username: string): TeamMember | null {
     return {
       id: row.id,
       ownerId: row.owner_id,
+      userId: row.user_id,
       email: row.email,
       name: row.name,
       username: row.username,
