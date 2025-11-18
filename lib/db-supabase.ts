@@ -1150,3 +1150,66 @@ export async function getSitesByTag(tagId: number, userId: number): Promise<numb
   }
 }
 
+/**
+ * Получает теги для нескольких сайтов одним запросом (оптимизация N+1)
+ */
+export async function getAllSitesTags(siteIds: number[]): Promise<Record<number, import('./types').Tag[]>> {
+  if (!supabase || siteIds.length === 0) {
+    return {};
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('site_tags')
+      .select(`
+        site_id,
+        tags (
+          id,
+          name,
+          color,
+          user_id,
+          created_at,
+          updated_at
+        )
+      `)
+      .in('site_id', siteIds);
+
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return {};
+      }
+      console.error('Error fetching all sites tags:', error);
+      return {};
+    }
+
+    const tagsBySite: Record<number, import('./types').Tag[]> = {};
+    
+    // Инициализируем пустые массивы для всех сайтов
+    siteIds.forEach(siteId => {
+      tagsBySite[siteId] = [];
+    });
+
+    // Заполняем теги
+    (data || []).forEach((row: any) => {
+      if (row.tags && !tagsBySite[row.site_id]) {
+        tagsBySite[row.site_id] = [];
+      }
+      if (row.tags) {
+        tagsBySite[row.site_id].push({
+          id: row.tags.id,
+          name: row.tags.name,
+          color: row.tags.color || '#3b82f6',
+          userId: row.tags.user_id,
+          createdAt: row.tags.created_at,
+          updatedAt: row.tags.updated_at,
+        });
+      }
+    });
+
+    return tagsBySite;
+  } catch (error: any) {
+    console.error('Error fetching all sites tags:', error);
+    return {};
+  }
+}
+

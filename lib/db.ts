@@ -626,3 +626,46 @@ export function getSitesByTag(tagId: number, userId: number): number[] {
   return rows.map((row) => row.id);
 }
 
+/**
+ * Получает теги для нескольких сайтов одним запросом (оптимизация N+1)
+ */
+export function getAllSitesTags(siteIds: number[]): Record<number, Tag[]> {
+  if (siteIds.length === 0) {
+    return {};
+  }
+
+  const database = getDatabase();
+  const placeholders = siteIds.map(() => '?').join(',');
+  const rows = database.prepare(`
+    SELECT st.site_id, t.id, t.name, t.color, t.user_id, t.created_at, t.updated_at
+    FROM site_tags st
+    INNER JOIN tags t ON st.tag_id = t.id
+    WHERE st.site_id IN (${placeholders})
+    ORDER BY st.site_id, t.name
+  `).all(...siteIds) as any[];
+
+  const tagsBySite: Record<number, Tag[]> = {};
+  
+  // Инициализируем пустые массивы для всех сайтов
+  siteIds.forEach(siteId => {
+    tagsBySite[siteId] = [];
+  });
+
+  // Заполняем теги
+  rows.forEach((row) => {
+    if (!tagsBySite[row.site_id]) {
+      tagsBySite[row.site_id] = [];
+    }
+    tagsBySite[row.site_id].push({
+      id: row.id,
+      name: row.name,
+      color: row.color || '#3b82f6',
+      userId: row.user_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    });
+  });
+
+  return tagsBySite;
+}
+

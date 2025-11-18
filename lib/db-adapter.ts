@@ -496,3 +496,22 @@ export async function getSitesByTag(tagId: number, userId: number): Promise<numb
   }
 }
 
+/**
+ * Получает теги для нескольких сайтов одним запросом (оптимизация N+1)
+ */
+export async function getAllSitesTags(siteIds: number[]): Promise<Record<number, import('./types').Tag[]>> {
+  if (useSupabase()) {
+    const { getAllSitesTags: getSupabase } = await import('./db-supabase');
+    return getSupabase(siteIds);
+  } else if (usePostgres()) {
+    const { getAllSitesTags: getPostgres } = await import('./db-postgres');
+    return getPostgres(siteIds);
+  } else {
+    if (process.env.VERCEL) {
+      return {};
+    }
+    const { getAllSitesTags: getSQLite } = require('./db');
+    return getSQLite(siteIds);
+  }
+}
+
