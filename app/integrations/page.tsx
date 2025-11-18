@@ -156,6 +156,16 @@ export default function IntegrationsPage() {
     return !!(accessToken && refreshToken);
   };
 
+  const getAuthorizedAccounts = () => {
+    return googleAccounts.filter(account => 
+      account.googleAccessToken?.trim() && account.googleRefreshToken?.trim()
+    );
+  };
+
+  const hasAnyAuthorizedAccount = () => {
+    return isGoogleOAuthConfigured() || getAuthorizedAccounts().length > 0;
+  };
+
   const handleResetOAuth = async () => {
     if (!confirm('Вы уверены, что хотите сбросить авторизацию Google? После этого вам нужно будет авторизоваться заново.')) {
       return;
@@ -244,9 +254,24 @@ export default function IntegrationsPage() {
                   <span>📖</span>
                   <span>Как настроить?</span>
                 </button>
-                {isGoogleOAuthConfigured() ? (
-                  <div className="px-3 py-1 bg-green-900/30 text-green-300 border border-green-700 rounded-full text-xs font-medium">
-                    Авторизовано в Google Search Console
+                {hasAnyAuthorizedAccount() ? (
+                  <div className="flex flex-col gap-1 items-end">
+                    <div className="px-3 py-1 bg-green-900/30 text-green-300 border border-green-700 rounded-full text-xs font-medium">
+                      Авторизовано в Google Search Console
+                    </div>
+                    {getAuthorizedAccounts().length > 0 && (
+                      <div className="text-xs text-gray-400 text-right max-w-xs truncate" title={getAuthorizedAccounts().map(a => a.email).join(', ')}>
+                        {getAuthorizedAccounts().length === 1 
+                          ? `📧 ${getAuthorizedAccounts()[0].email}`
+                          : `📧 ${getAuthorizedAccounts().length} аккаунтов`
+                        }
+                      </div>
+                    )}
+                    {isGoogleOAuthConfigured() && getAuthorizedAccounts().length === 0 && (
+                      <div className="text-xs text-gray-400">
+                        (старый способ авторизации)
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="px-3 py-1 rounded-full text-xs font-medium bg-gray-700 text-gray-400 border border-gray-600">
