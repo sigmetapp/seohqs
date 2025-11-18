@@ -107,10 +107,10 @@ export async function GET(request: NextRequest) {
     }));
     
     // Загружаем статусы для всех сайтов одним запросом
-    const statusIds = sitesWithTags.filter(site => site.statusId).map(site => site.statusId!);
+    const siteStatusIds = sitesWithTags.filter(site => site.statusId).map(site => site.statusId!);
     const statusesMap: Record<number, any> = {};
     
-    if (statusIds.length > 0) {
+    if (siteStatusIds.length > 0) {
       try {
         const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL);
         if (useSupabase) {
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
           const { data } = await supabase
             .from('site_statuses')
             .select('*')
-            .in('id', statusIds);
+            .in('id', siteStatusIds);
           if (data) {
             data.forEach((status: any) => {
               statusesMap[status.id] = {
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
         } else {
           const { getPostgresClient } = await import('@/lib/postgres-client');
           const db = await getPostgresClient();
-          const result = await db.query('SELECT * FROM site_statuses WHERE id = ANY($1::int[])', [statusIds]);
+          const result = await db.query('SELECT * FROM site_statuses WHERE id = ANY($1::int[])', [siteStatusIds]);
           result.rows.forEach((row: any) => {
             statusesMap[row.id] = {
               id: row.id,
