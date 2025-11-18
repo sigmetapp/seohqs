@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllSites, getGoogleSearchConsoleDataBySiteId, getIntegrations, getAllGoogleAccounts, getSitesByTag, getSiteTags } from '@/lib/db-adapter';
+import { getAllSites, getGoogleSearchConsoleDataBySiteId, getIntegrations, getAllGoogleAccounts, getSitesByTag, getAllSitesTags } from '@/lib/db-adapter';
 import { createSearchConsoleService } from '@/lib/google-search-console';
 import { hasGoogleOAuth } from '@/lib/oauth-utils';
 import { requireAuth } from '@/lib/middleware-auth';
@@ -90,10 +90,12 @@ export async function GET(request: NextRequest) {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     
-    // Загружаем теги для всех сайтов
-    const sitesWithTags = await Promise.all(sites.map(async (site) => {
-      const tags = await getSiteTags(site.id);
-      return { ...site, tags };
+    // Загружаем теги для всех сайтов одним запросом (оптимизация N+1)
+    const siteIds = sites.map(site => site.id);
+    const tagsBySite = await getAllSitesTags(siteIds);
+    const sitesWithTags = sites.map(site => ({
+      ...site,
+      tags: tagsBySite[site.id] || []
     }));
     
     // Получаем агрегированные данные для каждого сайта
@@ -152,23 +154,27 @@ export async function GET(request: NextRequest) {
         
         // Получаем данные о проиндексированных страницах из Google Search Console API
         // Это стабильные данные, не зависящие от выбранного периода
-        // Используем Promise.race с таймаутом, чтобы не блокировать загрузку страницы
+        // Используем кеш и делаем запрос неблокирующим (в фоне)
         let indexedPages: number | null = null;
-        if (hasGoogleConsoleConnection && googleConsoleSiteUrl && isOAuthConfigured) {
-          try {
-            const searchConsoleService = createSearchConsoleService(accountId || undefined, user.id);
-            // Пытаемся получить информацию о проиндексированных страницах через API
-            // Используем большой период (180 дней) для получения более полной картины
-            const endDateForIndex = new Date();
-            const startDateForIndex = new Date();
-            startDateForIndex.setDate(startDateForIndex.getDate() - 180);
-            
-            // Добавляем таймаут для запроса (10 секунд)
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Timeout')), 10000)
-            );
-            
+        const indexedPagesCacheKey = `indexed-pages-${site.id}-${googleConsoleSiteUrl || site.domain}`;
+        const cachedIndexedPages = cache.get<number>(indexedPagesCacheKey);
+        
+        if (cachedIndexedPages !== undefined) {
+          indexedPages = cachedIndexedPages;
+        } else if (hasGoogleConsoleConnection && googleConsoleSiteUrl && isOAuthConfigured) {
+          // Запускаем запрос в фоне, не блокируя основной ответ
+          // Используем более короткий таймаут (5 секунд) и кешируем результат на 24 часа
+          (async () => {
             try {
+              const searchConsoleService = createSearchConsoleService(accountId || undefined, user.id);
+              const endDateForIndex = new Date();
+              const startDateForIndex = new Date();
+              startDateForIndex.setDate(startDateForIndex.getDate() - 180);
+              
+              const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Timeout')), 5000)
+              );
+              
               const performanceDataPromise = searchConsoleService.getPerformanceData(
                 googleConsoleSiteUrl,
                 startDateForIndex.toISOString().split('T')[0],
@@ -178,16 +184,15 @@ export async function GET(request: NextRequest) {
               
               const performanceData = await Promise.race([performanceDataPromise, timeoutPromise]) as any;
               
-              // Подсчитываем количество уникальных страниц, которые получили показы
-              // Это приблизительное значение, так как Google Search Console API не предоставляет
-              // точное количество всех проиндексированных страниц
               if (performanceData.rows && performanceData.rows.length > 0) {
-                // Используем Set для подсчета уникальных страниц
                 const uniquePages = new Set(performanceData.rows.map((row: any) => row.keys[0]));
-                indexedPages = uniquePages.size;
-                console.log(`Получено индексированных страниц для ${site.domain}: ${indexedPages}`);
+                const pagesCount = uniquePages.size;
+                // Кешируем на 24 часа
+                cache.set(indexedPagesCacheKey, pagesCount, 24 * 60 * 60 * 1000);
+                console.log(`Получено индексированных страниц для ${site.domain}: ${pagesCount}`);
               } else {
-                console.log(`Нет данных о страницах для ${site.domain}`);
+                // Кешируем null на 1 час, чтобы не делать повторные запросы
+                cache.set(indexedPagesCacheKey, null, 60 * 60 * 1000);
               }
             } catch (apiError: any) {
               if (apiError?.message === 'Timeout') {
@@ -195,15 +200,12 @@ export async function GET(request: NextRequest) {
               } else {
                 console.warn(`Не удалось получить данные об индексации через API для сайта ${site.domain}:`, apiError?.message || apiError);
               }
-              // Если не удалось получить через API, оставляем null
-              indexedPages = null;
+              // Кешируем null на 1 час при ошибке
+              cache.set(indexedPagesCacheKey, null, 60 * 60 * 1000);
             }
-          } catch (error: any) {
-            console.warn(`Не удалось получить данные об индексации для сайта ${site.domain}:`, error?.message || error);
-            indexedPages = null;
-          }
-        } else {
-          console.log(`Сайт ${site.domain} не подключен к Google Search Console или OAuth не настроен`);
+          })().catch(err => {
+            console.warn(`Ошибка в фоновом запросе indexedPages для ${site.domain}:`, err);
+          });
         }
         
         // Данные о доменах и ссылках (стабильные данные, не зависят от периода)
@@ -213,45 +215,8 @@ export async function GET(request: NextRequest) {
         const referringDomains: number | null = null;
         const backlinks: number | null = null;
         
-        // Получаем количество постбеков за выбранный период
+        // Получаем количество постбеков за выбранный период (будет заполнено позже батч-запросом)
         let totalPostbacks = 0;
-        try {
-          if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-            const { createClient } = await import('@supabase/supabase-js');
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-            if (supabaseKey) {
-              const supabase = createClient(supabaseUrl, supabaseKey);
-              const { count } = await supabase
-                .from('postbacks')
-                .select('*', { count: 'exact', head: true })
-                .eq('site_id', site.id)
-                .gte('date', startDate.toISOString())
-                .lte('date', endDate.toISOString());
-              totalPostbacks = count || 0;
-            }
-          } else if (process.env.POSTGRES_URL || process.env.DATABASE_URL) {
-            const db = await getPostgresClient();
-            const postbacksResult = await db.query(
-              `SELECT COUNT(*) as count FROM postbacks 
-               WHERE site_id = $1 AND date >= $2 AND date <= $3`,
-              [site.id, startDate, endDate]
-            );
-            totalPostbacks = parseInt(postbacksResult.rows[0]?.count || '0', 10);
-          } else if (!process.env.VERCEL) {
-            // Для локальной разработки используем storage
-            const { storage } = require('@/lib/storage');
-            const sitePostbacks = storage.postbacks.filter((p: any) => {
-              if (p.siteId !== site.id) return false;
-              const postbackDate = new Date(p.date);
-              return postbackDate >= startDate && postbackDate <= endDate;
-            });
-            totalPostbacks = sitePostbacks.length;
-          }
-        } catch (error: any) {
-          console.warn(`Не удалось получить постбеки для сайта ${site.domain}:`, error?.message || error);
-          totalPostbacks = 0;
-        }
         
         return {
           id: site.id,
@@ -261,7 +226,6 @@ export async function GET(request: NextRequest) {
           googleConsoleSiteUrl,
           totalImpressions,
           totalClicks,
-          totalPostbacks,
           indexedPages,
           referringDomains,
           backlinks,
@@ -269,12 +233,76 @@ export async function GET(request: NextRequest) {
       })
     );
     
+    // Оптимизация: получаем все постбеки одним запросом для всех сайтов
+    const postbacksBySite: Record<number, number> = {};
+    siteIds.forEach(siteId => {
+      postbacksBySite[siteId] = 0;
+    });
+    
+    try {
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (supabaseKey && siteIds.length > 0) {
+          const supabase = createClient(supabaseUrl, supabaseKey);
+          const { data, error } = await supabase
+            .from('postbacks')
+            .select('site_id')
+            .in('site_id', siteIds)
+            .gte('date', startDate.toISOString())
+            .lte('date', endDate.toISOString());
+          
+          if (!error && data) {
+            data.forEach((row: any) => {
+              if (postbacksBySite[row.site_id] !== undefined) {
+                postbacksBySite[row.site_id]++;
+              }
+            });
+          }
+        }
+      } else if (process.env.POSTGRES_URL || process.env.DATABASE_URL) {
+        if (siteIds.length > 0) {
+          const db = await getPostgresClient();
+          const postbacksResult = await db.query(
+            `SELECT site_id, COUNT(*) as count FROM postbacks 
+             WHERE site_id = ANY($1::int[]) AND date >= $2 AND date <= $3
+             GROUP BY site_id`,
+            [siteIds, startDate, endDate]
+          );
+          
+          postbacksResult.rows.forEach((row: any) => {
+            postbacksBySite[row.site_id] = parseInt(row.count || '0', 10);
+          });
+        }
+      } else if (!process.env.VERCEL) {
+        // Для локальной разработки используем storage
+        const { storage } = require('@/lib/storage');
+        siteIds.forEach(siteId => {
+          const sitePostbacks = storage.postbacks.filter((p: any) => {
+            if (p.siteId !== siteId) return false;
+            const postbackDate = new Date(p.date);
+            return postbackDate >= startDate && postbackDate <= endDate;
+          });
+          postbacksBySite[siteId] = sitePostbacks.length;
+        });
+      }
+    } catch (error: any) {
+      console.warn(`Не удалось получить постбеки батч-запросом:`, error?.message || error);
+    }
+    
+    // Добавляем данные о постбеках к каждому сайту
+    const sitesWithPostbacks = sitesWithData.map(site => ({
+      ...site,
+      totalPostbacks: postbacksBySite[site.id] || 0
+    }));
+    
     // Сохраняем в кеш на 12 часов (43200000 мс)
-    cache.set(cacheKey, sitesWithData, 12 * 60 * 60 * 1000);
+    cache.set(cacheKey, sitesWithPostbacks, 12 * 60 * 60 * 1000);
     
     return NextResponse.json({
       success: true,
-      sites: sitesWithData,
+      sites: sitesWithPostbacks,
       cached: false,
     });
   } catch (error: any) {

@@ -751,3 +751,54 @@ export async function getSitesByTag(tagId: number, userId: number): Promise<numb
   }
 }
 
+/**
+ * Получает теги для нескольких сайтов одним запросом (оптимизация N+1)
+ */
+export async function getAllSitesTags(siteIds: number[]): Promise<Record<number, import('./types').Tag[]>> {
+  if (!isPostgresAvailable() || siteIds.length === 0) {
+    return {};
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const result = await db.query(
+      `SELECT st.site_id, t.id, t.name, t.color, t.user_id, t.created_at, t.updated_at
+       FROM site_tags st
+       INNER JOIN tags t ON st.tag_id = t.id
+       WHERE st.site_id = ANY($1::int[])
+       ORDER BY st.site_id, t.name`,
+      [siteIds]
+    );
+
+    const tagsBySite: Record<number, import('./types').Tag[]> = {};
+    
+    // Инициализируем пустые массивы для всех сайтов
+    siteIds.forEach(siteId => {
+      tagsBySite[siteId] = [];
+    });
+
+    // Заполняем теги
+    result.rows.forEach((row: any) => {
+      if (!tagsBySite[row.site_id]) {
+        tagsBySite[row.site_id] = [];
+      }
+      tagsBySite[row.site_id].push({
+        id: row.id,
+        name: row.name,
+        color: row.color || '#3b82f6',
+        userId: row.user_id,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      });
+    });
+
+    return tagsBySite;
+  } catch (error: any) {
+    if (error?.code === '42P01' || error.message?.includes('does not exist')) {
+      return {};
+    }
+    console.error('Error fetching all sites tags:', error);
+    return {};
+  }
+}
+
