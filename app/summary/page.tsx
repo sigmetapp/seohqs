@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { GoogleAccount } from '@/lib/types';
+import { useI18n } from '@/lib/i18n-context';
 
 interface TaskStats {
   total: number;
@@ -17,6 +18,7 @@ interface TeamMember {
 }
 
 export default function SummaryPage() {
+  const { t, language } = useI18n();
   const [googleAccounts, setGoogleAccounts] = useState<GoogleAccount[]>([]);
   const [taskStats, setTaskStats] = useState<TaskStats>({ total: 0, open: 0, closed: 0 });
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -85,69 +87,69 @@ export default function SummaryPage() {
   };
 
   const formatLastSeen = (updatedAt?: string): string => {
-    if (!updatedAt) return 'Никогда';
+    if (!updatedAt) return t('common.never');
     const date = new Date(updatedAt);
     const now = new Date();
     const diffMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
-    if (diffMinutes < 1) return 'Только что';
-    if (diffMinutes < 60) return `${diffMinutes} мин. назад`;
+    if (diffMinutes < 1) return t('common.justNow');
+    if (diffMinutes < 60) return `${diffMinutes} ${t('common.minutesAgo')}`;
     const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours < 24) return `${diffHours} ч. назад`;
+    if (diffHours < 24) return `${diffHours} ${t('common.hoursAgo')}`;
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays} дн. назад`;
-    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    if (diffDays < 7) return `${diffDays} ${t('common.daysAgo')}`;
+    return date.toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-900 text-white p-8">
+      <main className="min-h-screen bg-gray-900 dark:bg-gray-900 bg-white text-white dark:text-white text-gray-900 p-8">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center">Загрузка...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white p-8">
+    <main className="min-h-screen bg-gray-900 dark:bg-gray-900 bg-white text-white dark:text-white text-gray-900 p-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Сводка</h1>
-          <p className="text-gray-400">Общая информация о системе</p>
+          <h1 className="text-4xl font-bold mb-2">{t('summary.title')}</h1>
+          <p className="text-gray-400 dark:text-gray-400 text-gray-600">{t('summary.description')}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Google аккаунты */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <div className="bg-gray-800 dark:bg-gray-800 bg-gray-50 rounded-lg p-6 border border-gray-700 dark:border-gray-700 border-gray-200">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white dark:text-white text-gray-900">
               <span>🔐</span>
-              <span>Google аккаунты</span>
+              <span>{t('summary.googleAccounts')}</span>
             </h2>
-            <div className="text-3xl font-bold mb-2">
+            <div className="text-3xl font-bold mb-2 text-white dark:text-white text-gray-900">
               {googleAccounts.filter(account => isAccountConnected(account)).length}
             </div>
-            <p className="text-sm text-gray-400 mb-4">Интегрированных аккаунтов</p>
+            <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-4">{t('summary.integratedAccounts')}</p>
             
             {googleAccounts.length > 0 && (
               <div className="space-y-2 mt-4">
                 {googleAccounts.map((account) => (
                   <div
                     key={account.id}
-                    className="flex items-center justify-between p-2 bg-gray-700 rounded text-sm"
+                    className="flex items-center justify-between p-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 rounded text-sm"
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className={isAccountConnected(account) ? 'text-green-400' : 'text-yellow-400'}>
+                      <span className={isAccountConnected(account) ? 'text-green-500' : 'text-yellow-500'}>
                         {isAccountConnected(account) ? '✓' : '⚠'}
                       </span>
-                      <span className="truncate">{account.email}</span>
+                      <span className="truncate text-white dark:text-white text-gray-900">{account.email}</span>
                     </div>
                     <span className={`text-xs px-2 py-0.5 rounded ${
                       isAccountConnected(account)
-                        ? 'bg-green-900/30 text-green-300'
-                        : 'bg-yellow-900/30 text-yellow-300'
+                        ? 'bg-green-900/30 dark:bg-green-900/30 bg-green-100 text-green-300 dark:text-green-300 text-green-700'
+                        : 'bg-yellow-900/30 dark:bg-yellow-900/30 bg-yellow-100 text-yellow-300 dark:text-yellow-300 text-yellow-700'
                     }`}>
-                      {isAccountConnected(account) ? 'Связан' : 'Не связан'}
+                      {isAccountConnected(account) ? t('common.connected') : t('common.notConnected')}
                     </span>
                   </div>
                 ))}
@@ -156,38 +158,38 @@ export default function SummaryPage() {
           </div>
 
           {/* Задачи */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <div className="bg-gray-800 dark:bg-gray-800 bg-gray-50 rounded-lg p-6 border border-gray-700 dark:border-gray-700 border-gray-200">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white dark:text-white text-gray-900">
               <span>📋</span>
-              <span>Задачи</span>
+              <span>{t('summary.tasks')}</span>
             </h2>
-            <div className="text-3xl font-bold mb-2">{taskStats.total}</div>
-            <p className="text-sm text-gray-400 mb-4">Всего задач по всем сайтам</p>
+            <div className="text-3xl font-bold mb-2 text-white dark:text-white text-gray-900">{taskStats.total}</div>
+            <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-4">{t('summary.totalTasks')}</p>
             
             <div className="space-y-2 mt-4">
-              <div className="flex items-center justify-between p-2 bg-gray-700 rounded">
-                <span className="text-sm text-gray-300">Открыто</span>
-                <span className="text-lg font-bold text-green-400">{taskStats.open}</span>
+              <div className="flex items-center justify-between p-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 rounded">
+                <span className="text-sm text-gray-300 dark:text-gray-300 text-gray-700">{t('summary.open')}</span>
+                <span className="text-lg font-bold text-green-500">{taskStats.open}</span>
               </div>
-              <div className="flex items-center justify-between p-2 bg-gray-700 rounded">
-                <span className="text-sm text-gray-300">Закрыто</span>
-                <span className="text-lg font-bold text-gray-400">{taskStats.closed}</span>
+              <div className="flex items-center justify-between p-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 rounded">
+                <span className="text-sm text-gray-300 dark:text-gray-300 text-gray-700">{t('summary.closed')}</span>
+                <span className="text-lg font-bold text-gray-400 dark:text-gray-400 text-gray-600">{taskStats.closed}</span>
               </div>
-              <div className="flex items-center justify-between p-2 bg-gray-700 rounded">
-                <span className="text-sm text-gray-300">Всего</span>
-                <span className="text-lg font-bold text-white">{taskStats.total}</span>
+              <div className="flex items-center justify-between p-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 rounded">
+                <span className="text-sm text-gray-300 dark:text-gray-300 text-gray-700">{t('summary.total')}</span>
+                <span className="text-lg font-bold text-white dark:text-white text-gray-900">{taskStats.total}</span>
               </div>
             </div>
           </div>
 
           {/* Команда */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <div className="bg-gray-800 dark:bg-gray-800 bg-gray-50 rounded-lg p-6 border border-gray-700 dark:border-gray-700 border-gray-200">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white dark:text-white text-gray-900">
               <span>👥</span>
-              <span>Команда</span>
+              <span>{t('summary.team')}</span>
             </h2>
-            <div className="text-3xl font-bold mb-2">{teamMembers.length}</div>
-            <p className="text-sm text-gray-400 mb-4">Людей в команде</p>
+            <div className="text-3xl font-bold mb-2 text-white dark:text-white text-gray-900">{teamMembers.length}</div>
+            <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-4">{t('summary.peopleInTeam')}</p>
             
             {teamMembers.length > 0 && (
               <div className="space-y-2 mt-4 max-h-64 overflow-y-auto">
@@ -196,19 +198,19 @@ export default function SummaryPage() {
                   return (
                     <div
                       key={member.id}
-                      className="flex items-center justify-between p-2 bg-gray-700 rounded text-sm"
+                      className="flex items-center justify-between p-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 rounded text-sm"
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          online ? 'bg-green-400' : 'bg-gray-500'
+                          online ? 'bg-green-500' : 'bg-gray-500'
                         }`} />
-                        <span className="truncate">{member.name || member.email}</span>
+                        <span className="truncate text-white dark:text-white text-gray-900">{member.name || member.email}</span>
                       </div>
                       <div className="flex flex-col items-end text-xs">
-                        <span className={online ? 'text-green-400' : 'text-gray-400'}>
-                          {online ? 'Онлайн' : 'Офлайн'}
+                        <span className={online ? 'text-green-500' : 'text-gray-400 dark:text-gray-400 text-gray-600'}>
+                          {online ? t('common.online') : t('common.offline')}
                         </span>
-                        <span className="text-gray-500">
+                        <span className="text-gray-500 dark:text-gray-500 text-gray-600">
                           {formatLastSeen(member.updatedAt)}
                         </span>
                       </div>
@@ -220,13 +222,13 @@ export default function SummaryPage() {
           </div>
 
           {/* Сайты */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <div className="bg-gray-800 dark:bg-gray-800 bg-gray-50 rounded-lg p-6 border border-gray-700 dark:border-gray-700 border-gray-200">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white dark:text-white text-gray-900">
               <span>🌐</span>
-              <span>Сайты</span>
+              <span>{t('summary.sites')}</span>
             </h2>
-            <div className="text-3xl font-bold mb-2">{sitesCount}</div>
-            <p className="text-sm text-gray-400 mb-4">Добавленных сайтов в систему</p>
+            <div className="text-3xl font-bold mb-2 text-white dark:text-white text-gray-900">{sitesCount}</div>
+            <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-4">{t('summary.addedSites')}</p>
           </div>
         </div>
       </div>

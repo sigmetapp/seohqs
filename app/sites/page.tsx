@@ -3,8 +3,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { Site, Tag, SiteStatus } from '@/lib/types';
+import { useI18n } from '@/lib/i18n-context';
 
 export default function SitesPage() {
+  const { t } = useI18n();
   const [sites, setSites] = useState<Site[]>([]);
   const [googleConsoleAggregatedData, setGoogleConsoleAggregatedData] = useState<Array<{
     id: number;
@@ -193,7 +195,7 @@ export default function SitesPage() {
 
   const handleCreateTag = async () => {
     if (!newTagName.trim()) {
-      alert('Введите название тега');
+      alert(t('sites.enterTagName'));
       return;
     }
     try {
@@ -208,11 +210,11 @@ export default function SitesPage() {
         setNewTagColor('#3b82f6');
         loadTags();
       } else {
-        alert(data.error || 'Ошибка создания тега');
+        alert(data.error || t('sites.tagCreationError'));
       }
     } catch (err) {
       console.error('Error creating tag:', err);
-      alert('Ошибка создания тега');
+      alert(t('sites.tagCreationError'));
     }
   };
 
@@ -414,19 +416,19 @@ export default function SitesPage() {
         setNewSite({ name: '', domain: '', category: '', googleSearchConsoleUrl: '' });
         loadSites();
       } else {
-        alert(data.error || 'Ошибка создания сайта');
+        alert(data.error || t('sites.siteCreationError'));
       }
     } catch (err) {
       console.error('Error creating site:', err);
-      alert('Ошибка создания сайта');
+      alert(t('sites.siteCreationError'));
     }
   };
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-900 text-white p-8">
+      <main className="min-h-screen bg-gray-900 dark:bg-gray-900 bg-white text-white dark:text-white text-gray-900 p-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center">Загрузка...</div>
+          <div className="text-center">{t('common.loading')}</div>
         </div>
       </main>
     );
@@ -442,70 +444,70 @@ export default function SitesPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white p-8">
+    <main className="min-h-screen bg-gray-900 dark:bg-gray-900 bg-white text-white dark:text-white text-gray-900 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex justify-between items-start">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Панель сайтов</h1>
-            <p className="text-gray-400">Мониторинг сайтов: Google Console, постбеки</p>
+            <h1 className="text-4xl font-bold mb-2">{t('sites.title')}</h1>
+            <p className="text-gray-400 dark:text-gray-400 text-gray-600">{t('sites.description')}</p>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm text-white"
           >
-            + Добавить сайт
+            {t('sites.addSite')}
           </button>
         </div>
 
 
         {
           sites.length === 0 ? (
-            <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-              <p className="text-gray-400 mb-4">Сайты не добавлены</p>
+            <div className="bg-gray-800 dark:bg-gray-800 bg-gray-50 rounded-lg p-8 text-center border border-gray-700 dark:border-gray-700 border-gray-200">
+              <p className="text-gray-400 dark:text-gray-400 text-gray-600 mb-4">{t('sites.noSites')}</p>
             </div>
           ) : (
             <>
                 {/* Фильтры и настройки - зафиксированы вверху */}
-                <div className="sticky top-0 z-40 bg-gray-900 pb-4 mb-6">
-                  <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <div className="sticky top-0 z-40 bg-gray-900 dark:bg-gray-900 bg-white pb-4 mb-6">
+                  <div className="bg-gray-800 dark:bg-gray-800 bg-gray-50 rounded-lg p-4 border border-gray-700 dark:border-gray-700 border-gray-200">
                     <div className="flex flex-wrap items-end gap-4">
                       {/* Поиск по домену */}
                       <div className="flex-1 min-w-[200px]">
-                        <label className="block text-sm text-gray-400 mb-2">
-                          Поиск по домену
+                        <label className="block text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-2">
+                          {t('sites.searchByDomain')}
                         </label>
                         <input
                           type="text"
                           value={siteSearchTerm}
                           onChange={(e) => setSiteSearchTerm(e.target.value)}
-                          placeholder="Например: example.com"
-                          className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                          placeholder={t('sites.searchPlaceholder')}
+                          className="w-full px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 text-white dark:text-white text-gray-900 rounded border border-gray-600 dark:border-gray-600 border-gray-300 focus:border-blue-500 focus:outline-none"
                         />
                       </div>
                       {/* Фильтр по тегам */}
                       <div className="flex-1 min-w-[200px]">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm text-gray-400">Фильтр по тегам</span>
+                          <span className="text-sm text-gray-400 dark:text-gray-400 text-gray-600">{t('sites.filterByTags')}</span>
                           <button
                             onClick={() => {
                               setShowTagModal(true);
                               setIsTagDropdownOpen(false);
                             }}
-                            className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
+                            className="px-2 py-1 bg-gray-700 dark:bg-gray-700 bg-gray-200 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-300 rounded text-xs text-white dark:text-white text-gray-900"
                           >
-                            + Создать тег
+                            {t('sites.createTag')}
                           </button>
                         </div>
                         <div className="relative" ref={tagsDropdownRef}>
                           <button
                             type="button"
                             onClick={() => setIsTagDropdownOpen((prev) => !prev)}
-                            className="w-full flex items-center justify-between px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                            className="w-full flex items-center justify-between px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 text-white dark:text-white text-gray-900 rounded border border-gray-600 dark:border-gray-600 border-gray-300 focus:border-blue-500 focus:outline-none"
                           >
-                            <span className="text-sm">
+                            <span className="text-sm text-white dark:text-white text-gray-900">
                               {selectedTagIds.length > 0
-                                ? `Выбрано: ${selectedTagIds.length}`
-                                : 'Все теги'}
+                                ? `${t('sites.selected')}: ${selectedTagIds.length}`
+                                : t('sites.allTags')}
                             </span>
                             <svg
                               className={`w-4 h-4 transform transition-transform ${isTagDropdownOpen ? 'rotate-180' : ''}`}
@@ -517,10 +519,10 @@ export default function SitesPage() {
                             </svg>
                           </button>
                           {isTagDropdownOpen && (
-                            <div className="absolute z-50 mt-2 w-full bg-gray-900 border border-gray-700 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                            <div className="absolute z-50 mt-2 w-full bg-gray-900 dark:bg-gray-900 bg-white border border-gray-700 dark:border-gray-700 border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
                               {tags.length === 0 ? (
-                                <p className="px-3 py-2 text-sm text-gray-400">
-                                  Теги не созданы
+                                <p className="px-3 py-2 text-sm text-gray-400 dark:text-gray-400 text-gray-600">
+                                  {t('sites.tagsNotCreated')}
                                 </p>
                               ) : (
                                 <ul className="divide-y divide-gray-800">
@@ -557,7 +559,7 @@ export default function SitesPage() {
                                               setSearchResults([]);
                                             }}
                                             className="ml-auto text-gray-400 hover:text-gray-200"
-                                            title="Редактировать тег"
+                                            title={t('common.edit')}
                                           >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -569,21 +571,21 @@ export default function SitesPage() {
                                   })}
                                 </ul>
                               )}
-                              <div className="flex gap-2 p-3 border-t border-gray-800 bg-gray-900">
+                              <div className="flex gap-2 p-3 border-t border-gray-800 dark:border-gray-800 border-gray-200 bg-gray-900 dark:bg-gray-900 bg-white">
                                 <button
                                   type="button"
                                   onClick={() => setSelectedTagIds([])}
-                                  className="flex-1 px-3 py-1 rounded text-xs bg-gray-800 hover:bg-gray-700 text-gray-300"
+                                  className="flex-1 px-3 py-1 rounded text-xs bg-gray-800 dark:bg-gray-800 bg-gray-100 hover:bg-gray-700 dark:hover:bg-gray-700 hover:bg-gray-200 text-gray-300 dark:text-gray-300 text-gray-700"
                                   disabled={selectedTagIds.length === 0}
                                 >
-                                  Сбросить
+                                  {t('common.reset')}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setIsTagDropdownOpen(false)}
                                   className="flex-1 px-3 py-1 rounded text-xs bg-blue-600 hover:bg-blue-700 text-white"
                                 >
-                                  Готово
+                                  {t('common.done')}
                                 </button>
                               </div>
                             </div>
@@ -592,8 +594,8 @@ export default function SitesPage() {
                       </div>
                       {/* Фильтр по статусам */}
                       <div className="flex-1 min-w-[200px]">
-                        <label className="block text-sm text-gray-400 mb-2">
-                          Фильтр по статусам
+                        <label className="block text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-2">
+                          {t('sites.filterByStatus')}
                         </label>
                         <select
                           value={selectedStatusIds.length > 0 ? selectedStatusIds[0] : ''}
@@ -601,9 +603,9 @@ export default function SitesPage() {
                             const statusId = e.target.value ? parseInt(e.target.value) : null;
                             setSelectedStatusIds(statusId ? [statusId] : []);
                           }}
-                          className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                          className="w-full px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 text-white dark:text-white text-gray-900 rounded border border-gray-600 dark:border-gray-600 border-gray-300 focus:border-blue-500 focus:outline-none"
                         >
-                          <option value="">Все статусы</option>
+                          <option value="">{t('sites.allStatuses')}</option>
                           {statuses.map((status) => (
                             <option key={status.id} value={status.id} style={{ backgroundColor: status.color + '20' }}>
                               {status.name}
@@ -625,15 +627,15 @@ export default function SitesPage() {
                       </div>
                       {/* Выбор периода */}
                       <div className="flex items-end gap-2">
-                        <span className="text-sm text-gray-400 whitespace-nowrap">Период для показов и кликов:</span>
+                        <span className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 whitespace-nowrap">{t('sites.periodForImpressions')}</span>
                         <select
                           value={selectedPeriodAllSites}
                           onChange={(e) => setSelectedPeriodAllSites(Number(e.target.value))}
-                          className="px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                          className="px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 text-white dark:text-white text-gray-900 rounded border border-gray-600 dark:border-gray-600 border-gray-300 focus:border-blue-500 focus:outline-none"
                         >
                           {[7, 30, 90, 180].map((days) => (
                             <option key={days} value={days}>
-                              {days} дней
+                              {days} {t('sites.days')}
                             </option>
                           ))}
                         </select>
@@ -642,20 +644,20 @@ export default function SitesPage() {
                   </div>
                 </div>
 
-              <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+              <div className="bg-gray-800 dark:bg-gray-800 bg-gray-50 rounded-lg overflow-hidden border border-gray-700 dark:border-gray-700 border-gray-200">
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-700">
+                    <thead className="bg-gray-700 dark:bg-gray-700 bg-gray-100">
                       <tr>
-                        <th className="px-4 py-3 text-left">Домен</th>
-                        <th className="px-4 py-3 text-left">Теги</th>
-                        <th className="px-4 py-3 text-center" style={{ width: '60px' }}>✓</th>
+                        <th className="px-4 py-3 text-left text-white dark:text-white text-gray-900">{t('sites.domain')}</th>
+                        <th className="px-4 py-3 text-left text-white dark:text-white text-gray-900">{t('sites.tags')}</th>
+                        <th className="px-4 py-3 text-center text-white dark:text-white text-gray-900" style={{ width: '60px' }}>✓</th>
                         <th 
-                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 select-none"
+                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-200 select-none text-white dark:text-white text-gray-900"
                           onClick={() => handleSort('tasks')}
                         >
                           <div className="flex items-center gap-2">
-                            Задачи
+                            {t('sites.tasks')}
                             {sortColumn === 'tasks' && (
                               <span className="text-xs">
                                 {sortDirection === 'asc' ? '↑' : '↓'}
@@ -664,11 +666,11 @@ export default function SitesPage() {
                           </div>
                         </th>
                         <th 
-                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 select-none"
+                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-200 select-none text-white dark:text-white text-gray-900"
                           onClick={() => handleSort('links')}
                         >
                           <div className="flex items-center gap-2">
-                            Link Profile
+                            {t('sites.linkProfile')}
                             {sortColumn === 'links' && (
                               <span className="text-xs">
                                 {sortDirection === 'asc' ? '↑' : '↓'}
@@ -677,11 +679,11 @@ export default function SitesPage() {
                           </div>
                         </th>
                         <th 
-                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 select-none"
+                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-200 select-none text-white dark:text-white text-gray-900"
                           onClick={() => handleSort('impressions')}
                         >
                           <div className="flex items-center gap-2">
-                            Показы
+                            {t('sites.impressions')}
                             {sortColumn === 'impressions' && (
                               <span className="text-xs">
                                 {sortDirection === 'asc' ? '↑' : '↓'}
@@ -690,11 +692,11 @@ export default function SitesPage() {
                           </div>
                         </th>
                         <th 
-                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 select-none"
+                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-200 select-none text-white dark:text-white text-gray-900"
                           onClick={() => handleSort('clicks')}
                         >
                           <div className="flex items-center gap-2">
-                            Клики
+                            {t('sites.clicks')}
                             {sortColumn === 'clicks' && (
                               <span className="text-xs">
                                 {sortDirection === 'asc' ? '↑' : '↓'}
@@ -703,11 +705,11 @@ export default function SitesPage() {
                           </div>
                         </th>
                         <th 
-                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 select-none"
+                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-200 select-none text-white dark:text-white text-gray-900"
                           onClick={() => handleSort('postbacks')}
                         >
                           <div className="flex items-center gap-2">
-                            Постбеки
+                            {t('sites.postbacks')}
                             {sortColumn === 'postbacks' && (
                               <span className="text-xs">
                                 {sortDirection === 'asc' ? '↑' : '↓'}
@@ -715,7 +717,7 @@ export default function SitesPage() {
                             )}
                           </div>
                         </th>
-                        <th className="px-4 py-3 text-left">Действия</th>
+                        <th className="px-4 py-3 text-left text-white dark:text-white text-gray-900">{t('common.actions')}</th>
                       </tr>
                     </thead>
                   <tbody>
@@ -727,7 +729,7 @@ export default function SitesPage() {
                         <tr key={site.id} className="border-t border-gray-700 hover:bg-gray-750">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              <div className="font-medium">{site.domain}</div>
+                              <div className="font-medium text-white dark:text-white text-gray-900">{site.domain}</div>
                               {site.status && (
                                 <span
                                   className="px-2 py-0.5 rounded text-xs font-medium"
@@ -742,7 +744,7 @@ export default function SitesPage() {
                                 </span>
                               )}
                             </div>
-                            <div className="text-xs text-gray-500">{site.name}</div>
+                            <div className="text-xs text-gray-400 dark:text-gray-400 text-gray-600">{site.name}</div>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-wrap gap-1 mb-1">
@@ -759,7 +761,7 @@ export default function SitesPage() {
                                       handleRemoveTag(site.id, tag.id);
                                     }}
                                     className="hover:bg-opacity-20 rounded px-0.5"
-                                    title="Удалить тег"
+                                    title={t('sites.removeTag')}
                                   >
                                     ×
                                   </button>
@@ -773,65 +775,65 @@ export default function SitesPage() {
                               }}
                               className="text-xs text-blue-400 hover:text-blue-300"
                             >
-                              + Добавить тег
+                              {t('sites.addTag')}
                             </button>
                           </td>
                           <td className="px-4 py-3 text-center">
                             {siteData?.hasGoogleConsoleConnection ? (
-                              <span className="text-green-400 text-xl" title="Подключено">✓</span>
+                              <span className="text-green-500 text-xl" title={t('common.connected')}>✓</span>
                             ) : (
-                              <span className="text-gray-500 text-xl" title="Не подключено">✗</span>
+                              <span className="text-gray-400 dark:text-gray-400 text-gray-600 text-xl" title={t('common.notConnected')}>✗</span>
                             )}
                           </td>
                           <td className="px-4 py-3">
                             {loadingStats ? (
-                              <span className="text-gray-500">...</span>
+                              <span className="text-gray-400 dark:text-gray-400 text-gray-600">...</span>
                             ) : stats ? (
                               <div className="text-sm">
-                                <div>Всего: {stats.tasks.total}</div>
-                                <div className="text-green-400">Открыто: {stats.tasks.open}</div>
-                                <div className="text-gray-500">Закрыто: {stats.tasks.closed}</div>
+                                <div className="text-white dark:text-white text-gray-900">{t('summary.total')}: {stats.tasks.total}</div>
+                                <div className="text-green-500">{t('summary.open')}: {stats.tasks.open}</div>
+                                <div className="text-gray-400 dark:text-gray-400 text-gray-600">{t('summary.closed')}: {stats.tasks.closed}</div>
                               </div>
                             ) : (
-                              <span className="text-gray-500">—</span>
+                              <span className="text-gray-400 dark:text-gray-400 text-gray-600">—</span>
                             )}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 text-white dark:text-white text-gray-900">
                             {loadingStats ? (
-                              <span className="text-gray-500">...</span>
+                              <span className="text-gray-400 dark:text-gray-400 text-gray-600">...</span>
                             ) : stats ? (
                               <span>{stats.links}</span>
                             ) : (
-                              <span className="text-gray-500">—</span>
+                              <span className="text-gray-400 dark:text-gray-400 text-gray-600">—</span>
                             )}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 text-white dark:text-white text-gray-900">
                             {siteData && siteData.totalImpressions > 0 ? (
                               <span>{siteData.totalImpressions.toLocaleString()}</span>
                             ) : (
-                              <span className="text-gray-500">—</span>
+                              <span className="text-gray-400 dark:text-gray-400 text-gray-600">—</span>
                             )}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 text-white dark:text-white text-gray-900">
                             {siteData && siteData.totalClicks > 0 ? (
                               <span>{siteData.totalClicks.toLocaleString()}</span>
                             ) : (
-                              <span className="text-gray-500">—</span>
+                              <span className="text-gray-400 dark:text-gray-400 text-gray-600">—</span>
                             )}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 text-white dark:text-white text-gray-900">
                             {siteData && siteData.totalPostbacks !== undefined ? (
                               <span>{siteData.totalPostbacks.toLocaleString()}</span>
                             ) : (
-                              <span className="text-gray-500">—</span>
+                              <span className="text-gray-400 dark:text-gray-400 text-gray-600">—</span>
                             )}
                           </td>
                           <td className="px-4 py-3">
                             <Link
                               href={`/sites/${site.id}`}
-                              className="text-blue-400 hover:text-blue-300 hover:underline text-sm"
+                              className="text-blue-400 dark:text-blue-400 text-blue-600 hover:text-blue-300 dark:hover:text-blue-300 hover:text-blue-700 hover:underline text-sm"
                             >
-                              Открыть →
+                              {t('sites.openSite')}
                             </Link>
                           </td>
                         </tr>
@@ -848,17 +850,17 @@ export default function SitesPage() {
         {/* Модальное окно управления тегами */}
         {showTagModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700 max-h-[90vh] overflow-y-auto">
-              <h2 className="text-2xl font-bold mb-4">
-                {tagModalSiteId ? 'Управление тегами сайта' : 'Создать тег'}
+            <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-6 w-full max-w-md border border-gray-700 dark:border-gray-700 border-gray-200 max-h-[90vh] overflow-y-auto">
+              <h2 className="text-2xl font-bold mb-4 text-white dark:text-white text-gray-900">
+                {tagModalSiteId ? t('sites.manageTagsTitle') : t('sites.createTagTitle')}
               </h2>
               
               {tagModalSiteId ? (
                 // Управление тегами для конкретного сайта
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Присвоить тег:
+                    <label className="block text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-2">
+                      {t('sites.assignTag')}
                     </label>
                     <div className="flex flex-wrap gap-2">
                       {tags.map((tag) => {
@@ -893,7 +895,7 @@ export default function SitesPage() {
                       }}
                       className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
                     >
-                      Закрыть
+                      {t('common.close')}
                     </button>
                   </div>
                 </div>
@@ -901,34 +903,34 @@ export default function SitesPage() {
                 // Создание нового тега
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Название тега
+                    <label className="block text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-2">
+                      {t('sites.tagName')}
                     </label>
                     <input
                       type="text"
                       value={newTagName}
                       onChange={(e) => setNewTagName(e.target.value)}
-                      className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                      placeholder="Название тега"
+                      className="w-full px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 text-white dark:text-white text-gray-900 rounded border border-gray-600 dark:border-gray-600 border-gray-300 focus:border-blue-500 focus:outline-none"
+                      placeholder={t('sites.tagNamePlaceholder')}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Цвет
+                    <label className="block text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-2">
+                      {t('sites.color')}
                     </label>
                     <input
                       type="color"
                       value={newTagColor}
                       onChange={(e) => setNewTagColor(e.target.value)}
-                      className="w-full h-10 bg-gray-700 rounded border border-gray-600"
+                      className="w-full h-10 bg-gray-700 dark:bg-gray-700 bg-gray-100 rounded border border-gray-600 dark:border-gray-600 border-gray-300"
                     />
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={handleCreateTag}
-                      className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+                      className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
                     >
-                      Создать
+                      {t('common.create')}
                     </button>
                     <button
                       onClick={() => {
@@ -937,9 +939,9 @@ export default function SitesPage() {
                         setNewTagName('');
                         setNewTagColor('#3b82f6');
                       }}
-                      className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+                      className="flex-1 px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-200 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-300 rounded text-white dark:text-white text-gray-900"
                     >
-                      Отмена
+                      {t('common.cancel')}
                     </button>
                   </div>
                 </div>
@@ -951,16 +953,16 @@ export default function SitesPage() {
         {/* Модальное окно редактирования тега */}
         {showEditTagModal && editingTagId && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700 max-h-[90vh] overflow-y-auto">
-              <h2 className="text-2xl font-bold mb-4">
-                Редактировать тег: {tags.find(t => t.id === editingTagId)?.name}
+            <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-6 w-full max-w-md border border-gray-700 dark:border-gray-700 border-gray-200 max-h-[90vh] overflow-y-auto">
+              <h2 className="text-2xl font-bold mb-4 text-white dark:text-white text-gray-900">
+                {t('sites.editTagTitle')}: {tags.find(t => t.id === editingTagId)?.name}
               </h2>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Добавить сайт по домену:
-                  </label>
+                    <label className="block text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-2">
+                      {t('sites.addSiteByDomain')}
+                    </label>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -973,23 +975,23 @@ export default function SitesPage() {
                           handleSearchSiteByDomain();
                         }
                       }}
-                      className="flex-1 px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                      placeholder="Введите домен (например: example.com)"
+                      className="flex-1 px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 text-white dark:text-white text-gray-900 rounded border border-gray-600 dark:border-gray-600 border-gray-300 focus:border-blue-500 focus:outline-none"
+                      placeholder={t('sites.domainPlaceholder')}
                     />
                     <button
                       onClick={handleSearchSiteByDomain}
                       disabled={searching || !domainSearch.trim()}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50 disabled:cursor-not-allowed text-white"
                     >
-                      {searching ? '...' : 'Найти'}
+                      {searching ? '...' : t('sites.find')}
                     </button>
                   </div>
                 </div>
 
                 {searchResults.length > 0 && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Найденные сайты:
+                    <label className="block text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-2">
+                      {t('sites.foundSites')}
                     </label>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
                       {searchResults.map((site) => {
@@ -1017,7 +1019,7 @@ export default function SitesPage() {
                                   : 'bg-blue-600 hover:bg-blue-700'
                               }`}
                             >
-                              {isTagAssigned ? 'Удалить' : 'Добавить'}
+                              {isTagAssigned ? t('common.delete') : t('common.add')}
                             </button>
                           </div>
                         );
@@ -1027,12 +1029,12 @@ export default function SitesPage() {
                 )}
 
                 {domainSearch.trim() && searchResults.length === 0 && !searching && (
-                  <div className="text-sm text-gray-400 text-center py-4">
-                    Сайты не найдены
+                  <div className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 text-center py-4">
+                    {t('sites.noSitesFound')}
                   </div>
                 )}
 
-                <div className="flex gap-2 pt-4 border-t border-gray-700">
+                <div className="flex gap-2 pt-4 border-t border-gray-700 dark:border-gray-700 border-gray-200">
                   <button
                     onClick={() => {
                       setShowEditTagModal(false);
@@ -1040,9 +1042,9 @@ export default function SitesPage() {
                       setDomainSearch('');
                       setSearchResults([]);
                     }}
-                    className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+                    className="flex-1 px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-200 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-300 rounded text-white dark:text-white text-gray-900"
                   >
-                    Закрыть
+                    {t('common.close')}
                   </button>
                 </div>
               </div>
@@ -1053,43 +1055,43 @@ export default function SitesPage() {
         {/* Модальное окно создания сайта */}
         {showCreateModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
-              <h2 className="text-2xl font-bold mb-4">Добавить сайт</h2>
+            <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-6 w-full max-w-md border border-gray-700 dark:border-gray-700 border-gray-200">
+              <h2 className="text-2xl font-bold mb-4 text-white dark:text-white text-gray-900">{t('sites.addSiteTitle')}</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Название сайта
+                  <label className="block text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-2">
+                    {t('sites.siteName')}
                   </label>
                   <input
                     type="text"
                     value={newSite.name}
                     onChange={(e) => setNewSite({ ...newSite, name: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="Мой сайт"
+                    className="w-full px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 text-white dark:text-white text-gray-900 rounded border border-gray-600 dark:border-gray-600 border-gray-300 focus:border-blue-500 focus:outline-none"
+                    placeholder={t('sites.siteNamePlaceholder')}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Домен
+                  <label className="block text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-2">
+                    {t('sites.siteDomain')}
                   </label>
                   <input
                     type="text"
                     value={newSite.domain}
                     onChange={(e) => setNewSite({ ...newSite, domain: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="example.com"
+                    className="w-full px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 text-white dark:text-white text-gray-900 rounded border border-gray-600 dark:border-gray-600 border-gray-300 focus:border-blue-500 focus:outline-none"
+                    placeholder={t('sites.siteDomainPlaceholder')}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Категория (необязательно)
+                  <label className="block text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-2">
+                    {t('sites.category')}
                   </label>
                   <select
                     value={newSite.category}
                     onChange={(e) => setNewSite({ ...newSite, category: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 text-white dark:text-white text-gray-900 rounded border border-gray-600 dark:border-gray-600 border-gray-300 focus:border-blue-500 focus:outline-none"
                   >
-                    <option value="">Выберите категорию</option>
+                    <option value="">{t('sites.selectCategory')}</option>
                     {categories.map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
@@ -1097,35 +1099,35 @@ export default function SitesPage() {
                     ))}
                   </select>
                   {categories.length === 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Загрузите офферы, чтобы увидеть доступные категории
+                    <p className="text-xs text-gray-500 dark:text-gray-500 text-gray-600 mt-1">
+                      {t('sites.loadOffersForCategories')}
                     </p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Google Search Console URL <span className="text-gray-500 text-xs">(необязательно - будет определен автоматически по домену)</span>
+                  <label className="block text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-2">
+                    {t('sites.googleConsoleUrl')} <span className="text-gray-500 dark:text-gray-500 text-gray-600 text-xs">({t('sites.googleConsoleUrlOptional')})</span>
                   </label>
                   <input
                     type="text"
                     value={newSite.googleSearchConsoleUrl}
                     onChange={(e) => setNewSite({ ...newSite, googleSearchConsoleUrl: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="https://search.google.com/search-console/..."
+                    className="w-full px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 text-white dark:text-white text-gray-900 rounded border border-gray-600 dark:border-gray-600 border-gray-300 focus:border-blue-500 focus:outline-none"
+                    placeholder={t('sites.googleConsoleUrlPlaceholder')}
                   />
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={handleCreateSite}
-                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
                   >
-                    Создать
+                    {t('common.create')}
                   </button>
                   <button
                     onClick={() => setShowCreateModal(false)}
-                    className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+                    className="flex-1 px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-200 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-300 rounded text-white dark:text-white text-gray-900"
                   >
-                    Отмена
+                    {t('common.cancel')}
                   </button>
                 </div>
               </div>
