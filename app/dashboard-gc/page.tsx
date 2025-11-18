@@ -716,13 +716,6 @@ export default function DashboardGCPage() {
               <p className="text-sm">{error}</p>
             </div>
           </div>
-        ) : sites.length === 0 ? (
-          <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-            <p className="text-gray-400 mb-4">Сайты не найдены</p>
-            <p className="text-gray-500 text-sm mb-4">
-              Убедитесь, что вы авторизованы через Google в разделе Интеграции
-            </p>
-          </div>
         ) : (
           <>
             {/* Контролы - зафиксированы в одну строку */}
@@ -893,38 +886,47 @@ export default function DashboardGCPage() {
               </div>
             </div>
 
-            {/* Карточки сайтов с ленивой загрузкой */}
-            <div>
-              <div className={`grid gap-6 ${
-                columnsPerRow === 1 ? 'grid-cols-1' :
-                columnsPerRow === 2 ? 'grid-cols-1 md:grid-cols-2' :
-                columnsPerRow === 3 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
-                columnsPerRow === 4 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
-                'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
-              }`}>
-              {visibleSites.map((siteData) => (
-                <LazySiteCard
-                  key={siteData.id}
-                  siteData={siteData}
-                  dailyData={dailyData[siteData.id] || []}
-                  isLoading={loadingDailyData[siteData.id] || false}
-                  showImpressions={showImpressions}
-                  showClicks={showClicks}
-                  showPositions={showPositions}
-                  blurMode={blurMode}
-                  onHover={() => setHoveredSiteId(siteData.id)}
-                  onHoverLeave={() => {
-                    setHoveredSiteId(null);
-                    setHoveredDateIndex(null);
-                  }}
-                  hoveredSiteId={hoveredSiteId}
-                  hoveredDateIndex={hoveredDateIndex}
-                  setHoveredDateIndex={setHoveredDateIndex}
-                  onLoad={() => handleSiteLoad(siteData.id)}
-                />
-              ))}
+            {/* Карточки сайтов с ленивой загрузкой или сообщение об отсутствии сайтов */}
+            {visibleSites.length === 0 ? (
+              <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
+                <p className="text-gray-400 mb-4">Сайты не найдены</p>
+                <p className="text-gray-500 text-sm mb-4">
+                  Убедитесь, что вы авторизованы через Google в разделе Интеграции
+                </p>
               </div>
-            </div>
+            ) : (
+              <div>
+                <div className={`grid gap-6 ${
+                  columnsPerRow === 1 ? 'grid-cols-1' :
+                  columnsPerRow === 2 ? 'grid-cols-1 md:grid-cols-2' :
+                  columnsPerRow === 3 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
+                  columnsPerRow === 4 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' :
+                  'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
+                }`}>
+                {visibleSites.map((siteData) => (
+                  <LazySiteCard
+                    key={siteData.id}
+                    siteData={siteData}
+                    dailyData={dailyData[siteData.id] || []}
+                    isLoading={loadingDailyData[siteData.id] || false}
+                    showImpressions={showImpressions}
+                    showClicks={showClicks}
+                    showPositions={showPositions}
+                    blurMode={blurMode}
+                    onHover={() => setHoveredSiteId(siteData.id)}
+                    onHoverLeave={() => {
+                      setHoveredSiteId(null);
+                      setHoveredDateIndex(null);
+                    }}
+                    hoveredSiteId={hoveredSiteId}
+                    hoveredDateIndex={hoveredDateIndex}
+                    setHoveredDateIndex={setHoveredDateIndex}
+                    onLoad={() => handleSiteLoad(siteData.id)}
+                  />
+                ))}
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
