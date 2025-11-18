@@ -487,7 +487,19 @@ export default function IntegrationsPage() {
                     <p className="text-gray-300">Убедитесь, что вы успешно авторизовались через Google. Проверьте, что GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET настроены в переменных окружения.</p>
                   </div>
                   <div>
-                    <p className="font-semibold text-red-400 mb-1">Доступ запрещен (403)</p>
+                    <p className="font-semibold text-red-400 mb-1">Ошибка 403: access_denied</p>
+                    <p className="text-gray-300 mb-2">Если вы видите сообщение о том, что приложение находится в режиме тестирования, это означает, что приложение в Google Cloud Console находится в режиме Testing. Для подключения второго Google аккаунта необходимо:</p>
+                    <ol className="list-decimal list-inside space-y-1 ml-2 text-gray-300 text-xs">
+                      <li>Перейти в Google Cloud Console → APIs & Services → OAuth consent screen</li>
+                      <li>Добавить email второго аккаунта в раздел "Test users" (нажать "+ ADD USERS")</li>
+                      <li>Или перевести приложение в режим Production (нажать "PUBLISH APP")</li>
+                    </ol>
+                    <p className="text-gray-300 mt-2 text-xs">
+                      Подробная инструкция: <a href="https://github.com/sigmetapp/seohqs/blob/main/GOOGLE_OAUTH_TESTING_MODE_FIX.md" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">GOOGLE_OAUTH_TESTING_MODE_FIX.md</a>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-red-400 mb-1">Доступ запрещен (403) - другой случай</p>
                     <p className="text-gray-300">Убедитесь, что ваш Google аккаунт имеет доступ к сайту в Google Search Console. Перейдите в Google Search Console и проверьте, что сайт добавлен и у вас есть права доступа.</p>
                   </div>
                   <div>

@@ -48,12 +48,25 @@ export async function GET(request: Request) {
       console.error('[Google OAuth Callback] Request Origin:', origin);
       console.error('[Google OAuth Callback] Host:', host);
       
+      let errorMessage = error;
+      
+      // Специальная обработка для access_denied (приложение в режиме тестирования)
+      if (error === 'access_denied') {
+        errorMessage = `Ошибка 403: access_denied
+
+Приложение находится в режиме тестирования в Google Cloud Console. Для подключения второго Google аккаунта необходимо:
+
+1. Перейти в Google Cloud Console → APIs & Services → OAuth consent screen
+2. Добавить email второго аккаунта в раздел "Test users" (нажать "+ ADD USERS")
+3. Или перевести приложение в режим Production (нажать "PUBLISH APP")
+
+Подробная инструкция: GOOGLE_OAUTH_TESTING_MODE_FIX.md`;
+      } else if (error === 'redirect_uri_mismatch') {
+        errorMessage = `Ошибка redirect_uri_mismatch. Добавьте в Google Cloud Console следующий Redirect URI: ${redirectUriForError}`;
+      }
+      
       return NextResponse.redirect(
-        `${baseUrl}/integrations?error=${encodeURIComponent(
-          error === 'redirect_uri_mismatch' 
-            ? `Ошибка redirect_uri_mismatch. Добавьте в Google Cloud Console следующий Redirect URI: ${redirectUriForError}`
-            : error
-        )}`
+        `${baseUrl}/integrations?error=${encodeURIComponent(errorMessage)}`
       );
     }
 
