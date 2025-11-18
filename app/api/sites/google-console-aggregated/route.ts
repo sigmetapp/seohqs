@@ -33,8 +33,9 @@ export async function GET(request: NextRequest) {
     const tagIdsParam = searchParams.get('tagIds');
     const tagIds = tagIdsParam ? tagIdsParam.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
 
-    // Проверяем кеш (кеш на 12 часов, так как данные Google Search Console обновляются раз в сутки)
-    const cacheKey = `google-console-aggregated-${user.id}-${accountId || 'default'}-${days}`;
+      // Проверяем кеш (кеш на 12 часов, так как данные Google Search Console обновляются раз в сутки)
+      const normalizedTagKey = tagIds.length > 0 ? tagIds.slice().sort((a, b) => a - b).join('-') : 'all';
+      const cacheKey = `google-console-aggregated-${user.id}-${accountId || 'default'}-${days}-${normalizedTagKey}`;
     const cachedData = cache.get<any>(cacheKey);
     if (cachedData) {
       return NextResponse.json({
