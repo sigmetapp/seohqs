@@ -58,6 +58,12 @@ export async function GET(request: Request) {
       );
     }
 
+    // Scopes для получения информации о пользователе
+    const scopes = [
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile',
+    ];
+
     // Логируем, какой Client ID используется (для отладки)
     console.log('[Google User OAuth] Using Client ID:', process.env.GOOGLE_USER_CLIENT_ID ? 'GOOGLE_USER_CLIENT_ID' : 'GOOGLE_CLIENT_ID');
     console.log('[Google User OAuth] Client ID value:', clientId?.substring(0, 20) + '...');
@@ -69,12 +75,6 @@ export async function GET(request: Request) {
       clientSecret,
       redirectUri
     );
-
-    // Scopes для получения информации о пользователе
-    const scopes = [
-      'https://www.googleapis.com/auth/userinfo.email',
-      'https://www.googleapis.com/auth/userinfo.profile',
-    ];
 
     // Получаем redirect путь из параметров запроса
     const redirectPath = searchParams.get('redirect') || '/summary';
