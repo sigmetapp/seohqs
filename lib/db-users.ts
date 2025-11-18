@@ -846,7 +846,7 @@ async function getTeamMembersSupabase(ownerId: number): Promise<TeamMember[]> {
   
   if (error || !data) return [];
   
-  return data.map(row => ({
+  return data.map((row: any) => ({
     id: row.id,
     ownerId: row.owner_id,
     email: row.email,
@@ -872,7 +872,7 @@ async function getTeamMembersPostgres(ownerId: number): Promise<TeamMember[]> {
       [ownerId]
     );
     
-    return result.rows.map(row => ({
+    return result.rows.map((row: any) => ({
       id: row.id,
       ownerId: row.owner_id,
       email: row.email,
@@ -905,7 +905,7 @@ function getTeamMembersSQLite(ownerId: number): TeamMember[] {
   try {
     const rows = db.prepare('SELECT * FROM team_members WHERE owner_id = ? AND is_active = 1 ORDER BY created_at ASC').all(ownerId) as any[];
     
-    return rows.map(row => ({
+    return rows.map((row: any) => ({
       id: row.id,
       ownerId: row.owner_id,
       email: row.email,
