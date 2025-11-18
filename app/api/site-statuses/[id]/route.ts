@@ -12,8 +12,11 @@ async function getDbClient() {
   const usePostgres = !useSupabase && !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
   
   if (useSupabase) {
-    const { createClient } = await import('@/lib/supabase');
-    return createClient();
+    const { createClient } = await import('@supabase/supabase-js');
+    return createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
   } else if (usePostgres) {
     const { getPostgresClient } = await import('@/lib/postgres-client');
     return getPostgresClient();

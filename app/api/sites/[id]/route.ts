@@ -116,8 +116,11 @@ export async function GET(
       try {
         const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL);
         if (useSupabase) {
-          const { createClient } = await import('@/lib/supabase');
-          const supabase = createClient();
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          );
           const { data } = await supabase
             .from('site_statuses')
             .select('*')
@@ -230,8 +233,11 @@ export async function PUT(
       try {
         const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL);
         if (useSupabase) {
-          const { createClient } = await import('@/lib/supabase');
-          const supabase = createClient();
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          );
           const { data } = await supabase
             .from('site_statuses')
             .select('*')
