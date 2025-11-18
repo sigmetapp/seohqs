@@ -1489,6 +1489,118 @@ export async function getTeamMemberByUsername(username: string): Promise<TeamMem
   }
 }
 
+// Получить активного участника команды по email
+export async function getTeamMemberByEmail(email: string): Promise<TeamMember | null> {
+  if (useSupabase()) {
+    return getTeamMemberByEmailSupabase(email);
+  } else if (usePostgres()) {
+    return getTeamMemberByEmailPostgres(email);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    return getTeamMemberByEmailSQLite(email);
+  }
+}
+
+async function getTeamMemberByEmailSupabase(email: string): Promise<TeamMember | null> {
+  const { supabase } = await import('./supabase');
+  if (!supabase) {
+    return null;
+  }
+  
+  const { data, error } = await supabase
+    .from('team_members')
+    .select('*')
+    .eq('email', email)
+    .eq('is_active', true)
+    .maybeSingle();
+  
+  if (error || !data) return null;
+  
+  return {
+    id: data.id,
+    ownerId: data.owner_id,
+    email: data.email,
+    name: data.name,
+    username: data.username,
+    passwordHash: data.password_hash,
+    isActive: data.is_active,
+    firstLogin: data.first_login,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+async function getTeamMemberByEmailPostgres(email: string): Promise<TeamMember | null> {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+  });
+  
+  try {
+    const result = await pool.query(
+      'SELECT * FROM team_members WHERE email = $1 AND is_active = true',
+      [email]
+    );
+    
+    if (result.rows.length === 0) return null;
+    
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      ownerId: row.owner_id,
+      email: row.email,
+      name: row.name,
+      username: row.username,
+      passwordHash: row.password_hash,
+      isActive: row.is_active,
+      firstLogin: row.first_login,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } finally {
+    await pool.end();
+  }
+}
+
+function getTeamMemberByEmailSQLite(email: string): TeamMember | null {
+  const Database = require('better-sqlite3');
+  const { join } = require('path');
+  const { existsSync, mkdirSync } = require('fs');
+  
+  const dbDir = join(process.cwd(), 'data');
+  if (!existsSync(dbDir)) {
+    mkdirSync(dbDir, { recursive: true });
+  }
+  
+  const dbPath = join(dbDir, 'affiliate.db');
+  const db = new Database(dbPath);
+  
+  try {
+    const row = db.prepare('SELECT * FROM team_members WHERE email = ? AND is_active = 1').get(email) as any;
+    if (!row) return null;
+    
+    return {
+      id: row.id,
+      ownerId: row.owner_id,
+      email: row.email,
+      name: row.name,
+      username: row.username,
+      passwordHash: row.password_hash,
+      isActive: row.is_active === 1,
+      firstLogin: row.first_login === 1,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } catch (error: any) {
+    if (error.message?.includes('no such table')) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 async function getTeamMemberByUsernameSupabase(username: string): Promise<TeamMember | null> {
   const { supabase } = await import('./supabase');
   if (!supabase) {
