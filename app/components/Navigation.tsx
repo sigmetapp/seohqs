@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
+import { useTheme } from '@/lib/theme-context';
+import { useI18n } from '@/lib/i18n-context';
 
 interface User {
   id: number;
@@ -14,6 +16,8 @@ interface User {
 
 export default function Navigation() {
   const pathname = usePathname();
+  const { theme, toggleTheme } = useTheme();
+  const { language, setLanguage, t } = useI18n();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -40,11 +44,9 @@ export default function Navigation() {
   };
 
   useEffect(() => {
-    // Проверяем авторизацию при загрузке компонента
     fetchUser();
   }, []);
 
-  // Закрытие выпадающего меню при клике вне его
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (toolsDropdownRef.current && !toolsDropdownRef.current.contains(event.target as Node)) {
@@ -69,7 +71,7 @@ export default function Navigation() {
         window.location.href = data.authUrl;
       }
     } catch (error) {
-      console.error('Ошибка авторизации:', error);
+      console.error('Auth error:', error);
     }
   };
 
@@ -94,13 +96,12 @@ export default function Navigation() {
         setShowLoginModal(false);
         setEmail('');
         setPassword('');
-        // Обновляем данные пользователя
         fetchUser();
       } else {
-        setLoginError(data.error || 'Ошибка входа');
+        setLoginError(data.error || t('auth.loginError'));
       }
     } catch (error) {
-      setLoginError('Ошибка входа в систему');
+      setLoginError(t('auth.loginError'));
     } finally {
       setLoginLoading(false);
     }
@@ -112,30 +113,27 @@ export default function Navigation() {
       setUser(null);
       window.location.href = '/';
     } catch (error) {
-      console.error('Ошибка выхода:', error);
+      console.error('Logout error:', error);
     }
   };
 
   const navItems = [
-    { href: '/summary', label: 'Сводка', icon: '📊' },
-    { href: '/sites', label: 'Панель сайтов', icon: '🌐' },
-    { href: '/dashboard-gc', label: 'Dashboard GC', icon: '📈' },
-    { href: '/integrations', label: 'Интеграции', icon: '⚙️' },
+    { href: '/summary', labelKey: 'nav.summary', icon: '📊' },
+    { href: '/sites', labelKey: 'nav.sites', icon: '🌐' },
+    { href: '/dashboard-gc', labelKey: 'nav.dashboardGc', icon: '📈' },
+    { href: '/integrations', labelKey: 'nav.integrations', icon: '⚙️' },
   ];
 
   return (
-    <nav className="bg-gray-800 border-b border-gray-700">
+    <nav className="bg-gray-800 dark:bg-gray-800 bg-white border-b border-gray-700 dark:border-gray-700 border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <h1 className="text-xl font-bold text-white">SEO Tools</h1>
+              <h1 className="text-xl font-bold text-white dark:text-white text-gray-900">SEO Tools</h1>
             </div>
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+            <div className="hidden sm:ml-6 sm:flex sm:space-x-8 sm:items-center">
               {navItems.map((item) => {
-                // Пропускаем "Инструменты" - обработаем отдельно
-                if (item.href === '/tools') return null;
-                
                 const isActive = pathname === item.href || 
                   (item.href !== '/' && pathname?.startsWith(item.href));
                 
@@ -145,28 +143,28 @@ export default function Navigation() {
                     href={item.href}
                     className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
                       isActive
-                        ? 'border-blue-500 text-blue-400'
-                        : 'border-transparent text-gray-300 hover:text-gray-200 hover:border-gray-300'
+                        ? 'border-blue-500 text-blue-400 dark:text-blue-400'
+                        : 'border-transparent text-gray-300 dark:text-gray-300 text-gray-700 hover:text-gray-200 dark:hover:text-gray-200 hover:text-gray-900 hover:border-gray-300 dark:hover:border-gray-300'
                     }`}
                   >
                     <span className="mr-2">{item.icon}</span>
-                    {item.label}
+                    {t(item.labelKey)}
                   </Link>
                 );
               })}
               
-              {/* Выпадающее меню "Инструменты" */}
+              {/* Tools dropdown - fixed alignment */}
               <div className="relative" ref={toolsDropdownRef}>
                 <button
                   onClick={() => setShowToolsDropdown(!showToolsDropdown)}
                   className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
                     pathname === '/indexing'
-                      ? 'border-blue-500 text-blue-400'
-                      : 'border-transparent text-gray-300 hover:text-gray-200 hover:border-gray-300'
+                      ? 'border-blue-500 text-blue-400 dark:text-blue-400'
+                      : 'border-transparent text-gray-300 dark:text-gray-300 text-gray-700 hover:text-gray-200 dark:hover:text-gray-200 hover:text-gray-900 hover:border-gray-300 dark:hover:border-gray-300'
                   }`}
                 >
                   <span className="mr-2">🛠️</span>
-                  Инструменты
+                  {t('nav.tools')}
                   <svg
                     className={`ml-1 w-4 h-4 transition-transform ${showToolsDropdown ? 'rotate-180' : ''}`}
                     fill="none"
@@ -178,27 +176,68 @@ export default function Navigation() {
                 </button>
                 
                 {showToolsDropdown && (
-                  <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800 dark:bg-gray-800 bg-white border border-gray-700 dark:border-gray-700 border-gray-200 rounded-lg shadow-lg z-50">
                     <Link
                       href="/indexing"
                       onClick={() => setShowToolsDropdown(false)}
                       className={`block px-4 py-2 text-sm transition-colors ${
                         pathname === '/indexing'
-                          ? 'bg-gray-700 text-blue-400'
-                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                          ? 'bg-gray-700 dark:bg-gray-700 bg-gray-100 text-blue-400 dark:text-blue-400'
+                          : 'text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-700 dark:hover:bg-gray-700 hover:bg-gray-100 hover:text-white dark:hover:text-white hover:text-gray-900'
                       }`}
                     >
                       <span className="mr-2">🔗</span>
-                      Индексатор ссылок
+                      {t('nav.linkIndexer')}
                     </Link>
                   </div>
                 )}
               </div>
             </div>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center space-x-2">
+            {/* Language switcher */}
+            <div className="flex items-center border border-gray-600 dark:border-gray-600 border-gray-300 rounded overflow-hidden">
+              <button
+                onClick={() => setLanguage('ru')}
+                className={`px-2 py-1 text-xs font-medium transition-colors ${
+                  language === 'ru'
+                    ? 'bg-blue-600 text-white dark:text-white'
+                    : 'bg-gray-700 dark:bg-gray-700 bg-gray-100 text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                RU
+              </button>
+              <button
+                onClick={() => setLanguage('en')}
+                className={`px-2 py-1 text-xs font-medium transition-colors ${
+                  language === 'en'
+                    ? 'bg-blue-600 text-white dark:text-white'
+                    : 'bg-gray-700 dark:bg-gray-700 bg-gray-100 text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                EN
+              </button>
+            </div>
+
+            {/* Theme switcher */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-md text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-700 dark:hover:bg-gray-700 hover:bg-gray-100 transition-colors"
+              title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            >
+              {theme === 'dark' ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
+
             {loading ? (
-              <div className="text-gray-400 text-sm">Загрузка...</div>
+              <div className="text-gray-400 dark:text-gray-400 text-gray-600 text-sm">{t('auth.loading')}</div>
             ) : user ? (
               <div className="flex items-center space-x-4">
                 {(user.avatar || user.picture) && (
@@ -210,7 +249,7 @@ export default function Navigation() {
                 )}
                 <Link
                   href="/profile"
-                  className="text-gray-300 text-sm hover:text-white transition-colors"
+                  className="text-gray-300 dark:text-gray-300 text-gray-700 text-sm hover:text-white dark:hover:text-white hover:text-gray-900 transition-colors"
                 >
                   {user.name || user.email}
                 </Link>
@@ -218,7 +257,7 @@ export default function Navigation() {
                   onClick={handleLogout}
                   className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
                 >
-                  Выйти
+                  {t('auth.logout')}
                 </button>
               </div>
             ) : (
@@ -227,12 +266,12 @@ export default function Navigation() {
                   onClick={() => setShowLoginModal(true)}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
                 >
-                  Войти
+                  {t('auth.login')}
                 </button>
                 <button
                   onClick={handleGoogleLogin}
-                  className="bg-white hover:bg-gray-100 text-gray-700 px-3 py-2 rounded text-sm font-bold transition-colors flex items-center justify-center w-10 h-10"
-                  title="Войти через Google"
+                  className="bg-white dark:bg-white bg-gray-100 hover:bg-gray-100 dark:hover:bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm font-bold transition-colors flex items-center justify-center w-10 h-10"
+                  title={t('auth.loginWithGoogle')}
                 >
                   G
                 </button>
@@ -255,32 +294,32 @@ export default function Navigation() {
                 href={item.href}
                 className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors ${
                   isActive
-                    ? 'bg-gray-900 border-blue-500 text-blue-400'
-                    : 'border-transparent text-gray-300 hover:bg-gray-700 hover:text-gray-200'
+                    ? 'bg-gray-900 dark:bg-gray-900 bg-gray-100 border-blue-500 text-blue-400 dark:text-blue-400'
+                    : 'border-transparent text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-700 dark:hover:bg-gray-700 hover:bg-gray-100 hover:text-gray-200 dark:hover:text-gray-200 hover:text-gray-900'
                 }`}
               >
                 <span className="mr-2">{item.icon}</span>
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             );
           })}
           
-          {/* Инструменты для мобильной версии */}
+          {/* Tools for mobile */}
           <div className="pl-3 pr-4 py-2">
-            <div className="text-base font-medium text-gray-300 mb-1">
+            <div className="text-base font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-1">
               <span className="mr-2">🛠️</span>
-              Инструменты
+              {t('nav.tools')}
             </div>
             <Link
               href="/indexing"
               className={`block pl-6 pr-4 py-2 border-l-4 text-sm font-medium transition-colors ${
                 pathname === '/indexing'
-                  ? 'bg-gray-900 border-blue-500 text-blue-400'
-                  : 'border-transparent text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                  ? 'bg-gray-900 dark:bg-gray-900 bg-gray-100 border-blue-500 text-blue-400 dark:text-blue-400'
+                  : 'border-transparent text-gray-400 dark:text-gray-400 text-gray-600 hover:bg-gray-700 dark:hover:bg-gray-700 hover:bg-gray-100 hover:text-gray-200 dark:hover:text-gray-200 hover:text-gray-900'
               }`}
             >
               <span className="mr-2">🔗</span>
-              Индексатор ссылок
+              {t('nav.linkIndexer')}
             </Link>
           </div>
         </div>
@@ -289,9 +328,9 @@ export default function Navigation() {
       {/* Login Modal */}
       {showLoginModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+          <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-6 w-full max-w-md border border-gray-700 dark:border-gray-700 border-gray-200">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white">Вход</h2>
+              <h2 className="text-xl font-bold text-white dark:text-white text-gray-900">{t('auth.loginTitle')}</h2>
               <button
                 onClick={() => {
                   setShowLoginModal(false);
@@ -299,7 +338,7 @@ export default function Navigation() {
                   setPassword('');
                   setLoginError(null);
                 }}
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 dark:text-gray-400 text-gray-600 hover:text-white dark:hover:text-white hover:text-gray-900"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -309,14 +348,14 @@ export default function Navigation() {
 
             <form onSubmit={handleEmailLogin} className="space-y-4">
               {loginError && (
-                <div className="bg-red-900 text-red-200 px-4 py-3 rounded">
+                <div className="bg-red-900 dark:bg-red-900 bg-red-100 text-red-200 dark:text-red-200 text-red-800 px-4 py-3 rounded">
                   {loginError}
                 </div>
               )}
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                  Email
+                <label htmlFor="email" className="block text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-2">
+                  {t('auth.email')}
                 </label>
                 <input
                   type="email"
@@ -324,14 +363,14 @@ export default function Navigation() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-50 border border-gray-600 dark:border-gray-600 border-gray-300 rounded text-white dark:text-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="your@email.com"
                 />
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                  Пароль
+                <label htmlFor="password" className="block text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-2">
+                  {t('auth.password')}
                 </label>
                 <input
                   type="password"
@@ -339,7 +378,7 @@ export default function Navigation() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-50 border border-gray-600 dark:border-gray-600 border-gray-300 rounded text-white dark:text-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="••••••••"
                 />
               </div>
@@ -350,7 +389,7 @@ export default function Navigation() {
                   disabled={loginLoading}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loginLoading ? 'Вход...' : 'Войти'}
+                  {loginLoading ? t('auth.loggingIn') : t('auth.login')}
                 </button>
                 <button
                   type="button"
@@ -360,9 +399,9 @@ export default function Navigation() {
                     setPassword('');
                     setLoginError(null);
                   }}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm font-medium transition-colors"
+                  className="px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-200 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-300 text-white dark:text-white text-gray-900 rounded text-sm font-medium transition-colors"
                 >
-                  Отмена
+                  {t('auth.cancel')}
                 </button>
               </div>
             </form>
