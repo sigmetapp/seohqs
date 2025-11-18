@@ -110,6 +110,50 @@ export async function GET(
       );
     }
 
+    // Загружаем статус сайта, если он есть
+    let siteStatus = null;
+    if (site.statusId) {
+      try {
+        const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL);
+        if (useSupabase) {
+          const { createClient } = await import('@/lib/supabase');
+          const supabase = createClient();
+          const { data } = await supabase
+            .from('site_statuses')
+            .select('*')
+            .eq('id', site.statusId)
+            .single();
+          if (data) {
+            siteStatus = {
+              id: data.id,
+              name: data.name,
+              color: data.color,
+              sortOrder: data.sort_order,
+              createdAt: data.created_at,
+              updatedAt: data.updated_at,
+            };
+          }
+        } else {
+          const { getPostgresClient } = await import('@/lib/postgres-client');
+          const db = await getPostgresClient();
+          const result = await db.query('SELECT * FROM site_statuses WHERE id = $1', [site.statusId]);
+          if (result.rows.length > 0) {
+            const row = result.rows[0];
+            siteStatus = {
+              id: row.id,
+              name: row.name,
+              color: row.color,
+              sortOrder: row.sort_order,
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Error loading site status:', error);
+      }
+    }
+
     // Проверяем статус подключения Google Console
     const googleConsoleStatus = await checkGoogleConsoleConnection(site, user.id);
 
@@ -117,6 +161,7 @@ export async function GET(
       success: true,
       site: {
         ...site,
+        status: siteStatus,
         hasGoogleConsoleConnection: googleConsoleStatus.connected,
         googleConsoleStatus,
       },
@@ -156,13 +201,14 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, domain, category, googleSearchConsoleUrl } = body;
+    const { name, domain, category, googleSearchConsoleUrl, statusId } = body;
 
     const updatedSite = await updateSite(siteId, {
       name,
       domain,
       category,
       googleSearchConsoleUrl,
+      statusId,
     }, user.id);
 
     // Инвалидируем кеш списка сайтов
@@ -178,6 +224,50 @@ export async function PUT(
     cache.delete(`google-console-daily-${siteId}-90`);
     cache.delete(`google-console-daily-${siteId}-180`);
 
+    // Загружаем статус сайта, если он есть
+    let siteStatus = null;
+    if (updatedSite.statusId) {
+      try {
+        const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL);
+        if (useSupabase) {
+          const { createClient } = await import('@/lib/supabase');
+          const supabase = createClient();
+          const { data } = await supabase
+            .from('site_statuses')
+            .select('*')
+            .eq('id', updatedSite.statusId)
+            .single();
+          if (data) {
+            siteStatus = {
+              id: data.id,
+              name: data.name,
+              color: data.color,
+              sortOrder: data.sort_order,
+              createdAt: data.created_at,
+              updatedAt: data.updated_at,
+            };
+          }
+        } else {
+          const { getPostgresClient } = await import('@/lib/postgres-client');
+          const db = await getPostgresClient();
+          const result = await db.query('SELECT * FROM site_statuses WHERE id = $1', [updatedSite.statusId]);
+          if (result.rows.length > 0) {
+            const row = result.rows[0];
+            siteStatus = {
+              id: row.id,
+              name: row.name,
+              color: row.color,
+              sortOrder: row.sort_order,
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Error loading site status:', error);
+      }
+    }
+
     // Проверяем статус подключения Google Console
     const googleConsoleStatus = await checkGoogleConsoleConnection(updatedSite, user.id);
 
@@ -185,6 +275,7 @@ export async function PUT(
       success: true,
       site: {
         ...updatedSite,
+        status: siteStatus,
         hasGoogleConsoleConnection: googleConsoleStatus.connected,
         googleConsoleStatus,
       },

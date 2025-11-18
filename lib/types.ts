@@ -55,6 +55,16 @@ export interface LinkCheckResult {
   error?: string;
 }
 
+// Типы для статусов сайтов
+export interface SiteStatus {
+  id: number;
+  name: string;
+  color: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Типы для панели сайтов
 export interface Site {
   id: number;
@@ -63,6 +73,8 @@ export interface Site {
   category?: string;
   googleSearchConsoleUrl?: string;
   userId?: number;
+  statusId?: number;
+  status?: SiteStatus;
   createdAt: string;
   updatedAt: string;
   // Поля, добавляемые в API response для отображения статуса подключений
