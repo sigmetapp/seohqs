@@ -53,11 +53,11 @@ export default function SummaryPage() {
         setTaskStats(aggregated);
       }
 
-      // Загружаем команду
-      const usersResponse = await fetch('/api/users');
-      const usersData = await usersResponse.json();
-      if (usersData.success) {
-        setTeamMembers(usersData.users || []);
+      // Загружаем команду (только участников, добавленных автором через настройки)
+      const teamResponse = await fetch('/api/auth/user/team');
+      const teamData = await teamResponse.json();
+      if (teamData.success) {
+        setTeamMembers(teamData.members || []);
       }
 
       // Загружаем количество сайтов
