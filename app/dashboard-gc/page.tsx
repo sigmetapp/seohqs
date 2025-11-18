@@ -366,16 +366,18 @@ const SiteCard = memo(({
               </div>
             )}
           </div>
-          {/* Дата под графиком */}
-          {hoveredDate && (
-            <div className="text-xs text-gray-500 text-center py-1 px-2">
-              {new Date(hoveredDate.date).toLocaleDateString('ru-RU', { 
-                day: '2-digit', 
-                month: 'short', 
-                year: 'numeric'
-              })}
-            </div>
-          )}
+          {/* Дата под графиком - зарезервировано место */}
+          <div className="text-xs text-gray-500 text-center py-1 px-2 h-6">
+            {hoveredDate && (
+              <span>
+                {new Date(hoveredDate.date).toLocaleDateString('ru-RU', { 
+                  day: '2-digit', 
+                  month: 'short', 
+                  year: 'numeric'
+                })}
+              </span>
+            )}
+          </div>
         </div>
       ) : (
         <div className="h-64 flex items-center justify-center text-gray-500 text-sm">
