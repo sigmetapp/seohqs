@@ -48,9 +48,8 @@ export default function SiteDetailPage() {
   const [checkingLinks, setCheckingLinks] = useState(false);
   const [siteStatuses, setSiteStatuses] = useState<SiteStatus[]>([]);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [showStatusEditModal, setShowStatusEditModal] = useState(false);
-  const [editingStatus, setEditingStatus] = useState<SiteStatus | null>(null);
-  const [statusForm, setStatusForm] = useState({ name: '', color: '#6b7280' });
+  const [editingStatusId, setEditingStatusId] = useState<number | null>(null);
+  const [editingStatusForm, setEditingStatusForm] = useState({ name: '', color: '#6b7280' });
 
   useEffect(() => {
     if (siteId) {
@@ -527,6 +526,45 @@ export default function SiteDetailPage() {
     } catch (err) {
       console.error('Error updating site status:', err);
       alert('Ошибка обновления статуса');
+    }
+  };
+
+  const handleStartEditStatus = (status: SiteStatus) => {
+    setEditingStatusId(status.id);
+    setEditingStatusForm({ name: status.name, color: status.color });
+  };
+
+  const handleCancelEditStatus = () => {
+    setEditingStatusId(null);
+    setEditingStatusForm({ name: '', color: '#6b7280' });
+  };
+
+  const handleSaveStatus = async (statusId: number) => {
+    try {
+      const response = await fetch(`/api/site-statuses/${statusId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingStatusForm.name,
+          color: editingStatusForm.color,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Обновляем список статусов
+        await loadSiteStatuses();
+        setEditingStatusId(null);
+        setEditingStatusForm({ name: '', color: '#6b7280' });
+        // Если это был текущий статус сайта, обновляем и сайт
+        if (site?.statusId === statusId) {
+          await loadSite();
+        }
+      } else {
+        alert(data.error || 'Ошибка сохранения статуса');
+      }
+    } catch (err) {
+      console.error('Error saving status:', err);
+      alert('Ошибка сохранения статуса');
     }
   };
 
@@ -1473,28 +1511,99 @@ export default function SiteDetailPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
               <h2 className="text-2xl font-bold mb-4">Выбрать статус</h2>
-              <div className="space-y-2 mb-4">
+              <div className="space-y-2 mb-4 max-h-96 overflow-y-auto">
                 {siteStatuses.map((status) => (
-                  <button
+                  <div
                     key={status.id}
-                    onClick={() => handleUpdateSiteStatus(status.id)}
-                    className={`w-full text-left px-4 py-3 rounded border transition-colors ${
+                    className={`rounded border transition-colors ${
                       site?.statusId === status.id
                         ? 'border-blue-500 bg-blue-500/10'
-                        : 'border-gray-600 hover:border-gray-500 hover:bg-gray-700'
+                        : 'border-gray-600'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: status.color }}
-                      ></div>
-                      <span className="font-medium">{status.name}</span>
-                      {site?.statusId === status.id && (
-                        <span className="ml-auto text-blue-400">✓</span>
-                      )}
-                    </div>
-                  </button>
+                    {editingStatusId === status.id ? (
+                      <div className="p-4 space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                            Название статуса
+                          </label>
+                          <input
+                            type="text"
+                            value={editingStatusForm.name}
+                            onChange={(e) => setEditingStatusForm({ ...editingStatusForm, name: e.target.value })}
+                            className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                            placeholder="Название статуса"
+                            autoFocus
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                            Цвет статуса
+                          </label>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="color"
+                              value={editingStatusForm.color}
+                              onChange={(e) => setEditingStatusForm({ ...editingStatusForm, color: e.target.value })}
+                              className="w-16 h-10 rounded border border-gray-600 cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={editingStatusForm.color}
+                              onChange={(e) => setEditingStatusForm({ ...editingStatusForm, color: e.target.value })}
+                              className="flex-1 px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none font-mono text-sm"
+                              placeholder="#6b7280"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleSaveStatus(status.id)}
+                            disabled={!editingStatusForm.name.trim()}
+                            className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Сохранить
+                          </button>
+                          <button
+                            onClick={handleCancelEditStatus}
+                            className="flex-1 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+                          >
+                            Отмена
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleUpdateSiteStatus(status.id)}
+                        className={`w-full text-left px-4 py-3 rounded transition-colors ${
+                          site?.statusId === status.id
+                            ? ''
+                            : 'hover:bg-gray-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-4 h-4 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: status.color }}
+                          ></div>
+                          <span className="font-medium flex-1">{status.name}</span>
+                          {site?.statusId === status.id && (
+                            <span className="text-blue-400">✓</span>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartEditStatus(status);
+                            }}
+                            className="ml-2 px-2 py-1 text-gray-400 hover:text-gray-300 hover:bg-gray-700 rounded text-sm"
+                            title="Редактировать статус"
+                          >
+                            ✏️
+                          </button>
+                        </div>
+                      </button>
+                    )}
+                  </div>
                 ))}
                 <button
                   onClick={() => handleUpdateSiteStatus(null)}
@@ -1514,7 +1623,10 @@ export default function SiteDetailPage() {
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setShowStatusModal(false)}
+                  onClick={() => {
+                    setShowStatusModal(false);
+                    setEditingStatusId(null);
+                  }}
                   className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
                 >
                   Закрыть
