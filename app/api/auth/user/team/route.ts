@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth-utils';
-import { getTeamMembers, createTeamMember, deleteTeamMember } from '@/lib/db-users';
+import { getTeamMembers, createTeamMember, deleteTeamMember, getInactiveTeamMemberByEmail, reactivateTeamMember } from '@/lib/db-users';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 
@@ -104,19 +104,37 @@ export async function POST(request: Request) {
       attempts++;
     }
 
-    // Генерируем случайный пароль
-    const generatedPassword = randomBytes(12).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 12);
-    const passwordHash = await bcrypt.hash(generatedPassword, 10);
+    // Проверяем, есть ли неактивный участник с таким email
+    const inactiveMember = await getInactiveTeamMemberByEmail(user.id, email);
+    
+    let newMember;
+    let generatedPassword;
+    
+    if (inactiveMember) {
+      // Если есть неактивный участник, активируем его и обновляем данные
+      generatedPassword = randomBytes(12).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 12);
+      const passwordHash = await bcrypt.hash(generatedPassword, 10);
+      
+      newMember = await reactivateTeamMember(inactiveMember.id, {
+        name: name || null,
+        username,
+        passwordHash,
+      });
+    } else {
+      // Создаем нового участника
+      generatedPassword = randomBytes(12).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 12);
+      const passwordHash = await bcrypt.hash(generatedPassword, 10);
 
-    const newMember = await createTeamMember({
-      ownerId: user.id,
-      email,
-      name: name || null,
-      username,
-      passwordHash,
-      isActive: true,
-      firstLogin: true,
-    });
+      newMember = await createTeamMember({
+        ownerId: user.id,
+        email,
+        name: name || null,
+        username,
+        passwordHash,
+        isActive: true,
+        firstLogin: true,
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -133,15 +151,34 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Ошибка добавления участника команды:', error);
     
-    // Проверяем на дубликат email
-    if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Участник с таким email уже существует',
-        },
-        { status: 400 }
-      );
+    // Проверяем на дубликат email или username
+    const errorMessage = error.message?.toLowerCase() || '';
+    if (errorMessage.includes('unique') || errorMessage.includes('duplicate')) {
+      if (errorMessage.includes('username') || errorMessage.includes('unique_username')) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Участник с таким username уже существует',
+          },
+          { status: 400 }
+        );
+      } else if (errorMessage.includes('email') || errorMessage.includes('unique_owner_email')) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Участник с таким email уже существует',
+          },
+          { status: 400 }
+        );
+      } else {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Участник с таким email уже существует',
+          },
+          { status: 400 }
+        );
+      }
     }
     
     return NextResponse.json(

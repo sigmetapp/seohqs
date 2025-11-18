@@ -925,6 +925,298 @@ function getTeamMembersSQLite(ownerId: number): TeamMember[] {
   }
 }
 
+// Найти неактивного участника по email и owner_id
+export async function getInactiveTeamMemberByEmail(ownerId: number, email: string): Promise<TeamMember | null> {
+  if (useSupabase()) {
+    return getInactiveTeamMemberByEmailSupabase(ownerId, email);
+  } else if (usePostgres()) {
+    return getInactiveTeamMemberByEmailPostgres(ownerId, email);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    return getInactiveTeamMemberByEmailSQLite(ownerId, email);
+  }
+}
+
+async function getInactiveTeamMemberByEmailSupabase(ownerId: number, email: string): Promise<TeamMember | null> {
+  const { supabase } = await import('./supabase');
+  if (!supabase) {
+    return null;
+  }
+  
+  const { data, error } = await supabase
+    .from('team_members')
+    .select('*')
+    .eq('owner_id', ownerId)
+    .eq('email', email)
+    .eq('is_active', false)
+    .maybeSingle();
+  
+  if (error || !data) return null;
+  
+  return {
+    id: data.id,
+    ownerId: data.owner_id,
+    email: data.email,
+    name: data.name,
+    username: data.username,
+    passwordHash: data.password_hash,
+    isActive: data.is_active,
+    firstLogin: data.first_login,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+async function getInactiveTeamMemberByEmailPostgres(ownerId: number, email: string): Promise<TeamMember | null> {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+  });
+  
+  try {
+    const result = await pool.query(
+      'SELECT * FROM team_members WHERE owner_id = $1 AND email = $2 AND is_active = false',
+      [ownerId, email]
+    );
+    
+    if (result.rows.length === 0) return null;
+    
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      ownerId: row.owner_id,
+      email: row.email,
+      name: row.name,
+      username: row.username,
+      passwordHash: row.password_hash,
+      isActive: row.is_active,
+      firstLogin: row.first_login,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } finally {
+    await pool.end();
+  }
+}
+
+function getInactiveTeamMemberByEmailSQLite(ownerId: number, email: string): TeamMember | null {
+  const Database = require('better-sqlite3');
+  const { join } = require('path');
+  const { existsSync, mkdirSync } = require('fs');
+  
+  const dbDir = join(process.cwd(), 'data');
+  if (!existsSync(dbDir)) {
+    mkdirSync(dbDir, { recursive: true });
+  }
+  
+  const dbPath = join(dbDir, 'affiliate.db');
+  const db = new Database(dbPath);
+  
+  try {
+    const row = db.prepare('SELECT * FROM team_members WHERE owner_id = ? AND email = ? AND is_active = 0').get(ownerId, email) as any;
+    
+    if (!row) return null;
+    
+    return {
+      id: row.id,
+      ownerId: row.owner_id,
+      email: row.email,
+      name: row.name,
+      username: row.username,
+      passwordHash: row.password_hash,
+      isActive: row.is_active === 1,
+      firstLogin: row.first_login === 1,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } catch (error: any) {
+    if (error.message?.includes('no such table')) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+// Активировать и обновить неактивного участника
+export async function reactivateTeamMember(
+  memberId: number,
+  updates: {
+    name?: string | null;
+    username: string;
+    passwordHash: string;
+  }
+): Promise<TeamMember> {
+  if (useSupabase()) {
+    return reactivateTeamMemberSupabase(memberId, updates);
+  } else if (usePostgres()) {
+    return reactivateTeamMemberPostgres(memberId, updates);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    return reactivateTeamMemberSQLite(memberId, updates);
+  }
+}
+
+async function reactivateTeamMemberSupabase(
+  memberId: number,
+  updates: { name?: string | null; username: string; passwordHash: string }
+): Promise<TeamMember> {
+  const { supabase } = await import('./supabase');
+  if (!supabase) {
+    throw new Error('Supabase client not initialized');
+  }
+  
+  const updateData: any = {
+    is_active: true,
+    username: updates.username,
+    password_hash: updates.passwordHash,
+    first_login: true,
+    updated_at: new Date().toISOString(),
+  };
+  
+  if (updates.name !== undefined) {
+    updateData.name = updates.name;
+  }
+  
+  const { data, error } = await supabase
+    .from('team_members')
+    .update(updateData)
+    .eq('id', memberId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  
+  return {
+    id: data.id,
+    ownerId: data.owner_id,
+    email: data.email,
+    name: data.name,
+    username: data.username,
+    passwordHash: data.password_hash,
+    isActive: data.is_active,
+    firstLogin: data.first_login,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+async function reactivateTeamMemberPostgres(
+  memberId: number,
+  updates: { name?: string | null; username: string; passwordHash: string }
+): Promise<TeamMember> {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+  });
+  
+  try {
+    const updateFields: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+    
+    updateFields.push(`is_active = $${paramIndex++}`);
+    values.push(true);
+    
+    updateFields.push(`username = $${paramIndex++}`);
+    values.push(updates.username);
+    
+    updateFields.push(`password_hash = $${paramIndex++}`);
+    values.push(updates.passwordHash);
+    
+    updateFields.push(`first_login = $${paramIndex++}`);
+    values.push(true);
+    
+    if (updates.name !== undefined) {
+      updateFields.push(`name = $${paramIndex++}`);
+      values.push(updates.name);
+    }
+    
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    
+    values.push(memberId);
+    
+    const result = await pool.query(
+      `UPDATE team_members SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      values
+    );
+    
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      ownerId: row.owner_id,
+      email: row.email,
+      name: row.name,
+      username: row.username,
+      passwordHash: row.password_hash,
+      isActive: row.is_active,
+      firstLogin: row.first_login,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } finally {
+    await pool.end();
+  }
+}
+
+function reactivateTeamMemberSQLite(
+  memberId: number,
+  updates: { name?: string | null; username: string; passwordHash: string }
+): TeamMember {
+  const Database = require('better-sqlite3');
+  const { join } = require('path');
+  const { existsSync, mkdirSync } = require('fs');
+  
+  const dbDir = join(process.cwd(), 'data');
+  if (!existsSync(dbDir)) {
+    mkdirSync(dbDir, { recursive: true });
+  }
+  
+  const dbPath = join(dbDir, 'affiliate.db');
+  const db = new Database(dbPath);
+  
+  const updateFields: string[] = [];
+  const values: any[] = [];
+  
+  updateFields.push('is_active = 1');
+  updateFields.push('username = ?');
+  values.push(updates.username);
+  
+  updateFields.push('password_hash = ?');
+  values.push(updates.passwordHash);
+  
+  updateFields.push('first_login = 1');
+  
+  if (updates.name !== undefined) {
+    updateFields.push('name = ?');
+    values.push(updates.name);
+  }
+  
+  updateFields.push('updated_at = datetime("now")');
+  
+  values.push(memberId);
+  
+  db.prepare(`UPDATE team_members SET ${updateFields.join(', ')} WHERE id = ?`).run(...values);
+  
+  const row = db.prepare('SELECT * FROM team_members WHERE id = ?').get(memberId) as any;
+  
+  return {
+    id: row.id,
+    ownerId: row.owner_id,
+    email: row.email,
+    name: row.name,
+    username: row.username,
+    passwordHash: row.password_hash,
+    isActive: row.is_active === 1,
+    firstLogin: row.first_login === 1,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 export async function createTeamMember(member: Omit<TeamMember, 'id' | 'createdAt' | 'updatedAt'>): Promise<TeamMember> {
   if (useSupabase()) {
     return createTeamMemberSupabase(member);
