@@ -20,6 +20,7 @@ export default function SummaryPage() {
   const [googleAccounts, setGoogleAccounts] = useState<GoogleAccount[]>([]);
   const [taskStats, setTaskStats] = useState<TaskStats>({ total: 0, open: 0, closed: 0 });
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [sitesCount, setSitesCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,6 +56,13 @@ export default function SummaryPage() {
       const usersData = await usersResponse.json();
       if (usersData.success) {
         setTeamMembers(usersData.users || []);
+      }
+
+      // Загружаем количество сайтов
+      const sitesResponse = await fetch('/api/sites');
+      const sitesData = await sitesResponse.json();
+      if (sitesData.success && sitesData.sites) {
+        setSitesCount(sitesData.sites.length || 0);
       }
     } catch (err) {
       console.error('Error loading summary data:', err);
@@ -109,14 +117,16 @@ export default function SummaryPage() {
           <p className="text-gray-400">Общая информация о системе</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Google аккаунты */}
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <span>🔐</span>
               <span>Google аккаунты</span>
             </h2>
-            <div className="text-3xl font-bold mb-2">{googleAccounts.length}</div>
+            <div className="text-3xl font-bold mb-2">
+              {googleAccounts.filter(account => isAccountConnected(account)).length}
+            </div>
             <p className="text-sm text-gray-400 mb-4">Интегрированных аккаунтов</p>
             
             {googleAccounts.length > 0 && (
@@ -207,6 +217,16 @@ export default function SummaryPage() {
                 })}
               </div>
             )}
+          </div>
+
+          {/* Сайты */}
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <span>🌐</span>
+              <span>Сайты</span>
+            </h2>
+            <div className="text-3xl font-bold mb-2">{sitesCount}</div>
+            <p className="text-sm text-gray-400 mb-4">Добавленных сайтов в систему</p>
           </div>
         </div>
       </div>
