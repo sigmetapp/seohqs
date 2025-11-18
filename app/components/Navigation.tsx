@@ -118,10 +118,10 @@ export default function Navigation() {
   };
 
   const navItems = [
-    { href: '/summary', labelKey: 'nav.summary', icon: '📊' },
-    { href: '/sites', labelKey: 'nav.sites', icon: '🌐' },
-    { href: '/dashboard-gc', labelKey: 'nav.dashboardGc', icon: '📈' },
-    { href: '/integrations', labelKey: 'nav.integrations', icon: '⚙️' },
+    { href: '/summary', labelKey: 'nav.summary' },
+    { href: '/sites', labelKey: 'nav.sites' },
+    { href: '/dashboard-gc', labelKey: 'nav.dashboardGc' },
+    { href: '/integrations', labelKey: 'nav.integrations' },
   ];
 
   return (
@@ -132,7 +132,7 @@ export default function Navigation() {
             <div className="flex-shrink-0 flex items-center">
               <h1 className="text-xl font-bold text-white dark:text-white text-gray-900">SEO Tools</h1>
             </div>
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8 sm:items-center">
+            <div className="hidden md:ml-4 md:flex md:space-x-4 lg:space-x-6 md:items-center">
               {navItems.map((item) => {
                 const isActive = pathname === item.href || 
                   (item.href !== '/' && pathname?.startsWith(item.href));
@@ -141,13 +141,12 @@ export default function Navigation() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
+                    className={`inline-flex items-center px-2 pt-1 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${
                       isActive
                         ? 'border-blue-500 text-blue-400 dark:text-blue-400'
                         : 'border-transparent text-gray-300 dark:text-gray-300 text-gray-700 hover:text-gray-200 dark:hover:text-gray-200 hover:text-gray-900 hover:border-gray-300 dark:hover:border-gray-300'
                     }`}
                   >
-                    <span className="mr-2">{item.icon}</span>
                     {t(item.labelKey)}
                   </Link>
                 );
@@ -157,13 +156,12 @@ export default function Navigation() {
               <div className="relative" ref={toolsDropdownRef}>
                 <button
                   onClick={() => setShowToolsDropdown(!showToolsDropdown)}
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
+                  className={`inline-flex items-center px-2 pt-1 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${
                     pathname === '/indexing'
                       ? 'border-blue-500 text-blue-400 dark:text-blue-400'
                       : 'border-transparent text-gray-300 dark:text-gray-300 text-gray-700 hover:text-gray-200 dark:hover:text-gray-200 hover:text-gray-900 hover:border-gray-300 dark:hover:border-gray-300'
                   }`}
                 >
-                  <span className="mr-2">🛠️</span>
                   {t('nav.tools')}
                   <svg
                     className={`ml-1 w-4 h-4 transition-transform ${showToolsDropdown ? 'rotate-180' : ''}`}
@@ -186,7 +184,6 @@ export default function Navigation() {
                           : 'text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-700 dark:hover:bg-gray-700 hover:bg-gray-100 hover:text-white dark:hover:text-white hover:text-gray-900'
                       }`}
                     >
-                      <span className="mr-2">🔗</span>
                       {t('nav.linkIndexer')}
                     </Link>
                   </div>
@@ -194,7 +191,7 @@ export default function Navigation() {
               </div>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 md:space-x-3">
             {/* Language switcher */}
             <div className="flex items-center border border-gray-600 dark:border-gray-600 border-gray-300 rounded overflow-hidden">
               <button
@@ -282,7 +279,7 @@ export default function Navigation() {
       </div>
 
       {/* Mobile menu */}
-      <div className="sm:hidden">
+      <div className="md:hidden">
         <div className="pt-2 pb-3 space-y-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href || 
@@ -298,7 +295,6 @@ export default function Navigation() {
                     : 'border-transparent text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-700 dark:hover:bg-gray-700 hover:bg-gray-100 hover:text-gray-200 dark:hover:text-gray-200 hover:text-gray-900'
                 }`}
               >
-                <span className="mr-2">{item.icon}</span>
                 {t(item.labelKey)}
               </Link>
             );
@@ -307,7 +303,6 @@ export default function Navigation() {
           {/* Tools for mobile */}
           <div className="pl-3 pr-4 py-2">
             <div className="text-base font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-1">
-              <span className="mr-2">🛠️</span>
               {t('nav.tools')}
             </div>
             <Link
@@ -318,7 +313,6 @@ export default function Navigation() {
                   : 'border-transparent text-gray-400 dark:text-gray-400 text-gray-600 hover:bg-gray-700 dark:hover:bg-gray-700 hover:bg-gray-100 hover:text-gray-200 dark:hover:text-gray-200 hover:text-gray-900'
               }`}
             >
-              <span className="mr-2">🔗</span>
               {t('nav.linkIndexer')}
             </Link>
           </div>
