@@ -31,33 +31,50 @@ export async function GET(request: Request) {
     baseOrigin = baseOrigin.replace(/\/+$/, '');
     
     // Определяем redirect_uri для авторизации пользователя
-    const redirectUri = searchParams.get('redirect_uri') || 
+    // Приоритет: GOOGLE_OAUTH_REDIRECT_URI > параметр из запроса > динамический
+    const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || 
+      searchParams.get('redirect_uri') || 
       `${baseOrigin}/api/auth/user/google/callback`;
 
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    // Используем GOOGLE_USER_CLIENT_ID для авторизации пользователей (если установлен)
+    // Иначе fallback на GOOGLE_CLIENT_ID для обратной совместимости
+    const clientId = process.env.GOOGLE_USER_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_USER_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
+      const missingVars = [];
+      if (!process.env.GOOGLE_USER_CLIENT_ID && !process.env.GOOGLE_CLIENT_ID) {
+        missingVars.push('GOOGLE_USER_CLIENT_ID или GOOGLE_CLIENT_ID');
+      }
+      if (!process.env.GOOGLE_USER_CLIENT_SECRET && !process.env.GOOGLE_CLIENT_SECRET) {
+        missingVars.push('GOOGLE_USER_CLIENT_SECRET или GOOGLE_CLIENT_SECRET');
+      }
       return NextResponse.json(
         {
           success: false,
-          error: 'GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET должны быть установлены в переменных окружения.',
+          error: `${missingVars.join(' и ')} должны быть установлены в переменных окружения.`,
         },
         { status: 500 }
       );
     }
-
-    const oauth2Client = new google.auth.OAuth2(
-      clientId,
-      clientSecret,
-      redirectUri
-    );
 
     // Scopes для получения информации о пользователе
     const scopes = [
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/userinfo.profile',
     ];
+
+    // Логируем, какой Client ID используется (для отладки)
+    console.log('[Google User OAuth] Using Client ID:', process.env.GOOGLE_USER_CLIENT_ID ? 'GOOGLE_USER_CLIENT_ID' : 'GOOGLE_CLIENT_ID');
+    console.log('[Google User OAuth] Client ID value:', clientId?.substring(0, 20) + '...');
+    console.log('[Google User OAuth] Redirect URI:', redirectUri);
+    console.log('[Google User OAuth] Scopes:', scopes);
+
+    const oauth2Client = new google.auth.OAuth2(
+      clientId,
+      clientSecret,
+      redirectUri
+    );
 
     // Получаем redirect путь из параметров запроса
     const redirectPath = searchParams.get('redirect') || '/summary';
