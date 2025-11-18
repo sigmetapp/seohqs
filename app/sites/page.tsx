@@ -49,6 +49,9 @@ export default function SitesPage() {
     const [searching, setSearching] = useState(false);
     const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const tagsDropdownRef = useRef<HTMLDivElement | null>(null);
+    // Sorting state
+    const [sortColumn, setSortColumn] = useState<string | null>(null);
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
     useEffect(() => {
       loadSites();
@@ -297,8 +300,8 @@ export default function SitesPage() {
     }
   };
 
-  // Фильтрация сайтов по тегам
-    const filteredSites = useMemo(() => {
+  // Фильтрация и сортировка сайтов
+    const filteredAndSortedSites = useMemo(() => {
       let result = sites;
 
       if (selectedTagIds.length > 0) {
@@ -317,8 +320,61 @@ export default function SitesPage() {
         });
       }
 
+      // Сортировка
+      if (sortColumn) {
+        result = [...result].sort((a, b) => {
+          let aValue: number | string = 0;
+          let bValue: number | string = 0;
+
+          switch (sortColumn) {
+            case 'tasks':
+              aValue = sitesStats[a.id]?.tasks?.total || 0;
+              bValue = sitesStats[b.id]?.tasks?.total || 0;
+              break;
+            case 'links':
+              aValue = sitesStats[a.id]?.links || 0;
+              bValue = sitesStats[b.id]?.links || 0;
+              break;
+            case 'impressions':
+              const aData = googleConsoleAggregatedData.find(s => s.id === a.id);
+              const bData = googleConsoleAggregatedData.find(s => s.id === b.id);
+              aValue = aData?.totalImpressions || 0;
+              bValue = bData?.totalImpressions || 0;
+              break;
+            case 'clicks':
+              const aDataClicks = googleConsoleAggregatedData.find(s => s.id === a.id);
+              const bDataClicks = googleConsoleAggregatedData.find(s => s.id === b.id);
+              aValue = aDataClicks?.totalClicks || 0;
+              bValue = bDataClicks?.totalClicks || 0;
+              break;
+            case 'postbacks':
+              const aDataPostbacks = googleConsoleAggregatedData.find(s => s.id === a.id);
+              const bDataPostbacks = googleConsoleAggregatedData.find(s => s.id === b.id);
+              aValue = aDataPostbacks?.totalPostbacks || 0;
+              bValue = bDataPostbacks?.totalPostbacks || 0;
+              break;
+            default:
+              return 0;
+          }
+
+          if (typeof aValue === 'number' && typeof bValue === 'number') {
+            return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+          }
+          return 0;
+        });
+      }
+
       return result;
-    }, [sites, selectedTagIds, siteSearchTerm]);
+    }, [sites, selectedTagIds, siteSearchTerm, sortColumn, sortDirection, sitesStats, googleConsoleAggregatedData]);
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
 
   const handleCreateSite = async () => {
     try {
@@ -384,145 +440,147 @@ export default function SitesPage() {
             </div>
           ) : (
             <>
-                {/* Фильтры и настройки */}
-                <div className="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700 space-y-4">
-                  <div className="flex flex-col gap-4 md:flex-row">
-                    {/* Поиск по домену */}
-                    <div className="flex-1">
-                      <label className="block text-sm text-gray-400 mb-2">
-                        Поиск по домену
-                      </label>
-                      <input
-                        type="text"
-                        value={siteSearchTerm}
-                        onChange={(e) => setSiteSearchTerm(e.target.value)}
-                        placeholder="Например: example.com"
-                        className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-                    {/* Фильтр по тегам */}
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-400">Фильтр по тегам</span>
-                        <button
-                          onClick={() => {
-                            setShowTagModal(true);
-                            setIsTagDropdownOpen(false);
-                          }}
-                          className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
-                        >
-                          + Создать тег
-                        </button>
+                {/* Фильтры и настройки - зафиксированы вверху */}
+                <div className="sticky top-0 z-40 bg-gray-900 pb-4 mb-6">
+                  <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                    <div className="flex flex-wrap items-end gap-4">
+                      {/* Поиск по домену */}
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="block text-sm text-gray-400 mb-2">
+                          Поиск по домену
+                        </label>
+                        <input
+                          type="text"
+                          value={siteSearchTerm}
+                          onChange={(e) => setSiteSearchTerm(e.target.value)}
+                          placeholder="Например: example.com"
+                          className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                        />
                       </div>
-                      <div className="relative" ref={tagsDropdownRef}>
-                        <button
-                          type="button"
-                          onClick={() => setIsTagDropdownOpen((prev) => !prev)}
-                          className="w-full flex items-center justify-between px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                        >
-                          <span className="text-sm">
-                            {selectedTagIds.length > 0
-                              ? `Выбрано: ${selectedTagIds.length}`
-                              : 'Все теги'}
-                          </span>
-                          <svg
-                            className={`w-4 h-4 transform transition-transform ${isTagDropdownOpen ? 'rotate-180' : ''}`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                      {/* Фильтр по тегам */}
+                      <div className="flex-1 min-w-[200px]">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-gray-400">Фильтр по тегам</span>
+                          <button
+                            onClick={() => {
+                              setShowTagModal(true);
+                              setIsTagDropdownOpen(false);
+                            }}
+                            className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
                           >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        {isTagDropdownOpen && (
-                          <div className="absolute z-10 mt-2 w-full bg-gray-900 border border-gray-700 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                            {tags.length === 0 ? (
-                              <p className="px-3 py-2 text-sm text-gray-400">
-                                Теги не созданы
-                              </p>
-                            ) : (
-                              <ul className="divide-y divide-gray-800">
-                                {tags.map((tag) => {
-                                  const isSelected = selectedTagIds.includes(tag.id);
-                                  return (
-                                    <li key={tag.id}>
-                                      <label className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-800">
-                                        <input
-                                          type="checkbox"
-                                          checked={isSelected}
-                                          onChange={() => {
-                                            setSelectedTagIds((prev) =>
-                                              prev.includes(tag.id)
-                                                ? prev.filter((id) => id !== tag.id)
-                                                : [...prev, tag.id]
-                                            );
-                                          }}
-                                          className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500"
-                                        />
-                                        <span
-                                          className="text-sm font-medium"
-                                          style={{ color: tag.color }}
-                                        >
-                                          {tag.name}
-                                        </span>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setEditingTagId(tag.id);
-                                            setShowEditTagModal(true);
-                                            setDomainSearch('');
-                                            setSearchResults([]);
-                                          }}
-                                          className="ml-auto text-gray-400 hover:text-gray-200"
-                                          title="Редактировать тег"
-                                        >
-                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                          </svg>
-                                        </button>
-                                      </label>
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            )}
-                            <div className="flex gap-2 p-3 border-t border-gray-800 bg-gray-900">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedTagIds([])}
-                                className="flex-1 px-3 py-1 rounded text-xs bg-gray-800 hover:bg-gray-700 text-gray-300"
-                                disabled={selectedTagIds.length === 0}
-                              >
-                                Сбросить
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setIsTagDropdownOpen(false)}
-                                className="flex-1 px-3 py-1 rounded text-xs bg-blue-600 hover:bg-blue-700 text-white"
-                              >
-                                Готово
-                              </button>
+                            + Создать тег
+                          </button>
+                        </div>
+                        <div className="relative" ref={tagsDropdownRef}>
+                          <button
+                            type="button"
+                            onClick={() => setIsTagDropdownOpen((prev) => !prev)}
+                            className="w-full flex items-center justify-between px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                          >
+                            <span className="text-sm">
+                              {selectedTagIds.length > 0
+                                ? `Выбрано: ${selectedTagIds.length}`
+                                : 'Все теги'}
+                            </span>
+                            <svg
+                              className={`w-4 h-4 transform transition-transform ${isTagDropdownOpen ? 'rotate-180' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {isTagDropdownOpen && (
+                            <div className="absolute z-50 mt-2 w-full bg-gray-900 border border-gray-700 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                              {tags.length === 0 ? (
+                                <p className="px-3 py-2 text-sm text-gray-400">
+                                  Теги не созданы
+                                </p>
+                              ) : (
+                                <ul className="divide-y divide-gray-800">
+                                  {tags.map((tag) => {
+                                    const isSelected = selectedTagIds.includes(tag.id);
+                                    return (
+                                      <li key={tag.id}>
+                                        <label className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-800">
+                                          <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => {
+                                              setSelectedTagIds((prev) =>
+                                                prev.includes(tag.id)
+                                                  ? prev.filter((id) => id !== tag.id)
+                                                  : [...prev, tag.id]
+                                              );
+                                            }}
+                                            className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500"
+                                          />
+                                          <span
+                                            className="text-sm font-medium"
+                                            style={{ color: tag.color }}
+                                          >
+                                            {tag.name}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setEditingTagId(tag.id);
+                                              setShowEditTagModal(true);
+                                              setDomainSearch('');
+                                              setSearchResults([]);
+                                            }}
+                                            className="ml-auto text-gray-400 hover:text-gray-200"
+                                            title="Редактировать тег"
+                                          >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                          </button>
+                                        </label>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              )}
+                              <div className="flex gap-2 p-3 border-t border-gray-800 bg-gray-900">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedTagIds([])}
+                                  className="flex-1 px-3 py-1 rounded text-xs bg-gray-800 hover:bg-gray-700 text-gray-300"
+                                  disabled={selectedTagIds.length === 0}
+                                >
+                                  Сбросить
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setIsTagDropdownOpen(false)}
+                                  className="flex-1 px-3 py-1 rounded text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                                >
+                                  Готово
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
+                      </div>
+                      {/* Выбор периода */}
+                      <div className="flex items-end gap-2">
+                        <span className="text-sm text-gray-400 whitespace-nowrap">Период для показов и кликов:</span>
+                        <select
+                          value={selectedPeriodAllSites}
+                          onChange={(e) => setSelectedPeriodAllSites(Number(e.target.value))}
+                          className="px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                        >
+                          {[7, 30, 90, 180].map((days) => (
+                            <option key={days} value={days}>
+                              {days} дней
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
-                  </div>
-                  {/* Выбор периода */}
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <span className="text-sm text-gray-400">Период для показов и кликов:</span>
-                    <select
-                      value={selectedPeriodAllSites}
-                      onChange={(e) => setSelectedPeriodAllSites(Number(e.target.value))}
-                      className="px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none w-full sm:w-auto"
-                    >
-                      {[7, 30, 90, 180].map((days) => (
-                        <option key={days} value={days}>
-                          {days} дней
-                        </option>
-                      ))}
-                    </select>
                   </div>
                 </div>
 
@@ -534,16 +592,76 @@ export default function SitesPage() {
                         <th className="px-4 py-3 text-left">Домен</th>
                         <th className="px-4 py-3 text-left">Теги</th>
                         <th className="px-4 py-3 text-center" style={{ width: '60px' }}>✓</th>
-                        <th className="px-4 py-3 text-left">Задачи</th>
-                        <th className="px-4 py-3 text-left">Link Profile</th>
-                        <th className="px-4 py-3 text-left">Показы</th>
-                        <th className="px-4 py-3 text-left">Клики</th>
-                        <th className="px-4 py-3 text-left">Постбеки</th>
+                        <th 
+                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 select-none"
+                          onClick={() => handleSort('tasks')}
+                        >
+                          <div className="flex items-center gap-2">
+                            Задачи
+                            {sortColumn === 'tasks' && (
+                              <span className="text-xs">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 select-none"
+                          onClick={() => handleSort('links')}
+                        >
+                          <div className="flex items-center gap-2">
+                            Link Profile
+                            {sortColumn === 'links' && (
+                              <span className="text-xs">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 select-none"
+                          onClick={() => handleSort('impressions')}
+                        >
+                          <div className="flex items-center gap-2">
+                            Показы
+                            {sortColumn === 'impressions' && (
+                              <span className="text-xs">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 select-none"
+                          onClick={() => handleSort('clicks')}
+                        >
+                          <div className="flex items-center gap-2">
+                            Клики
+                            {sortColumn === 'clicks' && (
+                              <span className="text-xs">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-4 py-3 text-left cursor-pointer hover:bg-gray-600 select-none"
+                          onClick={() => handleSort('postbacks')}
+                        >
+                          <div className="flex items-center gap-2">
+                            Постбеки
+                            {sortColumn === 'postbacks' && (
+                              <span className="text-xs">
+                                {sortDirection === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
                         <th className="px-4 py-3 text-left">Действия</th>
                       </tr>
                     </thead>
                   <tbody>
-                    {filteredSites.map((site) => {
+                    {filteredAndSortedSites.map((site) => {
                       // Находим соответствующие данные из googleConsoleAggregatedData
                       const siteData = googleConsoleAggregatedData.find(s => s.id === site.id);
                       const stats = sitesStats[site.id];
