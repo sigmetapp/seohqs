@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import Link from 'next/link';
-import { GoogleAccount, Tag } from '@/lib/types';
+import { GoogleAccount, Tag, SiteStatus } from '@/lib/types';
 
 type SiteData = {
   id: number;
@@ -543,6 +543,8 @@ export default function DashboardGCPage() {
   const [error, setError] = useState<string | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [statuses, setStatuses] = useState<SiteStatus[]>([]);
+  const [selectedStatusIds, setSelectedStatusIds] = useState<number[]>([]);
   const [searchDomain, setSearchDomain] = useState<string>('');
 
   // Загрузка Google аккаунтов
@@ -580,6 +582,22 @@ export default function DashboardGCPage() {
     loadTags();
   }, []);
 
+  // Загрузка статусов
+  useEffect(() => {
+    const loadStatuses = async () => {
+      try {
+        const response = await fetch('/api/statuses');
+        const data = await response.json();
+        if (data.success) {
+          setStatuses(data.statuses || []);
+        }
+      } catch (err) {
+        console.error('Error loading statuses:', err);
+      }
+    };
+    loadStatuses();
+  }, []);
+
   // Загрузка агрегированных данных
   useEffect(() => {
     const loadAggregatedData = async () => {
@@ -593,6 +611,11 @@ export default function DashboardGCPage() {
         // Добавляем фильтр по тегам, если выбраны
         if (selectedTagIds.length > 0) {
           url += `&tagIds=${selectedTagIds.join(',')}`;
+        }
+        
+        // Добавляем фильтр по статусам, если выбраны
+        if (selectedStatusIds.length > 0) {
+          url += `&statusIds=${selectedStatusIds.join(',')}`;
         }
         
         const response = await fetch(url);
@@ -610,7 +633,7 @@ export default function DashboardGCPage() {
       }
     };
     loadAggregatedData();
-  }, [selectedPeriod, selectedAccountId, selectedTagIds]);
+  }, [selectedPeriod, selectedAccountId, selectedTagIds, selectedStatusIds]);
 
   // Загрузка данных по дням для сайта (вызывается через lazy load)
   // Используем ref для стабильности колбэка
@@ -646,9 +669,16 @@ export default function DashboardGCPage() {
     }
   }, [loadDailyDataForSite]);
 
-  // Видимые сайты для рендеринга - фильтруем по тегам и поиску
+  // Видимые сайты для рендеринга - фильтруем по тегам, статусам и поиску
   const visibleSites = useMemo(() => {
     let filtered = sites;
+    
+    // Фильтрация по статусам
+    if (selectedStatusIds.length > 0) {
+      filtered = filtered.filter(site => 
+        site.status && selectedStatusIds.includes(site.status.id)
+      );
+    }
     
     // Фильтрация по поисковому запросу
     if (searchDomain.trim()) {
@@ -659,7 +689,7 @@ export default function DashboardGCPage() {
     }
     
     return filtered;
-  }, [sites, searchDomain]);
+  }, [sites, selectedStatusIds, searchDomain]);
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -730,6 +760,40 @@ export default function DashboardGCPage() {
                       className="w-4 h-4 rounded border border-gray-600"
                       style={{ backgroundColor: tags.find(t => t.id === selectedTagIds[0])?.color || '#3b82f6' }}
                       title={tags.find(t => t.id === selectedTagIds[0])?.name}
+                    />
+                  )}
+                </div>
+                
+                {/* Фильтр по статусам */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-sm text-gray-400 whitespace-nowrap">Фильтр по статусам:</span>
+                  <select
+                    value={selectedStatusIds.length > 0 ? selectedStatusIds[0] : ''}
+                    onChange={(e) => {
+                      const statusId = e.target.value ? parseInt(e.target.value) : null;
+                      setSelectedStatusIds(statusId ? [statusId] : []);
+                    }}
+                    className="px-3 py-1.5 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-8"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%9ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 0.5rem center',
+                      paddingRight: '2rem'
+                    }}
+                  >
+                    <option value="">Все статусы</option>
+                    {statuses.map((status) => (
+                      <option key={status.id} value={status.id} style={{ backgroundColor: status.color + '20' }}>
+                        {status.name}
+                      </option>
+                    ))}
+                  </select>
+                  {/* Показываем цвет выбранного статуса */}
+                  {selectedStatusIds.length > 0 && statuses.find(s => s.id === selectedStatusIds[0]) && (
+                    <div 
+                      className="w-4 h-4 rounded border border-gray-600"
+                      style={{ backgroundColor: statuses.find(s => s.id === selectedStatusIds[0])?.color || '#6b7280' }}
+                      title={statuses.find(s => s.id === selectedStatusIds[0])?.name}
                     />
                   )}
                 </div>

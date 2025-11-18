@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { Site, Tag } from '@/lib/types';
+import { Site, Tag, SiteStatus } from '@/lib/types';
 
 export default function SitesPage() {
   const [sites, setSites] = useState<Site[]>([]);
@@ -36,6 +36,9 @@ export default function SitesPage() {
     // Теги
     const [tags, setTags] = useState<Tag[]>([]);
     const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+    // Статусы
+    const [statuses, setStatuses] = useState<SiteStatus[]>([]);
+    const [selectedStatusIds, setSelectedStatusIds] = useState<number[]>([]);
     const [siteSearchTerm, setSiteSearchTerm] = useState('');
     const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
     const [showTagModal, setShowTagModal] = useState(false);
@@ -57,11 +60,24 @@ export default function SitesPage() {
       loadSites();
       loadCategories();
       loadTags();
+      loadStatuses();
     }, []);
+
+    const loadStatuses = async () => {
+      try {
+        const response = await fetch('/api/statuses');
+        const data = await response.json();
+        if (data.success) {
+          setStatuses(data.statuses || []);
+        }
+      } catch (err) {
+        console.error('Error loading statuses:', err);
+      }
+    };
 
     useEffect(() => {
       loadAggregatedData();
-    }, [selectedPeriodAllSites, selectedTagIds]);
+    }, [selectedPeriodAllSites, selectedTagIds, selectedStatusIds]);
 
     useEffect(() => {
       if (!isTagDropdownOpen) {
@@ -125,6 +141,9 @@ export default function SitesPage() {
         });
         if (selectedTagIds.length > 0) {
           params.append('tagIds', selectedTagIds.join(','));
+        }
+        if (selectedStatusIds.length > 0) {
+          params.append('statusIds', selectedStatusIds.join(','));
         }
         const response = await fetch(`/api/sites/google-console-aggregated?${params.toString()}`);
         const data = await response.json();
@@ -311,6 +330,12 @@ export default function SitesPage() {
         });
       }
 
+      if (selectedStatusIds.length > 0) {
+        result = result.filter(site => 
+          site.status && selectedStatusIds.includes(site.status.id)
+        );
+      }
+
       const normalizedSearch = siteSearchTerm.trim().toLowerCase();
       if (normalizedSearch) {
         result = result.filter(site => {
@@ -365,7 +390,7 @@ export default function SitesPage() {
       }
 
       return result;
-    }, [sites, selectedTagIds, siteSearchTerm, sortColumn, sortDirection, sitesStats, googleConsoleAggregatedData]);
+    }, [sites, selectedTagIds, selectedStatusIds, siteSearchTerm, sortColumn, sortDirection, sitesStats, googleConsoleAggregatedData]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -564,6 +589,39 @@ export default function SitesPage() {
                             </div>
                           )}
                         </div>
+                      </div>
+                      {/* Фильтр по статусам */}
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="block text-sm text-gray-400 mb-2">
+                          Фильтр по статусам
+                        </label>
+                        <select
+                          value={selectedStatusIds.length > 0 ? selectedStatusIds[0] : ''}
+                          onChange={(e) => {
+                            const statusId = e.target.value ? parseInt(e.target.value) : null;
+                            setSelectedStatusIds(statusId ? [statusId] : []);
+                          }}
+                          className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                        >
+                          <option value="">Все статусы</option>
+                          {statuses.map((status) => (
+                            <option key={status.id} value={status.id} style={{ backgroundColor: status.color + '20' }}>
+                              {status.name}
+                            </option>
+                          ))}
+                        </select>
+                        {/* Показываем цвет выбранного статуса */}
+                        {selectedStatusIds.length > 0 && statuses.find(s => s.id === selectedStatusIds[0]) && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <div 
+                              className="w-4 h-4 rounded border border-gray-600"
+                              style={{ backgroundColor: statuses.find(s => s.id === selectedStatusIds[0])?.color || '#6b7280' }}
+                            />
+                            <span className="text-xs text-gray-400">
+                              {statuses.find(s => s.id === selectedStatusIds[0])?.name}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       {/* Выбор периода */}
                       <div className="flex items-end gap-2">

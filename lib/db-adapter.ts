@@ -515,3 +515,22 @@ export async function getAllSitesTags(siteIds: number[]): Promise<Record<number,
   }
 }
 
+/**
+ * Получает все статусы сайтов (глобальные, не привязаны к пользователю)
+ */
+export async function getAllStatuses(): Promise<import('./types').SiteStatus[]> {
+  if (useSupabase()) {
+    const { getAllStatuses: getSupabase } = await import('./db-supabase');
+    return getSupabase();
+  } else if (usePostgres()) {
+    const { getAllStatuses: getPostgres } = await import('./db-postgres');
+    return getPostgres();
+  } else {
+    if (process.env.VERCEL) {
+      return [];
+    }
+    const { getAllStatuses: getSQLite } = require('./db');
+    return getSQLite();
+  }
+}
+

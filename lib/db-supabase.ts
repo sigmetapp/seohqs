@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { AffiliateOffer, Site, IntegrationsSettings, GoogleAccount, Tag } from './types';
+import type { AffiliateOffer, Site, IntegrationsSettings, GoogleAccount, Tag, SiteStatus } from './types';
 
 export async function insertOffers(offers: Omit<AffiliateOffer, 'id' | 'created_at'>[]): Promise<void> {
   if (!supabase) {
@@ -1214,6 +1214,39 @@ export async function getAllSitesTags(siteIds: number[]): Promise<Record<number,
   } catch (error: any) {
     console.error('Error fetching all sites tags:', error);
     return {};
+  }
+}
+
+export async function getAllStatuses(): Promise<SiteStatus[]> {
+  if (!supabase) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('site_statuses')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return [];
+      }
+      console.error('Error fetching statuses:', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      color: row.color || '#6b7280',
+      sortOrder: row.sort_order,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  } catch (error: any) {
+    console.error('Error fetching statuses:', error);
+    return [];
   }
 }
 

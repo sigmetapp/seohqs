@@ -32,10 +32,13 @@ export async function GET(request: NextRequest) {
     const accountId = accountIdParam ? parseInt(accountIdParam) : null;
     const tagIdsParam = searchParams.get('tagIds');
     const tagIds = tagIdsParam ? tagIdsParam.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
+    const statusIdsParam = searchParams.get('statusIds');
+    const statusIds = statusIdsParam ? statusIdsParam.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
 
       // Проверяем кеш (кеш на 12 часов, так как данные Google Search Console обновляются раз в сутки)
       const normalizedTagKey = tagIds.length > 0 ? tagIds.slice().sort((a, b) => a - b).join('-') : 'all';
-      const cacheKey = `google-console-aggregated-${user.id}-${accountId || 'default'}-${days}-${normalizedTagKey}`;
+      const normalizedStatusKey = statusIds.length > 0 ? statusIds.slice().sort((a, b) => a - b).join('-') : 'all';
+      const cacheKey = `google-console-aggregated-${user.id}-${accountId || 'default'}-${days}-${normalizedTagKey}-${normalizedStatusKey}`;
     const cachedData = cache.get<any>(cacheKey);
     if (cachedData) {
       return NextResponse.json({
@@ -55,6 +58,11 @@ export async function GET(request: NextRequest) {
         siteIds.forEach(id => siteIdsByTags.add(id));
       }
       sites = sites.filter(site => siteIdsByTags.has(site.id));
+    }
+    
+    // Фильтруем сайты по статусам, если указаны
+    if (statusIds.length > 0) {
+      sites = sites.filter(site => site.statusId && statusIds.includes(site.statusId));
     }
     
     const integrations = await getIntegrations(user.id);
@@ -99,10 +107,10 @@ export async function GET(request: NextRequest) {
     }));
     
     // Загружаем статусы для всех сайтов одним запросом
-    const statusIds = sitesWithTags.filter(site => site.statusId).map(site => site.statusId!);
+    const siteStatusIds = sitesWithTags.filter(site => site.statusId).map(site => site.statusId!);
     const statusesMap: Record<number, any> = {};
     
-    if (statusIds.length > 0) {
+    if (siteStatusIds.length > 0) {
       try {
         const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL);
         if (useSupabase) {
@@ -114,7 +122,7 @@ export async function GET(request: NextRequest) {
           const { data } = await supabase
             .from('site_statuses')
             .select('*')
-            .in('id', statusIds);
+            .in('id', siteStatusIds);
           if (data) {
             data.forEach((status: any) => {
               statusesMap[status.id] = {
@@ -130,7 +138,7 @@ export async function GET(request: NextRequest) {
         } else {
           const { getPostgresClient } = await import('@/lib/postgres-client');
           const db = await getPostgresClient();
-          const result = await db.query('SELECT * FROM site_statuses WHERE id = ANY($1::int[])', [statusIds]);
+          const result = await db.query('SELECT * FROM site_statuses WHERE id = ANY($1::int[])', [siteStatusIds]);
           result.rows.forEach((row: any) => {
             statusesMap[row.id] = {
               id: row.id,
