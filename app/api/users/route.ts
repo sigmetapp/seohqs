@@ -5,7 +5,7 @@ import { requireAuth } from '@/lib/middleware-auth';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-async function getUsers(): Promise<Array<{ id: number; email: string; name?: string }>> {
+async function getUsers(): Promise<Array<{ id: number; email: string; name?: string; updatedAt?: string }>> {
   const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && 
     (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY));
   const usePostgres = !useSupabase && !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
@@ -18,25 +18,27 @@ async function getUsers(): Promise<Array<{ id: number; email: string; name?: str
     );
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, name')
+      .select('id, email, name, updated_at')
       .order('email', { ascending: true });
     if (error) throw error;
     return (data || []).map((user: any) => ({
       id: user.id,
       email: user.email,
       name: user.name,
+      updatedAt: user.updated_at,
     }));
   } else if (usePostgres) {
     const { Pool } = await import('pg');
     const pool = new Pool({
       connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
     });
-    const result = await pool.query('SELECT id, email, name FROM users ORDER BY email ASC');
+    const result = await pool.query('SELECT id, email, name, updated_at FROM users ORDER BY email ASC');
     await pool.end();
     return result.rows.map((user: any) => ({
       id: user.id,
       email: user.email,
       name: user.name,
+      updatedAt: user.updated_at,
     }));
   } else {
     // SQLite
@@ -44,12 +46,13 @@ async function getUsers(): Promise<Array<{ id: number; email: string; name?: str
     const { join } = require('path');
     const dbPath = join(process.cwd(), 'data', 'affiliate.db');
     const db = new Database(dbPath);
-    const users = db.prepare('SELECT id, email, name FROM users ORDER BY email ASC').all();
+    const users = db.prepare('SELECT id, email, name, updated_at FROM users ORDER BY email ASC').all();
     db.close();
     return users.map((user: any) => ({
       id: user.id,
       email: user.email,
       name: user.name,
+      updatedAt: user.updated_at,
     }));
   }
 }
