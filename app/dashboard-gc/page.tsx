@@ -599,12 +599,6 @@ export default function DashboardGCPage() {
     dailyDataRef.current = dailyData;
   }, [loadingDailyData, dailyData]);
 
-  const handleSiteLoad = useCallback((siteId: number) => {
-    if (!dailyDataRef.current[siteId] && !loadingDailyDataRef.current[siteId]) {
-      loadDailyDataForSite(siteId);
-    }
-  }, [loadDailyDataForSite]);
-
   const loadDailyDataForSite = useCallback(async (siteId: number) => {
     try {
       setLoadingDailyData(prev => ({ ...prev, [siteId]: true }));
@@ -622,6 +616,12 @@ export default function DashboardGCPage() {
       setLoadingDailyData(prev => ({ ...prev, [siteId]: false }));
     }
   }, [selectedPeriod]);
+
+  const handleSiteLoad = useCallback((siteId: number) => {
+    if (!dailyDataRef.current[siteId] && !loadingDailyDataRef.current[siteId]) {
+      loadDailyDataForSite(siteId);
+    }
+  }, [loadDailyDataForSite]);
 
   // Видимые сайты для рендеринга - фильтруем по тегам и поиску
   const visibleSites = useMemo(() => {
