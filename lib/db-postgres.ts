@@ -178,6 +178,7 @@ export async function getSiteById(id: number, userId: number): Promise<Site | nu
       category: row.category,
       googleSearchConsoleUrl: row.google_search_console_url,
       userId: row.user_id,
+      statusId: row.status_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -217,6 +218,10 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
       updates.push(`google_search_console_url = $${paramIndex++}`);
       values.push(site.googleSearchConsoleUrl || null);
     }
+    if (site.statusId !== undefined) {
+      updates.push(`status_id = $${paramIndex++}`);
+      values.push(site.statusId || null);
+    }
 
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
     values.push(id, userId);
@@ -232,6 +237,7 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
       category: row.category,
       googleSearchConsoleUrl: row.google_search_console_url,
       userId: row.user_id,
+      statusId: row.status_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

@@ -263,6 +263,7 @@ export async function getSiteById(id: number, userId: number): Promise<Site | nu
       category: data.category,
       googleSearchConsoleUrl: data.google_search_console_url,
       userId: data.user_id,
+      statusId: data.status_id,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -286,6 +287,7 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
     if (site.domain !== undefined) updateData.domain = site.domain;
     if (site.category !== undefined) updateData.category = site.category || null;
     if (site.googleSearchConsoleUrl !== undefined) updateData.google_search_console_url = site.googleSearchConsoleUrl || null;
+    if (site.statusId !== undefined) updateData.status_id = site.statusId || null;
 
     const { data, error } = await supabase
       .from('sites')
@@ -306,6 +308,7 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
       category: data.category,
       googleSearchConsoleUrl: data.google_search_console_url,
       userId: data.user_id,
+      statusId: data.status_id,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };

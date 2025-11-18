@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { GoogleSearchConsoleData, PostbackData, SiteTask, ProjectLink } from '@/lib/types';
+import { GoogleSearchConsoleData, PostbackData, SiteTask, ProjectLink, SiteStatus } from '@/lib/types';
 
 export default function SiteDetailPage() {
   const params = useParams();
@@ -21,7 +21,6 @@ export default function SiteDetailPage() {
   const [loadingData, setLoadingData] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [loadingTasks, setLoadingTasks] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState<SiteTask | null>(null);
   const [taskForm, setTaskForm] = useState({
@@ -38,11 +37,6 @@ export default function SiteDetailPage() {
   });
   const [users, setUsers] = useState<Array<{ id: number; email: string; name?: string }>>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [editForm, setEditForm] = useState({
-    googleSearchConsoleUrl: '',
-  });
-  const [availableSites, setAvailableSites] = useState<Array<{ siteUrl: string; permissionLevel: string }>>([]);
-  const [loadingSites, setLoadingSites] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<number>(30);
   const [overviewGoogleData, setOverviewGoogleData] = useState<GoogleSearchConsoleData[]>([]);
   const [linkProject, setLinkProject] = useState<any>(null);
@@ -52,20 +46,19 @@ export default function SiteDetailPage() {
   const [showUploadLinksModal, setShowUploadLinksModal] = useState(false);
   const [uploadLinksText, setUploadLinksText] = useState('');
   const [checkingLinks, setCheckingLinks] = useState(false);
+  const [siteStatuses, setSiteStatuses] = useState<SiteStatus[]>([]);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showStatusEditModal, setShowStatusEditModal] = useState(false);
+  const [editingStatus, setEditingStatus] = useState<SiteStatus | null>(null);
+  const [statusForm, setStatusForm] = useState({ name: '', color: '#6b7280' });
 
   useEffect(() => {
     if (siteId) {
       loadSite();
     }
+    loadSiteStatuses();
   }, [siteId]);
 
-  useEffect(() => {
-    if (site) {
-      setEditForm({
-        googleSearchConsoleUrl: site.googleSearchConsoleUrl || '',
-      });
-    }
-  }, [site]);
 
   useEffect(() => {
     if (site) {
@@ -344,29 +337,6 @@ export default function SiteDetailPage() {
   };
 
 
-  const handleUpdateSite = async () => {
-    try {
-      const response = await fetch(`/api/sites/${siteId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...site,
-          googleSearchConsoleUrl: editForm.googleSearchConsoleUrl || undefined,
-        }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setSite(data.site);
-        setShowEditModal(false);
-        alert('Настройки сайта обновлены');
-      } else {
-        alert(data.error || 'Ошибка обновления сайта');
-      }
-    } catch (err) {
-      console.error('Error updating site:', err);
-      alert('Ошибка обновления сайта');
-    }
-  };
 
   const handleCreateTask = async () => {
     try {
@@ -525,6 +495,41 @@ export default function SiteDetailPage() {
     }
   };
 
+  const loadSiteStatuses = async () => {
+    try {
+      const response = await fetch('/api/site-statuses');
+      const data = await response.json();
+      if (data.success) {
+        setSiteStatuses(data.statuses || []);
+      }
+    } catch (err) {
+      console.error('Error loading site statuses:', err);
+    }
+  };
+
+  const handleUpdateSiteStatus = async (statusId: number | null) => {
+    try {
+      const response = await fetch(`/api/sites/${siteId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...site,
+          statusId,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSite(data.site);
+        setShowStatusModal(false);
+      } else {
+        alert(data.error || 'Ошибка обновления статуса');
+      }
+    } catch (err) {
+      console.error('Error updating site status:', err);
+      alert('Ошибка обновления статуса');
+    }
+  };
+
   if (loading && !site) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -545,7 +550,27 @@ export default function SiteDetailPage() {
           >
             ← Назад к сайтам
           </button>
-          <h1 className="text-4xl font-bold mb-2">{site?.name || 'Сайт'}</h1>
+          <div className="flex items-center gap-4 mb-2">
+            <h1 className="text-4xl font-bold">{site?.name || 'Сайт'}</h1>
+            {site?.status && (
+              <span
+                className="px-3 py-1 rounded-full text-sm font-medium"
+                style={{
+                  backgroundColor: site.status.color + '20',
+                  color: site.status.color,
+                  border: `1px solid ${site.status.color}40`,
+                }}
+              >
+                {site.status.name}
+              </span>
+            )}
+            <button
+              onClick={() => setShowStatusModal(true)}
+              className="px-3 py-1 text-sm text-gray-400 hover:text-gray-300 border border-gray-600 rounded hover:border-gray-500"
+            >
+              {site?.status ? 'Изменить статус' : 'Установить статус'}
+            </button>
+          </div>
           <p className="text-gray-400">{site?.domain}</p>
         </div>
 
@@ -603,13 +628,7 @@ export default function SiteDetailPage() {
                     )}
                     {site?.googleConsoleStatus?.hasOAuth && !site?.googleConsoleStatus?.hasUrl && (
                       <div>
-                        ⚠️ URL не указан.{' '}
-                        <button
-                          onClick={() => setShowEditModal(true)}
-                          className="text-blue-400 hover:underline"
-                        >
-                          Указать
-                        </button>
+                        ⚠️ URL не указан (будет определен автоматически по домену)
                       </div>
                     )}
                   </div>
@@ -619,60 +638,231 @@ export default function SiteDetailPage() {
 
             {/* Важные данные Google Console */}
             {overviewGoogleData.length > 0 && (
-              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <h3 className="text-lg font-bold mb-4">Google Console (за 30 дней)</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <div className="text-sm text-gray-400 mb-1">Всего показов</div>
-                    <div className="text-2xl font-bold text-blue-400">
-                      {overviewGoogleData.reduce((sum, d) => sum + d.impressions, 0).toLocaleString()}
+              <>
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-lg font-bold mb-4">Google Console (за 30 дней)</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <div className="text-sm text-gray-400 mb-1">Всего показов</div>
+                      <div className="text-2xl font-bold text-blue-400">
+                        {overviewGoogleData.reduce((sum, d) => sum + d.impressions, 0).toLocaleString()}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-400 mb-1">Всего кликов</div>
-                    <div className="text-2xl font-bold text-green-400">
-                      {overviewGoogleData.reduce((sum, d) => sum + d.clicks, 0).toLocaleString()}
+                    <div>
+                      <div className="text-sm text-gray-400 mb-1">Всего кликов</div>
+                      <div className="text-2xl font-bold text-green-400">
+                        {overviewGoogleData.reduce((sum, d) => sum + d.clicks, 0).toLocaleString()}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-400 mb-1">Средний CTR</div>
-                    <div className="text-2xl font-bold text-purple-400">
-                      {overviewGoogleData.length > 0
-                        ? ((overviewGoogleData.reduce((sum, d) => sum + d.ctr, 0) / overviewGoogleData.length) * 100).toFixed(2)
-                        : '0.00'}%
+                    <div>
+                      <div className="text-sm text-gray-400 mb-1">Средний CTR</div>
+                      <div className="text-2xl font-bold text-purple-400">
+                        {overviewGoogleData.length > 0
+                          ? ((overviewGoogleData.reduce((sum, d) => sum + d.ctr, 0) / overviewGoogleData.length) * 100).toFixed(2)
+                          : '0.00'}%
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-400 mb-1">Средняя позиция</div>
-                    <div className="text-2xl font-bold text-yellow-400">
-                      {overviewGoogleData.length > 0
-                        ? (overviewGoogleData.reduce((sum, d) => sum + d.position, 0) / overviewGoogleData.length).toFixed(1)
-                        : '—'}
+                    <div>
+                      <div className="text-sm text-gray-400 mb-1">Средняя позиция</div>
+                      <div className="text-2xl font-bold text-yellow-400">
+                        {overviewGoogleData.length > 0
+                          ? (overviewGoogleData.reduce((sum, d) => sum + d.position, 0) / overviewGoogleData.length).toFixed(1)
+                          : '—'}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
 
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold">Настройки сайта</h3>
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-                >
-                  Редактировать
-                </button>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div>
-                  <span className="text-gray-400">Google Search Console URL:</span>{' '}
-                  <span className="text-gray-300">
-                    {site?.googleSearchConsoleUrl || 'Не указан'}
-                  </span>
+                {/* График */}
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-lg font-bold mb-4">График показов и кликов</h3>
+                  {loadingData ? (
+                    <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span>Загрузка данных...</span>
+                      </div>
+                    </div>
+                  ) : overviewGoogleData.length > 0 ? (
+                    <div className="relative w-full">
+                      <div className="h-64 relative w-full">
+                        <svg width="100%" height="100%" viewBox="0 0 800 200" preserveAspectRatio="none" className="overflow-visible">
+                          <defs>
+                            <linearGradient id="overviewImpressionsGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
+                              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                            </linearGradient>
+                            <linearGradient id="overviewClicksGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+                              <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                            </linearGradient>
+                          </defs>
+                          
+                          {/* Фоновая сетка */}
+                          {[0, 1, 2, 3, 4].map((i) => (
+                            <line
+                              key={`grid-h-${i}`}
+                              x1="50"
+                              y1={20 + (i * 35)}
+                              x2="750"
+                              y2={20 + (i * 35)}
+                              stroke="#374151"
+                              strokeWidth="0.5"
+                              opacity="0.3"
+                            />
+                          ))}
+                          
+                          {/* Оси */}
+                          <line
+                            x1="50"
+                            y1="175"
+                            x2="750"
+                            y2="175"
+                            stroke="#6b7280"
+                            strokeWidth="2"
+                          />
+                          <line
+                            x1="50"
+                            y1="20"
+                            x2="50"
+                            y2="175"
+                            stroke="#6b7280"
+                            strokeWidth="2"
+                          />
+                          
+                          {/* Данные */}
+                          {overviewGoogleData.map((item, index) => {
+                            const padding = 50;
+                            const width = 700;
+                            const height = 155;
+                            const maxImpressions = Math.max(...overviewGoogleData.map(d => d.impressions), 1);
+                            const maxClicks = Math.max(...overviewGoogleData.map(d => d.clicks), 1);
+                            const maxValue = Math.max(maxImpressions, maxClicks);
+                            const x = padding + (index / (overviewGoogleData.length - 1 || 1)) * width;
+                            const impressionsY = 175 - (item.impressions / maxValue) * height;
+                            const clicksY = 175 - (item.clicks / maxValue) * height;
+                            
+                            return (
+                              <g key={index}>
+                                <circle
+                                  cx={x}
+                                  cy={impressionsY}
+                                  r="4"
+                                  fill="#3b82f6"
+                                  stroke="#1e40af"
+                                  strokeWidth="1.5"
+                                />
+                                <circle
+                                  cx={x}
+                                  cy={clicksY}
+                                  r="4"
+                                  fill="#10b981"
+                                  stroke="#047857"
+                                  strokeWidth="1.5"
+                                />
+                              </g>
+                            );
+                          })}
+                          
+                          {/* Линии */}
+                          {overviewGoogleData.length > 1 && (
+                            <>
+                              <polygon
+                                points={`50,175 ${overviewGoogleData.map((item, index) => {
+                                  const padding = 50;
+                                  const width = 700;
+                                  const height = 155;
+                                  const maxImpressions = Math.max(...overviewGoogleData.map(d => d.impressions), 1);
+                                  const maxClicks = Math.max(...overviewGoogleData.map(d => d.clicks), 1);
+                                  const maxValue = Math.max(maxImpressions, maxClicks);
+                                  const x = padding + (index / (overviewGoogleData.length - 1)) * width;
+                                  const y = 175 - (item.impressions / maxValue) * height;
+                                  return `${x},${y}`;
+                                }).join(' ')} 750,175`}
+                                fill="url(#overviewImpressionsGradient)"
+                              />
+                              <polyline
+                                points={overviewGoogleData.map((item, index) => {
+                                  const padding = 50;
+                                  const width = 700;
+                                  const height = 155;
+                                  const maxImpressions = Math.max(...overviewGoogleData.map(d => d.impressions), 1);
+                                  const maxClicks = Math.max(...overviewGoogleData.map(d => d.clicks), 1);
+                                  const maxValue = Math.max(maxImpressions, maxClicks);
+                                  const x = padding + (index / (overviewGoogleData.length - 1)) * width;
+                                  const y = 175 - (item.impressions / maxValue) * height;
+                                  return `${x},${y}`;
+                                }).join(' ')}
+                                fill="none"
+                                stroke="#3b82f6"
+                                strokeWidth="2.5"
+                                opacity="0.9"
+                              />
+                              <polygon
+                                points={`50,175 ${overviewGoogleData.map((item, index) => {
+                                  const padding = 50;
+                                  const width = 700;
+                                  const height = 155;
+                                  const maxImpressions = Math.max(...overviewGoogleData.map(d => d.impressions), 1);
+                                  const maxClicks = Math.max(...overviewGoogleData.map(d => d.clicks), 1);
+                                  const maxValue = Math.max(maxImpressions, maxClicks);
+                                  const x = padding + (index / (overviewGoogleData.length - 1)) * width;
+                                  const y = 175 - (item.clicks / maxValue) * height;
+                                  return `${x},${y}`;
+                                }).join(' ')} 750,175`}
+                                fill="url(#overviewClicksGradient)"
+                              />
+                              <polyline
+                                points={overviewGoogleData.map((item, index) => {
+                                  const padding = 50;
+                                  const width = 700;
+                                  const height = 155;
+                                  const maxImpressions = Math.max(...overviewGoogleData.map(d => d.impressions), 1);
+                                  const maxClicks = Math.max(...overviewGoogleData.map(d => d.clicks), 1);
+                                  const maxValue = Math.max(maxImpressions, maxClicks);
+                                  const x = padding + (index / (overviewGoogleData.length - 1)) * width;
+                                  const y = 175 - (item.clicks / maxValue) * height;
+                                  return `${x},${y}`;
+                                }).join(' ')}
+                                fill="none"
+                                stroke="#10b981"
+                                strokeWidth="2.5"
+                                opacity="0.9"
+                              />
+                            </>
+                          )}
+                        </svg>
+                        
+                        {/* Легенда */}
+                        <div className="absolute top-3 left-3 flex flex-col gap-2">
+                          <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
+                            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                            <span className="text-xs font-semibold text-blue-400">Показы:</span>
+                            <span className="text-xs font-bold text-white">
+                              {overviewGoogleData.reduce((sum, d) => sum + d.impressions, 0).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
+                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <span className="text-xs font-semibold text-green-400">Клики:</span>
+                            <span className="text-xs font-bold text-white">
+                              {overviewGoogleData.reduce((sum, d) => sum + d.clicks, 0).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-64 flex items-center justify-center text-gray-500 text-sm">
+                      <div className="text-center">
+                        <div className="text-gray-400 mb-1">Нет данных</div>
+                        <div className="text-xs text-gray-500">за выбранный период</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         )}
 
@@ -909,12 +1099,6 @@ export default function SiteDetailPage() {
                     ) : !site?.googleConsoleStatus?.hasUrl ? (
                       <>
                         <span>ℹ️ URL не указан (будет определен автоматически по домену)</span>
-                        <button
-                          onClick={() => setShowEditModal(true)}
-                          className="text-blue-400 hover:underline ml-2"
-                        >
-                          Указать вручную
-                        </button>
                       </>
                     ) : null}
                   </div>
@@ -1284,87 +1468,57 @@ export default function SiteDetailPage() {
           </div>
         )}
 
-        {/* Модальное окно редактирования сайта */}
-        {showEditModal && (
+        {/* Модальное окно выбора статуса */}
+        {showStatusModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
-              <h2 className="text-2xl font-bold mb-4">Редактировать сайт</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Google Search Console URL <span className="text-gray-500 text-xs">(необязательно)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.googleSearchConsoleUrl}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, googleSearchConsoleUrl: e.target.value })
-                    }
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="sc-domain:example.com или https://example.com"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Если URL не указан, система автоматически найдет сайт в Google Search Console по домену "{site?.domain}". 
-                    Поддерживаются форматы:{' '}
-                    <code className="bg-gray-900 px-1 rounded">sc-domain:example.com</code>,{' '}
-                    <code className="bg-gray-900 px-1 rounded">https://example.com</code>
-                  </p>
-                  {site?.googleConsoleStatus?.hasOAuth && (
-                    <button
-                      onClick={async () => {
-                        try {
-                          setLoadingSites(true);
-                          const response = await fetch('/api/sites/google-console-sites');
-                          const data = await response.json();
-                          if (data.success) {
-                            setAvailableSites(data.sites);
-                          } else {
-                            alert('Ошибка загрузки списка сайтов: ' + (data.error || 'Неизвестная ошибка'));
-                          }
-                        } catch (error: any) {
-                          alert('Ошибка загрузки списка сайтов: ' + error.message);
-                        } finally {
-                          setLoadingSites(false);
-                        }
-                      }}
-                      className="mt-2 text-sm text-blue-400 hover:underline"
-                      disabled={loadingSites}
-                    >
-                      {loadingSites ? 'Загрузка...' : 'Показать доступные сайты из Google Search Console'}
-                    </button>
-                  )}
-                  {availableSites.length > 0 && (
-                    <div className="mt-2 max-h-40 overflow-y-auto border border-gray-600 rounded bg-gray-900">
-                      {availableSites.map((gscSite, index) => (
-                        <button
-                          key={index}
-                          onClick={() => {
-                            setEditForm({ ...editForm, googleSearchConsoleUrl: gscSite.siteUrl });
-                            setAvailableSites([]);
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-gray-800 text-sm border-b border-gray-700 last:border-b-0"
-                        >
-                          <div className="font-medium">{gscSite.siteUrl}</div>
-                          <div className="text-xs text-gray-500">{gscSite.permissionLevel}</div>
-                        </button>
-                      ))}
+              <h2 className="text-2xl font-bold mb-4">Выбрать статус</h2>
+              <div className="space-y-2 mb-4">
+                {siteStatuses.map((status) => (
+                  <button
+                    key={status.id}
+                    onClick={() => handleUpdateSiteStatus(status.id)}
+                    className={`w-full text-left px-4 py-3 rounded border transition-colors ${
+                      site?.statusId === status.id
+                        ? 'border-blue-500 bg-blue-500/10'
+                        : 'border-gray-600 hover:border-gray-500 hover:bg-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-4 h-4 rounded-full"
+                        style={{ backgroundColor: status.color }}
+                      ></div>
+                      <span className="font-medium">{status.name}</span>
+                      {site?.statusId === status.id && (
+                        <span className="ml-auto text-blue-400">✓</span>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleUpdateSite}
-                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
-                  >
-                    Сохранить
                   </button>
-                  <button
-                    onClick={() => setShowEditModal(false)}
-                    className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
-                  >
-                    Отмена
-                  </button>
-                </div>
+                ))}
+                <button
+                  onClick={() => handleUpdateSiteStatus(null)}
+                  className={`w-full text-left px-4 py-3 rounded border transition-colors ${
+                    !site?.statusId
+                      ? 'border-blue-500 bg-blue-500/10'
+                      : 'border-gray-600 hover:border-gray-500 hover:bg-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-400">Без статуса</span>
+                    {!site?.statusId && (
+                      <span className="ml-auto text-blue-400">✓</span>
+                    )}
+                  </div>
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowStatusModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+                >
+                  Закрыть
+                </button>
               </div>
             </div>
           </div>
