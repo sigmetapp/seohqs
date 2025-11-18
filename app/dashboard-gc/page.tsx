@@ -170,8 +170,16 @@ const SiteCard = memo(({
     ? getMaxValue(Math.max(...dailyData.map(d => d.position), 1))
     : 4;
 
-  // Получаем последние значения для отображения на графике
-  const lastData = dailyData.length > 0 ? dailyData[dailyData.length - 1] : null;
+  // Вычисляем агрегированные данные за весь период
+  const aggregatedData = useMemo(() => {
+    if (dailyData.length === 0) {
+      return { impressions: 0, clicks: 0 };
+    }
+    return {
+      impressions: dailyData.reduce((sum, d) => sum + (d.impressions || 0), 0),
+      clicks: dailyData.reduce((sum, d) => sum + (d.clicks || 0), 0),
+    };
+  }, [dailyData]);
 
   return (
     <div
@@ -442,28 +450,30 @@ const SiteCard = memo(({
             </svg>
             
             {/* Значки и цифры на графике - показы и клики */}
-            {(hoveredDate || lastData) && (
-              <div className="absolute top-3 left-3 flex flex-col gap-2">
-                {showImpressions && (
-                  <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                    <span className="text-xs font-semibold text-blue-400">Показы:</span>
-                    <span className="text-xs font-bold text-white">
-                      {(hoveredDate || lastData)?.impressions.toLocaleString() || '0'}
-                    </span>
-                  </div>
-                )}
-                {showClicks && (
-                  <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span className="text-xs font-semibold text-green-400">Клики:</span>
-                    <span className="text-xs font-bold text-white">
-                      {(hoveredDate || lastData)?.clicks.toLocaleString() || '0'}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="absolute top-3 left-3 flex flex-col gap-2">
+              {showImpressions && (
+                <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span className="text-xs font-semibold text-blue-400">Показы:</span>
+                  <span className="text-xs font-bold text-white">
+                    {hoveredDate 
+                      ? hoveredDate.impressions.toLocaleString() 
+                      : aggregatedData.impressions.toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {showClicks && (
+                <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span className="text-xs font-semibold text-green-400">Клики:</span>
+                  <span className="text-xs font-bold text-white">
+                    {hoveredDate 
+                      ? hoveredDate.clicks.toLocaleString() 
+                      : aggregatedData.clicks.toLocaleString()}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
           {/* Дата под графиком - зарезервировано место */}
           <div className="text-xs text-gray-500 text-center py-1 px-2 h-6">
