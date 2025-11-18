@@ -38,6 +38,7 @@ export default function SiteDetailPage() {
   const [users, setUsers] = useState<Array<{ id: number; email: string; name?: string }>>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<number>(30);
+  const [overviewPeriod, setOverviewPeriod] = useState<number>(30);
   const [overviewGoogleData, setOverviewGoogleData] = useState<GoogleSearchConsoleData[]>([]);
   const [linkProject, setLinkProject] = useState<any>(null);
   const [loadingLinkProject, setLoadingLinkProject] = useState(false);
@@ -48,9 +49,8 @@ export default function SiteDetailPage() {
   const [checkingLinks, setCheckingLinks] = useState(false);
   const [siteStatuses, setSiteStatuses] = useState<SiteStatus[]>([]);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [showStatusEditModal, setShowStatusEditModal] = useState(false);
-  const [editingStatus, setEditingStatus] = useState<SiteStatus | null>(null);
-  const [statusForm, setStatusForm] = useState({ name: '', color: '#6b7280' });
+  const [editingStatusId, setEditingStatusId] = useState<number | null>(null);
+  const [editingStatusForm, setEditingStatusForm] = useState({ name: '', color: '#6b7280' });
 
   useEffect(() => {
     if (siteId) {
@@ -64,6 +64,7 @@ export default function SiteDetailPage() {
     if (site) {
       if (activeTab === 'overview') {
         loadOverviewData();
+        loadTasks(); // Загружаем задачи для блока в обзоре
       } else if (activeTab === 'tasks') {
         loadTasks();
       } else if (activeTab === 'link-profile') {
@@ -79,6 +80,12 @@ export default function SiteDetailPage() {
       loadGoogleDataWithPeriod();
     }
   }, [site, activeTab, selectedPeriod]);
+
+  useEffect(() => {
+    if (site && activeTab === 'overview') {
+      loadOverviewData();
+    }
+  }, [site, activeTab, overviewPeriod]);
 
   const loadSite = async () => {
     try {
@@ -98,8 +105,8 @@ export default function SiteDetailPage() {
   const loadOverviewData = async () => {
     try {
       setLoadingData(true);
-      // Загружаем последние данные Google Console для обзора
-      const response = await fetch(`/api/sites/${siteId}/google-console/daily?days=30`);
+      // Загружаем данные Google Console для обзора с выбранным периодом
+      const response = await fetch(`/api/sites/${siteId}/google-console/daily?days=${overviewPeriod}`);
       const data = await response.json();
       if (data.success) {
         setOverviewGoogleData(data.data || []);
@@ -530,6 +537,45 @@ export default function SiteDetailPage() {
     }
   };
 
+  const handleStartEditStatus = (status: SiteStatus) => {
+    setEditingStatusId(status.id);
+    setEditingStatusForm({ name: status.name, color: status.color });
+  };
+
+  const handleCancelEditStatus = () => {
+    setEditingStatusId(null);
+    setEditingStatusForm({ name: '', color: '#6b7280' });
+  };
+
+  const handleSaveStatus = async (statusId: number) => {
+    try {
+      const response = await fetch(`/api/site-statuses/${statusId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingStatusForm.name,
+          color: editingStatusForm.color,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Обновляем список статусов
+        await loadSiteStatuses();
+        setEditingStatusId(null);
+        setEditingStatusForm({ name: '', color: '#6b7280' });
+        // Если это был текущий статус сайта, обновляем и сайт
+        if (site?.statusId === statusId) {
+          await loadSite();
+        }
+      } else {
+        alert(data.error || 'Ошибка сохранения статуса');
+      }
+    } catch (err) {
+      console.error('Error saving status:', err);
+      alert('Ошибка сохранения статуса');
+    }
+  };
+
   if (loading && !site) {
     return (
       <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -636,46 +682,175 @@ export default function SiteDetailPage() {
               </div>
             </div>
 
-            {/* Важные данные Google Console */}
+            {/* Блок с открытыми задачами */}
+            {tasks.length > 0 && tasks.filter(t => t.status !== 'completed').length > 0 && (
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold">Открытые задачи</h3>
+                  <button
+                    onClick={() => setActiveTab('tasks')}
+                    className="text-sm text-blue-400 hover:text-blue-300"
+                  >
+                    Все задачи →
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {tasks
+                    .filter(t => t.status !== 'completed')
+                    .sort((a, b) => {
+                      // Сначала просроченные, потом по приоритету, потом по дедлайну
+                      const aOverdue = a.deadline && new Date(a.deadline) < new Date();
+                      const bOverdue = b.deadline && new Date(b.deadline) < new Date();
+                      if (aOverdue && !bOverdue) return -1;
+                      if (!aOverdue && bOverdue) return 1;
+                      if (a.priority && b.priority) {
+                        if (b.priority !== a.priority) return b.priority - a.priority;
+                      }
+                      if (a.deadline && b.deadline) {
+                        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+                      }
+                      if (a.deadline) return -1;
+                      if (b.deadline) return 1;
+                      return 0;
+                    })
+                    .slice(0, 5)
+                    .map((task) => {
+                      const isOverdue = task.deadline && new Date(task.deadline) < new Date();
+                      const statusColors = {
+                        pending: 'bg-yellow-600',
+                        in_progress: 'bg-blue-600',
+                        completed: 'bg-green-600',
+                      };
+                      const statusLabels = {
+                        pending: 'В ожидании',
+                        in_progress: 'В работе',
+                        completed: 'Завершено',
+                      };
+                      return (
+                        <div
+                          key={task.id}
+                          className={`p-3 rounded border ${
+                            isOverdue ? 'border-red-500 bg-red-500/10' : 'border-gray-700 bg-gray-700/30'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusColors[task.status]}`}>
+                                  {statusLabels[task.status]}
+                                </span>
+                                {isOverdue && (
+                                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-600 text-white">
+                                    Просрочено
+                                  </span>
+                                )}
+                                {task.priority && (
+                                  <span className={`px-2 py-0.5 rounded text-xs font-medium border ${
+                                    task.priority >= 8 ? 'text-red-400 border-red-400' 
+                                    : task.priority >= 5 ? 'text-yellow-400 border-yellow-400' 
+                                    : 'text-green-400 border-green-400'
+                                  }`}>
+                                    Приоритет: {task.priority}/10
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="font-medium text-sm mb-1 truncate">{task.title}</h4>
+                              {task.deadline && (
+                                <div className={`text-xs ${
+                                  isOverdue ? 'text-red-400' : 'text-gray-400'
+                                }`}>
+                                  Срок: {new Date(task.deadline).toLocaleDateString('ru-RU', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric'
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => router.push(`/sites/${siteId}/tasks/${task.id}`)}
+                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs flex-shrink-0"
+                            >
+                              Открыть
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+                {tasks.filter(t => t.status !== 'completed').length > 5 && (
+                  <div className="mt-4 text-center">
+                    <button
+                      onClick={() => setActiveTab('tasks')}
+                      className="text-sm text-blue-400 hover:text-blue-300"
+                    >
+                      Показать все {tasks.filter(t => t.status !== 'completed').length} задач →
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Объединенный блок Google Console с графиком */}
             {overviewGoogleData.length > 0 && (
-              <>
-                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                  <h3 className="text-lg font-bold mb-4">Google Console (за 30 дней)</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <div className="text-sm text-gray-400 mb-1">Всего показов</div>
-                      <div className="text-2xl font-bold text-blue-400">
-                        {overviewGoogleData.reduce((sum, d) => sum + d.impressions, 0).toLocaleString()}
-                      </div>
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold">Google Console</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-400">Период:</span>
+                    <div className="flex gap-1">
+                      {[7, 30, 90, 180].map((days) => (
+                        <button
+                          key={days}
+                          onClick={() => setOverviewPeriod(days)}
+                          className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                            overviewPeriod === days
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                        >
+                          {days} дн.
+                        </button>
+                      ))}
                     </div>
-                    <div>
-                      <div className="text-sm text-gray-400 mb-1">Всего кликов</div>
-                      <div className="text-2xl font-bold text-green-400">
-                        {overviewGoogleData.reduce((sum, d) => sum + d.clicks, 0).toLocaleString()}
-                      </div>
+                  </div>
+                </div>
+                
+                {/* Статистика */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <div>
+                    <div className="text-sm text-gray-400 mb-1">Всего показов</div>
+                    <div className="text-2xl font-bold text-blue-400">
+                      {overviewGoogleData.reduce((sum, d) => sum + d.impressions, 0).toLocaleString()}
                     </div>
-                    <div>
-                      <div className="text-sm text-gray-400 mb-1">Средний CTR</div>
-                      <div className="text-2xl font-bold text-purple-400">
-                        {overviewGoogleData.length > 0
-                          ? ((overviewGoogleData.reduce((sum, d) => sum + d.ctr, 0) / overviewGoogleData.length) * 100).toFixed(2)
-                          : '0.00'}%
-                      </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-400 mb-1">Всего кликов</div>
+                    <div className="text-2xl font-bold text-green-400">
+                      {overviewGoogleData.reduce((sum, d) => sum + d.clicks, 0).toLocaleString()}
                     </div>
-                    <div>
-                      <div className="text-sm text-gray-400 mb-1">Средняя позиция</div>
-                      <div className="text-2xl font-bold text-yellow-400">
-                        {overviewGoogleData.length > 0
-                          ? (overviewGoogleData.reduce((sum, d) => sum + d.position, 0) / overviewGoogleData.length).toFixed(1)
-                          : '—'}
-                      </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-400 mb-1">Средний CTR</div>
+                    <div className="text-2xl font-bold text-purple-400">
+                      {overviewGoogleData.length > 0
+                        ? ((overviewGoogleData.reduce((sum, d) => sum + d.ctr, 0) / overviewGoogleData.length) * 100).toFixed(2)
+                        : '0.00'}%
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-400 mb-1">Средняя позиция</div>
+                    <div className="text-2xl font-bold text-yellow-400">
+                      {overviewGoogleData.length > 0
+                        ? (overviewGoogleData.reduce((sum, d) => sum + d.position, 0) / overviewGoogleData.length).toFixed(1)
+                        : '—'}
                     </div>
                   </div>
                 </div>
 
                 {/* График */}
-                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                  <h3 className="text-lg font-bold mb-4">График показов и кликов</h3>
+                <div>
+                  <h4 className="text-md font-semibold mb-4">График показов и кликов</h4>
                   {loadingData ? (
                     <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
                       <div className="flex items-center gap-2">
@@ -861,7 +1036,7 @@ export default function SiteDetailPage() {
                     </div>
                   )}
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}
@@ -1473,28 +1648,99 @@ export default function SiteDetailPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
               <h2 className="text-2xl font-bold mb-4">Выбрать статус</h2>
-              <div className="space-y-2 mb-4">
+              <div className="space-y-2 mb-4 max-h-96 overflow-y-auto">
                 {siteStatuses.map((status) => (
-                  <button
+                  <div
                     key={status.id}
-                    onClick={() => handleUpdateSiteStatus(status.id)}
-                    className={`w-full text-left px-4 py-3 rounded border transition-colors ${
+                    className={`rounded border transition-colors ${
                       site?.statusId === status.id
                         ? 'border-blue-500 bg-blue-500/10'
-                        : 'border-gray-600 hover:border-gray-500 hover:bg-gray-700'
+                        : 'border-gray-600'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: status.color }}
-                      ></div>
-                      <span className="font-medium">{status.name}</span>
-                      {site?.statusId === status.id && (
-                        <span className="ml-auto text-blue-400">✓</span>
-                      )}
-                    </div>
-                  </button>
+                    {editingStatusId === status.id ? (
+                      <div className="p-4 space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                            Название статуса
+                          </label>
+                          <input
+                            type="text"
+                            value={editingStatusForm.name}
+                            onChange={(e) => setEditingStatusForm({ ...editingStatusForm, name: e.target.value })}
+                            className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                            placeholder="Название статуса"
+                            autoFocus
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                            Цвет статуса
+                          </label>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="color"
+                              value={editingStatusForm.color}
+                              onChange={(e) => setEditingStatusForm({ ...editingStatusForm, color: e.target.value })}
+                              className="w-16 h-10 rounded border border-gray-600 cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={editingStatusForm.color}
+                              onChange={(e) => setEditingStatusForm({ ...editingStatusForm, color: e.target.value })}
+                              className="flex-1 px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none font-mono text-sm"
+                              placeholder="#6b7280"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleSaveStatus(status.id)}
+                            disabled={!editingStatusForm.name.trim()}
+                            className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Сохранить
+                          </button>
+                          <button
+                            onClick={handleCancelEditStatus}
+                            className="flex-1 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+                          >
+                            Отмена
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleUpdateSiteStatus(status.id)}
+                        className={`w-full text-left px-4 py-3 rounded transition-colors ${
+                          site?.statusId === status.id
+                            ? ''
+                            : 'hover:bg-gray-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-4 h-4 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: status.color }}
+                          ></div>
+                          <span className="font-medium flex-1">{status.name}</span>
+                          {site?.statusId === status.id && (
+                            <span className="text-blue-400">✓</span>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartEditStatus(status);
+                            }}
+                            className="ml-2 px-2 py-1 text-gray-400 hover:text-gray-300 hover:bg-gray-700 rounded text-sm"
+                            title="Редактировать статус"
+                          >
+                            ✏️
+                          </button>
+                        </div>
+                      </button>
+                    )}
+                  </div>
                 ))}
                 <button
                   onClick={() => handleUpdateSiteStatus(null)}
@@ -1514,7 +1760,10 @@ export default function SiteDetailPage() {
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setShowStatusModal(false)}
+                  onClick={() => {
+                    setShowStatusModal(false);
+                    setEditingStatusId(null);
+                  }}
                   className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
                 >
                   Закрыть
