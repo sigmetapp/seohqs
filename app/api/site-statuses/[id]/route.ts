@@ -5,26 +5,6 @@ import { NextRequest } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// Функция для получения клиента БД
-async function getDbClient() {
-  const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && 
-                         (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY));
-  const usePostgres = !useSupabase && !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
-  
-  if (useSupabase) {
-    const { createClient } = await import('@supabase/supabase-js');
-    return createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-  } else if (usePostgres) {
-    const { getPostgresClient } = await import('@/lib/postgres-client');
-    return getPostgresClient();
-  } else {
-    throw new Error('No database configured');
-  }
-}
-
 // PUT - обновить статус
 export async function PUT(
   request: NextRequest,
@@ -50,8 +30,9 @@ export async function PUT(
     const body = await request.json();
     const { name, color, sortOrder } = body;
 
-    const db = await getDbClient();
-    const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL);
+    const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && 
+                           (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY));
+    const usePostgres = !useSupabase && !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
 
     const updates: any = {};
     if (name !== undefined) updates.name = name;
@@ -61,7 +42,12 @@ export async function PUT(
 
     let status;
     if (useSupabase) {
-      const { data, error } = await db
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data, error } = await supabase
         .from('site_statuses')
         .update(updates)
         .eq('id', statusId)
@@ -70,7 +56,9 @@ export async function PUT(
       
       if (error) throw error;
       status = data;
-    } else {
+    } else if (usePostgres) {
+      const { getPostgresClient } = await import('@/lib/postgres-client');
+      const db = await getPostgresClient();
       const fields = Object.keys(updates).map((key, i) => {
         const dbKey = key === 'updated_at' ? 'updated_at' : key;
         return `${dbKey} = $${i + 1}`;
@@ -84,6 +72,8 @@ export async function PUT(
         values
       );
       status = result.rows[0];
+    } else {
+      throw new Error('No database configured');
     }
 
     if (!status) {
@@ -141,18 +131,28 @@ export async function DELETE(
       );
     }
 
-    const db = await getDbClient();
-    const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL);
+    const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && 
+                           (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY));
+    const usePostgres = !useSupabase && !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
 
     if (useSupabase) {
-      const { error } = await db
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { error } = await supabase
         .from('site_statuses')
         .delete()
         .eq('id', statusId);
       
       if (error) throw error;
-    } else {
+    } else if (usePostgres) {
+      const { getPostgresClient } = await import('@/lib/postgres-client');
+      const db = await getPostgresClient();
       await db.query('DELETE FROM site_statuses WHERE id = $1', [statusId]);
+    } else {
+      throw new Error('No database configured');
     }
 
     return NextResponse.json({

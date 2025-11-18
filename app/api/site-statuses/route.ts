@@ -5,26 +5,6 @@ import { NextRequest } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// Функция для получения клиента БД
-async function getDbClient() {
-  const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && 
-                         (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY));
-  const usePostgres = !useSupabase && !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
-  
-  if (useSupabase) {
-    const { createClient } = await import('@supabase/supabase-js');
-    return createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-  } else if (usePostgres) {
-    const { getPostgresClient } = await import('@/lib/postgres-client');
-    return getPostgresClient();
-  } else {
-    throw new Error('No database configured');
-  }
-}
-
 // GET - получить все статусы
 export async function GET(request: NextRequest) {
   try {
@@ -33,23 +13,33 @@ export async function GET(request: NextRequest) {
       return authResult;
     }
 
-    const db = await getDbClient();
-    const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL);
+    const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && 
+                           (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY));
+    const usePostgres = !useSupabase && !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
 
     let statuses;
     if (useSupabase) {
-      const { data, error } = await db
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data, error } = await supabase
         .from('site_statuses')
         .select('*')
         .order('sort_order', { ascending: true });
       
       if (error) throw error;
       statuses = data;
-    } else {
+    } else if (usePostgres) {
+      const { getPostgresClient } = await import('@/lib/postgres-client');
+      const db = await getPostgresClient();
       const result = await db.query(
         'SELECT * FROM site_statuses ORDER BY sort_order ASC'
       );
       statuses = result.rows;
+    } else {
+      throw new Error('No database configured');
     }
 
     return NextResponse.json({
@@ -96,12 +86,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const db = await getDbClient();
-    const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL);
+    const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && 
+                           (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY));
+    const usePostgres = !useSupabase && !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
 
     let status;
     if (useSupabase) {
-      const { data, error } = await db
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data, error } = await supabase
         .from('site_statuses')
         .insert({
           name,
@@ -113,12 +109,16 @@ export async function POST(request: NextRequest) {
       
       if (error) throw error;
       status = data;
-    } else {
+    } else if (usePostgres) {
+      const { getPostgresClient } = await import('@/lib/postgres-client');
+      const db = await getPostgresClient();
       const result = await db.query(
         'INSERT INTO site_statuses (name, color, sort_order) VALUES ($1, $2, $3) RETURNING *',
         [name, color || '#6b7280', sortOrder || 0]
       );
       status = result.rows[0];
+    } else {
+      throw new Error('No database configured');
     }
 
     return NextResponse.json({
