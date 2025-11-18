@@ -74,7 +74,10 @@ export default function SummaryPage() {
   };
 
   const isAccountConnected = (account: GoogleAccount): boolean => {
-    return !!(account.googleAccessToken?.trim() && account.googleRefreshToken?.trim());
+    // Аккаунт считается интегрированным, если есть refresh token
+    // (с refresh token можно получить новый access token)
+    const refreshToken = account.googleRefreshToken?.trim() || '';
+    return !!refreshToken;
   };
 
   const isUserOnline = (member: TeamMember): boolean => {
