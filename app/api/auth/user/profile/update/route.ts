@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth-utils';
+import { getCurrentUser, createSession, setSessionCookie } from '@/lib/auth-utils';
 import { updateUserProfile } from '@/lib/db-users';
 
 export const dynamic = 'force-dynamic';
@@ -41,6 +41,17 @@ export async function PATCH(request: Request) {
     }
 
     const updatedUser = await updateUserProfile(user.id, updates);
+
+    // Обновляем сессию с новыми данными
+    const sessionUser = {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      picture: updatedUser.picture,
+      googleId: updatedUser.googleId,
+    };
+    const token = await createSession(sessionUser);
+    await setSessionCookie(token);
 
     return NextResponse.json({
       success: true,

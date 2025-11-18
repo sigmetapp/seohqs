@@ -9,6 +9,7 @@ interface User {
   email: string;
   name?: string;
   picture?: string;
+  avatar?: string;
 }
 
 export default function Navigation() {
@@ -21,19 +22,40 @@ export default function Navigation() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
 
+  const fetchUser = async () => {
+    try {
+      const response = await fetch('/api/auth/user/me');
+      const data = await response.json();
+      if (data.success && data.user) {
+        setUser(data.user);
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error('Ошибка загрузки пользователя:', error);
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     // Проверяем авторизацию при загрузке компонента
-    fetch('/api/auth/user/me')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.user) {
-          setUser(data.user);
-        }
-        setLoading(false);
-      })
-      .catch(() => {
-        setLoading(false);
-      });
+    fetchUser();
+
+    // Обновляем данные при фокусе на окне (когда пользователь возвращается на вкладку)
+    const handleFocus = () => {
+      fetchUser();
+    };
+
+    // Обновляем данные при обновлении профиля
+    const handleProfileUpdate = () => {
+      fetchUser();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('userProfileUpdated', handleProfileUpdate);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('userProfileUpdated', handleProfileUpdate);
+    };
   }, []);
 
   const handleGoogleLogin = async () => {
@@ -133,11 +155,11 @@ export default function Navigation() {
               <div className="text-gray-400 text-sm">Загрузка...</div>
             ) : user ? (
               <div className="flex items-center space-x-4">
-                {user.picture && (
+                {(user.avatar || user.picture) && (
                   <img
-                    src={user.picture}
+                    src={user.avatar || user.picture}
                     alt={user.name || user.email}
-                    className="h-8 w-8 rounded-full"
+                    className="h-8 w-8 rounded-full object-cover"
                   />
                 )}
                 <Link

@@ -240,6 +240,8 @@ export default function ProfilePage() {
       if (data.success) {
         setUser(data.user);
         setEditingName(false);
+        // Уведомляем Navigation о необходимости обновить данные
+        window.dispatchEvent(new Event('userProfileUpdated'));
       } else {
         setNameError(data.error || 'Ошибка обновления имени');
       }
@@ -286,6 +288,8 @@ export default function ProfilePage() {
 
           if (data.success) {
             setUser(prev => prev ? { ...prev, avatar: data.avatar } : null);
+            // Уведомляем Navigation о необходимости обновить данные
+            window.dispatchEvent(new Event('userProfileUpdated'));
           } else {
             setAvatarError(data.error || 'Ошибка загрузки аватара');
           }
