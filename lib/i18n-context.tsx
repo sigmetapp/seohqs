@@ -16,17 +16,26 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     // Load language from localStorage or default to ru
-    const savedLang = localStorage.getItem('language') as Language | null;
-    if (savedLang && (savedLang === 'ru' || savedLang === 'en')) {
-      setLanguageState(savedLang);
+    try {
+      const savedLang = localStorage.getItem('language') as Language | null;
+      if (savedLang && (savedLang === 'ru' || savedLang === 'en')) {
+        setLanguageState(savedLang);
+      }
+    } catch (error) {
+      // localStorage might not be available
+      console.error('Error loading language from localStorage:', error);
     }
+    setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (mounted) {
-      localStorage.setItem('language', language);
+    if (mounted && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('language', language);
+      } catch (error) {
+        console.error('Error saving language to localStorage:', error);
+      }
       // Update HTML lang attribute
       document.documentElement.lang = language;
     }
@@ -39,10 +48,6 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const t = (key: string) => {
     return getTranslation(language, key);
   };
-
-  if (!mounted) {
-    return <>{children}</>;
-  }
 
   return (
     <I18nContext.Provider value={{ language, setLanguage, t }}>
