@@ -22,37 +22,60 @@ export default function SitesPage() {
   const [loading, setLoading] = useState(true);
   const [loadingAggregatedData, setLoadingAggregatedData] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newSite, setNewSite] = useState({
-    name: '',
-    domain: '',
-    category: '',
-    googleSearchConsoleUrl: '',
-  });
-  const [categories, setCategories] = useState<string[]>([]);
-  // Состояние для вкладки "Все сайты" - период для показов и кликов
-  const [selectedPeriodAllSites, setSelectedPeriodAllSites] = useState<number>(30); // 7, 30, 90, 180 дней
-  const [sitesStats, setSitesStats] = useState<Record<number, { tasks: { total: number; open: number; closed: number }; links: number }>>({});
-  const [loadingStats, setLoadingStats] = useState(false);
-  // Теги
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
-  const [showTagModal, setShowTagModal] = useState(false);
-  const [tagModalSiteId, setTagModalSiteId] = useState<number | null>(null);
-  const [newTagName, setNewTagName] = useState('');
-  const [newTagColor, setNewTagColor] = useState('#3b82f6');
-  const [showEditTagModal, setShowEditTagModal] = useState(false);
-  const [editingTagId, setEditingTagId] = useState<number | null>(null);
-  const [domainSearch, setDomainSearch] = useState('');
-  const [searchResults, setSearchResults] = useState<Site[]>([]);
-  const [searching, setSearching] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [newSite, setNewSite] = useState({
+      name: '',
+      domain: '',
+      category: '',
+      googleSearchConsoleUrl: '',
+    });
+    const [categories, setCategories] = useState<string[]>([]);
+    // Состояние для вкладки "Все сайты" - период для показов и кликов
+    const [selectedPeriodAllSites, setSelectedPeriodAllSites] = useState<number>(30); // 7, 30, 90, 180 дней
+    const [sitesStats, setSitesStats] = useState<Record<number, { tasks: { total: number; open: number; closed: number }; links: number }>>({});
+    const [loadingStats, setLoadingStats] = useState(false);
+    // Теги
+    const [tags, setTags] = useState<Tag[]>([]);
+    const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+    const [siteSearchTerm, setSiteSearchTerm] = useState('');
+    const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
+    const [showTagModal, setShowTagModal] = useState(false);
+    const [tagModalSiteId, setTagModalSiteId] = useState<number | null>(null);
+    const [newTagName, setNewTagName] = useState('');
+    const [newTagColor, setNewTagColor] = useState('#3b82f6');
+    const [showEditTagModal, setShowEditTagModal] = useState(false);
+    const [editingTagId, setEditingTagId] = useState<number | null>(null);
+    const [domainSearch, setDomainSearch] = useState('');
+    const [searchResults, setSearchResults] = useState<Site[]>([]);
+    const [searching, setSearching] = useState(false);
+    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const tagsDropdownRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    loadSites();
-    loadCategories();
-    loadAggregatedData();
-    loadTags();
-  }, [selectedPeriodAllSites]);
+    useEffect(() => {
+      loadSites();
+      loadCategories();
+      loadTags();
+    }, []);
+
+    useEffect(() => {
+      loadAggregatedData();
+    }, [selectedPeriodAllSites, selectedTagIds]);
+
+    useEffect(() => {
+      if (!isTagDropdownOpen) {
+        return;
+      }
+
+      const handleClickOutside = (event: MouseEvent) => {
+        if (tagsDropdownRef.current && !tagsDropdownRef.current.contains(event.target as Node)) {
+          setIsTagDropdownOpen(false);
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }, [isTagDropdownOpen]);
 
   useEffect(() => {
     if (sites.length > 0) {
@@ -91,21 +114,26 @@ export default function SitesPage() {
     }
   };
 
-  const loadAggregatedData = async () => {
-    try {
-      setLoadingAggregatedData(true);
-      const url = `/api/sites/google-console-aggregated?days=${selectedPeriodAllSites}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      if (data.success) {
-        setGoogleConsoleAggregatedData(data.sites || []);
+    const loadAggregatedData = async () => {
+      try {
+        setLoadingAggregatedData(true);
+        const params = new URLSearchParams({
+          days: String(selectedPeriodAllSites),
+        });
+        if (selectedTagIds.length > 0) {
+          params.append('tagIds', selectedTagIds.join(','));
+        }
+        const response = await fetch(`/api/sites/google-console-aggregated?${params.toString()}`);
+        const data = await response.json();
+        if (data.success) {
+          setGoogleConsoleAggregatedData(data.sites || []);
+        }
+      } catch (err) {
+        console.error('Error loading aggregated data:', err);
+      } finally {
+        setLoadingAggregatedData(false);
       }
-    } catch (err) {
-      console.error('Error loading aggregated data:', err);
-    } finally {
-      setLoadingAggregatedData(false);
-    }
-  };
+    };
 
   const loadSitesStats = async () => {
     try {
@@ -270,15 +298,27 @@ export default function SitesPage() {
   };
 
   // Фильтрация сайтов по тегам
-  const filteredSites = useMemo(() => {
-    if (selectedTagIds.length === 0) {
-      return sites;
-    }
-    return sites.filter(site => {
-      const siteTagIds = (site.tags || []).map(t => t.id);
-      return selectedTagIds.some(tagId => siteTagIds.includes(tagId));
-    });
-  }, [sites, selectedTagIds]);
+    const filteredSites = useMemo(() => {
+      let result = sites;
+
+      if (selectedTagIds.length > 0) {
+        result = result.filter(site => {
+          const siteTagIds = (site.tags || []).map(t => t.id);
+          return selectedTagIds.some(tagId => siteTagIds.includes(tagId));
+        });
+      }
+
+      const normalizedSearch = siteSearchTerm.trim().toLowerCase();
+      if (normalizedSearch) {
+        result = result.filter(site => {
+          const domain = site.domain?.toLowerCase() || '';
+          const name = site.name?.toLowerCase() || '';
+          return domain.includes(normalizedSearch) || name.includes(normalizedSearch);
+        });
+      }
+
+      return result;
+    }, [sites, selectedTagIds, siteSearchTerm]);
 
   const handleCreateSite = async () => {
     try {
@@ -344,88 +384,147 @@ export default function SitesPage() {
             </div>
           ) : (
             <>
-              {/* Фильтры и настройки */}
-              <div className="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700 space-y-4">
-                {/* Фильтр по тегам */}
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm text-gray-400">Фильтр по тегам:</span>
-                    <button
-                      onClick={() => setShowTagModal(true)}
-                      className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
-                    >
-                      + Создать тег
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {tags.map((tag) => (
-                      <div
-                        key={tag.id}
-                        className="inline-flex items-center gap-1"
-                      >
+                {/* Фильтры и настройки */}
+                <div className="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700 space-y-4">
+                  <div className="flex flex-col gap-4 md:flex-row">
+                    {/* Поиск по домену */}
+                    <div className="flex-1">
+                      <label className="block text-sm text-gray-400 mb-2">
+                        Поиск по домену
+                      </label>
+                      <input
+                        type="text"
+                        value={siteSearchTerm}
+                        onChange={(e) => setSiteSearchTerm(e.target.value)}
+                        placeholder="Например: example.com"
+                        className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    {/* Фильтр по тегам */}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-400">Фильтр по тегам</span>
                         <button
                           onClick={() => {
-                            setSelectedTagIds(prev =>
-                              prev.includes(tag.id)
-                                ? prev.filter(id => id !== tag.id)
-                                : [...prev, tag.id]
-                            );
+                            setShowTagModal(true);
+                            setIsTagDropdownOpen(false);
                           }}
-                          className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                            selectedTagIds.includes(tag.id)
-                              ? 'ring-2 ring-blue-500'
-                              : ''
-                          }`}
-                          style={{ backgroundColor: tag.color + '40', color: tag.color, borderColor: tag.color }}
+                          className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
                         >
-                          {tag.name}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingTagId(tag.id);
-                            setShowEditTagModal(true);
-                            setDomainSearch('');
-                            setSearchResults([]);
-                          }}
-                          className="text-gray-400 hover:text-gray-300 p-1"
-                          title="Редактировать тег"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
+                          + Создать тег
                         </button>
                       </div>
-                    ))}
-                    {selectedTagIds.length > 0 && (
-                      <button
-                        onClick={() => setSelectedTagIds([])}
-                        className="px-3 py-1 rounded text-xs bg-gray-700 hover:bg-gray-600 text-gray-300"
-                      >
-                        Сбросить
-                      </button>
-                    )}
+                      <div className="relative" ref={tagsDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => setIsTagDropdownOpen((prev) => !prev)}
+                          className="w-full flex items-center justify-between px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                        >
+                          <span className="text-sm">
+                            {selectedTagIds.length > 0
+                              ? `Выбрано: ${selectedTagIds.length}`
+                              : 'Все теги'}
+                          </span>
+                          <svg
+                            className={`w-4 h-4 transform transition-transform ${isTagDropdownOpen ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {isTagDropdownOpen && (
+                          <div className="absolute z-10 mt-2 w-full bg-gray-900 border border-gray-700 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                            {tags.length === 0 ? (
+                              <p className="px-3 py-2 text-sm text-gray-400">
+                                Теги не созданы
+                              </p>
+                            ) : (
+                              <ul className="divide-y divide-gray-800">
+                                {tags.map((tag) => {
+                                  const isSelected = selectedTagIds.includes(tag.id);
+                                  return (
+                                    <li key={tag.id}>
+                                      <label className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-800">
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={() => {
+                                            setSelectedTagIds((prev) =>
+                                              prev.includes(tag.id)
+                                                ? prev.filter((id) => id !== tag.id)
+                                                : [...prev, tag.id]
+                                            );
+                                          }}
+                                          className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500"
+                                        />
+                                        <span
+                                          className="text-sm font-medium"
+                                          style={{ color: tag.color }}
+                                        >
+                                          {tag.name}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingTagId(tag.id);
+                                            setShowEditTagModal(true);
+                                            setDomainSearch('');
+                                            setSearchResults([]);
+                                          }}
+                                          className="ml-auto text-gray-400 hover:text-gray-200"
+                                          title="Редактировать тег"
+                                        >
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                          </svg>
+                                        </button>
+                                      </label>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            )}
+                            <div className="flex gap-2 p-3 border-t border-gray-800 bg-gray-900">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedTagIds([])}
+                                className="flex-1 px-3 py-1 rounded text-xs bg-gray-800 hover:bg-gray-700 text-gray-300"
+                                disabled={selectedTagIds.length === 0}
+                              >
+                                Сбросить
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIsTagDropdownOpen(false)}
+                                className="flex-1 px-3 py-1 rounded text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                              >
+                                Готово
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Выбор периода */}
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <span className="text-sm text-gray-400">Период для показов и кликов:</span>
+                    <select
+                      value={selectedPeriodAllSites}
+                      onChange={(e) => setSelectedPeriodAllSites(Number(e.target.value))}
+                      className="px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none w-full sm:w-auto"
+                    >
+                      {[7, 30, 90, 180].map((days) => (
+                        <option key={days} value={days}>
+                          {days} дней
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
-                {/* Кнопки выбора периода */}
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-400">Период для показов и кликов:</span>
-                  <div className="flex gap-2">
-                    {[7, 30, 90, 180].map((days) => (
-                      <button
-                        key={days}
-                        onClick={() => setSelectedPeriodAllSites(days)}
-                        className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
-                          selectedPeriodAllSites === days
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        }`}
-                      >
-                        {days} дней
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
 
               <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
                 <div className="overflow-x-auto">
