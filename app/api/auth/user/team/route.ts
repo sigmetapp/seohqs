@@ -36,6 +36,7 @@ export async function GET() {
         username: m.username,
         firstLogin: m.firstLogin,
         createdAt: m.createdAt,
+        updatedAt: m.updatedAt,
       })),
     });
   } catch (error: any) {
