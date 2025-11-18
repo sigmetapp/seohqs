@@ -32,10 +32,13 @@ export async function GET(request: NextRequest) {
     const accountId = accountIdParam ? parseInt(accountIdParam) : null;
     const tagIdsParam = searchParams.get('tagIds');
     const tagIds = tagIdsParam ? tagIdsParam.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
+    const statusIdsParam = searchParams.get('statusIds');
+    const statusIds = statusIdsParam ? statusIdsParam.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
 
       // Проверяем кеш (кеш на 12 часов, так как данные Google Search Console обновляются раз в сутки)
       const normalizedTagKey = tagIds.length > 0 ? tagIds.slice().sort((a, b) => a - b).join('-') : 'all';
-      const cacheKey = `google-console-aggregated-${user.id}-${accountId || 'default'}-${days}-${normalizedTagKey}`;
+      const normalizedStatusKey = statusIds.length > 0 ? statusIds.slice().sort((a, b) => a - b).join('-') : 'all';
+      const cacheKey = `google-console-aggregated-${user.id}-${accountId || 'default'}-${days}-${normalizedTagKey}-${normalizedStatusKey}`;
     const cachedData = cache.get<any>(cacheKey);
     if (cachedData) {
       return NextResponse.json({
@@ -55,6 +58,11 @@ export async function GET(request: NextRequest) {
         siteIds.forEach(id => siteIdsByTags.add(id));
       }
       sites = sites.filter(site => siteIdsByTags.has(site.id));
+    }
+    
+    // Фильтруем сайты по статусам, если указаны
+    if (statusIds.length > 0) {
+      sites = sites.filter(site => site.statusId && statusIds.includes(site.statusId));
     }
     
     const integrations = await getIntegrations(user.id);

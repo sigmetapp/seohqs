@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import type { Site, IntegrationsSettings, GoogleAccount, Tag } from './types';
+import type { Site, IntegrationsSettings, GoogleAccount, Tag, SiteStatus } from './types';
 
 export interface AffiliateOffer {
   id?: number;
@@ -668,5 +668,21 @@ export function getAllSitesTags(siteIds: number[]): Record<number, Tag[]> {
   });
 
   return tagsBySite;
+}
+
+/**
+ * Получает все статусы сайтов (глобальные, не привязаны к пользователю)
+ */
+export function getAllStatuses(): SiteStatus[] {
+  const database = getDatabase();
+  const rows = database.prepare('SELECT * FROM site_statuses ORDER BY sort_order ASC').all() as any[];
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    color: row.color || '#6b7280',
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
 }
 

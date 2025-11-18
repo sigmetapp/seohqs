@@ -1,5 +1,5 @@
 import { getPostgresClient } from './postgres-client';
-import type { AffiliateOffer, Site, IntegrationsSettings, Tag } from './types';
+import type { AffiliateOffer, Site, IntegrationsSettings, Tag, SiteStatus } from './types';
 
 // Проверяем, доступна ли PostgreSQL БД
 function isPostgresAvailable(): boolean {
@@ -806,6 +806,34 @@ export async function getAllSitesTags(siteIds: number[]): Promise<Record<number,
     }
     console.error('Error fetching all sites tags:', error);
     return {};
+  }
+}
+
+export async function getAllStatuses(): Promise<SiteStatus[]> {
+  if (!isPostgresAvailable()) {
+    return [];
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const result = await db.query(
+      'SELECT * FROM site_statuses ORDER BY sort_order ASC'
+    );
+
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      color: row.color || '#6b7280',
+      sortOrder: row.sort_order,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  } catch (error: any) {
+    if (error?.code === '42P01' || error.message?.includes('does not exist')) {
+      return [];
+    }
+    console.error('Error fetching statuses:', error);
+    return [];
   }
 }
 
