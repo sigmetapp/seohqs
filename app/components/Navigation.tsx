@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 interface User {
   id: number;
@@ -21,6 +21,8 @@ export default function Navigation() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
+  const [showToolsDropdown, setShowToolsDropdown] = useState(false);
+  const toolsDropdownRef = useRef<HTMLDivElement>(null);
 
   const fetchUser = () => {
     setLoading(true);
@@ -41,6 +43,23 @@ export default function Navigation() {
     // Проверяем авторизацию при загрузке компонента
     fetchUser();
   }, []);
+
+  // Закрытие выпадающего меню при клике вне его
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (toolsDropdownRef.current && !toolsDropdownRef.current.contains(event.target as Node)) {
+        setShowToolsDropdown(false);
+      }
+    };
+
+    if (showToolsDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showToolsDropdown]);
 
   const handleGoogleLogin = async () => {
     try {
@@ -98,7 +117,7 @@ export default function Navigation() {
   };
 
   const navItems = [
-    { href: '/', label: 'Индексатор ссылок', icon: '🔗' },
+    { href: '/summary', label: 'Сводка', icon: '📊' },
     { href: '/sites', label: 'Панель сайтов', icon: '🌐' },
     { href: '/dashboard-gc', label: 'Dashboard GC', icon: '📈' },
     { href: '/integrations', label: 'Интеграции', icon: '⚙️' },
@@ -114,6 +133,9 @@ export default function Navigation() {
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {navItems.map((item) => {
+                // Пропускаем "Инструменты" - обработаем отдельно
+                if (item.href === '/tools') return null;
+                
                 const isActive = pathname === item.href || 
                   (item.href !== '/' && pathname?.startsWith(item.href));
                 
@@ -132,6 +154,46 @@ export default function Navigation() {
                   </Link>
                 );
               })}
+              
+              {/* Выпадающее меню "Инструменты" */}
+              <div className="relative" ref={toolsDropdownRef}>
+                <button
+                  onClick={() => setShowToolsDropdown(!showToolsDropdown)}
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
+                    pathname === '/indexing'
+                      ? 'border-blue-500 text-blue-400'
+                      : 'border-transparent text-gray-300 hover:text-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <span className="mr-2">🛠️</span>
+                  Инструменты
+                  <svg
+                    className={`ml-1 w-4 h-4 transition-transform ${showToolsDropdown ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {showToolsDropdown && (
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
+                    <Link
+                      href="/indexing"
+                      onClick={() => setShowToolsDropdown(false)}
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        pathname === '/indexing'
+                          ? 'bg-gray-700 text-blue-400'
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <span className="mr-2">🔗</span>
+                      Индексатор ссылок
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center">
@@ -202,6 +264,25 @@ export default function Navigation() {
               </Link>
             );
           })}
+          
+          {/* Инструменты для мобильной версии */}
+          <div className="pl-3 pr-4 py-2">
+            <div className="text-base font-medium text-gray-300 mb-1">
+              <span className="mr-2">🛠️</span>
+              Инструменты
+            </div>
+            <Link
+              href="/indexing"
+              className={`block pl-6 pr-4 py-2 border-l-4 text-sm font-medium transition-colors ${
+                pathname === '/indexing'
+                  ? 'bg-gray-900 border-blue-500 text-blue-400'
+                  : 'border-transparent text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+              }`}
+            >
+              <span className="mr-2">🔗</span>
+              Индексатор ссылок
+            </Link>
+          </div>
         </div>
       </div>
 
