@@ -49,22 +49,27 @@ export async function GET(request: Request) {
       );
     }
 
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    // Используем GOOGLE_USER_CLIENT_ID для авторизации пользователей (если установлен)
+    // Иначе fallback на GOOGLE_CLIENT_ID для обратной совместимости
+    const clientId = process.env.GOOGLE_USER_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_USER_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
       return NextResponse.redirect(
-        `${baseUrl}/login?error=${encodeURIComponent('OAuth не настроен')}`
+        `${baseUrl}/login?error=${encodeURIComponent('OAuth не настроен. Установите GOOGLE_USER_CLIENT_ID и GOOGLE_USER_CLIENT_SECRET (или GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET)')}`
       );
     }
 
     // Декодируем state для получения redirect_uri и redirect пути
-    let redirectUri = `${baseOrigin}/api/auth/user/google/callback`;
+    // Приоритет: GOOGLE_OAUTH_REDIRECT_URI > state > динамический
+    let redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || 
+      `${baseOrigin}/api/auth/user/google/callback`;
     let redirectPath = '/summary';
     if (state) {
       try {
         const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
-        if (stateData.redirect_uri) {
+        // Используем redirect_uri из state только если GOOGLE_OAUTH_REDIRECT_URI не установлен
+        if (stateData.redirect_uri && !process.env.GOOGLE_OAUTH_REDIRECT_URI) {
           redirectUri = stateData.redirect_uri;
         }
         if (stateData.redirect) {
@@ -74,6 +79,10 @@ export async function GET(request: Request) {
         console.warn('[Google OAuth Callback] Не удалось декодировать state:', e);
       }
     }
+
+    // Логируем для отладки
+    console.log('[Google User OAuth Callback] Using Client ID:', process.env.GOOGLE_USER_CLIENT_ID ? 'GOOGLE_USER_CLIENT_ID' : 'GOOGLE_CLIENT_ID');
+    console.log('[Google User OAuth Callback] Redirect URI:', redirectUri);
 
     const oauth2Client = new google.auth.OAuth2(
       clientId,
