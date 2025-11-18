@@ -76,25 +76,18 @@ const SiteCard = memo(({
 
   return (
     <div
-      className="bg-gray-800 rounded-lg p-5 border border-gray-700 transition-all duration-200 hover:border-blue-500 hover:shadow-lg relative"
+      className="bg-gray-800 rounded-lg border border-gray-700 transition-all duration-200 hover:border-blue-500 hover:shadow-lg relative"
       onMouseEnter={onHover}
       onMouseLeave={onHoverLeave}
     >
-      {/* Заголовок с названием и доменом */}
-      <div className="mb-4 pb-3 border-b border-gray-700">
-        <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0">
-            <h3 className={`text-xl font-bold truncate mb-1 transition-all duration-200 ${
-              blurMode && !isHovered ? 'blur-sm select-none' : 'text-white'
-            }`}>
-              {siteData.name}
-            </h3>
-            <p className={`text-sm truncate transition-all duration-200 ${
-              blurMode && !isHovered ? 'blur-sm select-none' : 'text-gray-400'
-            }`}>
-              {siteData.domain}
-            </p>
-          </div>
+      {/* Заголовок с доменом */}
+      <div className="px-4 pt-3 pb-2 border-b border-gray-700">
+        <div className="flex items-center justify-between">
+          <p className={`text-sm truncate transition-all duration-200 ${
+            blurMode && !isHovered ? 'blur-sm select-none' : 'text-gray-400'
+          }`}>
+            {siteData.domain}
+          </p>
           <Link
             href={`/sites/${siteData.id}`}
             className="text-blue-400 hover:text-blue-300 hover:underline text-sm whitespace-nowrap ml-2"
@@ -103,52 +96,6 @@ const SiteCard = memo(({
           </Link>
         </div>
       </div>
-
-      {/* Всплывающее окно с данными конкретной даты - позиционируем выше графика, чтобы не было под мышкой */}
-      {hoveredDate && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 -translate-y-full mb-2 bg-gray-900 rounded-lg p-4 z-30 border-2 border-blue-500 shadow-2xl min-w-[200px] pointer-events-none">
-          <div className="text-xs text-gray-300 mb-3 font-semibold text-center border-b border-gray-700 pb-2">
-            {new Date(hoveredDate.date).toLocaleDateString('ru-RU', { 
-              day: '2-digit', 
-              month: 'short', 
-              year: 'numeric',
-              weekday: 'short'
-            })}
-          </div>
-          <div className="space-y-2.5">
-            {showImpressions && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-400">Показы:</span>
-                <span className="text-base font-bold text-blue-400">
-                  {hoveredDate.impressions.toLocaleString()}
-                </span>
-              </div>
-            )}
-            {showClicks && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-400">Клики:</span>
-                <span className="text-base font-bold text-green-400">
-                  {hoveredDate.clicks.toLocaleString()}
-                </span>
-              </div>
-            )}
-            {showPositions && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-400">Позиция:</span>
-                <span className="text-base font-bold text-yellow-400">
-                  {hoveredDate.position.toFixed(1)}
-                </span>
-              </div>
-            )}
-            <div className="flex justify-between items-center pt-2 border-t border-gray-700">
-              <span className="text-sm text-gray-400">CTR:</span>
-              <span className="text-base font-bold text-purple-400">
-                {(hoveredDate.ctr * 100).toFixed(2)}%
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* График */}
       {isLoading ? (
@@ -159,8 +106,8 @@ const SiteCard = memo(({
           </div>
         </div>
       ) : dailyData.length > 0 ? (
-        <div className="relative">
-          <div className="h-64 relative">
+        <div className="relative w-full">
+          <div className="h-64 relative w-full">
             <svg width="100%" height="100%" viewBox="0 0 800 200" preserveAspectRatio="none" className="overflow-visible">
               {/* Определения градиентов */}
               <defs>
@@ -396,25 +343,39 @@ const SiteCard = memo(({
             </svg>
             
             {/* Значки и цифры на графике - показы и клики */}
-            {lastData && (
+            {(hoveredDate || lastData) && (
               <div className="absolute top-3 left-3 flex flex-col gap-2">
                 {showImpressions && (
                   <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
                     <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                     <span className="text-xs font-semibold text-blue-400">Показы:</span>
-                    <span className="text-xs font-bold text-white">{lastData.impressions.toLocaleString()}</span>
+                    <span className="text-xs font-bold text-white">
+                      {(hoveredDate || lastData)?.impressions.toLocaleString() || '0'}
+                    </span>
                   </div>
                 )}
                 {showClicks && (
                   <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
                     <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                     <span className="text-xs font-semibold text-green-400">Клики:</span>
-                    <span className="text-xs font-bold text-white">{lastData.clicks.toLocaleString()}</span>
+                    <span className="text-xs font-bold text-white">
+                      {(hoveredDate || lastData)?.clicks.toLocaleString() || '0'}
+                    </span>
                   </div>
                 )}
               </div>
             )}
           </div>
+          {/* Дата под графиком */}
+          {hoveredDate && (
+            <div className="text-xs text-gray-500 text-center py-1 px-2">
+              {new Date(hoveredDate.date).toLocaleDateString('ru-RU', { 
+                day: '2-digit', 
+                month: 'short', 
+                year: 'numeric'
+              })}
+            </div>
+          )}
         </div>
       ) : (
         <div className="h-64 flex items-center justify-center text-gray-500 text-sm">
@@ -707,7 +668,7 @@ export default function DashboardGCPage() {
 
             {/* Карточки сайтов с ленивой загрузкой */}
             <div>
-              <div className={`grid gap-4 ${
+              <div className={`grid gap-0 ${
                 columnsPerRow === 1 ? 'grid-cols-1' :
                 columnsPerRow === 2 ? 'grid-cols-1 md:grid-cols-2' :
                 columnsPerRow === 3 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
