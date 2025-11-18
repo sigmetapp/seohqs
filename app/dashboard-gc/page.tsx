@@ -475,9 +475,8 @@ const SiteCard = memo(({
             {/* Значки и цифры на графике - показы и клики */}
             <div className="absolute top-3 left-3 flex flex-col gap-2">
               {showImpressions && (
-                <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
+                <div className="flex items-center gap-1.5 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
                   <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  <span className="text-xs font-semibold text-blue-400">Показы:</span>
                   <span className="text-xs font-bold text-white">
                     {hoveredDate 
                       ? hoveredDate.impressions.toLocaleString() 
@@ -486,9 +485,8 @@ const SiteCard = memo(({
                 </div>
               )}
               {showClicks && (
-                <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
+                <div className="flex items-center gap-1.5 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
                   <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  <span className="text-xs font-semibold text-green-400">Клики:</span>
                   <span className="text-xs font-bold text-white">
                     {hoveredDate 
                       ? hoveredDate.clicks.toLocaleString() 
@@ -728,23 +726,22 @@ export default function DashboardGCPage() {
         ) : (
           <>
             {/* Контролы - зафиксированы в одну строку */}
-            <div className="sticky top-0 z-50 bg-gray-800 rounded-lg p-3 mb-6 border border-gray-700 shadow-lg backdrop-blur-sm">
-              <div className="flex flex-nowrap gap-4 items-center overflow-x-auto">
+            <div className="sticky top-0 z-50 bg-gray-800 rounded-lg p-2 mb-6 border border-gray-700 shadow-lg backdrop-blur-sm">
+              <div className="flex flex-nowrap gap-2 items-center overflow-x-auto">
                 {/* Фильтр по тегам */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-sm text-gray-400 whitespace-nowrap">Фильтр по тегам:</span>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   <select
                     value={selectedTagIds.length > 0 ? selectedTagIds[0] : ''}
                     onChange={(e) => {
                       const tagId = e.target.value ? parseInt(e.target.value) : null;
                       setSelectedTagIds(tagId ? [tagId] : []);
                     }}
-                    className="px-3 py-1.5 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-8"
+                    className="px-2 py-1 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
                     style={{
                       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%9ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                       backgroundRepeat: 'no-repeat',
                       backgroundPosition: 'right 0.5rem center',
-                      paddingRight: '2rem'
+                      paddingRight: '1.75rem'
                     }}
                   >
                     <option value="">Все теги</option>
@@ -757,7 +754,7 @@ export default function DashboardGCPage() {
                   {/* Показываем цвет выбранного тега */}
                   {selectedTagIds.length > 0 && tags.find(t => t.id === selectedTagIds[0]) && (
                     <div 
-                      className="w-4 h-4 rounded border border-gray-600"
+                      className="w-3.5 h-3.5 rounded border border-gray-600 flex-shrink-0"
                       style={{ backgroundColor: tags.find(t => t.id === selectedTagIds[0])?.color || '#3b82f6' }}
                       title={tags.find(t => t.id === selectedTagIds[0])?.name}
                     />
@@ -765,20 +762,19 @@ export default function DashboardGCPage() {
                 </div>
                 
                 {/* Фильтр по статусам */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-sm text-gray-400 whitespace-nowrap">Фильтр по статусам:</span>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   <select
                     value={selectedStatusIds.length > 0 ? selectedStatusIds[0] : ''}
                     onChange={(e) => {
                       const statusId = e.target.value ? parseInt(e.target.value) : null;
                       setSelectedStatusIds(statusId ? [statusId] : []);
                     }}
-                    className="px-3 py-1.5 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-8"
+                    className="px-2 py-1 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
                     style={{
                       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%9ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                       backgroundRepeat: 'no-repeat',
                       backgroundPosition: 'right 0.5rem center',
-                      paddingRight: '2rem'
+                      paddingRight: '1.75rem'
                     }}
                   >
                     <option value="">Все статусы</option>
@@ -791,7 +787,7 @@ export default function DashboardGCPage() {
                   {/* Показываем цвет выбранного статуса */}
                   {selectedStatusIds.length > 0 && statuses.find(s => s.id === selectedStatusIds[0]) && (
                     <div 
-                      className="w-4 h-4 rounded border border-gray-600"
+                      className="w-3.5 h-3.5 rounded border border-gray-600 flex-shrink-0"
                       style={{ backgroundColor: statuses.find(s => s.id === selectedStatusIds[0])?.color || '#6b7280' }}
                       title={statuses.find(s => s.id === selectedStatusIds[0])?.name}
                     />
@@ -799,17 +795,16 @@ export default function DashboardGCPage() {
                 </div>
                 
                 {/* Период */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-sm text-gray-400 whitespace-nowrap">Период:</span>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   <select
                     value={selectedPeriod}
                     onChange={(e) => setSelectedPeriod(parseInt(e.target.value))}
-                    className="px-3 py-1.5 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-8"
+                    className="px-2 py-1 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
                     style={{
                       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%9ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                       backgroundRepeat: 'no-repeat',
                       backgroundPosition: 'right 0.5rem center',
-                      paddingRight: '2rem'
+                      paddingRight: '1.75rem'
                     }}
                   >
                     <option value="7">7 дн.</option>
@@ -820,17 +815,16 @@ export default function DashboardGCPage() {
                 </div>
                 
                 {/* Колонок в строке */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-sm text-gray-400 whitespace-nowrap">Колонок в строке:</span>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   <select
                     value={columnsPerRow}
                     onChange={(e) => setColumnsPerRow(parseInt(e.target.value))}
-                    className="px-3 py-1.5 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-8"
+                    className="px-2 py-1 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
                     style={{
                       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%9ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                       backgroundRepeat: 'no-repeat',
                       backgroundPosition: 'right 0.5rem center',
-                      paddingRight: '2rem'
+                      paddingRight: '1.75rem'
                     }}
                   >
                     <option value="1">1</option>
@@ -842,59 +836,58 @@ export default function DashboardGCPage() {
                 </div>
                 
                 {/* Блюр */}
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   <button
                     onClick={() => setBlurMode(!blurMode)}
-                    className={`px-3 py-1 rounded text-sm whitespace-nowrap ${
+                    className={`px-2 py-1 rounded text-sm whitespace-nowrap ${
                       blurMode
                         ? 'bg-purple-600 text-white'
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }`}
                   >
-                    {blurMode ? '🔓 Размытие' : '🔒 Блюр'}
+                    {blurMode ? '🔓' : '🔒'}
                   </button>
                 </div>
                 
                 {/* Показать на графике */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-sm text-gray-400 whitespace-nowrap">Показать на графике:</span>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap">
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <label className="flex items-center gap-1 text-sm cursor-pointer whitespace-nowrap">
                     <input
                       type="checkbox"
                       checked={showImpressions}
                       onChange={(e) => setShowImpressions(e.target.checked)}
                       className="w-4 h-4"
                     />
-                    <span className="text-gray-300">Показы</span>
+                    <span className="text-gray-300 text-xs">Показы</span>
                   </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap">
+                  <label className="flex items-center gap-1 text-sm cursor-pointer whitespace-nowrap">
                     <input
                       type="checkbox"
                       checked={showClicks}
                       onChange={(e) => setShowClicks(e.target.checked)}
                       className="w-4 h-4"
                     />
-                    <span className="text-gray-300">Клики</span>
+                    <span className="text-gray-300 text-xs">Клики</span>
                   </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap">
+                  <label className="flex items-center gap-1 text-sm cursor-pointer whitespace-nowrap">
                     <input
                       type="checkbox"
                       checked={showPositions}
                       onChange={(e) => setShowPositions(e.target.checked)}
                       className="w-4 h-4"
                     />
-                    <span className="text-gray-300">Позиции</span>
+                    <span className="text-gray-300 text-xs">Позиции</span>
                   </label>
                 </div>
                 
                 {/* Поиск по домену */}
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   <input
                     type="text"
-                    placeholder="Поиск домена..."
+                    placeholder="Поиск..."
                     value={searchDomain}
                     onChange={(e) => setSearchDomain(e.target.value)}
-                    className="px-2 py-1 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32"
+                    className="px-2 py-1 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-24"
                   />
                 </div>
               </div>
