@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import Link from 'next/link';
 import { GoogleAccount, Tag } from '@/lib/types';
 
@@ -24,6 +24,99 @@ type DailyData = {
   ctr: number;
   position: number;
 };
+
+// Компонент для ленивой загрузки графиков
+const LazySiteCard = memo(({ 
+  siteData, 
+  dailyData, 
+  isLoading, 
+  showImpressions, 
+  showClicks, 
+  showPositions,
+  blurMode,
+  onHover,
+  onHoverLeave,
+  hoveredSiteId,
+  hoveredDateIndex,
+  setHoveredDateIndex,
+  onLoad
+}: {
+  siteData: SiteData;
+  dailyData: DailyData[];
+  isLoading: boolean;
+  showImpressions: boolean;
+  showClicks: boolean;
+  showPositions: boolean;
+  blurMode: boolean;
+  onHover: () => void;
+  onHoverLeave: () => void;
+  hoveredSiteId: number | null;
+  hoveredDateIndex: { siteId: number; index: number } | null;
+  setHoveredDateIndex: (value: { siteId: number; index: number } | null) => void;
+  onLoad: () => void;
+}) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const hasLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasLoadedRef.current) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasLoadedRef.current) {
+            setIsVisible(true);
+            hasLoadedRef.current = true;
+            onLoad();
+            observer.disconnect();
+          }
+        });
+      },
+      { rootMargin: '100px' } // Начинаем загрузку за 100px до появления
+    );
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [onLoad]);
+
+  if (!isVisible) {
+    return (
+      <div ref={cardRef} className="relative" style={{ minHeight: '300px' }}>
+        <div className="h-64 flex items-center justify-center text-gray-500 text-sm">
+          <div className="text-center">
+            <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+            <div className="text-xs text-gray-500">Загрузка...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <SiteCard
+      siteData={siteData}
+      dailyData={dailyData}
+      isLoading={isLoading}
+      showImpressions={showImpressions}
+      showClicks={showClicks}
+      showPositions={showPositions}
+      blurMode={blurMode}
+      onHover={onHover}
+      onHoverLeave={onHoverLeave}
+      hoveredSiteId={hoveredSiteId}
+      hoveredDateIndex={hoveredDateIndex}
+      setHoveredDateIndex={setHoveredDateIndex}
+    />
+  );
+});
+
+LazySiteCard.displayName = 'LazySiteCard';
 
 // Мемоизированный компонент карточки сайта для оптимизации рендеринга
 const SiteCard = memo(({ 
@@ -59,29 +152,35 @@ const SiteCard = memo(({
     : null;
 
   // Подготовка данных для графика
-  // Увеличиваем максимальные значения в 3 раза для лучшей визуализации
-  // Это позволяет графику отображаться в середине шкалы, а не заполнять всю высоту
+  // Автоматически подбираем максимальное значение: если макс значение 2, шкала будет 4
+  const getMaxValue = (max: number) => {
+    if (max <= 0) return 4;
+    // Округляем до ближайшего четного числа, которое больше максимума
+    const rounded = Math.ceil(max / 2) * 2;
+    return Math.max(rounded, 4); // Минимум 4 для визуализации
+  };
+  
   const maxImpressions = dailyData.length > 0 
-    ? Math.max(...dailyData.map(d => d.impressions), 1) * 3
-    : 3;
+    ? getMaxValue(Math.max(...dailyData.map(d => d.impressions), 1))
+    : 4;
   const maxClicks = dailyData.length > 0 
-    ? Math.max(...dailyData.map(d => d.clicks), 1) * 3
-    : 3;
+    ? getMaxValue(Math.max(...dailyData.map(d => d.clicks), 1))
+    : 4;
   const maxPosition = dailyData.length > 0 
-    ? Math.max(...dailyData.map(d => d.position), 1) * 3
-    : 3;
+    ? getMaxValue(Math.max(...dailyData.map(d => d.position), 1))
+    : 4;
 
   // Получаем последние значения для отображения на графике
   const lastData = dailyData.length > 0 ? dailyData[dailyData.length - 1] : null;
 
   return (
     <div
-      className="bg-gray-800 rounded-lg border border-gray-700 transition-all duration-200 hover:border-blue-500 hover:shadow-lg relative"
+      className="relative"
       onMouseEnter={onHover}
       onMouseLeave={onHoverLeave}
     >
       {/* Заголовок с доменом */}
-      <div className="px-4 pt-3 pb-2 border-b border-gray-700">
+      <div className="px-2 pt-2 pb-1 mb-2">
         <div className="flex items-center justify-between">
           <p className={`text-sm truncate transition-all duration-200 ${
             blurMode && !isHovered ? 'blur-sm select-none' : 'text-gray-400'
@@ -411,6 +510,7 @@ export default function DashboardGCPage() {
   const [error, setError] = useState<string | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [searchDomain, setSearchDomain] = useState<string>('');
 
   // Загрузка Google аккаунтов
   useEffect(() => {
@@ -479,14 +579,21 @@ export default function DashboardGCPage() {
     loadAggregatedData();
   }, [selectedPeriod, selectedAccountId, selectedTagIds]);
 
-  // Загрузка данных по дням для всех сайтов
+  // Загрузка данных по дням для сайта (вызывается через lazy load)
+  // Используем ref для стабильности колбэка
+  const loadingDailyDataRef = useRef<Record<number, boolean>>({});
+  const dailyDataRef = useRef<Record<number, DailyData[]>>({});
+  
   useEffect(() => {
-    sites.forEach((site) => {
-      if (!dailyData[site.id] && !loadingDailyData[site.id]) {
-        loadDailyDataForSite(site.id);
-      }
-    });
-  }, [sites]);
+    loadingDailyDataRef.current = loadingDailyData;
+    dailyDataRef.current = dailyData;
+  }, [loadingDailyData, dailyData]);
+
+  const handleSiteLoad = useCallback((siteId: number) => {
+    if (!dailyDataRef.current[siteId] && !loadingDailyDataRef.current[siteId]) {
+      loadDailyDataForSite(siteId);
+    }
+  }, [loadDailyDataForSite]);
 
   const loadDailyDataForSite = useCallback(async (siteId: number) => {
     try {
@@ -506,11 +613,20 @@ export default function DashboardGCPage() {
     }
   }, [selectedPeriod]);
 
-  // Видимые сайты для рендеринга - фильтруем по тегам
+  // Видимые сайты для рендеринга - фильтруем по тегам и поиску
   const visibleSites = useMemo(() => {
-    // Фильтрация уже происходит на сервере через API
-    return sites;
-  }, [sites]);
+    let filtered = sites;
+    
+    // Фильтрация по поисковому запросу
+    if (searchDomain.trim()) {
+      const searchLower = searchDomain.toLowerCase().trim();
+      filtered = filtered.filter(site => 
+        site.domain.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return filtered;
+  }, [sites, searchDomain]);
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -570,11 +686,19 @@ export default function DashboardGCPage() {
                   >
                     <option value="">Все теги</option>
                     {tags.map((tag) => (
-                      <option key={tag.id} value={tag.id}>
+                      <option key={tag.id} value={tag.id} style={{ backgroundColor: tag.color + '20' }}>
                         {tag.name}
                       </option>
                     ))}
                   </select>
+                  {/* Показываем цвет выбранного тега */}
+                  {selectedTagIds.length > 0 && tags.find(t => t.id === selectedTagIds[0]) && (
+                    <div 
+                      className="w-4 h-4 rounded border border-gray-600"
+                      style={{ backgroundColor: tags.find(t => t.id === selectedTagIds[0])?.color || '#3b82f6' }}
+                      title={tags.find(t => t.id === selectedTagIds[0])?.name}
+                    />
+                  )}
                 </div>
                 
                 {/* Период */}
@@ -665,12 +789,23 @@ export default function DashboardGCPage() {
                     <span className="text-gray-300">Позиции</span>
                   </label>
                 </div>
+                
+                {/* Поиск по домену */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <input
+                    type="text"
+                    placeholder="Поиск домена..."
+                    value={searchDomain}
+                    onChange={(e) => setSearchDomain(e.target.value)}
+                    className="px-2 py-1 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32"
+                  />
+                </div>
               </div>
             </div>
 
             {/* Карточки сайтов с ленивой загрузкой */}
             <div>
-              <div className={`grid gap-0 ${
+              <div className={`grid gap-6 ${
                 columnsPerRow === 1 ? 'grid-cols-1' :
                 columnsPerRow === 2 ? 'grid-cols-1 md:grid-cols-2' :
                 columnsPerRow === 3 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
@@ -678,7 +813,7 @@ export default function DashboardGCPage() {
                 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
               }`}>
               {visibleSites.map((siteData) => (
-                <SiteCard
+                <LazySiteCard
                   key={siteData.id}
                   siteData={siteData}
                   dailyData={dailyData[siteData.id] || []}
@@ -695,6 +830,7 @@ export default function DashboardGCPage() {
                   hoveredSiteId={hoveredSiteId}
                   hoveredDateIndex={hoveredDateIndex}
                   setHoveredDateIndex={setHoveredDateIndex}
+                  onLoad={() => handleSiteLoad(siteData.id)}
                 />
               ))}
               </div>
