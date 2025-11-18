@@ -38,8 +38,26 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error('[Google OAuth Callback] Error from Google:', error);
+      console.error('[Google OAuth Callback] Error description:', searchParams.get('error_description'));
+      
+      let errorMessage = 'Ошибка авторизации через Google';
+      
+      if (error === 'unauthorized_client') {
+        errorMessage = 'Ошибка: unauthorized_client. Проверьте настройки OAuth в Google Cloud Console:\n' +
+          '1. Убедитесь, что OAuth consent screen настроен\n' +
+          '2. Проверьте, что Client ID активен\n' +
+          '3. Если приложение в режиме Testing, добавьте пользователя в Test users\n' +
+          '4. Убедитесь, что запрашиваемые scopes разрешены';
+      } else if (error === 'access_denied') {
+        errorMessage = 'Доступ запрещен. Если приложение в режиме Testing, добавьте ваш email в список Test users в Google Cloud Console.';
+      } else if (error === 'redirect_uri_mismatch') {
+        const redirectUriForError = process.env.GOOGLE_OAUTH_REDIRECT_URI || 
+          `${baseOrigin}/api/auth/user/google/callback`;
+        errorMessage = `Ошибка redirect_uri_mismatch. Добавьте в Google Cloud Console следующий Redirect URI: ${redirectUriForError}`;
+      }
+      
       return NextResponse.redirect(
-        `${baseUrl}/login?error=${encodeURIComponent('Ошибка авторизации через Google')}`
+        `${baseUrl}/login?error=${encodeURIComponent(errorMessage)}`
       );
     }
 

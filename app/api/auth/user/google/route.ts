@@ -60,7 +60,9 @@ export async function GET(request: Request) {
 
     // Логируем, какой Client ID используется (для отладки)
     console.log('[Google User OAuth] Using Client ID:', process.env.GOOGLE_USER_CLIENT_ID ? 'GOOGLE_USER_CLIENT_ID' : 'GOOGLE_CLIENT_ID');
+    console.log('[Google User OAuth] Client ID value:', clientId?.substring(0, 20) + '...');
     console.log('[Google User OAuth] Redirect URI:', redirectUri);
+    console.log('[Google User OAuth] Scopes:', scopes);
 
     const oauth2Client = new google.auth.OAuth2(
       clientId,
