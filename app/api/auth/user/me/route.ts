@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth-utils';
+import { getUserById } from '@/lib/db-users';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -22,13 +23,27 @@ export async function GET() {
       );
     }
 
+    // Получаем полную информацию о пользователе из БД для доступа к кастомным данным
+    const dbUser = await getUserById(user.id);
+    
+    if (!dbUser) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Пользователь не найден',
+        },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        picture: user.picture,
+        id: dbUser.id,
+        email: dbUser.email,
+        name: dbUser.name,
+        picture: dbUser.picture,
+        avatar: dbUser.avatar,
       },
     });
   } catch (error: any) {

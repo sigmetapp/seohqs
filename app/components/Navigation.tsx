@@ -9,6 +9,7 @@ interface User {
   email: string;
   name?: string;
   picture?: string;
+  avatar?: string;
 }
 
 export default function Navigation() {
@@ -21,8 +22,8 @@ export default function Navigation() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
 
-  useEffect(() => {
-    // Проверяем авторизацию при загрузке компонента
+  const fetchUser = () => {
+    setLoading(true);
     fetch('/api/auth/user/me')
       .then(res => res.json())
       .then(data => {
@@ -34,6 +35,11 @@ export default function Navigation() {
       .catch(() => {
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    // Проверяем авторизацию при загрузке компонента
+    fetchUser();
   }, []);
 
   const handleGoogleLogin = async () => {
@@ -69,8 +75,8 @@ export default function Navigation() {
         setShowLoginModal(false);
         setEmail('');
         setPassword('');
-        // Перезагружаем страницу для обновления состояния
-        window.location.reload();
+        // Обновляем данные пользователя
+        fetchUser();
       } else {
         setLoginError(data.error || 'Ошибка входа');
       }
@@ -133,9 +139,9 @@ export default function Navigation() {
               <div className="text-gray-400 text-sm">Загрузка...</div>
             ) : user ? (
               <div className="flex items-center space-x-4">
-                {user.picture && (
+                {(user.avatar || user.picture) && (
                   <img
-                    src={user.picture}
+                    src={user.avatar || user.picture}
                     alt={user.name || user.email}
                     className="h-8 w-8 rounded-full"
                   />
