@@ -8,6 +8,14 @@ type SiteData = {
   id: number;
   domain: string;
   name: string;
+  status?: {
+    id: number;
+    name: string;
+    color: string;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
   hasGoogleConsoleConnection: boolean;
   googleConsoleSiteUrl: string | null;
   totalImpressions: number;
@@ -190,14 +198,29 @@ const SiteCard = memo(({
       {/* Заголовок с доменом */}
       <div className="px-2 pt-2 pb-1 mb-2">
         <div className="flex items-center justify-between">
-          <p className={`text-sm truncate transition-all duration-200 ${
-            blurMode && !isHovered ? 'blur-sm select-none' : 'text-gray-400'
-          }`}>
-            {siteData.domain}
-          </p>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <p className={`text-sm truncate transition-all duration-200 ${
+              blurMode && !isHovered ? 'blur-sm select-none' : 'text-gray-400'
+            }`}>
+              {siteData.domain}
+            </p>
+            {siteData.status && (
+              <span
+                className="px-2 py-0.5 rounded text-xs font-medium flex-shrink-0"
+                style={{
+                  backgroundColor: siteData.status.color + '20',
+                  color: siteData.status.color,
+                  border: `1px solid ${siteData.status.color}40`,
+                }}
+                title={siteData.status.name}
+              >
+                {siteData.status.name}
+              </span>
+            )}
+          </div>
           <Link
             href={`/sites/${siteData.id}`}
-            className="text-blue-400 hover:text-blue-300 hover:underline text-sm whitespace-nowrap ml-2"
+            className="text-blue-400 hover:text-blue-300 hover:underline text-sm whitespace-nowrap ml-2 flex-shrink-0"
           >
             Открыть →
           </Link>
