@@ -222,6 +222,7 @@ export async function getAllSites(userId: number): Promise<Site[]> {
       category: row.category,
       googleSearchConsoleUrl: row.google_search_console_url,
       userId: row.user_id,
+      statusId: row.status_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));

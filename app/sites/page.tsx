@@ -668,7 +668,22 @@ export default function SitesPage() {
                       return (
                         <tr key={site.id} className="border-t border-gray-700 hover:bg-gray-750">
                           <td className="px-4 py-3">
-                            <div className="font-medium">{site.domain}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-medium">{site.domain}</div>
+                              {site.status && (
+                                <span
+                                  className="px-2 py-0.5 rounded text-xs font-medium"
+                                  style={{
+                                    backgroundColor: site.status.color + '20',
+                                    color: site.status.color,
+                                    border: `1px solid ${site.status.color}40`,
+                                  }}
+                                  title={site.status.name}
+                                >
+                                  {site.status.name}
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-gray-500">{site.name}</div>
                           </td>
                           <td className="px-4 py-3">

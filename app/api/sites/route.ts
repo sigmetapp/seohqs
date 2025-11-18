@@ -66,6 +66,55 @@ export async function GET(request: NextRequest) {
       return { ...site, tags };
     }));
     
+    // Загружаем статусы для всех сайтов одним запросом
+    const statusIds = sitesWithTags.filter(site => site.statusId).map(site => site.statusId!);
+    const statusesMap: Record<number, any> = {};
+    
+    if (statusIds.length > 0) {
+      try {
+        const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL);
+        if (useSupabase) {
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          );
+          const { data } = await supabase
+            .from('site_statuses')
+            .select('*')
+            .in('id', statusIds);
+          if (data) {
+            data.forEach((status: any) => {
+              statusesMap[status.id] = {
+                id: status.id,
+                name: status.name,
+                color: status.color,
+                sortOrder: status.sort_order,
+                createdAt: status.created_at,
+                updatedAt: status.updated_at,
+              };
+            });
+          }
+        } else {
+          const { getPostgresClient } = await import('@/lib/postgres-client');
+          const db = await getPostgresClient();
+          const result = await db.query('SELECT * FROM site_statuses WHERE id = ANY($1::int[])', [statusIds]);
+          result.rows.forEach((row: any) => {
+            statusesMap[row.id] = {
+              id: row.id,
+              name: row.name,
+              color: row.color,
+              sortOrder: row.sort_order,
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
+            };
+          });
+        }
+      } catch (error) {
+        console.error('Error loading site statuses:', error);
+      }
+    }
+    
     const sitesWithStatus = sitesWithTags.map(site => {
       let hasGoogleConsoleConnection = false;
       
@@ -93,6 +142,7 @@ export async function GET(request: NextRequest) {
       
       return {
         ...site,
+        status: site.statusId ? statusesMap[site.statusId] || null : null,
         hasGoogleConsoleConnection,
         // Детальная информация для отображения причин отсутствия подключения
         googleConsoleStatus: {
