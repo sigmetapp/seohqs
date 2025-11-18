@@ -17,16 +17,21 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     // Load theme from localStorage or default to dark
-    const savedTheme = localStorage.getItem('theme') as Theme | null;
-    if (savedTheme && (savedTheme === 'dark' || savedTheme === 'light')) {
-      setThemeState(savedTheme);
+    try {
+      const savedTheme = localStorage.getItem('theme') as Theme | null;
+      if (savedTheme && (savedTheme === 'dark' || savedTheme === 'light')) {
+        setThemeState(savedTheme);
+      }
+    } catch (error) {
+      // localStorage might not be available
+      console.error('Error loading theme from localStorage:', error);
     }
+    setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (mounted) {
+    if (mounted && typeof window !== 'undefined') {
       // Apply theme to document
       if (theme === 'dark') {
         document.documentElement.classList.add('dark');
@@ -35,7 +40,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         document.documentElement.classList.remove('dark');
         document.documentElement.classList.add('light');
       }
-      localStorage.setItem('theme', theme);
+      try {
+        localStorage.setItem('theme', theme);
+      } catch (error) {
+        console.error('Error saving theme to localStorage:', error);
+      }
     }
   }, [theme, mounted]);
 
@@ -46,10 +55,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
   };
-
-  if (!mounted) {
-    return <>{children}</>;
-  }
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
