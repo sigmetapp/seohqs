@@ -221,7 +221,8 @@ const LazySiteCard = memo(({
   setHoveredDateIndex,
   onLoad,
   onSyncSite,
-  isSyncing
+  isSyncing,
+  syncResults
 }: {
   siteData: SiteData;
   dailyData: DailyData[];
