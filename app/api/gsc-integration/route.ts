@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
       hasSites?: boolean; // Whether this account has sites in the database
       sitesCount?: number; // Number of sites associated with this account
       gscSitesCount?: number; // Number of sites in GSC for this integration
+      gscSitesMatchedCount?: number; // Number of GSC sites that match user's sites
     }> = [];
 
     // Get user's sites (sites in the database)
