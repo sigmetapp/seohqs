@@ -580,7 +580,7 @@ export default function SiteDetailPage() {
 
   if (loading && !site) {
     return (
-      <main className="min-h-screen bg-gray-900 text-white p-8">
+      <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center">Загрузка...</div>
         </div>
@@ -589,17 +589,17 @@ export default function SiteDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white p-8">
+    <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <button
             onClick={() => router.push('/sites')}
-            className="text-blue-400 hover:text-blue-300 mb-4"
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-4"
           >
             ← Назад к сайтам
           </button>
           <div className="flex items-center gap-4 mb-2">
-            <h1 className="text-4xl font-bold">{site?.name || 'Сайт'}</h1>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">{site?.name || 'Сайт'}</h1>
             {site?.status && (
               <span
                 className="px-3 py-1 rounded-full text-sm font-medium"
@@ -614,16 +614,16 @@ export default function SiteDetailPage() {
             )}
             <button
               onClick={() => setShowStatusModal(true)}
-              className="px-3 py-1 text-sm text-gray-400 hover:text-gray-300 border border-gray-600 rounded hover:border-gray-500"
+              className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 border border-gray-300 dark:border-gray-600 rounded hover:border-gray-400 dark:hover:border-gray-500"
             >
               {site?.status ? 'Изменить статус' : 'Установить статус'}
             </button>
           </div>
-          <p className="text-gray-400">{site?.domain}</p>
+          <p className="text-gray-600 dark:text-gray-400">{site?.domain}</p>
         </div>
 
         {/* Вкладки */}
-        <div className="border-b border-gray-700 mb-6">
+        <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
           <nav className="flex space-x-8">
             {[
               { id: 'overview', label: 'Обзор' },
@@ -637,8 +637,8 @@ export default function SiteDetailPage() {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-400'
-                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-300'
                 }`}
               >
                 {tab.label}
@@ -651,25 +651,25 @@ export default function SiteDetailPage() {
         {activeTab === 'overview' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <div className="text-sm text-gray-400 mb-2">Домен</div>
-                <div className="text-xl font-bold">{site?.domain}</div>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Домен</div>
+                <div className="text-xl font-bold text-gray-900 dark:text-white">{site?.domain}</div>
               </div>
-              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <div className="text-sm text-gray-400 mb-2">Google Console</div>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Google Console</div>
                 <div className="text-xl font-bold mb-2">
                   {site?.hasGoogleConsoleConnection ? (
-                    <span className="text-green-400">Подключено</span>
+                    <span className="text-green-600 dark:text-green-400">Подключено</span>
                   ) : (
-                    <span className="text-yellow-400">Не подключено</span>
+                    <span className="text-yellow-600 dark:text-yellow-400">Не подключено</span>
                   )}
                 </div>
                 {!site?.hasGoogleConsoleConnection && (
-                  <div className="text-xs text-gray-400 space-y-1">
+                  <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
                     {!site?.googleConsoleStatus?.hasOAuth && (
                       <div>
                         ⚠️ OAuth не настроен.{' '}
-                        <a href="/integrations" className="text-blue-400 hover:underline">
+                        <a href="/integrations" className="text-blue-600 dark:text-blue-400 hover:underline">
                           Настроить
                         </a>
                       </div>
@@ -686,12 +686,12 @@ export default function SiteDetailPage() {
 
             {/* Блок с открытыми задачами */}
             {tasks.length > 0 && tasks.filter(t => t.status !== 'completed').length > 0 && (
-              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold">Открытые задачи</h3>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Открытые задачи</h3>
                   <button
                     onClick={() => setActiveTab('tasks')}
-                    className="text-sm text-blue-400 hover:text-blue-300"
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                   >
                     Все задачи →
                   </button>
@@ -732,7 +732,7 @@ export default function SiteDetailPage() {
                         <div
                           key={task.id}
                           className={`p-3 rounded border ${
-                            isOverdue ? 'border-red-500 bg-red-500/10' : 'border-gray-700 bg-gray-700/30'
+                            isOverdue ? 'border-red-500 bg-red-500/10' : 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700/30'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -759,7 +759,7 @@ export default function SiteDetailPage() {
                               <h4 className="font-medium text-sm mb-1 truncate">{task.title}</h4>
                               {task.deadline && (
                                 <div className={`text-xs ${
-                                  isOverdue ? 'text-red-400' : 'text-gray-400'
+                                  isOverdue ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'
                                 }`}>
                                   Срок: {new Date(task.deadline).toLocaleDateString('ru-RU', {
                                     day: '2-digit',
@@ -795,20 +795,20 @@ export default function SiteDetailPage() {
 
             {/* Объединенный блок Google Console с графиком */}
             {overviewGoogleData.length > 0 && (
-              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold">Google Console</h3>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Google Console</h3>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-400">Период:</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Период:</span>
                     <div className="flex gap-1">
-                      {[7, 30, 90, 180].map((days) => (
+                      {[7, 14, 30, 60, 90].map((days) => (
                         <button
                           key={days}
                           onClick={() => setOverviewPeriod(days)}
                           className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                             overviewPeriod === days
                               ? 'bg-blue-600 text-white'
-                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                              : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                           }`}
                         >
                           {days} дн.
@@ -821,28 +821,28 @@ export default function SiteDetailPage() {
                 {/* Статистика */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <div>
-                    <div className="text-sm text-gray-400 mb-1">Всего показов</div>
-                    <div className="text-2xl font-bold text-blue-400">
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Всего показов</div>
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                       {overviewGoogleData.reduce((sum, d) => sum + d.impressions, 0).toLocaleString()}
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-400 mb-1">Всего кликов</div>
-                    <div className="text-2xl font-bold text-green-400">
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Всего кликов</div>
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                       {overviewGoogleData.reduce((sum, d) => sum + d.clicks, 0).toLocaleString()}
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-400 mb-1">Средний CTR</div>
-                    <div className="text-2xl font-bold text-purple-400">
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Средний CTR</div>
+                    <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                       {overviewGoogleData.length > 0
                         ? ((overviewGoogleData.reduce((sum, d) => sum + d.ctr, 0) / overviewGoogleData.length) * 100).toFixed(2)
                         : '0.00'}%
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-400 mb-1">Средняя позиция</div>
-                    <div className="text-2xl font-bold text-yellow-400">
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Средняя позиция</div>
+                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
                       {overviewGoogleData.length > 0
                         ? (overviewGoogleData.reduce((sum, d) => sum + d.position, 0) / overviewGoogleData.length).toFixed(1)
                         : '—'}
@@ -852,9 +852,9 @@ export default function SiteDetailPage() {
 
                 {/* График */}
                 <div>
-                  <h4 className="text-md font-semibold mb-4">График показов и кликов</h4>
+                  <h4 className="text-md font-semibold mb-4 text-gray-900 dark:text-white">График показов и кликов</h4>
                   {loadingData ? (
-                    <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
+                    <div className="h-64 flex items-center justify-center text-gray-600 dark:text-gray-400 text-sm">
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                         <span>Загрузка данных...</span>
@@ -1030,10 +1030,10 @@ export default function SiteDetailPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="h-64 flex items-center justify-center text-gray-500 text-sm">
+                    <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-500 text-sm">
                       <div className="text-center">
-                        <div className="text-gray-400 mb-1">Нет данных</div>
-                        <div className="text-xs text-gray-500">за выбранный период</div>
+                        <div className="text-gray-600 dark:text-gray-400 mb-1">Нет данных</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-500">за выбранный период</div>
                       </div>
                     </div>
                   )}
@@ -1046,19 +1046,19 @@ export default function SiteDetailPage() {
         {activeTab === 'tasks' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Задачи</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Задачи</h2>
               <button
                 onClick={() => openTaskModal()}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
               >
                 + Создать задачу
               </button>
             </div>
             {loadingTasks ? (
-              <div className="text-center py-8">Загрузка задач...</div>
+              <div className="text-center py-8 text-gray-600 dark:text-gray-400">Загрузка задач...</div>
             ) : tasks.length === 0 ? (
-              <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-                <p className="text-gray-400 mb-4">Задач пока нет</p>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center border border-gray-200 dark:border-gray-700">
+                <p className="text-gray-600 dark:text-gray-400 mb-4">Задач пока нет</p>
                 <button
                   onClick={() => openTaskModal()}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
@@ -1091,19 +1091,19 @@ export default function SiteDetailPage() {
                           ? task.priority >= 8 ? 'text-red-400 border-red-400' 
                             : task.priority >= 5 ? 'text-yellow-400 border-yellow-400' 
                             : 'text-green-400 border-green-400'
-                          : 'text-gray-400 border-gray-400';
+                          : 'text-gray-600 dark:text-gray-400 border-gray-400 dark:border-gray-400';
                         return (
                           <div
                             key={task.id}
-                            className={`bg-gray-800 rounded-lg p-5 border ${
-                              isOverdue ? 'border-red-500' : 'border-gray-700'
+                            className={`bg-gray-50 dark:bg-gray-800 rounded-lg p-5 border ${
+                              isOverdue ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
                             }`}
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2">
                                   <h3 
-                                    className="text-lg font-bold cursor-pointer hover:text-blue-400 transition-colors"
+                                    className="text-lg font-bold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-gray-900 dark:text-white"
                                     onClick={() => router.push(`/sites/${siteId}/tasks/${task.id}`)}
                                   >
                                     {task.title}
@@ -1123,15 +1123,15 @@ export default function SiteDetailPage() {
                                   )}
                                 </div>
                                 {task.description && (
-                                  <p className="text-gray-400 text-sm mb-3">{task.description}</p>
+                                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">{task.description}</p>
                                 )}
                                 {task.comments && (
-                                  <div className="bg-gray-900 rounded p-3 mb-3 border border-gray-700">
-                                    <div className="text-xs text-gray-500 mb-1">Комментарии (процесс реализации):</div>
-                                    <p className="text-gray-300 text-sm whitespace-pre-wrap">{task.comments}</p>
+                                  <div className="bg-gray-100 dark:bg-gray-900 rounded p-3 mb-3 border border-gray-200 dark:border-gray-700">
+                                    <div className="text-xs text-gray-500 dark:text-gray-500 mb-1">Комментарии (процесс реализации):</div>
+                                    <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">{task.comments}</p>
                                   </div>
                                 )}
-                                <div className="flex items-center gap-4 text-sm text-gray-400">
+                                <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
                                   {task.deadline && (
                                     <span>
                                       Срок: {new Date(task.deadline).toLocaleDateString('ru-RU')}
@@ -1190,13 +1190,13 @@ export default function SiteDetailPage() {
                         return (
                           <div
                             key={task.id}
-                            className="bg-gray-800 rounded-lg p-5 border border-gray-700 opacity-75"
+                            className="bg-gray-50 dark:bg-gray-800 rounded-lg p-5 border border-gray-200 dark:border-gray-700 opacity-75"
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2">
                                   <h3 
-                                    className="text-lg font-bold line-through cursor-pointer hover:text-blue-400 transition-colors"
+                                    className="text-lg font-bold line-through cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-gray-900 dark:text-white"
                                     onClick={() => router.push(`/sites/${siteId}/tasks/${task.id}`)}
                                   >
                                     {task.title}
@@ -1206,15 +1206,15 @@ export default function SiteDetailPage() {
                                   </span>
                                 </div>
                                 {task.description && (
-                                  <p className="text-gray-500 text-sm mb-3 line-through">{task.description}</p>
+                                  <p className="text-gray-500 dark:text-gray-500 text-sm mb-3 line-through">{task.description}</p>
                                 )}
                                 {task.comments && (
-                                  <div className="bg-gray-900 rounded p-3 mb-3 border border-gray-700">
-                                    <div className="text-xs text-gray-500 mb-1">Комментарии:</div>
-                                    <p className="text-gray-400 text-sm whitespace-pre-wrap">{task.comments}</p>
+                                  <div className="bg-gray-100 dark:bg-gray-900 rounded p-3 mb-3 border border-gray-200 dark:border-gray-700">
+                                    <div className="text-xs text-gray-500 dark:text-gray-500 mb-1">Комментарии:</div>
+                                    <p className="text-gray-600 dark:text-gray-400 text-sm whitespace-pre-wrap">{task.comments}</p>
                                   </div>
                                 )}
-                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-500">
                                   {task.deadline && (
                                     <span>
                                       Срок: {new Date(task.deadline).toLocaleDateString('ru-RU')}
@@ -1259,7 +1259,7 @@ export default function SiteDetailPage() {
         {activeTab === 'google' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center flex-wrap gap-4">
-              <h2 className="text-2xl font-bold">Данные Google Search Console</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Данные Google Search Console</h2>
               <div className="flex gap-2 flex-wrap">
                 {!site?.hasGoogleConsoleConnection && (
                   <div className="flex items-center gap-2 text-sm text-yellow-400 mr-4">
@@ -1290,18 +1290,18 @@ export default function SiteDetailPage() {
               </div>
             </div>
             {/* Селектор периода */}
-            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-400">Период:</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Период:</span>
                 <div className="flex gap-2">
-                  {[7, 30, 90, 180].map((days) => (
+                  {[7, 14, 30, 60, 90].map((days) => (
                     <button
                       key={days}
                       onClick={() => setSelectedPeriod(days)}
                       className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                         selectedPeriod === days
                           ? 'bg-blue-600 text-white'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                       }`}
                     >
                       {days} дней
@@ -1322,36 +1322,36 @@ export default function SiteDetailPage() {
               </div>
             )}
             {loadingData || loadingDetails ? (
-              <div className="text-center py-8">Загрузка данных...</div>
+              <div className="text-center py-8 text-gray-600 dark:text-gray-400">Загрузка данных...</div>
             ) : googleData.length === 0 && queries.length === 0 && pages.length === 0 && countries.length === 0 ? (
-              <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-                <p className="text-gray-400">Данные не загружены. Нажмите "Синхронизировать" для загрузки данных.</p>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center border border-gray-200 dark:border-gray-700">
+                <p className="text-gray-600 dark:text-gray-400">Данные не загружены. Нажмите "Синхронизировать" для загрузки данных.</p>
               </div>
             ) : (
               <div className="space-y-6">
                 {/* Общая статистика */}
                 {googleData.length > 0 && (
-                  <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
-                    <h3 className="text-lg font-bold p-3 border-b border-gray-700">Показы и клики по дням</h3>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <h3 className="text-lg font-bold p-3 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">Показы и клики по дням</h3>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead className="bg-gray-700">
+                        <thead className="bg-gray-100 dark:bg-gray-700">
                           <tr>
-                            <th className="px-2 py-2 text-left text-xs">Дата</th>
-                            <th className="px-2 py-2 text-left text-xs">Клики</th>
-                            <th className="px-2 py-2 text-left text-xs">Показы</th>
-                            <th className="px-2 py-2 text-left text-xs">CTR</th>
-                            <th className="px-2 py-2 text-left text-xs">Позиция</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Дата</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Клики</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Показы</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">CTR</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Позиция</th>
                           </tr>
                         </thead>
                         <tbody>
                           {googleData.map((item, index) => (
-                            <tr key={index} className="border-t border-gray-700 hover:bg-gray-750">
-                              <td className="px-2 py-2 text-xs">{new Date(item.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}</td>
-                              <td className="px-2 py-2">{item.clicks.toLocaleString()}</td>
-                              <td className="px-2 py-2">{item.impressions.toLocaleString()}</td>
-                              <td className="px-2 py-2">{(item.ctr * 100).toFixed(2)}%</td>
-                              <td className="px-2 py-2">{item.position.toFixed(1)}</td>
+                            <tr key={index} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-750">
+                              <td className="px-2 py-2 text-xs text-gray-900 dark:text-white">{new Date(item.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{item.clicks.toLocaleString()}</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{item.impressions.toLocaleString()}</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{(item.ctr * 100).toFixed(2)}%</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{item.position.toFixed(1)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1362,34 +1362,34 @@ export default function SiteDetailPage() {
 
                 {/* Поисковые запросы */}
                 {queries.length > 0 && (
-                  <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
-                    <h3 className="text-lg font-bold p-3 border-b border-gray-700">Поисковые запросы</h3>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <h3 className="text-lg font-bold p-3 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">Поисковые запросы</h3>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead className="bg-gray-700">
+                        <thead className="bg-gray-100 dark:bg-gray-700">
                           <tr>
-                            <th className="px-2 py-2 text-left text-xs">Запрос</th>
-                            <th className="px-2 py-2 text-left text-xs">Клики</th>
-                            <th className="px-2 py-2 text-left text-xs">Показы</th>
-                            <th className="px-2 py-2 text-left text-xs">CTR</th>
-                            <th className="px-2 py-2 text-left text-xs">Позиция</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Запрос</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Клики</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Показы</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">CTR</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Позиция</th>
                           </tr>
                         </thead>
                         <tbody>
                           {queries.slice(0, 50).map((item, index) => (
-                            <tr key={index} className="border-t border-gray-700 hover:bg-gray-750">
-                              <td className="px-2 py-2">{item.query}</td>
-                              <td className="px-2 py-2">{item.clicks.toLocaleString()}</td>
-                              <td className="px-2 py-2">{item.impressions.toLocaleString()}</td>
-                              <td className="px-2 py-2">{(item.ctr * 100).toFixed(2)}%</td>
-                              <td className="px-2 py-2">{item.position.toFixed(1)}</td>
+                            <tr key={index} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-750">
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{item.query}</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{item.clicks.toLocaleString()}</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{item.impressions.toLocaleString()}</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{(item.ctr * 100).toFixed(2)}%</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{item.position.toFixed(1)}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                     {queries.length > 50 && (
-                      <div className="p-3 text-xs text-gray-400 border-t border-gray-700">
+                      <div className="p-3 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
                         {t('home.showingQueries')} {queries.length} {t('home.queries')}
                       </div>
                     )}
@@ -1398,44 +1398,44 @@ export default function SiteDetailPage() {
 
                 {/* Страницы */}
                 {pages.length > 0 && (
-                  <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
-                    <h3 className="text-lg font-bold p-3 border-b border-gray-700">Страницы</h3>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <h3 className="text-lg font-bold p-3 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">Страницы</h3>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead className="bg-gray-700">
+                        <thead className="bg-gray-100 dark:bg-gray-700">
                           <tr>
-                            <th className="px-2 py-2 text-left text-xs">Страница</th>
-                            <th className="px-2 py-2 text-left text-xs">Клики</th>
-                            <th className="px-2 py-2 text-left text-xs">Показы</th>
-                            <th className="px-2 py-2 text-left text-xs">CTR</th>
-                            <th className="px-2 py-2 text-left text-xs">Позиция</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Страница</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Клики</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Показы</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">CTR</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Позиция</th>
                           </tr>
                         </thead>
                         <tbody>
                           {pages.slice(0, 50).map((item, index) => (
-                            <tr key={index} className="border-t border-gray-700 hover:bg-gray-750">
+                            <tr key={index} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-750">
                               <td className="px-2 py-2">
                                 <a 
                                   href={item.page} 
                                   target="_blank" 
                                   rel="noopener noreferrer"
-                                  className="text-blue-400 hover:underline truncate block max-w-md"
+                                  className="text-blue-600 dark:text-blue-400 hover:underline truncate block max-w-md"
                                   title={item.page}
                                 >
                                   {item.page}
                                 </a>
                               </td>
-                              <td className="px-2 py-2">{item.clicks.toLocaleString()}</td>
-                              <td className="px-2 py-2">{item.impressions.toLocaleString()}</td>
-                              <td className="px-2 py-2">{(item.ctr * 100).toFixed(2)}%</td>
-                              <td className="px-2 py-2">{item.position.toFixed(1)}</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{item.clicks.toLocaleString()}</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{item.impressions.toLocaleString()}</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{(item.ctr * 100).toFixed(2)}%</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{item.position.toFixed(1)}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                     {pages.length > 50 && (
-                      <div className="p-3 text-xs text-gray-400 border-t border-gray-700">
+                      <div className="p-3 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
                         {t('home.showingPages')} {pages.length} {t('home.pages')}
                       </div>
                     )}
@@ -1444,27 +1444,27 @@ export default function SiteDetailPage() {
 
                 {/* География (страны) */}
                 {countries.length > 0 && (
-                  <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
-                    <h3 className="text-lg font-bold p-3 border-b border-gray-700">География</h3>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <h3 className="text-lg font-bold p-3 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">География</h3>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead className="bg-gray-700">
+                        <thead className="bg-gray-100 dark:bg-gray-700">
                           <tr>
-                            <th className="px-2 py-2 text-left text-xs">Страна</th>
-                            <th className="px-2 py-2 text-left text-xs">Клики</th>
-                            <th className="px-2 py-2 text-left text-xs">Показы</th>
-                            <th className="px-2 py-2 text-left text-xs">CTR</th>
-                            <th className="px-2 py-2 text-left text-xs">Позиция</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Страна</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Клики</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Показы</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">CTR</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Позиция</th>
                           </tr>
                         </thead>
                         <tbody>
                           {countries.map((item, index) => (
-                            <tr key={index} className="border-t border-gray-700 hover:bg-gray-750">
-                              <td className="px-2 py-2">{item.country}</td>
-                              <td className="px-2 py-2">{item.clicks.toLocaleString()}</td>
-                              <td className="px-2 py-2">{item.impressions.toLocaleString()}</td>
-                              <td className="px-2 py-2">{(item.ctr * 100).toFixed(2)}%</td>
-                              <td className="px-2 py-2">{item.position.toFixed(1)}</td>
+                            <tr key={index} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-750">
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{item.country}</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{item.clicks.toLocaleString()}</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{item.impressions.toLocaleString()}</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{(item.ctr * 100).toFixed(2)}%</td>
+                              <td className="px-2 py-2 text-gray-900 dark:text-white">{item.position.toFixed(1)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1480,7 +1480,7 @@ export default function SiteDetailPage() {
         {activeTab === 'link-profile' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Link Profile</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Link Profile</h2>
             </div>
             {loadingLinkProject ? (
               <div className="text-center py-8">Загрузка проекта...</div>
@@ -1606,7 +1606,7 @@ export default function SiteDetailPage() {
 
         {activeTab === 'postbacks' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Постбеки с партнерок</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Постбеки с партнерок</h2>
             {loadingData ? (
               <div className="text-center py-8">Загрузка данных...</div>
             ) : postbacks.length === 0 ? (
