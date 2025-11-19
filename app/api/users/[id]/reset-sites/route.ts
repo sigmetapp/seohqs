@@ -258,7 +258,7 @@ export async function POST(
           `SELECT id FROM site_tasks WHERE site_id IN (${placeholders})`,
           siteIds
         );
-        const taskIds = tasksResult.rows.map(r => r.id);
+        const taskIds = tasksResult.rows.map((r: { id: number }) => r.id);
         stats.deletedTasks = taskIds.length;
 
         if (taskIds.length > 0) {
@@ -328,7 +328,7 @@ export async function POST(
         'SELECT id FROM link_projects WHERE user_id = $1',
         [userId]
       );
-      const linkProjectIds = linkProjectsResult.rows.map(r => r.id);
+      const linkProjectIds = linkProjectsResult.rows.map((r: { id: number }) => r.id);
       stats.deletedLinkProjects = linkProjectIds.length;
 
       if (linkProjectIds.length > 0) {
