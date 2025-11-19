@@ -934,9 +934,35 @@ export default function DashboardGCPage() {
           url += `&statusIds=${selectedStatusIds.join(',')}`;
         }
         
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - selectedPeriod);
+        console.log(`[DEBUG Dashboard GC] Loading aggregated data:`, {
+          url,
+          period: selectedPeriod,
+          dateRange: `${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]}`
+        });
+        
         const response = await fetch(url);
         const data = await response.json();
+        console.log(`[DEBUG Dashboard GC] Aggregated response:`, {
+          success: data.success,
+          cached: data.cached,
+          sitesCount: data.sites?.length || 0,
+          period: selectedPeriod
+        });
+        
         if (data.success) {
+          // Дебаг: логируем данные для первых нескольких сайтов
+          if (data.sites && data.sites.length > 0 && (selectedPeriod === 90 || selectedPeriod === 180)) {
+            data.sites.slice(0, 3).forEach((site: any) => {
+              console.log(`[DEBUG Dashboard GC] Site ${site.id} (${site.domain}):`, {
+                totalImpressions: site.totalImpressions,
+                totalClicks: site.totalClicks,
+                totalPostbacks: site.totalPostbacks
+              });
+            });
+          }
           setSites(data.sites || []);
         } else {
           setError(data.error || t('dashboardGc.errorLoading'));
@@ -989,14 +1015,28 @@ export default function DashboardGCPage() {
         _t: Date.now().toString()
       });
       
-      console.log(`[Dashboard GC] Loading daily data for site ${siteId}, period: ${requestPeriod} days`);
-      const response = await fetch(`/api/sites/${siteId}/google-console/daily?${params.toString()}`);
+      const url = `/api/sites/${siteId}/google-console/daily?${params.toString()}`;
+      console.log(`[DEBUG Dashboard GC] Loading daily data for site ${siteId}, period: ${requestPeriod} days, URL: ${url}`);
+      
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - requestPeriod);
+      console.log(`[DEBUG Dashboard GC] Expected date range: ${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]}`);
+      
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log(`[DEBUG Dashboard GC] Response for site ${siteId}:`, {
+        success: data.success,
+        cached: data.cached,
+        count: data.count,
+        period: requestPeriod
+      });
+      
       if (!isLatestRequest()) {
         console.log(`[Dashboard GC] Ignoring stale response for site ${siteId}, current period: ${selectedPeriodRef.current}, response period: ${requestPeriod}`);
         return;
@@ -1016,11 +1056,25 @@ export default function DashboardGCPage() {
           const firstDate = new Date(receivedData[0].date);
           const lastDate = new Date(receivedData[receivedData.length - 1].date);
           const actualDays = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
-          console.log(`[Dashboard GC] Site ${siteId}: Received ${receivedData.length} records covering ${actualDays} days (requested: ${requestPeriod} days)`);
+          const totalImpressions = receivedData.reduce((sum: number, d: DailyData) => sum + (d.impressions || 0), 0);
+          const totalClicks = receivedData.reduce((sum: number, d: DailyData) => sum + (d.clicks || 0), 0);
+          
+          console.log(`[DEBUG Dashboard GC] Site ${siteId} data summary:`, {
+            recordsCount: receivedData.length,
+            actualDays,
+            requestedDays: requestPeriod,
+            firstDate: firstDate.toISOString().split('T')[0],
+            lastDate: lastDate.toISOString().split('T')[0],
+            totalImpressions,
+            totalClicks,
+            coverage: `${Math.round((actualDays / requestPeriod) * 100)}%`
+          });
           
           if (actualDays < requestPeriod * 0.7) {
             console.warn(`[Dashboard GC] Site ${siteId}: Data range (${actualDays} days) is significantly less than requested period (${requestPeriod} days)`);
           }
+        } else {
+          console.warn(`[DEBUG Dashboard GC] Site ${siteId}: No data received for period ${requestPeriod} days`);
         }
         
         setDailyData(prev => ({
@@ -1120,6 +1174,53 @@ export default function DashboardGCPage() {
           </div>
         ) : (
           <>
+            {/* DEBUG PANEL - временная панель для отладки */}
+            {(selectedPeriod === 90 || selectedPeriod === 180) && (
+              <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-600 rounded-lg">
+                <h3 className="text-lg font-bold text-yellow-800 dark:text-yellow-200 mb-2">🔍 DEBUG PANEL (90-180 дней)</h3>
+                <div className="text-sm space-y-1 text-yellow-700 dark:text-yellow-300">
+                  <div><strong>Выбранный период:</strong> {selectedPeriod} дней</div>
+                  <div>
+                    <strong>Диапазон дат:</strong>{' '}
+                    {(() => {
+                      const endDate = new Date();
+                      const startDate = new Date();
+                      startDate.setDate(startDate.getDate() - selectedPeriod);
+                      return `${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]}`;
+                    })()}
+                  </div>
+                  <div><strong>Загружено сайтов:</strong> {sites.length}</div>
+                  <div className="mt-2">
+                    <strong>Данные по сайтам (первые 3):</strong>
+                    <div className="mt-1 max-h-40 overflow-y-auto bg-white dark:bg-gray-800 p-2 rounded text-xs">
+                      {sites.slice(0, 3).map((site) => {
+                        const siteDailyData = dailyData[site.id] || [];
+                        const totalImpressions = siteDailyData.reduce((sum, d) => sum + (d.impressions || 0), 0);
+                        const totalClicks = siteDailyData.reduce((sum, d) => sum + (d.clicks || 0), 0);
+                        const dataCount = siteDailyData.length;
+                        const isLoading = loadingDailyData[site.id] || false;
+                        
+                        return (
+                          <div key={site.id} className="border-b border-yellow-200 dark:border-yellow-700 py-1">
+                            <strong>{site.domain}:</strong>
+                            <div className="ml-2 mt-1">
+                              <div>Aggregated: Impressions: {site.totalImpressions.toLocaleString()}, Clicks: {site.totalClicks.toLocaleString()}</div>
+                              <div>Daily Data: Records: {dataCount}, Impressions: {totalImpressions.toLocaleString()}, Clicks: {totalClicks.toLocaleString()}, Loading: {isLoading ? 'Yes' : 'No'}</div>
+                              {dataCount > 0 && (
+                                <div className="text-yellow-600 dark:text-yellow-400">
+                                  Date range: {new Date(siteDailyData[0].date).toISOString().split('T')[0]} - {new Date(siteDailyData[siteDailyData.length - 1].date).toISOString().split('T')[0]}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Контролы - зафиксированы в одну строку */}
             <div className="sticky top-0 z-50 bg-gray-50 dark:bg-gray-800 rounded-lg p-2 mb-6 border border-gray-200 dark:border-gray-700 shadow-lg backdrop-blur-sm">
               <div className="flex flex-nowrap gap-2 items-center overflow-x-auto">
