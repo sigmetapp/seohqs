@@ -10,12 +10,22 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    if (!params || !params.id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Неверный ID сайта: параметр не найден',
+        },
+        { status: 400 }
+      );
+    }
+    
     const siteId = parseInt(params.id);
     if (isNaN(siteId)) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Неверный ID сайта',
+          error: `Неверный ID сайта: "${params.id}" не является числом`,
         },
         { status: 400 }
       );

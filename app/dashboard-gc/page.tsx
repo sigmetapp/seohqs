@@ -948,9 +948,19 @@ export default function DashboardGCPage() {
       setLoadingDailyData(prev => ({ ...prev, [siteId]: true }));
       // При изменении периода или принудительном обновлении добавляем параметр refresh
       // Также добавляем timestamp для избежания кеширования браузером
-      const refreshParam = forceRefresh ? '&refresh=true' : '';
-      const timestamp = `&_t=${Date.now()}`;
-      const response = await fetch(`/api/sites/${siteId}/google-console/daily?days=${selectedPeriod}${refreshParam}${timestamp}`);
+      const params = new URLSearchParams({
+        days: selectedPeriod.toString(),
+        _t: Date.now().toString()
+      });
+      if (forceRefresh) {
+        params.append('refresh', 'true');
+      }
+      const response = await fetch(`/api/sites/${siteId}/google-console/daily?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       if (data.success) {
         setDailyData(prev => ({
@@ -959,9 +969,19 @@ export default function DashboardGCPage() {
         }));
       } else {
         console.error(`Error loading daily data for site ${siteId}:`, data.error);
+        // Устанавливаем пустой массив при ошибке, чтобы не показывать старые данные
+        setDailyData(prev => ({
+          ...prev,
+          [siteId]: []
+        }));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(`Error loading daily data for site ${siteId}:`, err);
+      // Устанавливаем пустой массив при ошибке
+      setDailyData(prev => ({
+        ...prev,
+        [siteId]: []
+      }));
     } finally {
       setLoadingDailyData(prev => ({ ...prev, [siteId]: false }));
     }
