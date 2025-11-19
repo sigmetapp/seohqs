@@ -1,11 +1,41 @@
 import { NextResponse } from 'next/server';
-import { getSiteById, bulkInsertGoogleSearchConsoleData, getAllGoogleAccounts } from '@/lib/db-adapter';
+import { getSiteById, bulkInsertGoogleSearchConsoleData, getAllGoogleAccounts, getGoogleSearchConsoleDataBySiteId } from '@/lib/db-adapter';
 import { createSearchConsoleService } from '@/lib/google-search-console';
 import { requireAuth } from '@/lib/middleware-auth';
 import { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+// Функция для проверки, нужно ли синхронизировать данные (кеш на 12 часов)
+async function shouldSync(siteId: number): Promise<boolean> {
+  try {
+    // Получаем последние данные для проверки времени последней синхронизации
+    // Берем больше записей, чтобы найти максимальное значение created_at
+    const recentData = await getGoogleSearchConsoleDataBySiteId(siteId, 100);
+    
+    if (recentData.length === 0) {
+      // Нет данных, нужно синхронизировать
+      return true;
+    }
+    
+    // Находим максимальное значение created_at (время последней синхронизации)
+    const maxCreatedAt = recentData.reduce((max, item) => {
+      const itemTime = new Date(item.createdAt).getTime();
+      return itemTime > max ? itemTime : max;
+    }, 0);
+    
+    const now = Date.now();
+    const hoursSinceSync = (now - maxCreatedAt) / (1000 * 60 * 60);
+    
+    // Если прошло больше 12 часов, нужно синхронизировать
+    return hoursSinceSync >= 12;
+  } catch (error) {
+    // В случае ошибки синхронизируем для безопасности
+    console.warn('Error checking sync cache:', error);
+    return true;
+  }
+}
 
 export async function POST(
   request: NextRequest,
@@ -38,6 +68,26 @@ export async function POST(
         },
         { status: 404 }
       );
+    }
+
+    // Проверяем кеш перед синхронизацией
+    const needsSync = await shouldSync(siteId);
+    if (!needsSync) {
+      // Данные свежие (менее 12 часов), возвращаем успех без синхронизации
+      const existingData = await getGoogleSearchConsoleDataBySiteId(siteId, 1000);
+      return NextResponse.json({
+        success: true,
+        message: 'Данные актуальны (кеш 12 часов), синхронизация не требуется',
+        data: existingData.slice(0, 360).map(item => ({
+          date: item.date,
+          clicks: item.clicks,
+          impressions: item.impressions,
+          ctr: item.ctr,
+          position: item.position,
+        })),
+        count: existingData.length,
+        cached: true,
+      });
     }
 
     // Получаем Google аккаунты пользователя

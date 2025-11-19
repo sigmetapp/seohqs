@@ -385,6 +385,8 @@ const SiteCard = memo(({
   // Цвета для SVG в зависимости от темы
   const gridColor = theme === 'dark' ? '#374151' : '#d1d5db';
   const axisColor = theme === 'dark' ? '#6b7280' : '#9ca3af';
+  
+  // Убираем отображение результатов синхронизации, так как синхронизация теперь автоматическая
 
   // Подготовка данных для графика
   // Автоматически подбираем максимальное значение: если макс значение 2, шкала будет 4
@@ -436,16 +438,6 @@ const SiteCard = memo(({
     >
       {/* Заголовок с доменом */}
       <div className="px-2 pt-2 pb-1 mb-2">
-        {/* Уведомление о результате синхронизации */}
-        {syncResults?.[siteData.id] && (
-          <div className={`mb-2 p-2 rounded text-xs ${
-            syncResults[siteData.id].success
-              ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-700'
-              : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-700'
-          }`}>
-            {syncResults[siteData.id].message}
-          </div>
-        )}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <p className={`text-sm truncate transition-all duration-200 ${
@@ -468,28 +460,6 @@ const SiteCard = memo(({
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {siteData.hasGoogleConsoleConnection && onSyncSite && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  onSyncSite(siteData.id);
-                }}
-                disabled={isSyncing}
-                className={`text-xs px-2 py-1 rounded transition-all ${
-                  isSyncing
-                    ? 'bg-gray-400 dark:bg-gray-600 text-white cursor-not-allowed'
-                    : 'bg-green-600 dark:bg-green-500 text-white hover:bg-green-700 dark:hover:bg-green-600'
-                }`}
-                title={isSyncing ? 'Синхронизация...' : 'Синхронизировать данные Google Search Console за 360 дней'}
-              >
-                {isSyncing ? (
-                  <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                ) : (
-                  '🔄'
-                )}
-              </button>
-            )}
             <Link
               href={`/sites/${siteData.id}`}
               className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline text-sm whitespace-nowrap"
@@ -902,6 +872,88 @@ export default function DashboardGCPage() {
   const [chartStyle, setChartStyle] = useState<ChartStyle>('default');
   const [syncingSites, setSyncingSites] = useState<Set<number>>(new Set());
   const [syncResults, setSyncResults] = useState<Record<number, { success: boolean; message: string }>>({});
+  const [autoSyncStarted, setAutoSyncStarted] = useState<boolean>(false);
+  const [autoSyncProgress, setAutoSyncProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // Автоматическая синхронизация всех сайтов при открытии страницы
+  useEffect(() => {
+    // Запускаем автоматическую синхронизацию только один раз при загрузке страницы
+    if (autoSyncStarted || sites.length === 0 || loading) {
+      return;
+    }
+
+    const autoSyncAllSites = async () => {
+      setAutoSyncStarted(true);
+      
+      // Получаем все сайты с подключением к Google Console
+      const sitesToSync = sites.filter(site => site.hasGoogleConsoleConnection);
+      
+      if (sitesToSync.length === 0) {
+        return;
+      }
+
+      setAutoSyncProgress({ current: 0, total: sitesToSync.length });
+
+      // Синхронизируем сайты последовательно
+      for (let i = 0; i < sitesToSync.length; i++) {
+        const site = sitesToSync[i];
+        setAutoSyncProgress({ current: i + 1, total: sitesToSync.length });
+        
+        try {
+          setSyncingSites(prev => new Set(prev).add(site.id));
+          
+          const response = await fetch(`/api/sites/${site.id}/google-console/sync`, {
+            method: 'POST',
+          });
+
+          const data = await response.json();
+          
+          if (data.success) {
+            // Очищаем кеш для этого сайта и перезагружаем данные
+            setDailyData(prev => {
+              const newData = { ...prev };
+              delete newData[site.id];
+              return newData;
+            });
+            setLoadingDailyData(prev => ({ ...prev, [site.id]: false }));
+            
+            // Перезагружаем данные для сайта через функцию загрузки
+            // Используем прямое обращение к функции, так как она стабильна
+            setTimeout(() => {
+              if (loadDailyDataForSite) {
+                loadDailyDataForSite(site.id, true);
+              }
+            }, 100);
+          }
+        } catch (err: any) {
+          console.error(`Error auto-syncing site ${site.id}:`, err);
+        } finally {
+          setSyncingSites(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(site.id);
+            return newSet;
+          });
+          
+          // Небольшая задержка между запросами, чтобы не перегружать API
+          if (i < sitesToSync.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+
+      setAutoSyncProgress(null);
+    };
+
+    // Запускаем синхронизацию с небольшой задержкой после загрузки сайтов
+    const timer = setTimeout(() => {
+      autoSyncAllSites();
+    }, 500);
+
+    return () => {
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sites.length, loading, autoSyncStarted]); // loadDailyDataForSite стабильна благодаря useCallback
 
   // Загрузка Google аккаунтов
   useEffect(() => {
@@ -1196,118 +1248,6 @@ export default function DashboardGCPage() {
     return filtered;
   }, [sites, selectedStatusIds, searchDomain]);
 
-  // Функция для синхронизации данных Google Search Console для сайта
-  const handleSyncSite = useCallback(async (siteId: number) => {
-    if (syncingSites.has(siteId)) {
-      return; // Уже синхронизируется
-    }
-
-    try {
-      setSyncingSites(prev => new Set(prev).add(siteId));
-      setSyncResults(prev => ({ ...prev, [siteId]: { success: false, message: 'Синхронизация...' } }));
-
-      const response = await fetch(`/api/sites/${siteId}/google-console/sync`, {
-        method: 'POST',
-      });
-
-      let data;
-      try {
-        data = await response.json();
-      } catch (parseError) {
-        throw new Error(`Ошибка сервера: ${response.status} ${response.statusText}`);
-      }
-
-      if (data.success) {
-        const message = `Синхронизировано: ${data.count || 0} записей за 360 дней`;
-        setSyncResults(prev => ({
-          ...prev,
-          [siteId]: {
-            success: true,
-            message,
-          },
-        }));
-
-        // Показываем уведомление об успехе
-        console.log(`[Dashboard GC] Sync success for site ${siteId}: ${message}`);
-
-        // Очищаем кеш для этого сайта и перезагружаем данные
-        setDailyData(prev => {
-          const newData = { ...prev };
-          delete newData[siteId];
-          return newData;
-        });
-        setLoadingDailyData(prev => ({ ...prev, [siteId]: false }));
-
-        // Перезагружаем данные для сайта
-        setTimeout(() => {
-          loadDailyDataForSite(siteId, true);
-        }, 500);
-
-        // Очищаем результат через 5 секунд
-        setTimeout(() => {
-          setSyncResults(prev => {
-            const newResults = { ...prev };
-            delete newResults[siteId];
-            return newResults;
-          });
-        }, 5000);
-      } else {
-        const errorMessage = data.error || 'Ошибка синхронизации';
-        setSyncResults(prev => ({
-          ...prev,
-          [siteId]: { success: false, message: errorMessage },
-        }));
-        console.error(`[Dashboard GC] Sync error for site ${siteId}: ${errorMessage}`);
-        
-        // Очищаем результат через 10 секунд при ошибке
-        setTimeout(() => {
-          setSyncResults(prev => {
-            const newResults = { ...prev };
-            delete newResults[siteId];
-            return newResults;
-          });
-        }, 10000);
-      }
-    } catch (err: any) {
-      console.error(`Error syncing site ${siteId}:`, err);
-      const errorMessage = err.message || 'Ошибка синхронизации Google Search Console';
-      setSyncResults(prev => ({
-        ...prev,
-        [siteId]: { success: false, message: errorMessage },
-      }));
-    } finally {
-      setSyncingSites(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(siteId);
-        return newSet;
-      });
-    }
-  }, [syncingSites, loadDailyDataForSite]);
-
-  // Функция для синхронизации всех видимых сайтов
-  const handleSyncAllVisibleSites = useCallback(async () => {
-    if (visibleSites.length === 0) {
-      alert('Нет сайтов для синхронизации');
-      return;
-    }
-
-      const confirmed = confirm(
-        `Вы уверены, что хотите синхронизировать данные Google Search Console за 360 дней для всех ${visibleSites.length} видимых сайтов? Это может занять некоторое время.`
-      );
-
-    if (!confirmed) {
-      return;
-    }
-
-    // Синхронизируем все сайты последовательно
-    for (const site of visibleSites) {
-      if (site.hasGoogleConsoleConnection) {
-        await handleSyncSite(site.id);
-        // Небольшая задержка между запросами, чтобы не перегружать API
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
-  }, [visibleSites, handleSyncSite]);
 
   return (
     <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
@@ -1338,92 +1278,24 @@ export default function DashboardGCPage() {
           </div>
         ) : (
           <>
-            {/* DEBUG PANEL - временная панель для отладки */}
-            {(selectedPeriod === 90 || selectedPeriod === 180 || selectedPeriod === 360) && (
-              <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-600 rounded-lg">
-                <h3 className="text-lg font-bold text-yellow-800 dark:text-yellow-200 mb-2">🔍 DEBUG PANEL ({selectedPeriod} дней)</h3>
-                <div className="text-sm space-y-1 text-yellow-700 dark:text-yellow-300">
-                  <div><strong>Выбранный период:</strong> {selectedPeriod} дней</div>
-                  <div>
-                    <strong>Диапазон дат:</strong>{' '}
-                    {(() => {
-                      const endDate = new Date();
-                      const startDate = new Date();
-                      startDate.setDate(startDate.getDate() - selectedPeriod);
-                      return `${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]}`;
-                    })()}
-                  </div>
-                  <div><strong>Загружено сайтов:</strong> {sites.length}</div>
-                  <div className="mt-2">
-                    <strong>Данные по сайтам (первые 3):</strong>
-                    <div className="mt-1 max-h-40 overflow-y-auto bg-white dark:bg-gray-800 p-2 rounded text-xs">
-                      {sites.slice(0, 3).map((site) => {
-                        const siteDailyData = dailyData[site.id] || [];
-                        const totalImpressions = siteDailyData.reduce((sum, d) => sum + (d.impressions || 0), 0);
-                        const totalClicks = siteDailyData.reduce((sum, d) => sum + (d.clicks || 0), 0);
-                        const dataCount = siteDailyData.length;
-                        const isLoading = loadingDailyData[site.id] || false;
-                        
-                        // Вычисляем фактический диапазон дат в данных
-                        let dateRangeText = 'Нет данных';
-                        let actualDays = 0;
-                        if (dataCount > 0) {
-                          const firstDate = new Date(siteDailyData[0].date);
-                          const lastDate = new Date(siteDailyData[siteDailyData.length - 1].date);
-                          actualDays = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
-                          dateRangeText = `${firstDate.toISOString().split('T')[0]} - ${lastDate.toISOString().split('T')[0]} (${actualDays} дней)`;
-                        }
-                        
-                        return (
-                          <div key={site.id} className="border-b border-yellow-200 dark:border-yellow-700 py-1">
-                            <strong>{site.domain}:</strong>
-                            <div className="ml-2 mt-1">
-                              <div>Aggregated: Impressions: {site.totalImpressions.toLocaleString()}, Clicks: {site.totalClicks.toLocaleString()}</div>
-                              <div>Daily Data: Records: {dataCount}, Impressions: {totalImpressions.toLocaleString()}, Clicks: {totalClicks.toLocaleString()}, Loading: {isLoading ? 'Yes' : 'No'}</div>
-                              {dataCount > 0 && (
-                                <div className="text-yellow-600 dark:text-yellow-400">
-                                  Date range: {dateRangeText}
-                                </div>
-                              )}
-                              {dataCount > 0 && actualDays < selectedPeriod * 0.7 && (
-                                <div className="text-red-600 dark:text-red-400 text-xs mt-1">
-                                  ⚠️ Данных меньше ожидаемого (только {actualDays} дней из {selectedPeriod})
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+            {/* Индикатор автоматической синхронизации */}
+            {autoSyncProgress && (
+              <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-400 dark:border-blue-600 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-4 h-4 border-2 border-blue-600 dark:border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                      Автоматическая синхронизация данных за 360 дней...
                     </div>
-                  </div>
-                  <div className="mt-2 text-xs">
-                    <strong>Примечание:</strong> Данные всегда запрашиваются из Google Search Console за 360 дней и сохраняются в БД. Кеширование отключено.
-                  </div>
-                  <div className="mt-2">
-                    <button
-                      onClick={async () => {
-                        if (confirm('Вы уверены, что хотите очистить все данные Google Search Console из БД? После очистки нужно будет синхронизировать данные заново.')) {
-                          try {
-                            const response = await fetch('/api/google-console/clear-data', {
-                              method: 'POST',
-                            });
-                            const data = await response.json();
-                            if (data.success) {
-                              alert('Данные успешно очищены. Теперь синхронизируйте данные заново.');
-                              // Перезагружаем страницу для обновления данных
-                              window.location.reload();
-                            } else {
-                              alert(`Ошибка очистки данных: ${data.error}`);
-                            }
-                          } catch (error: any) {
-                            alert(`Ошибка: ${error.message}`);
-                          }
-                        }
-                      }}
-                      className="px-3 py-1 bg-red-600 dark:bg-red-500 text-white rounded text-sm hover:bg-red-700 dark:hover:bg-red-600"
-                    >
-                      🗑️ Очистить все данные из БД
-                    </button>
+                    <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                      Синхронизировано {autoSyncProgress.current} из {autoSyncProgress.total} сайтов
+                    </div>
+                    <div className="mt-2 w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(autoSyncProgress.current / autoSyncProgress.total) * 100}%` }}
+                      ></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1432,28 +1304,6 @@ export default function DashboardGCPage() {
             {/* Контролы - зафиксированы в одну строку */}
             <div className="sticky top-0 z-50 bg-gray-50 dark:bg-gray-800 rounded-lg p-2 mb-6 border border-gray-200 dark:border-gray-700 shadow-lg backdrop-blur-sm">
               <div className="flex flex-nowrap gap-2 items-center overflow-x-auto">
-                {/* Кнопка синхронизации всех сайтов */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button
-                    onClick={handleSyncAllVisibleSites}
-                    disabled={syncingSites.size > 0 || visibleSites.length === 0}
-                    className={`px-3 py-1 rounded text-sm whitespace-nowrap ${
-                      syncingSites.size > 0
-                        ? 'bg-gray-400 dark:bg-gray-600 text-white cursor-not-allowed'
-                        : 'bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600'
-                    }`}
-                    title="Синхронизировать данные Google Search Console за 360 дней для всех видимых сайтов"
-                  >
-                    {syncingSites.size > 0 ? (
-                      <>
-                        <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></span>
-                        Синхронизация...
-                      </>
-                    ) : (
-                      '🔄 Синхронизировать (360 дней)'
-                    )}
-                  </button>
-                </div>
                 {/* Фильтр по тегам */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <select
@@ -1678,9 +1528,9 @@ export default function DashboardGCPage() {
                     hoveredDateIndex={hoveredDateIndex}
                     setHoveredDateIndex={setHoveredDateIndex}
                     onLoad={() => handleSiteLoad(siteData.id)}
-                    onSyncSite={handleSyncSite}
-                    isSyncing={syncingSites.has(siteData.id)}
-                    syncResults={syncResults}
+                    onSyncSite={undefined}
+                    isSyncing={false}
+                    syncResults={undefined}
                   />
                 ))}
                 </div>
