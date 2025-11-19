@@ -891,6 +891,7 @@ export default function DashboardGCPage() {
   useEffect(() => {
     setDailyData({});
     setLoadingDailyData({});
+    activeRequestIdsRef.current = {};
     // При изменении периода принудительно обновляем данные для всех уже загруженных сайтов
     // Это гарантирует, что данные будут загружены заново из БД, а не из кеша
   }, [selectedPeriod]);
@@ -937,19 +938,34 @@ export default function DashboardGCPage() {
   const loadingDailyDataRef = useRef<Record<number, boolean>>({});
   const dailyDataRef = useRef<Record<number, DailyData[]>>({});
   const lastPeriodRef = useRef<number>(selectedPeriod);
+  const activeRequestIdsRef = useRef<Record<number, number>>({});
+  const requestCounterRef = useRef(0);
+  const selectedPeriodRef = useRef(selectedPeriod);
   
   useEffect(() => {
     loadingDailyDataRef.current = loadingDailyData;
     dailyDataRef.current = dailyData;
   }, [loadingDailyData, dailyData]);
 
+  useEffect(() => {
+    selectedPeriodRef.current = selectedPeriod;
+  }, [selectedPeriod]);
+
   const loadDailyDataForSite = useCallback(async (siteId: number, forceRefresh: boolean = false) => {
+    const requestPeriod = selectedPeriod;
+    const requestId = ++requestCounterRef.current;
+    activeRequestIdsRef.current[siteId] = requestId;
+
+    const isLatestRequest = () =>
+      activeRequestIdsRef.current[siteId] === requestId &&
+      selectedPeriodRef.current === requestPeriod;
+
     try {
       setLoadingDailyData(prev => ({ ...prev, [siteId]: true }));
       // При изменении периода или принудительном обновлении добавляем параметр refresh
       // Также добавляем timestamp для избежания кеширования браузером
       const params = new URLSearchParams({
-        days: selectedPeriod.toString(),
+        days: requestPeriod.toString(),
         _t: Date.now().toString()
       });
       if (forceRefresh) {
@@ -962,6 +978,9 @@ export default function DashboardGCPage() {
       }
       
       const data = await response.json();
+      if (!isLatestRequest()) {
+        return;
+      }
       if (data.success) {
         setDailyData(prev => ({
           ...prev,
@@ -977,15 +996,25 @@ export default function DashboardGCPage() {
       }
     } catch (err: any) {
       console.error(`Error loading daily data for site ${siteId}:`, err);
+      if (!isLatestRequest()) {
+        return;
+      }
       // Устанавливаем пустой массив при ошибке
       setDailyData(prev => ({
         ...prev,
         [siteId]: []
       }));
     } finally {
-      setLoadingDailyData(prev => ({ ...prev, [siteId]: false }));
+      if (isLatestRequest()) {
+        setLoadingDailyData(prev => ({ ...prev, [siteId]: false }));
+      }
     }
   }, [selectedPeriod]);
+
+  const handlePeriodChange = useCallback((value: number) => {
+    selectedPeriodRef.current = value;
+    setSelectedPeriod(value);
+  }, [setSelectedPeriod]);
 
   const handleSiteLoad = useCallback((siteId: number) => {
     // Проверяем, изменился ли период - если да, принудительно обновляем данные
@@ -1124,11 +1153,11 @@ export default function DashboardGCPage() {
                 </div>
                 
                 {/* Период */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <select
-                    value={selectedPeriod}
-                    onChange={(e) => setSelectedPeriod(parseInt(e.target.value))}
-                    className="px-2 py-1 rounded text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <select
+                      value={selectedPeriod}
+                      onChange={(e) => handlePeriodChange(parseInt(e.target.value, 10))}
+                      className="px-2 py-1 rounded text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
                     style={{
                       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%9ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                       backgroundRepeat: 'no-repeat',
