@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/lib/i18n-context';
+import Link from 'next/link';
 
 interface User {
   id: number;
@@ -520,6 +521,27 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
+
+      {/* Admin Footer */}
+      <footer className="mt-8 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-center items-center space-x-4">
+            <Link
+              href="/"
+              className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+            >
+              Главная страница
+            </Link>
+            <span className="text-gray-400 dark:text-gray-600">|</span>
+            <Link
+              href="/admin/users"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors font-medium"
+            >
+              Управление пользователями
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
