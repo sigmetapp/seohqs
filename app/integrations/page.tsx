@@ -290,6 +290,60 @@ export default function IntegrationsPage() {
     }
   };
 
+  const handleClearAllSites = async () => {
+    if (!confirm('Вы уверены, что хотите удалить все сайты? Это действие удалит все сайты и все данные Google Search Console. Это действие нельзя отменить.')) {
+      return;
+    }
+
+    try {
+      addDebugInfo({
+        timestamp: new Date().toISOString(),
+        type: 'api',
+        endpoint: '/api/sites/clear-all',
+        message: 'Clearing all sites...',
+      });
+
+      const response = await fetch('/api/sites/clear-all', {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      
+      addDebugInfo({
+        timestamp: new Date().toISOString(),
+        type: 'api',
+        endpoint: '/api/sites/clear-all',
+        status: response.status,
+        data: {
+          success: data.success,
+          message: data.message,
+          deletedSites: data.deletedSites,
+          deletedGSCData: data.deletedGSCData,
+          error: data.error,
+        },
+      });
+
+      if (data.success) {
+        setMessage({ 
+          type: 'success', 
+          text: data.message || `Удалено ${data.deletedSites || 0} сайтов и связанные данные Google Search Console` 
+        });
+        setTimeout(() => setMessage(null), 5000);
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Ошибка удаления сайтов' });
+      }
+    } catch (err: any) {
+      console.error('Error clearing all sites:', err);
+      setMessage({ type: 'error', text: 'Ошибка удаления сайтов' });
+      addDebugInfo({
+        timestamp: new Date().toISOString(),
+        type: 'error',
+        endpoint: '/api/sites/clear-all',
+        error: err.message || String(err),
+        message: 'Exception while clearing all sites',
+      });
+    }
+  };
+
   const handleGoogleAuth = async () => {
     try {
       addDebugInfo({
@@ -504,8 +558,15 @@ export default function IntegrationsPage() {
               </div>
             ) : gscAccounts.length > 0 ? (
               <div className="space-y-4">
-                {/* Reset All Button */}
-                <div className="flex justify-end mb-4">
+                {/* Reset All and Clear All Sites Buttons */}
+                <div className="flex justify-end gap-3 mb-4">
+                  <button
+                    onClick={handleClearAllSites}
+                    className="px-6 py-3 bg-orange-600 hover:bg-orange-700 rounded-lg text-base font-medium transition-all duration-200 text-white shadow-md hover:shadow-lg transform hover:scale-105"
+                    title="Очистить все сайты"
+                  >
+                    Очистить все сайты
+                  </button>
                   <button
                     onClick={handleResetAllIntegrations}
                     className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg text-base font-medium transition-all duration-200 text-white shadow-md hover:shadow-lg transform hover:scale-105"
