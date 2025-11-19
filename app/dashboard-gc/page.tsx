@@ -875,7 +875,7 @@ export default function DashboardGCPage() {
   const [autoSyncStarted, setAutoSyncStarted] = useState<boolean>(false);
   const [autoSyncProgress, setAutoSyncProgress] = useState<{ current: number; total: number } | null>(null);
 
-  // Автоматическая синхронизация всех сайтов при открытии страницы
+  // Автоматическая синхронизация всех сайтов при открытии страницы (только один раз, если данных нет)
   useEffect(() => {
     // Запускаем автоматическую синхронизацию только один раз при загрузке страницы
     if (autoSyncStarted || sites.length === 0 || loading) {
@@ -892,19 +892,61 @@ export default function DashboardGCPage() {
         return;
       }
 
-      setAutoSyncProgress({ current: 0, total: sitesToSync.length });
+      // Проверяем наличие данных в БД для каждого сайта перед синхронизацией
+      const sitesNeedingSync: typeof sitesToSync = [];
+      
+      for (const site of sitesToSync) {
+        try {
+          // Проверяем наличие данных за последние 90 дней
+          const response = await fetch(`/api/sites/${site.id}/google-console/daily?days=90`);
+          const data = await response.json();
+          
+          if (data.success && data.data && data.data.length > 0) {
+            // Проверяем, достаточно ли данных (минимум 70% от 90 дней = 63 дня)
+            const minRequiredDays = 63;
+            const firstDate = new Date(data.data[0].date);
+            const lastDate = new Date(data.data[data.data.length - 1].date);
+            const actualDays = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+            
+            if (actualDays < minRequiredDays) {
+              console.log(`[Auto Sync] Site ${site.id} (${site.domain}): Only ${actualDays} days of data, need at least ${minRequiredDays}. Will sync.`);
+              sitesNeedingSync.push(site);
+            } else {
+              console.log(`[Auto Sync] Site ${site.id} (${site.domain}): Has ${actualDays} days of data (${data.data.length} records). Skipping sync.`);
+            }
+          } else {
+            // Нет данных в БД, нужно синхронизировать
+            console.log(`[Auto Sync] Site ${site.id} (${site.domain}): No data in DB. Will sync.`);
+            sitesNeedingSync.push(site);
+          }
+        } catch (err: any) {
+          console.warn(`[Auto Sync] Error checking data for site ${site.id} (${site.domain}):`, err);
+          // В случае ошибки проверки, добавляем сайт в список для синхронизации
+          sitesNeedingSync.push(site);
+        }
+      }
+
+      if (sitesNeedingSync.length === 0) {
+        console.log(`[Auto Sync] All sites have sufficient data in DB. Skipping sync.`);
+        setAutoSyncProgress(null);
+        return;
+      }
+
+      console.log(`[Auto Sync] Starting sync for ${sitesNeedingSync.length} sites that need data`);
+      setAutoSyncProgress({ current: 0, total: sitesNeedingSync.length });
 
       let successCount = 0;
       let errorCount = 0;
 
-      // Синхронизируем сайты последовательно
-      for (let i = 0; i < sitesToSync.length; i++) {
-        const site = sitesToSync[i];
-        setAutoSyncProgress({ current: i + 1, total: sitesToSync.length });
+      // Синхронизируем только сайты, которым нужны данные
+      for (let i = 0; i < sitesNeedingSync.length; i++) {
+        const site = sitesNeedingSync[i];
+        setAutoSyncProgress({ current: i + 1, total: sitesNeedingSync.length });
         
         try {
           setSyncingSites(prev => new Set(prev).add(site.id));
           
+          console.log(`[Auto Sync] Syncing site ${site.id} (${site.domain})...`);
           const response = await fetch(`/api/sites/${site.id}/google-console/sync`, {
             method: 'POST',
           });
@@ -930,7 +972,7 @@ export default function DashboardGCPage() {
             
             if (data.success) {
               successCount++;
-              console.log(`[Auto Sync] Successfully synced site ${site.id} (${site.domain})`);
+              console.log(`[Auto Sync] Successfully synced site ${site.id} (${site.domain}): ${data.count || 0} records`);
               
               // Очищаем кеш для этого сайта и перезагружаем данные
               setDailyData(prev => {
@@ -962,17 +1004,17 @@ export default function DashboardGCPage() {
           });
           
           // Небольшая задержка между запросами, чтобы не перегружать API
-          if (i < sitesToSync.length - 1) {
+          if (i < sitesNeedingSync.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
       }
 
-      console.log(`[Auto Sync] Completed: ${successCount} successful, ${errorCount} errors out of ${sitesToSync.length} sites`);
+      console.log(`[Auto Sync] Completed: ${successCount} successful, ${errorCount} errors out of ${sitesNeedingSync.length} sites`);
       setAutoSyncProgress(null);
     };
 
-    // Запускаем синхронизацию с небольшой задержкой после загрузки сайтов
+    // Запускаем проверку и синхронизацию с небольшой задержкой после загрузки сайтов
     const timer = setTimeout(() => {
       autoSyncAllSites();
     }, 500);
