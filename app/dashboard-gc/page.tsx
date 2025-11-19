@@ -481,7 +481,7 @@ const SiteCard = memo(({
                     ? 'bg-gray-400 dark:bg-gray-600 text-white cursor-not-allowed'
                     : 'bg-green-600 dark:bg-green-500 text-white hover:bg-green-700 dark:hover:bg-green-600'
                 }`}
-                title={isSyncing ? 'Синхронизация...' : 'Синхронизировать данные Google Search Console за 180 дней'}
+                title={isSyncing ? 'Синхронизация...' : 'Синхронизировать данные Google Search Console за 360 дней'}
               >
                 {isSyncing ? (
                   <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -881,7 +881,7 @@ export default function DashboardGCPage() {
   const { t } = useI18n();
   const [sites, setSites] = useState<SiteData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState<number>(30);
+  const [selectedPeriod, setSelectedPeriod] = useState<number>(180);
   const [showImpressions, setShowImpressions] = useState<boolean>(true);
   const [showClicks, setShowClicks] = useState<boolean>(true);
   const [showPositions, setShowPositions] = useState<boolean>(false);
@@ -1218,7 +1218,7 @@ export default function DashboardGCPage() {
       }
 
       if (data.success) {
-        const message = `Синхронизировано: ${data.count || 0} записей за 180 дней`;
+        const message = `Синхронизировано: ${data.count || 0} записей за 360 дней`;
         setSyncResults(prev => ({
           ...prev,
           [siteId]: {
@@ -1291,9 +1291,9 @@ export default function DashboardGCPage() {
       return;
     }
 
-    const confirmed = confirm(
-      `Вы уверены, что хотите синхронизировать данные Google Search Console за 180 дней для всех ${visibleSites.length} видимых сайтов? Это может занять некоторое время.`
-    );
+      const confirmed = confirm(
+        `Вы уверены, что хотите синхронизировать данные Google Search Console за 360 дней для всех ${visibleSites.length} видимых сайтов? Это может занять некоторое время.`
+      );
 
     if (!confirmed) {
       return;
@@ -1339,9 +1339,9 @@ export default function DashboardGCPage() {
         ) : (
           <>
             {/* DEBUG PANEL - временная панель для отладки */}
-            {selectedPeriod === 180 && (
+            {(selectedPeriod === 180 || selectedPeriod === 360) && (
               <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-600 rounded-lg">
-                <h3 className="text-lg font-bold text-yellow-800 dark:text-yellow-200 mb-2">🔍 DEBUG PANEL (180 дней)</h3>
+                <h3 className="text-lg font-bold text-yellow-800 dark:text-yellow-200 mb-2">🔍 DEBUG PANEL ({selectedPeriod} дней)</h3>
                 <div className="text-sm space-y-1 text-yellow-700 dark:text-yellow-300">
                   <div><strong>Выбранный период:</strong> {selectedPeriod} дней</div>
                   <div>
@@ -1385,7 +1385,7 @@ export default function DashboardGCPage() {
                                   Date range: {dateRangeText}
                                 </div>
                               )}
-                              {dataCount > 0 && actualDays < 180 * 0.7 && (
+                              {dataCount > 0 && actualDays < selectedPeriod * 0.7 && (
                                 <div className="text-red-600 dark:text-red-400 text-xs mt-1">
                                   ⚠️ Данных меньше ожидаемого (только {actualDays} дней из {selectedPeriod})
                                 </div>
@@ -1397,7 +1397,7 @@ export default function DashboardGCPage() {
                     </div>
                   </div>
                   <div className="mt-2 text-xs">
-                    <strong>Примечание:</strong> Данные всегда запрашиваются из Google Search Console за 180 дней и сохраняются в БД. Кеширование отключено.
+                    <strong>Примечание:</strong> Данные всегда запрашиваются из Google Search Console за 360 дней и сохраняются в БД. Кеширование отключено.
                   </div>
                   <div className="mt-2">
                     <button
@@ -1442,7 +1442,7 @@ export default function DashboardGCPage() {
                         ? 'bg-gray-400 dark:bg-gray-600 text-white cursor-not-allowed'
                         : 'bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600'
                     }`}
-                    title="Синхронизировать данные Google Search Console за 180 дней для всех видимых сайтов"
+                    title="Синхронизировать данные Google Search Console за 360 дней для всех видимых сайтов"
                   >
                     {syncingSites.size > 0 ? (
                       <>
@@ -1450,7 +1450,7 @@ export default function DashboardGCPage() {
                         Синхронизация...
                       </>
                     ) : (
-                      '🔄 Синхронизировать (180 дней)'
+                      '🔄 Синхронизировать (360 дней)'
                     )}
                   </button>
                 </div>
@@ -1533,10 +1533,8 @@ export default function DashboardGCPage() {
                       paddingRight: '1.75rem'
                     }}
                   >
-                    <option value="7">7 {t('dashboardGc.daysShort')}</option>
-                    <option value="30">30 {t('dashboardGc.daysShort')}</option>
-                    <option value="90">90 {t('dashboardGc.daysShort')}</option>
                     <option value="180">180 {t('dashboardGc.daysShort')}</option>
+                    <option value="360">360 {t('dashboardGc.daysShort')}</option>
                   </select>
                 </div>
                 

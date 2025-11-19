@@ -70,13 +70,13 @@ export async function POST(
       }
     }
     
-    // Получаем данные за последние 180 дней (максимальный период, используемый в дашборде)
-    // Это обеспечит наличие данных для всех периодов: 7, 30, 90 и 180 дней
+    // Получаем данные за последние 360 дней (максимальный период, используемый в дашборде)
+    // Это обеспечит наличие данных для всех периодов: 180 и 360 дней
     // Google Search Console API поддерживает до 16 месяцев данных
     // Передаем найденный URL или указанный вручную, и домен для автоматического поиска
     const aggregatedData = await searchConsoleService.getAggregatedData(
       site.googleSearchConsoleUrl || foundSiteUrl,
-      180,
+      360,
       site.domain
     );
 
@@ -100,7 +100,7 @@ export async function POST(
     }));
 
     // Сохраняем данные в БД
-    // Данные всегда сохраняются за 180 дней (максимальный период)
+    // Данные всегда сохраняются за 360 дней (максимальный период)
     await bulkInsertGoogleSearchConsoleData(dataToInsert);
 
     return NextResponse.json({

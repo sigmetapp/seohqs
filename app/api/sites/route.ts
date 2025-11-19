@@ -204,10 +204,8 @@ export async function POST(request: NextRequest) {
     // Инвалидируем кеш списка сайтов
     cache.delete(`sites-list-${user.id}`);
     // Также инвалидируем кеш агрегированных данных
-    cache.delete(`google-console-aggregated-${user.id}-default-30`);
-    cache.delete(`google-console-aggregated-${user.id}-default-7`);
-    cache.delete(`google-console-aggregated-${user.id}-default-90`);
     cache.delete(`google-console-aggregated-${user.id}-default-180`);
+    cache.delete(`google-console-aggregated-${user.id}-default-360`);
 
     return NextResponse.json({
       success: true,
