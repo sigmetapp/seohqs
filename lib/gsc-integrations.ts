@@ -220,6 +220,11 @@ export async function getGSCIntegration(userId: string): Promise<GSCIntegration 
         // Not found - this is OK
         return null;
       }
+      // Check if table doesn't exist (42P01 is PostgreSQL error code for undefined table)
+      if (error.code === '42P01' || error.message?.includes('does not exist') || error.message?.includes('schema cache')) {
+        console.debug('[GSC] Table gsc_integrations does not exist yet');
+        return null;
+      }
       console.error('Error fetching GSC integration:', error);
       return null;
     }
@@ -238,7 +243,12 @@ export async function getGSCIntegration(userId: string): Promise<GSCIntegration 
       created_at: data.created_at,
       updated_at: data.updated_at,
     };
-  } catch (error) {
+  } catch (error: any) {
+    // Handle table not found errors gracefully
+    if (error?.code === '42P01' || error?.message?.includes('does not exist') || error?.message?.includes('schema cache')) {
+      console.debug('[GSC] Table gsc_integrations does not exist yet');
+      return null;
+    }
     console.error('Error fetching GSC integration:', error);
     return null;
   }
@@ -326,12 +336,22 @@ export async function deleteGSCIntegration(userId: string): Promise<boolean> {
       .eq('user_id', userId);
 
     if (error) {
+      // Check if table doesn't exist - this is OK, nothing to delete
+      if (error.code === '42P01' || error.message?.includes('does not exist') || error.message?.includes('schema cache')) {
+        console.debug('[GSC] Table gsc_integrations does not exist, nothing to delete');
+        return true; // Return true since there's nothing to delete
+      }
       console.error('Error deleting GSC integration:', error);
       throw new Error(`Failed to delete GSC integration: ${error.message}`);
     }
 
     return true;
   } catch (error: any) {
+    // Handle table not found errors gracefully
+    if (error?.code === '42P01' || error?.message?.includes('does not exist') || error?.message?.includes('schema cache')) {
+      console.debug('[GSC] Table gsc_integrations does not exist, nothing to delete');
+      return true; // Return true since there's nothing to delete
+    }
     throw error;
   }
 }
@@ -408,6 +428,11 @@ export async function getGSCSites(integrationId: string): Promise<GSCSite[]> {
       .order('site_url', { ascending: true });
 
     if (error) {
+      // Check if table doesn't exist - return empty array
+      if (error.code === '42P01' || error.message?.includes('does not exist') || error.message?.includes('schema cache')) {
+        console.debug('[GSC] Table gsc_sites does not exist yet');
+        return [];
+      }
       console.error('Error fetching GSC sites:', error);
       return [];
     }
@@ -421,7 +446,12 @@ export async function getGSCSites(integrationId: string): Promise<GSCSite[]> {
       created_at: site.created_at,
       updated_at: site.updated_at,
     }));
-  } catch (error) {
+  } catch (error: any) {
+    // Handle table not found errors gracefully
+    if (error?.code === '42P01' || error?.message?.includes('does not exist') || error?.message?.includes('schema cache')) {
+      console.debug('[GSC] Table gsc_sites does not exist yet');
+      return [];
+    }
     console.error('Error fetching GSC sites:', error);
     return [];
   }

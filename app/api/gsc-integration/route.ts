@@ -72,48 +72,53 @@ export async function GET(request: NextRequest) {
     
     // Try to get GSC integration from Supabase Auth table first (gsc_integrations)
     if (supabaseAuthUserId) {
-      console.log('[GSC Integration GET] Looking for integration in gsc_integrations for user:', supabaseAuthUserId);
-      const integration = await getGSCIntegration(supabaseAuthUserId);
-      console.log('[GSC Integration GET] Found integration:', integration ? {
-        id: integration.id,
-        google_email: integration.google_email,
-        has_tokens: !!(integration.access_token && integration.refresh_token),
-      } : null);
-      
-      if (integration) {
-        // Check GSC sites for this integration
-        let gscSitesCount = 0;
-        let gscSitesMatchedCount = 0;
-        try {
-          const gscSites = await getGSCSites(integration.id);
-          gscSitesCount = gscSites.length;
-          // Count how many GSC sites match user's sites
-          gscSitesMatchedCount = gscSites.filter(site => matchesUserSite(site.site_url)).length;
-        } catch (gscSitesError: any) {
-          console.debug('[GSC Integration] Error fetching GSC sites:', gscSitesError?.message);
-        }
-
-        // Account has sites if:
-        // 1. User has sites in database (sites were submitted to the database)
-        // 2. OR has GSC sites that match user's sites (connection exists)
-        // 3. OR has any GSC sites (at least some connection)
-        const hasSites = userSitesCount > 0 || gscSitesMatchedCount > 0 || gscSitesCount > 0;
-
-        allAccounts.push({
+      try {
+        console.log('[GSC Integration GET] Looking for integration in gsc_integrations for user:', supabaseAuthUserId);
+        const integration = await getGSCIntegration(supabaseAuthUserId);
+        console.log('[GSC Integration GET] Found integration:', integration ? {
           id: integration.id,
           google_email: integration.google_email,
-          google_user_id: integration.google_user_id,
-          created_at: integration.created_at,
-          updated_at: integration.updated_at,
-          source: 'supabase',
-          hasSites,
-          sitesCount: userSitesCount,
-          gscSitesCount,
-          // Also include matched count for better info
-          gscSitesMatchedCount: gscSitesMatchedCount,
-        });
+          has_tokens: !!(integration.access_token && integration.refresh_token),
+        } : null);
         
-        addedEmails.add(integration.google_email.toLowerCase());
+        if (integration) {
+          // Check GSC sites for this integration
+          let gscSitesCount = 0;
+          let gscSitesMatchedCount = 0;
+          try {
+            const gscSites = await getGSCSites(integration.id);
+            gscSitesCount = gscSites.length;
+            // Count how many GSC sites match user's sites
+            gscSitesMatchedCount = gscSites.filter(site => matchesUserSite(site.site_url)).length;
+          } catch (gscSitesError: any) {
+            console.debug('[GSC Integration] Error fetching GSC sites:', gscSitesError?.message);
+          }
+
+          // Account has sites if:
+          // 1. User has sites in database (sites were submitted to the database)
+          // 2. OR has GSC sites that match user's sites (connection exists)
+          // 3. OR has any GSC sites (at least some connection)
+          const hasSites = userSitesCount > 0 || gscSitesMatchedCount > 0 || gscSitesCount > 0;
+
+          allAccounts.push({
+            id: integration.id,
+            google_email: integration.google_email,
+            google_user_id: integration.google_user_id,
+            created_at: integration.created_at,
+            updated_at: integration.updated_at,
+            source: 'supabase',
+            hasSites,
+            sitesCount: userSitesCount,
+            gscSitesCount,
+            // Also include matched count for better info
+            gscSitesMatchedCount: gscSitesMatchedCount,
+          });
+          
+          addedEmails.add(integration.google_email.toLowerCase());
+        }
+      } catch (gscIntegrationError: any) {
+        // Log but don't fail - table might not exist or other error
+        console.debug('[GSC Integration GET] Error fetching gsc_integrations:', gscIntegrationError?.message);
       }
       
       // Also get accounts from google_gsc_accounts table (supports multiple accounts)
