@@ -887,10 +887,12 @@ export default function DashboardGCPage() {
     loadStatuses();
   }, []);
 
-  // Очистка dailyData при изменении периода
+  // Очистка dailyData при изменении периода и принудительное обновление
   useEffect(() => {
     setDailyData({});
     setLoadingDailyData({});
+    // При изменении периода принудительно обновляем данные для всех уже загруженных сайтов
+    // Это гарантирует, что данные будут загружены заново из БД, а не из кеша
   }, [selectedPeriod]);
 
   // Загрузка агрегированных данных
@@ -934,35 +936,72 @@ export default function DashboardGCPage() {
   // Используем ref для стабильности колбэка
   const loadingDailyDataRef = useRef<Record<number, boolean>>({});
   const dailyDataRef = useRef<Record<number, DailyData[]>>({});
+  const lastPeriodRef = useRef<number>(selectedPeriod);
   
   useEffect(() => {
     loadingDailyDataRef.current = loadingDailyData;
     dailyDataRef.current = dailyData;
   }, [loadingDailyData, dailyData]);
 
-  const loadDailyDataForSite = useCallback(async (siteId: number) => {
+  const loadDailyDataForSite = useCallback(async (siteId: number, forceRefresh: boolean = false) => {
     try {
       setLoadingDailyData(prev => ({ ...prev, [siteId]: true }));
-      const response = await fetch(`/api/sites/${siteId}/google-console/daily?days=${selectedPeriod}`);
+      // При изменении периода или принудительном обновлении добавляем параметр refresh
+      // Также добавляем timestamp для избежания кеширования браузером
+      const params = new URLSearchParams({
+        days: selectedPeriod.toString(),
+        _t: Date.now().toString()
+      });
+      if (forceRefresh) {
+        params.append('refresh', 'true');
+      }
+      const response = await fetch(`/api/sites/${siteId}/google-console/daily?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       if (data.success) {
         setDailyData(prev => ({
           ...prev,
           [siteId]: data.data || []
         }));
+      } else {
+        console.error(`Error loading daily data for site ${siteId}:`, data.error);
+        // Устанавливаем пустой массив при ошибке, чтобы не показывать старые данные
+        setDailyData(prev => ({
+          ...prev,
+          [siteId]: []
+        }));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(`Error loading daily data for site ${siteId}:`, err);
+      // Устанавливаем пустой массив при ошибке
+      setDailyData(prev => ({
+        ...prev,
+        [siteId]: []
+      }));
     } finally {
       setLoadingDailyData(prev => ({ ...prev, [siteId]: false }));
     }
   }, [selectedPeriod]);
 
   const handleSiteLoad = useCallback((siteId: number) => {
-    if (!dailyDataRef.current[siteId] && !loadingDailyDataRef.current[siteId]) {
-      loadDailyDataForSite(siteId);
+    // Проверяем, изменился ли период - если да, принудительно обновляем данные
+    const periodChanged = lastPeriodRef.current !== selectedPeriod;
+    if (periodChanged) {
+      lastPeriodRef.current = selectedPeriod;
     }
-  }, [loadDailyDataForSite]);
+    
+    // Всегда загружаем данные при изменении периода или если данных нет
+    if (!loadingDailyDataRef.current[siteId]) {
+      const existingData = dailyDataRef.current[siteId];
+      // Принудительно обновляем, если период изменился или данных нет
+      const shouldRefresh = periodChanged || !existingData || existingData.length === 0;
+      loadDailyDataForSite(siteId, shouldRefresh);
+    }
+  }, [loadDailyDataForSite, selectedPeriod]);
 
   // Видимые сайты для рендеринга - фильтруем по тегам, статусам и поиску
   const visibleSites = useMemo(() => {
