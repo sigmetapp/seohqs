@@ -4,6 +4,7 @@ import { storage } from '@/lib/storage';
 import { updateIntegrations, getAllGoogleAccounts, createGoogleAccount, updateGoogleAccount } from '@/lib/db-adapter';
 import { getCurrentUser } from '@/lib/auth-utils';
 import { getSupabaseAuthUserId, upsertGSCIntegration, upsertGSCSites } from '@/lib/gsc-integrations';
+import { upsertGoogleGSCAccount } from '@/lib/google-gsc-accounts';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -195,6 +196,19 @@ export async function GET(request: Request) {
           refresh_token: refreshToken,
         });
         console.log('[Google OAuth Callback] GSC integration saved for Supabase Auth user:', supabaseAuthUserId);
+        
+        // Также сохраняем в новую таблицу google_gsc_accounts для поддержки множественных аккаунтов
+        try {
+          await upsertGoogleGSCAccount(supabaseAuthUserId, {
+            google_email: googleUserInfo.email,
+            google_user_id: googleUserInfo.sub,
+            source: 'gsc',
+          });
+          console.log('[Google OAuth Callback] Google GSC account saved to google_gsc_accounts:', googleUserInfo.email);
+        } catch (accountError) {
+          console.warn('[Google OAuth Callback] Error saving to google_gsc_accounts:', accountError);
+          // Continue even if this fails
+        }
         
         // Optionally fetch and save GSC sites immediately
         try {
