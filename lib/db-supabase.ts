@@ -280,6 +280,22 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
   }
 
   try {
+    // Сначала проверяем, что сайт существует и принадлежит пользователю
+    const { data: existingSite, error: checkError } = await supabase
+      .from('sites')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (checkError) {
+      throw new Error(`Supabase check error: ${checkError.message}`);
+    }
+
+    if (!existingSite) {
+      throw new Error('Site not found or access denied');
+    }
+
     const updateData: any = {
       updated_at: new Date().toISOString(),
     };
@@ -296,10 +312,41 @@ export async function updateSite(id: number, site: Partial<Omit<Site, 'id' | 'cr
       .eq('id', id)
       .eq('user_id', userId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
+      // Проверяем специфичные ошибки Supabase
+      if (error.message?.includes('Cannot coerce') || error.message?.includes('multiple rows')) {
+        // Если запрос вернул несколько строк, получаем первую
+        const { data: multipleData, error: multipleError } = await supabase
+          .from('sites')
+          .select('*')
+          .eq('id', id)
+          .eq('user_id', userId)
+          .limit(1);
+
+        if (multipleError || !multipleData || multipleData.length === 0) {
+          throw new Error('Site not found or access denied');
+        }
+
+        const siteData = multipleData[0];
+        return {
+          id: siteData.id,
+          name: siteData.name,
+          domain: siteData.domain,
+          category: siteData.category,
+          googleSearchConsoleUrl: siteData.google_search_console_url,
+          userId: siteData.user_id,
+          statusId: siteData.status_id,
+          createdAt: siteData.created_at,
+          updatedAt: siteData.updated_at,
+        };
+      }
       throw new Error(`Supabase update error: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('Failed to update site: no data returned');
     }
 
     return {
@@ -438,16 +485,33 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
 
   try {
     // Сначала убедимся, что запись существует
-    const { data: existing } = await supabase
+    const { data: existing, error: checkError } = await supabase
       .from('integrations')
       .select('id')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      throw new Error(`Supabase check error: ${checkError.message}`);
+    }
 
     if (!existing) {
-      await supabase
+      const { error: insertError } = await supabase
         .from('integrations')
         .insert({ user_id: userId });
+      
+      if (insertError) {
+        // Если таблица не существует
+        if (insertError.code === '42P01' || insertError.message?.includes('does not exist') || insertError.message?.includes('schema cache')) {
+          throw new Error(
+            `Таблица integrations не существует в Supabase. Пожалуйста, выполните миграцию:\n` +
+            `1. Откройте Supabase Dashboard\n` +
+            `2. Перейдите в SQL Editor\n` +
+            `3. Выполните SQL из файла: migrations/006_integrations_table_supabase.sql`
+          );
+        }
+        throw new Error(`Supabase insert error: ${insertError.message}`);
+      }
     }
 
     const updateData: any = {
@@ -478,7 +542,7 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
       .update(updateData)
       .eq('user_id', userId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       // Если таблица не существует
@@ -490,7 +554,39 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
           `3. Выполните SQL из файла: migrations/006_integrations_table_supabase.sql`
         );
       }
+      
+      // Проверяем специфичные ошибки Supabase
+      if (error.message?.includes('Cannot coerce') || error.message?.includes('multiple rows')) {
+        // Если запрос вернул несколько строк, получаем первую
+        const { data: multipleData, error: multipleError } = await supabase
+          .from('integrations')
+          .select('*')
+          .eq('user_id', userId)
+          .limit(1);
+
+        if (multipleError || !multipleData || multipleData.length === 0) {
+          throw new Error('Failed to update integrations: no data found');
+        }
+
+        const integrationData = multipleData[0];
+        return {
+          id: integrationData.id,
+          userId: integrationData.user_id,
+          googleServiceAccountEmail: integrationData.google_service_account_email || '',
+          googlePrivateKey: integrationData.google_private_key || '',
+          googleSearchConsoleUrl: integrationData.google_search_console_url || '',
+          googleAccessToken: integrationData.google_access_token || '',
+          googleRefreshToken: integrationData.google_refresh_token || '',
+          googleTokenExpiry: integrationData.google_token_expiry || '',
+          updatedAt: integrationData.updated_at,
+        };
+      }
+      
       throw new Error(`Supabase update error: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('Failed to update integrations: no data returned');
     }
 
     return {
@@ -776,6 +872,22 @@ export async function updateGoogleAccount(id: number, account: Partial<Omit<Goog
   }
 
   try {
+    // Сначала проверяем, что аккаунт существует и принадлежит пользователю
+    const { data: existingAccount, error: checkError } = await supabase
+      .from('google_accounts')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (checkError) {
+      throw new Error(`Supabase check error: ${checkError.message}`);
+    }
+
+    if (!existingAccount) {
+      throw new Error('Google account not found or access denied');
+    }
+
     const updates: any = {};
     if (account.email !== undefined) {
       updates.email = account.email;
@@ -797,17 +909,40 @@ export async function updateGoogleAccount(id: number, account: Partial<Omit<Goog
       .eq('id', id)
       .eq('user_id', userId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        throw new Error('Google account not found');
+      // Проверяем специфичные ошибки Supabase
+      if (error.message?.includes('Cannot coerce') || error.message?.includes('multiple rows')) {
+        // Если запрос вернул несколько строк, получаем первую
+        const { data: multipleData, error: multipleError } = await supabase
+          .from('google_accounts')
+          .select('*')
+          .eq('id', id)
+          .eq('user_id', userId)
+          .limit(1);
+
+        if (multipleError || !multipleData || multipleData.length === 0) {
+          throw new Error('Google account not found or access denied');
+        }
+
+        const accountData = multipleData[0];
+        return {
+          id: accountData.id,
+          email: accountData.email,
+          userId: accountData.user_id,
+          googleAccessToken: accountData.google_access_token || '',
+          googleRefreshToken: accountData.google_refresh_token || '',
+          googleTokenExpiry: accountData.google_token_expiry || '',
+          createdAt: accountData.created_at,
+          updatedAt: accountData.updated_at,
+        };
       }
       throw new Error(`Supabase update error: ${error.message}`);
     }
 
     if (!data) {
-      throw new Error('Failed to update Google account');
+      throw new Error('Failed to update Google account: no data returned');
     }
 
     return {
