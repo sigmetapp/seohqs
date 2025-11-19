@@ -57,11 +57,13 @@ export async function POST(
       }
     }
     
-    // Получаем данные за последние 30 дней
+    // Получаем данные за последние 180 дней (максимальный период, используемый в дашборде)
+    // Это обеспечит наличие данных для всех периодов: 7, 30, 90 и 180 дней
+    // Google Search Console API поддерживает до 16 месяцев данных
     // Передаем найденный URL или указанный вручную, и домен для автоматического поиска
     const aggregatedData = await searchConsoleService.getAggregatedData(
       site.googleSearchConsoleUrl || foundSiteUrl,
-      30,
+      180,
       site.domain
     );
 
