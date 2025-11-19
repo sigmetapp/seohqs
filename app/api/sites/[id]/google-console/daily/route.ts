@@ -198,6 +198,8 @@ export async function GET(
         const baseFirstDate = new Date(baseData[0].date);
         const baseLastDate = new Date(baseData[baseData.length - 1].date);
         console.log(`[Google Console Daily] Available data range in DB: ${baseFirstDate.toISOString().split('T')[0]} - ${baseLastDate.toISOString().split('T')[0]}`);
+      } else {
+        console.log(`[Google Console Daily] No data in database for site ${siteId}. Sync may be needed.`);
       }
     }
 

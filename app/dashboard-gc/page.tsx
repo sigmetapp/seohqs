@@ -894,6 +894,9 @@ export default function DashboardGCPage() {
 
       setAutoSyncProgress({ current: 0, total: sitesToSync.length });
 
+      let successCount = 0;
+      let errorCount = 0;
+
       // Синхронизируем сайты последовательно
       for (let i = 0; i < sitesToSync.length; i++) {
         const site = sitesToSync[i];
@@ -906,27 +909,51 @@ export default function DashboardGCPage() {
             method: 'POST',
           });
 
-          const data = await response.json();
-          
-          if (data.success) {
-            // Очищаем кеш для этого сайта и перезагружаем данные
-            setDailyData(prev => {
-              const newData = { ...prev };
-              delete newData[site.id];
-              return newData;
-            });
-            setLoadingDailyData(prev => ({ ...prev, [site.id]: false }));
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorData;
+            try {
+              errorData = JSON.parse(errorText);
+            } catch {
+              errorData = { error: `HTTP ${response.status}: ${errorText}` };
+            }
+            console.error(`[Auto Sync] Error syncing site ${site.id} (${site.domain}):`, errorData);
+            errorCount++;
             
-            // Перезагружаем данные для сайта через функцию загрузки
-            // Используем прямое обращение к функции, так как она стабильна
-            setTimeout(() => {
-              if (loadDailyDataForSite) {
-                loadDailyDataForSite(site.id, true);
-              }
-            }, 100);
+            // Если это ошибка авторизации, останавливаем синхронизацию остальных сайтов
+            if (response.status === 401 || response.status === 403) {
+              console.error(`[Auto Sync] Authentication error, stopping sync for remaining sites`);
+              break;
+            }
+          } else {
+            const data = await response.json();
+            
+            if (data.success) {
+              successCount++;
+              console.log(`[Auto Sync] Successfully synced site ${site.id} (${site.domain})`);
+              
+              // Очищаем кеш для этого сайта и перезагружаем данные
+              setDailyData(prev => {
+                const newData = { ...prev };
+                delete newData[site.id];
+                return newData;
+              });
+              setLoadingDailyData(prev => ({ ...prev, [site.id]: false }));
+              
+              // Перезагружаем данные для сайта через функцию загрузки
+              setTimeout(() => {
+                if (loadDailyDataForSite) {
+                  loadDailyDataForSite(site.id, true);
+                }
+              }, 100);
+            } else {
+              console.error(`[Auto Sync] Sync failed for site ${site.id} (${site.domain}):`, data.error);
+              errorCount++;
+            }
           }
         } catch (err: any) {
-          console.error(`Error auto-syncing site ${site.id}:`, err);
+          console.error(`[Auto Sync] Exception syncing site ${site.id} (${site.domain}):`, err);
+          errorCount++;
         } finally {
           setSyncingSites(prev => {
             const newSet = new Set(prev);
@@ -941,6 +968,7 @@ export default function DashboardGCPage() {
         }
       }
 
+      console.log(`[Auto Sync] Completed: ${successCount} successful, ${errorCount} errors out of ${sitesToSync.length} sites`);
       setAutoSyncProgress(null);
     };
 

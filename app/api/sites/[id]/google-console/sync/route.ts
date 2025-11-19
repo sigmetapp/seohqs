@@ -110,9 +110,13 @@ export async function POST(
         { status: 400 }
       );
     }
+    
+    console.log(`[Sync] Starting sync for site ${siteId}, user ${user.id}`);
+    
     const site = await getSiteById(siteId, user.id);
 
     if (!site) {
+      console.error(`[Sync] Site ${siteId} not found for user ${user.id}`);
       return NextResponse.json(
         {
           success: false,
@@ -122,10 +126,16 @@ export async function POST(
       );
     }
 
+    console.log(`[Sync] Site found: ${site.domain}, GSC URL: ${site.googleSearchConsoleUrl || 'not set'}`);
+
     // Проверяем кеш перед синхронизацией
+    console.log(`[Sync] Checking cache for site ${siteId}...`);
     const syncCheck = await shouldSync(siteId);
+    console.log(`[Sync] Cache check result: needsSync=${syncCheck.needsSync}, missingDays=${syncCheck.missingDays || 0}`);
+    
     if (!syncCheck.needsSync) {
       // Данные свежие (менее 12 часов и все последние дни присутствуют), возвращаем успех без синхронизации
+      console.log(`[Sync] Data is fresh (12h cache), skipping sync for site ${siteId}`);
       const existingData = await getGoogleSearchConsoleDataBySiteId(siteId, 1000);
       return NextResponse.json({
         success: true,
@@ -144,20 +154,53 @@ export async function POST(
 
     // Получаем Google аккаунты пользователя
     // Используем первый доступный аккаунт с токенами
-    const accounts = await getAllGoogleAccounts(user.id);
+    console.log(`[Sync] Loading Google accounts for user ${user.id}...`);
+    let accounts;
+    try {
+      accounts = await getAllGoogleAccounts(user.id);
+      console.log(`[Sync] Found ${accounts.length} Google accounts`);
+    } catch (error: any) {
+      console.error(`[Sync] Error loading Google accounts:`, error);
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Ошибка загрузки Google аккаунтов: ${error.message || 'Неизвестная ошибка'}`,
+        },
+        { status: 500 }
+      );
+    }
+    
     let accountId: number | undefined = undefined;
     
     // Ищем первый аккаунт с валидными токенами
     for (const account of accounts) {
       if (account.googleAccessToken && account.googleRefreshToken) {
         accountId = account.id;
+        console.log(`[Sync] Using Google account ${accountId}`);
         break;
       }
     }
     
-    // Если аккаунт не найден, используем undefined (fallback к старой таблице integrations)
+    if (!accountId) {
+      console.warn(`[Sync] No Google account with valid tokens found for user ${user.id}`);
+      // Продолжаем с undefined, fallback к старой таблице integrations
+    }
+    
     // Получаем данные из Google Search Console API
-    const searchConsoleService = createSearchConsoleService(accountId, user.id);
+    console.log(`[Sync] Creating Search Console service with accountId=${accountId}, userId=${user.id}`);
+    let searchConsoleService;
+    try {
+      searchConsoleService = createSearchConsoleService(accountId, user.id);
+    } catch (error: any) {
+      console.error(`[Sync] Error creating Search Console service:`, error);
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Ошибка создания сервиса Google Search Console: ${error.message || 'Неизвестная ошибка'}`,
+        },
+        { status: 500 }
+      );
+    }
     
     // Если URL не указан, пытаемся найти автоматически по домену
     let foundSiteUrl: string | null = null;
@@ -203,13 +246,43 @@ export async function POST(
     console.log(`[Sync] Found ${existingDates.size} existing dates in DB for site ${siteId}`);
 
     // Получаем данные из Google Search Console API
-    const aggregatedData = await searchConsoleService.getAggregatedData(
-      site.googleSearchConsoleUrl || foundSiteUrl,
-      daysToLoad,
-      site.domain
-    );
+    console.log(`[Sync] Fetching data from Google Search Console API for site ${siteId}...`);
+    let aggregatedData;
+    try {
+      aggregatedData = await searchConsoleService.getAggregatedData(
+        site.googleSearchConsoleUrl || foundSiteUrl,
+        daysToLoad,
+        site.domain
+      );
+      console.log(`[Sync] Received ${aggregatedData.length} records from Google Search Console API`);
+    } catch (error: any) {
+      console.error(`[Sync] Error fetching data from Google Search Console API:`, error);
+      console.error(`[Sync] Error stack:`, error.stack);
+      
+      // Более детальная обработка ошибок API
+      let errorMessage = error.message || 'Ошибка получения данных из Google Search Console';
+      
+      if (errorMessage.includes('OAuth') || errorMessage.includes('авторизоваться') || errorMessage.includes('необходимо авторизоваться')) {
+        errorMessage = 'Ошибка аутентификации. Убедитесь, что вы авторизованы через Google в разделе Интеграции.';
+      } else if (errorMessage.includes('доступ запрещен') || errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+        errorMessage = 'Доступ запрещен. Убедитесь, что ваш Google аккаунт имеет доступ к сайту в Google Search Console.';
+      } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+        errorMessage = 'Ошибка авторизации. Токены доступа истекли. Пожалуйста, переавторизуйтесь через Google в разделе Интеграции.';
+      } else if (errorMessage.includes('API не включен') || errorMessage.includes('has not been used') || errorMessage.includes('is disabled')) {
+        errorMessage = 'Google Search Console API не включен. Включите API в Google Cloud Console.';
+      }
+      
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorMessage,
+        },
+        { status: 500 }
+      );
+    }
 
     if (aggregatedData.length === 0) {
+      console.log(`[Sync] No data received from Google Search Console API for site ${siteId}`);
       return NextResponse.json({
         success: true,
         message: 'Данные синхронизированы, но новых данных не найдено',
@@ -253,7 +326,23 @@ export async function POST(
     // bulkInsertGoogleSearchConsoleData использует upsert, поэтому существующие данные будут обновлены,
     // а новые - добавлены
     if (dataToInsert.length > 0) {
-      await bulkInsertGoogleSearchConsoleData(dataToInsert);
+      console.log(`[Sync] Saving ${dataToInsert.length} records to database for site ${siteId}...`);
+      try {
+        await bulkInsertGoogleSearchConsoleData(dataToInsert);
+        console.log(`[Sync] Successfully saved ${dataToInsert.length} records to database for site ${siteId}`);
+      } catch (error: any) {
+        console.error(`[Sync] Error saving data to database:`, error);
+        console.error(`[Sync] Error stack:`, error.stack);
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Ошибка сохранения данных в базу данных: ${error.message || 'Неизвестная ошибка'}`,
+          },
+          { status: 500 }
+        );
+      }
+    } else {
+      console.log(`[Sync] No new data to insert for site ${siteId} (all data already exists)`);
     }
 
     // Очищаем данные старше 90 дней из БД
