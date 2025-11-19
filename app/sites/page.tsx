@@ -348,7 +348,7 @@ export default function SitesPage() {
   };
 
   // Фильтрация и сортировка сайтов
-    const filteredAndSortedSites = useMemo(() => {
+  const filteredAndSortedSites = useMemo(() => {
       let result = sites;
 
       if (selectedTagIds.length > 0) {
