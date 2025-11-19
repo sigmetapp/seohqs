@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useI18n } from '@/lib/i18n-context';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface User {
   id: number;
@@ -13,10 +14,14 @@ interface User {
   sitesCount?: number;
 }
 
+const ADMIN_EMAIL = 'admin@buylink.pro';
+
 export default function AdminUsersPage() {
   const { t } = useI18n();
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -28,8 +33,33 @@ export default function AdminUsersPage() {
   const [resetPasswordData, setResetPasswordData] = useState({ password: '', confirmPassword: '' });
 
   useEffect(() => {
-    loadUsers();
+    checkAuthorization();
   }, []);
+
+  const checkAuthorization = async () => {
+    try {
+      const response = await fetch('/api/auth/user/me');
+      const data = await response.json();
+      
+      if (data.success && data.user) {
+        if (data.user.email === ADMIN_EMAIL) {
+          setAuthorized(true);
+          loadUsers();
+        } else {
+          // Не авторизован как администратор - перенаправляем на главную
+          router.push('/');
+        }
+      } else {
+        // Не авторизован - перенаправляем на главную
+        router.push('/');
+      }
+    } catch (error) {
+      console.error('Ошибка проверки авторизации:', error);
+      router.push('/');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadUsers = async () => {
     try {
@@ -240,6 +270,17 @@ export default function AdminUsersPage() {
       showMessage('error', error.message || 'Ошибка сброса данных пользователя');
     }
   };
+
+  if (loading || !authorized) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Проверка доступа...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -612,19 +653,12 @@ export default function AdminUsersPage() {
       {/* Admin Footer */}
       <footer className="mt-8 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-center items-center space-x-4">
+          <div className="flex justify-center items-center">
             <Link
               href="/"
               className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
             >
               Главная страница
-            </Link>
-            <span className="text-gray-400 dark:text-gray-600">|</span>
-            <Link
-              href="/admin/users"
-              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors font-medium"
-            >
-              Управление пользователями
             </Link>
           </div>
         </div>
