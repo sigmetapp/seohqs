@@ -363,6 +363,40 @@ export function bulkInsertGoogleSearchConsoleData(
   insertMany(data);
 }
 
+/**
+ * Получает множество дат, которые уже есть в БД для указанного сайта за период
+ */
+export function getExistingDatesForSite(
+  siteId: number,
+  startDate: Date,
+  endDate: Date
+): Set<string> {
+  const database = getDatabase();
+  const startDateStr = startDate.toISOString().split('T')[0];
+  const endDateStr = endDate.toISOString().split('T')[0];
+
+  try {
+    const rows = database
+      .prepare('SELECT DISTINCT date FROM google_search_console_data WHERE site_id = ? AND date >= ? AND date <= ?')
+      .all(siteId, startDateStr, endDateStr) as any[];
+
+    const datesSet = new Set<string>();
+    rows.forEach((row: any) => {
+      if (row.date) {
+        datesSet.add(row.date);
+      }
+    });
+
+    return datesSet;
+  } catch (error: any) {
+    if (error.message?.includes('no such table')) {
+      return new Set();
+    }
+    console.error('Error fetching existing dates:', error);
+    return new Set();
+  }
+}
+
 export function clearGoogleSearchConsoleData(siteId?: number): void {
   const database = getDatabase();
   
