@@ -450,6 +450,15 @@ export default function SitesPage() {
     }
   };
 
+  // Функция для нормализации домена из Google Console URL
+  const normalizeGoogleConsoleDomain = (siteUrl: string): string => {
+    let domain = siteUrl.replace(/^sc-domain:/, '');
+    domain = domain.replace(/^https?:\/\//, '');
+    domain = domain.replace(/^www\./, '');
+    domain = domain.split('/')[0];
+    return domain.toLowerCase().trim();
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
@@ -459,15 +468,6 @@ export default function SitesPage() {
       </main>
     );
   }
-
-  // Функция для нормализации домена из Google Console URL
-  const normalizeGoogleConsoleDomain = (siteUrl: string): string => {
-    let domain = siteUrl.replace(/^sc-domain:/, '');
-    domain = domain.replace(/^https?:\/\//, '');
-    domain = domain.replace(/^www\./, '');
-    domain = domain.split('/')[0];
-    return domain.toLowerCase().trim();
-  };
 
   return (
     <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
