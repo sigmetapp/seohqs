@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getGoogleSearchConsoleDataBySiteId } from '@/lib/db-adapter';
+import { getGoogleSearchConsoleDataBySiteId, getSiteById } from '@/lib/db-adapter';
 import { cache } from '@/lib/cache';
+import { requireAuth } from '@/lib/middleware-auth';
+import { createSearchConsoleService } from '@/lib/google-search-console';
+import { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -112,7 +115,7 @@ export async function GET(
     const endDateNormalized = new Date(endDate);
     endDateNormalized.setHours(23, 59, 59, 999);
     
-    const filteredData = allData.filter((item) => {
+    let filteredData = allData.filter((item) => {
       const itemDate = new Date(item.date);
       itemDate.setHours(0, 0, 0, 0);
       return itemDate >= startDateNormalized && itemDate <= endDateNormalized;
@@ -121,10 +124,89 @@ export async function GET(
     // Логирование для отладки
     console.log(`[Google Console Daily] Site ${siteId}, Period: ${days} days, Loaded: ${allData.length} records, Filtered: ${filteredData.length} records, Date range: ${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]}`);
     
+    // Проверяем, достаточно ли данных в БД для запрошенного периода
+    const expectedMinRecords = Math.floor(days * 0.5); // Минимум 50% дней должны иметь данные
+    const hasInsufficientData = filteredData.length < expectedMinRecords;
+    
+    // Проверяем диапазон дат в данных
+    let dataRangeCoverage = 0;
+    let firstDataDate: Date | null = null;
+    let lastDataDate: Date | null = null;
+    
+    if (filteredData.length > 0) {
+      firstDataDate = new Date(filteredData[0].date);
+      lastDataDate = new Date(filteredData[filteredData.length - 1].date);
+      dataRangeCoverage = Math.ceil((lastDataDate.getTime() - firstDataDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
+    
+    // Проверяем, покрывают ли данные запрошенный период
+    const coversStartDate = firstDataDate ? firstDataDate <= startDateNormalized : false;
+    const coversEndDate = lastDataDate ? lastDataDate >= endDateNormalized : false;
+    const rangeCoverageRatio = dataRangeCoverage / days;
+    
+    // Если данные не покрывают начало периода или покрытие меньше 70%, нужно запросить API
+    const needsDirectAPI = !coversStartDate || !coversEndDate || hasInsufficientData || rangeCoverageRatio < 0.7;
+    
+    // Если данных недостаточно, запрашиваем напрямую из Google Search Console API
+    // Для периодов 90+ дней всегда проверяем API, если данных недостаточно
+    if (needsDirectAPI && (days >= 90 || refresh)) {
+      console.log(`[Google Console Daily] Insufficient data in DB for site ${siteId} (${filteredData.length} records, ${dataRangeCoverage} days coverage). Fetching directly from Google Search Console API for ${days} days period.`);
+      
+      try {
+        // Получаем информацию о пользователе и сайте для авторизации
+        const authResult = await requireAuth(request);
+        if (authResult instanceof NextResponse) {
+          // Если авторизация не удалась, продолжаем с данными из БД
+          console.warn(`[Google Console Daily] Auth failed, using DB data only`);
+        } else {
+          const { user } = authResult;
+          const site = await getSiteById(siteId, user.id);
+          
+          if (site) {
+            // Создаем сервис Google Search Console
+            const searchConsoleService = createSearchConsoleService(undefined, user.id);
+            
+            // Запрашиваем данные напрямую из API
+            const apiData = await searchConsoleService.getAggregatedData(
+              site.googleSearchConsoleUrl || null,
+              days,
+              site.domain
+            );
+            
+            if (apiData && apiData.length > 0) {
+              console.log(`[Google Console Daily] Fetched ${apiData.length} records directly from Google Search Console API`);
+              
+              // Фильтруем данные по запрошенному периоду
+              const apiFilteredData = apiData.filter((item) => {
+                const itemDate = new Date(item.date);
+                itemDate.setHours(0, 0, 0, 0);
+                return itemDate >= startDateNormalized && itemDate <= endDateNormalized;
+              });
+              
+              // Если API вернул больше данных, используем их
+              if (apiFilteredData.length > filteredData.length) {
+                console.log(`[Google Console Daily] Using API data (${apiFilteredData.length} records) instead of DB data (${filteredData.length} records)`);
+                filteredData = apiFilteredData.map((item) => ({
+                  siteId: siteId,
+                  clicks: item.clicks,
+                  impressions: item.impressions,
+                  ctr: item.ctr,
+                  position: item.position,
+                  date: item.date,
+                }));
+              }
+            }
+          }
+        }
+      } catch (apiError: any) {
+        console.warn(`[Google Console Daily] Failed to fetch data from Google Search Console API: ${apiError.message}. Using DB data.`);
+        // Продолжаем с данными из БД
+      }
+    }
+    
     // Дополнительная проверка: если данных меньше ожидаемого, логируем предупреждение
-    const expectedMinRecords = Math.floor(days * 0.7); // Минимум 70% дней должны иметь данные
     if (filteredData.length < expectedMinRecords) {
-      console.warn(`[Google Console Daily] Site ${siteId}: Expected at least ${expectedMinRecords} records for ${days} days period, but got only ${filteredData.length}. This may indicate missing data in the database.`);
+      console.warn(`[Google Console Daily] Site ${siteId}: Expected at least ${expectedMinRecords} records for ${days} days period, but got only ${filteredData.length}. This may indicate missing data in the database or API.`);
     }
 
     // Сортируем по дате
