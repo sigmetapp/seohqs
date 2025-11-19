@@ -893,12 +893,40 @@ export default function SitesPage() {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <Link
-                              href={`/sites/${site.id}`}
-                              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline text-sm"
-                            >
-                              {t('sites.openSite')}
-                            </Link>
+                            <div className="flex items-center gap-2">
+                              <Link
+                                href={`/sites/${site.id}`}
+                                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline text-sm"
+                              >
+                                {t('sites.openSite')}
+                              </Link>
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(t('sites.deleteSiteConfirm') || `Вы уверены, что хотите удалить сайт ${site.domain}?`))) {
+                                    return;
+                                  }
+                                  try {
+                                    const response = await fetch(`/api/sites/${site.id}`, {
+                                      method: 'DELETE',
+                                    });
+                                    const data = await response.json();
+                                    if (data.success) {
+                                      loadSites();
+                                      loadAggregatedData();
+                                    } else {
+                                      alert(data.error || t('sites.deleteSiteError') || 'Ошибка удаления сайта');
+                                    }
+                                  } catch (err) {
+                                    console.error('Error deleting site:', err);
+                                    alert(t('sites.deleteSiteError') || 'Ошибка удаления сайта');
+                                  }
+                                }}
+                                className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:underline text-sm"
+                                title={t('sites.deleteSite') || 'Удалить сайт'}
+                              >
+                                {t('sites.delete') || 'Удалить'}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );

@@ -24,6 +24,13 @@ interface GSCAccount {
   accountId?: number;
 }
 
+interface Site {
+  id: number;
+  domain: string;
+  name: string;
+  hasGoogleConsoleConnection: boolean;
+}
+
 export default function IntegrationsPage() {
   const { t } = useI18n();
   const [gscIntegration, setGscIntegration] = useState<GSCIntegration | null>(null);
@@ -33,6 +40,8 @@ export default function IntegrationsPage() {
   const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
   const [showDebug, setShowDebug] = useState(false);
   const [userId, setUserId] = useState<string | number | null>(null);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [sitesLoading, setSitesLoading] = useState(false);
 
   const addDebugInfo = (info: DebugInfo) => {
     setDebugInfo(prev => [...prev.slice(-49), info]); // Keep last 50 entries
@@ -40,6 +49,7 @@ export default function IntegrationsPage() {
 
   useEffect(() => {
     loadGSCIntegration();
+    loadSites();
     
     // Проверяем URL параметры для сообщений от OAuth callback
     const urlParams = new URLSearchParams(window.location.search);
@@ -58,6 +68,7 @@ export default function IntegrationsPage() {
       setTimeout(() => setMessage(null), 5000);
       // Перезагружаем интеграцию после успешной авторизации
       loadGSCIntegration();
+      loadSites();
     } else if (error) {
       setMessage({ type: 'error', text: decodeURIComponent(error) });
       addDebugInfo({
@@ -69,6 +80,21 @@ export default function IntegrationsPage() {
       window.history.replaceState({}, '', '/integrations');
     }
   }, []);
+
+  const loadSites = async () => {
+    try {
+      setSitesLoading(true);
+      const response = await fetch('/api/sites');
+      const data = await response.json();
+      if (data.success) {
+        setSites(data.sites || []);
+      }
+    } catch (err) {
+      console.error('Error loading sites:', err);
+    } finally {
+      setSitesLoading(false);
+    }
+  };
 
   const loadGSCIntegration = async () => {
     try {
@@ -636,6 +662,93 @@ export default function IntegrationsPage() {
               </div>
             )}
           </div>
+
+          {/* Sites List Section */}
+          {gscAccounts.length > 0 && (
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-8 border-2 border-green-200 dark:border-gray-700 shadow-lg">
+              <div className="flex items-start gap-4 mb-6">
+                <div className="text-4xl bg-white dark:bg-gray-700 p-3 rounded-xl shadow-md">🌐</div>
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                    Сайты
+                  </h2>
+                  <p className="text-base text-gray-600 dark:text-gray-400">
+                    Управление сайтами из базы данных
+                  </p>
+                </div>
+              </div>
+
+              {sitesLoading ? (
+                <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400 py-4">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
+                  <span>Загрузка сайтов...</span>
+                </div>
+              ) : sites.length === 0 ? (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                  <div className="text-sm text-gray-700 dark:text-gray-300">
+                    Нет сайтов в базе данных
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {sites.map((site) => (
+                    <div
+                      key={site.id}
+                      className="bg-white dark:bg-gray-700 rounded-xl p-4 border-2 border-green-200 dark:border-green-800 shadow-md"
+                    >
+                      <div className="flex items-center justify-between flex-wrap gap-4">
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="text-2xl">🌐</div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                                {site.domain}
+                              </div>
+                              {site.hasGoogleConsoleConnection && (
+                                <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs font-medium rounded">
+                                  GSC Connected
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              {site.name}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Вы уверены, что хотите удалить сайт ${site.domain}?`)) {
+                              return;
+                            }
+                            try {
+                              const response = await fetch(`/api/sites/${site.id}`, {
+                                method: 'DELETE',
+                              });
+                              const data = await response.json();
+                              if (data.success) {
+                                setMessage({ type: 'success', text: `Сайт ${site.domain} успешно удален` });
+                                setTimeout(() => setMessage(null), 3000);
+                                loadSites();
+                              } else {
+                                setMessage({ type: 'error', text: data.error || 'Ошибка удаления сайта' });
+                              }
+                            } catch (err) {
+                              console.error('Error deleting site:', err);
+                              setMessage({ type: 'error', text: 'Ошибка удаления сайта' });
+                            }
+                          }}
+                          className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg text-base font-medium transition-all duration-200 text-white shadow-md hover:shadow-lg transform hover:scale-105"
+                          title={`Удалить сайт ${site.domain}`}
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </main>
