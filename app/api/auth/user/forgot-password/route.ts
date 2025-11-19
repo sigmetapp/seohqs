@@ -158,62 +158,86 @@ async function saveResetToken(userId: number, token: string, expiry: Date): Prom
 
 // Отправка email с инструкциями по восстановлению пароля
 async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<void> {
-  // Проверяем наличие SMTP настроек
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = process.env.SMTP_PORT;
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPassword = process.env.SMTP_PASSWORD;
-  const smtpFrom = process.env.SMTP_FROM || smtpUser || 'noreply@seohqs.com';
-
-  if (!smtpHost || !smtpPort || !smtpUser || !smtpPassword) {
-    // Если SMTP не настроен, выводим ссылку в консоль для разработки
-    console.log('=== PASSWORD RESET EMAIL ===');
-    console.log(`To: ${email}`);
-    console.log(`Subject: Восстановление пароля`);
-    console.log(`Reset URL: ${resetUrl}`);
-    console.log('===========================');
-    
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('SMTP не настроен. Установите переменные окружения SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD');
+  // Приоритет 1: Resend API (рекомендуется для Supabase)
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (resendApiKey) {
+    try {
+      const { Resend } = require('resend');
+      const resend = new Resend(resendApiKey);
+      
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+      
+      await resend.emails.send({
+        from: fromEmail,
+        to: email,
+        subject: 'Восстановление пароля',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">Восстановление пароля</h2>
+            <p>Вы запросили восстановление пароля для вашего аккаунта.</p>
+            <p>Для сброса пароля перейдите по ссылке ниже:</p>
+            <p style="margin: 20px 0;">
+              <a href="${resetUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                Восстановить пароль
+              </a>
+            </p>
+            <p>Или скопируйте эту ссылку в браузер:</p>
+            <p style="word-break: break-all; color: #666;">${resetUrl}</p>
+            <p style="color: #999; font-size: 12px; margin-top: 30px;">
+              Ссылка действительна в течение 1 часа. Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.
+            </p>
+          </div>
+        `,
+      });
+      return;
+    } catch (error) {
+      console.error('Ошибка отправки через Resend:', error);
+      // Продолжаем к следующему методу
     }
-    return;
   }
 
-  // Используем nodemailer для отправки email
-  const nodemailer = require('nodemailer');
+  // Приоритет 2: Supabase SMTP (если настроен в Dashboard)
+  const supabaseSmtpHost = process.env.SUPABASE_SMTP_HOST;
+  const supabaseSmtpPort = process.env.SUPABASE_SMTP_PORT;
+  const supabaseSmtpUser = process.env.SUPABASE_SMTP_USER;
+  const supabaseSmtpPassword = process.env.SUPABASE_SMTP_PASSWORD;
   
-  const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: parseInt(smtpPort),
-    secure: smtpPort === '465',
-    auth: {
-      user: smtpUser,
-      pass: smtpPassword,
-    },
-  });
+  if (supabaseSmtpHost && supabaseSmtpPort && supabaseSmtpUser && supabaseSmtpPassword) {
+    try {
+      const nodemailer = require('nodemailer');
+      
+      const transporter = nodemailer.createTransport({
+        host: supabaseSmtpHost,
+        port: parseInt(supabaseSmtpPort),
+        secure: supabaseSmtpPort === '465',
+        auth: {
+          user: supabaseSmtpUser,
+          pass: supabaseSmtpPassword,
+        },
+      });
 
-  await transporter.sendMail({
-    from: smtpFrom,
-    to: email,
-    subject: 'Восстановление пароля',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333;">Восстановление пароля</h2>
-        <p>Вы запросили восстановление пароля для вашего аккаунта.</p>
-        <p>Для сброса пароля перейдите по ссылке ниже:</p>
-        <p style="margin: 20px 0;">
-          <a href="${resetUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-            Восстановить пароль
-          </a>
-        </p>
-        <p>Или скопируйте эту ссылку в браузер:</p>
-        <p style="word-break: break-all; color: #666;">${resetUrl}</p>
-        <p style="color: #999; font-size: 12px; margin-top: 30px;">
-          Ссылка действительна в течение 1 часа. Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.
-        </p>
-      </div>
-    `,
-    text: `
+      await transporter.sendMail({
+        from: process.env.SUPABASE_SMTP_FROM || supabaseSmtpUser,
+        to: email,
+        subject: 'Восстановление пароля',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">Восстановление пароля</h2>
+            <p>Вы запросили восстановление пароля для вашего аккаунта.</p>
+            <p>Для сброса пароля перейдите по ссылке ниже:</p>
+            <p style="margin: 20px 0;">
+              <a href="${resetUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                Восстановить пароль
+              </a>
+            </p>
+            <p>Или скопируйте эту ссылку в браузер:</p>
+            <p style="word-break: break-all; color: #666;">${resetUrl}</p>
+            <p style="color: #999; font-size: 12px; margin-top: 30px;">
+              Ссылка действительна в течение 1 часа. Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.
+            </p>
+          </div>
+        `,
+        text: `
 Восстановление пароля
 
 Вы запросили восстановление пароля для вашего аккаунта.
@@ -222,6 +246,86 @@ async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<
 ${resetUrl}
 
 Ссылка действительна в течение 1 часа. Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.
-    `,
-  });
+        `,
+      });
+      return;
+    } catch (error) {
+      console.error('Ошибка отправки через Supabase SMTP:', error);
+      // Продолжаем к следующему методу
+    }
+  }
+
+  // Приоритет 3: Обычный SMTP (для совместимости)
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = process.env.SMTP_PORT;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPassword = process.env.SMTP_PASSWORD;
+  
+  if (smtpHost && smtpPort && smtpUser && smtpPassword) {
+    try {
+      const nodemailer = require('nodemailer');
+      
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: parseInt(smtpPort),
+        secure: smtpPort === '465',
+        auth: {
+          user: smtpUser,
+          pass: smtpPassword,
+        },
+      });
+
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || smtpUser || 'noreply@seohqs.com',
+        to: email,
+        subject: 'Восстановление пароля',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">Восстановление пароля</h2>
+            <p>Вы запросили восстановление пароля для вашего аккаунта.</p>
+            <p>Для сброса пароля перейдите по ссылке ниже:</p>
+            <p style="margin: 20px 0;">
+              <a href="${resetUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                Восстановить пароль
+              </a>
+            </p>
+            <p>Или скопируйте эту ссылку в браузер:</p>
+            <p style="word-break: break-all; color: #666;">${resetUrl}</p>
+            <p style="color: #999; font-size: 12px; margin-top: 30px;">
+              Ссылка действительна в течение 1 часа. Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.
+            </p>
+          </div>
+        `,
+        text: `
+Восстановление пароля
+
+Вы запросили восстановление пароля для вашего аккаунта.
+
+Для сброса пароля перейдите по ссылке:
+${resetUrl}
+
+Ссылка действительна в течение 1 часа. Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.
+        `,
+      });
+      return;
+    } catch (error) {
+      console.error('Ошибка отправки через SMTP:', error);
+    }
+  }
+
+  // Если ничего не настроено, выводим в консоль для разработки
+  console.log('=== PASSWORD RESET EMAIL ===');
+  console.log(`To: ${email}`);
+  console.log(`Subject: Восстановление пароля`);
+  console.log(`Reset URL: ${resetUrl}`);
+  console.log('===========================');
+  console.log('⚠️ Email не отправлен. Настройте один из вариантов:');
+  console.log('1. Resend API: RESEND_API_KEY и RESEND_FROM_EMAIL');
+  console.log('2. Supabase SMTP: SUPABASE_SMTP_HOST, SUPABASE_SMTP_PORT, SUPABASE_SMTP_USER, SUPABASE_SMTP_PASSWORD');
+  console.log('3. Обычный SMTP: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD');
+  console.log('===========================');
+  
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Email не настроен. Настройте Resend API, Supabase SMTP или обычный SMTP.');
+  }
 }
