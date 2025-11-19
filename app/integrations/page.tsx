@@ -39,6 +39,8 @@ export default function IntegrationsPage() {
   const [showDebug, setShowDebug] = useState(false);
   const [userId, setUserId] = useState<string | number | null>(null);
   const [showOnlyWithSites, setShowOnlyWithSites] = useState(true); // По умолчанию показываем только аккаунты с сайтами
+  const [debugData, setDebugData] = useState<any>(null);
+  const [loadingDebug, setLoadingDebug] = useState(false);
 
   const addDebugInfo = (info: DebugInfo) => {
     setDebugInfo(prev => [...prev.slice(-49), info]); // Keep last 50 entries
@@ -367,6 +369,60 @@ export default function IntegrationsPage() {
     }
   };
 
+  const handleLoadDebugData = async () => {
+    try {
+      setLoadingDebug(true);
+      addDebugInfo({
+        timestamp: new Date().toISOString(),
+        type: 'api',
+        endpoint: '/api/gsc-integration/debug',
+        message: 'Loading debug data from database...',
+      });
+
+      const response = await fetch('/api/gsc-integration/debug');
+      const data = await response.json();
+      
+      addDebugInfo({
+        timestamp: new Date().toISOString(),
+        type: 'api',
+        endpoint: '/api/gsc-integration/debug',
+        status: response.status,
+        data: {
+          success: data.success,
+          hasDebugData: !!data.debug,
+          error: data.error,
+        },
+      });
+
+      if (data.success && data.debug) {
+        setDebugData(data.debug);
+        addDebugInfo({
+          timestamp: new Date().toISOString(),
+          type: 'info',
+          message: 'Debug data loaded successfully',
+        });
+      } else {
+        addDebugInfo({
+          timestamp: new Date().toISOString(),
+          type: 'error',
+          endpoint: '/api/gsc-integration/debug',
+          error: data.error || 'Failed to load debug data',
+        });
+      }
+    } catch (err: any) {
+      console.error('Error loading debug data:', err);
+      addDebugInfo({
+        timestamp: new Date().toISOString(),
+        type: 'error',
+        endpoint: '/api/gsc-integration/debug',
+        error: err.message || String(err),
+        message: 'Exception while loading debug data',
+      });
+    } finally {
+      setLoadingDebug(false);
+    }
+  };
+
   const handleGoogleAuth = async () => {
     try {
       addDebugInfo({
@@ -457,12 +513,21 @@ export default function IntegrationsPage() {
           <div className="mb-6 bg-gray-900 dark:bg-black rounded-lg p-4 border border-gray-700 max-h-96 overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-bold text-yellow-400">🐛 Debug Panel</h3>
-              <button
-                onClick={() => setDebugInfo([])}
-                className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs text-white"
-              >
-                Clear
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleLoadDebugData}
+                  disabled={loadingDebug}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-xs text-white"
+                >
+                  {loadingDebug ? 'Loading...' : '🔍 Load DB Data'}
+                </button>
+                <button
+                  onClick={() => setDebugInfo([])}
+                  className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs text-white"
+                >
+                  Clear
+                </button>
+              </div>
             </div>
             <div className="space-y-2 text-xs font-mono">
               <div className="grid grid-cols-2 gap-2 mb-3">
@@ -497,6 +562,86 @@ export default function IntegrationsPage() {
                         {idx === 0 && <div className="text-green-400">⭐ Active (Primary)</div>}
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+              {debugData && (
+                <div className="text-cyan-400 mb-2 p-2 bg-cyan-900/20 rounded border border-cyan-700">
+                  <strong>📊 Database Debug Data:</strong>
+                  <div className="mt-2 text-xs space-y-2">
+                    <div className="border-l-2 border-cyan-600 pl-2">
+                      <div><strong>Supabase Auth User ID:</strong> {debugData.supabase?.authUserId || '❌ Not found'}</div>
+                      <div><strong>JWT User ID:</strong> {debugData.user?.jwtUserId}</div>
+                      <div><strong>JWT User Email:</strong> {debugData.user?.jwtUserEmail}</div>
+                      <div><strong>Supabase Configured:</strong> {debugData.supabase?.configured ? '✅ Yes' : '❌ No'}</div>
+                    </div>
+                    {debugData.tables?.gsc_integrations && debugData.tables.gsc_integrations.length > 0 && (
+                      <div className="border-l-2 border-green-600 pl-2">
+                        <strong>gsc_integrations ({debugData.tables.gsc_integrations.length}):</strong>
+                        {debugData.tables.gsc_integrations.map((integration: any, idx: number) => (
+                          <div key={idx} className="ml-2 mt-1">
+                            <div>Email: {integration.google_email}</div>
+                            <div>Google User ID: {integration.google_user_id}</div>
+                            <div>Has Access Token: {integration.has_access_token ? '✅' : '❌'}</div>
+                            <div>Has Refresh Token: {integration.has_refresh_token ? '✅' : '❌'}</div>
+                            <div>Created: {new Date(integration.created_at).toLocaleString()}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {debugData.tables?.google_gsc_accounts && debugData.tables.google_gsc_accounts.length > 0 && (
+                      <div className="border-l-2 border-blue-600 pl-2">
+                        <strong>google_gsc_accounts ({debugData.tables.google_gsc_accounts.length}):</strong>
+                        {debugData.tables.google_gsc_accounts.map((account: any, idx: number) => (
+                          <div key={idx} className="ml-2 mt-1">
+                            <div>Email: {account.google_email}</div>
+                            <div>Google User ID: {account.google_user_id}</div>
+                            <div>Source: {account.source}</div>
+                            <div>Active: {account.is_active ? '✅' : '❌'}</div>
+                            <div>Created: {new Date(account.created_at).toLocaleString()}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {debugData.tables?.gsc_sites && debugData.tables.gsc_sites.length > 0 && (
+                      <div className="border-l-2 border-yellow-600 pl-2">
+                        <strong>gsc_sites ({debugData.tables.gsc_sites.length}):</strong>
+                        {debugData.tables.gsc_sites.map((site: any, idx: number) => (
+                          <div key={idx} className="ml-2 mt-1">
+                            <div>URL: {site.site_url}</div>
+                            <div>Permission: {site.permission || 'N/A'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {debugData.tables?.google_accounts && debugData.tables.google_accounts.length > 0 && (
+                      <div className="border-l-2 border-orange-600 pl-2">
+                        <strong>google_accounts ({debugData.tables.google_accounts.length}):</strong>
+                        {debugData.tables.google_accounts.map((account: any, idx: number) => (
+                          <div key={idx} className="ml-2 mt-1">
+                            <div>Email: {account.email}</div>
+                            <div>Has Access Token: {account.has_access_token ? '✅' : '❌'}</div>
+                            <div>Has Refresh Token: {account.has_refresh_token ? '✅' : '❌'}</div>
+                            <div>Created: {new Date(account.created_at).toLocaleString()}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {debugData.errors && debugData.errors.length > 0 && (
+                      <div className="border-l-2 border-red-600 pl-2">
+                        <strong className="text-red-400">Errors:</strong>
+                        {debugData.errors.map((error: string, idx: number) => (
+                          <div key={idx} className="ml-2 mt-1 text-red-300">{error}</div>
+                        ))}
+                      </div>
+                    )}
+                    {(!debugData.tables?.gsc_integrations || debugData.tables.gsc_integrations.length === 0) &&
+                     (!debugData.tables?.google_gsc_accounts || debugData.tables.google_gsc_accounts.length === 0) &&
+                     (!debugData.tables?.google_accounts || debugData.tables.google_accounts.length === 0) && (
+                      <div className="text-yellow-400 border-l-2 border-yellow-600 pl-2">
+                        ⚠️ No integration data found in any table
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

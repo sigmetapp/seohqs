@@ -63,13 +63,22 @@ export async function GET(request: NextRequest) {
 
     // Get Supabase Auth user ID
     const supabaseAuthUserId = await getSupabaseAuthUserId(request);
+    console.log('[GSC Integration GET] Supabase Auth user ID:', supabaseAuthUserId);
+    console.log('[GSC Integration GET] JWT user ID:', authResult.user.id);
+    console.log('[GSC Integration GET] JWT user email:', authResult.user.email);
     
     // Track which emails we've already added to avoid duplicates
     const addedEmails = new Set<string>();
     
     // Try to get GSC integration from Supabase Auth table first (gsc_integrations)
     if (supabaseAuthUserId) {
+      console.log('[GSC Integration GET] Looking for integration in gsc_integrations for user:', supabaseAuthUserId);
       const integration = await getGSCIntegration(supabaseAuthUserId);
+      console.log('[GSC Integration GET] Found integration:', integration ? {
+        id: integration.id,
+        google_email: integration.google_email,
+        has_tokens: !!(integration.access_token && integration.refresh_token),
+      } : null);
       
       if (integration) {
         // Check GSC sites for this integration
@@ -109,7 +118,9 @@ export async function GET(request: NextRequest) {
       
       // Also get accounts from google_gsc_accounts table (supports multiple accounts)
       try {
+        console.log('[GSC Integration GET] Looking for accounts in google_gsc_accounts for user:', supabaseAuthUserId);
         const googleGSCAccounts = await getGoogleGSCAccounts(supabaseAuthUserId);
+        console.log('[GSC Integration GET] Found google_gsc_accounts:', googleGSCAccounts.length);
         
         for (const account of googleGSCAccounts) {
           // Skip if we already added this email from gsc_integrations
@@ -146,7 +157,9 @@ export async function GET(request: NextRequest) {
     // Check google_accounts table for JWT-authenticated users
     // This allows users authenticated via JWT/PostgreSQL auth to see their connected accounts
     try {
+      console.log('[GSC Integration GET] Looking for accounts in google_accounts for JWT user:', authResult.user.id);
       const googleAccounts = await getAllGoogleAccounts(authResult.user.id);
+      console.log('[GSC Integration GET] Found google_accounts:', googleAccounts.length);
       
       // Add all accounts with valid tokens
       const connectedAccounts = googleAccounts
@@ -174,6 +187,13 @@ export async function GET(request: NextRequest) {
     // For now, we'll return all accounts but mark which ones have sites
     // The frontend can filter if needed
     const accountsWithSites = allAccounts.filter(acc => acc.hasSites);
+
+    console.log('[GSC Integration GET] Summary:', {
+      totalAccounts: allAccounts.length,
+      accountsWithSites: accountsWithSites.length,
+      userSitesCount: userSitesCount,
+      supabaseAuthUserId: supabaseAuthUserId,
+    });
 
     // Return all accounts
     return NextResponse.json({
