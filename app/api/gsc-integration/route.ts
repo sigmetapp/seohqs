@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getSupabaseAuthUserId, getGSCIntegration, deleteGSCIntegration, getGSCSites } from '@/lib/gsc-integrations';
 import { requireAuth } from '@/lib/middleware-auth';
-import { getAllGoogleAccounts, deleteGoogleAccount, getAllSites } from '@/lib/db-adapter';
+import { getAllGoogleAccounts, deleteGoogleAccount, getAllSites, clearGoogleSearchConsoleData } from '@/lib/db-adapter';
 import { getGoogleGSCAccounts, deactivateGoogleGSCAccount } from '@/lib/google-gsc-accounts';
 
 export const dynamic = 'force-dynamic';
@@ -364,6 +364,100 @@ export async function DELETE(request: NextRequest) {
     const accountId = searchParams.get('accountId');
     const accountUuid = searchParams.get('accountUuid');
     const accountSource = searchParams.get('source'); // 'supabase', 'jwt', or 'google_gsc_accounts'
+    const deleteSites = searchParams.get('deleteSites') === 'true'; // Whether to delete sites when disconnecting
+
+    // Helper function to delete all user sites
+    const deleteAllUserSites = async () => {
+      try {
+        const sites = await getAllSites(authResult.user.id);
+        if (sites.length === 0) {
+          return { deletedSites: 0, deletedGSCData: 0 };
+        }
+
+        // Delete Google Search Console data for each site
+        let deletedDataCount = 0;
+        for (const site of sites) {
+          try {
+            await clearGoogleSearchConsoleData(site.id);
+            deletedDataCount++;
+          } catch (error: any) {
+            console.warn(`Failed to clear GSC data for site ${site.id}:`, error.message);
+          }
+        }
+
+        // Delete sites from database
+        const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL);
+        const usePostgres = !useSupabase && !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
+        
+        if (useSupabase) {
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+          );
+          
+          // Delete site_tags first (due to foreign keys)
+          const siteIds = sites.map(s => s.id);
+          if (siteIds.length > 0) {
+            await supabase
+              .from('site_tags')
+              .delete()
+              .in('site_id', siteIds);
+          }
+          
+          // Delete sites
+          await supabase
+            .from('sites')
+            .delete()
+            .eq('user_id', authResult.user.id);
+        } else if (usePostgres) {
+          const { getPostgresClient } = await import('@/lib/postgres-client');
+          const db = await getPostgresClient();
+          
+          // Delete site_tags first
+          const siteIds = sites.map(s => s.id);
+          if (siteIds.length > 0) {
+            const placeholders = siteIds.map((_, i) => `$${i + 1}`).join(',');
+            await db.query(
+              `DELETE FROM site_tags WHERE site_id IN (${placeholders})`,
+              siteIds
+            );
+          }
+          
+          // Delete sites
+          await db.query('DELETE FROM sites WHERE user_id = $1', [authResult.user.id]);
+        } else {
+          // SQLite
+          const Database = require('better-sqlite3');
+          const { join } = require('path');
+          const { existsSync, mkdirSync } = require('fs');
+          
+          const dbDir = join(process.cwd(), 'data');
+          if (!existsSync(dbDir)) {
+            mkdirSync(dbDir, { recursive: true });
+          }
+          
+          const dbPath = join(dbDir, 'affiliate.db');
+          const db = new Database(dbPath);
+          
+          // Delete site_tags first
+          const siteIds = sites.map(s => s.id);
+          if (siteIds.length > 0) {
+            const placeholders = siteIds.map(() => '?').join(',');
+            db.prepare(`DELETE FROM site_tags WHERE site_id IN (${placeholders})`).run(...siteIds);
+          }
+          
+          // Delete sites
+          db.prepare('DELETE FROM sites WHERE user_id = ?').run(authResult.user.id);
+          db.close();
+        }
+
+        return { deletedSites: sites.length, deletedGSCData: deletedDataCount };
+      } catch (error: any) {
+        console.error('Error deleting user sites:', error);
+        throw error;
+      }
+    };
 
     // If specific account ID is provided, delete only that one
     if (accountId) {
@@ -371,10 +465,26 @@ export async function DELETE(request: NextRequest) {
       if (!isNaN(numericId)) {
         // JWT account (numeric ID)
         try {
+          // Check if account has sites before deleting
+          const sites = await getAllSites(authResult.user.id);
+          const hasSites = sites.length > 0;
+          
+          // Delete account
           await deleteGoogleAccount(numericId, authResult.user.id);
+          
+          // If account had sites and deleteSites flag is set, delete all sites
+          let sitesDeleted = 0;
+          if (hasSites && deleteSites) {
+            const result = await deleteAllUserSites();
+            sitesDeleted = result.deletedSites;
+          }
+          
           return NextResponse.json({
             success: true,
-            message: 'Google account disconnected successfully',
+            message: sitesDeleted > 0 
+              ? `Google account disconnected successfully. Deleted ${sitesDeleted} sites.`
+              : 'Google account disconnected successfully',
+            deletedSites: sitesDeleted,
           });
         } catch (deleteError: any) {
           console.error(`[GSC Integration DELETE] Failed to delete account ${accountId}:`, deleteError?.message);
@@ -390,13 +500,28 @@ export async function DELETE(request: NextRequest) {
     if (accountUuid) {
       const supabaseAuthUserId = await getSupabaseAuthUserId(request);
       if (supabaseAuthUserId) {
+        // Check if account has sites before deleting
+        const sites = await getAllSites(authResult.user.id);
+        const hasSites = sites.length > 0;
+        
         // Check if it's from google_gsc_accounts table
         if (accountSource === 'google_gsc_accounts') {
           try {
             await deactivateGoogleGSCAccount(accountUuid, supabaseAuthUserId);
+            
+            // If account had sites and deleteSites flag is set, delete all sites
+            let sitesDeleted = 0;
+            if (hasSites && deleteSites) {
+              const result = await deleteAllUserSites();
+              sitesDeleted = result.deletedSites;
+            }
+            
             return NextResponse.json({
               success: true,
-              message: 'Google GSC account disconnected successfully',
+              message: sitesDeleted > 0 
+                ? `Google GSC account disconnected successfully. Deleted ${sitesDeleted} sites.`
+                : 'Google GSC account disconnected successfully',
+              deletedSites: sitesDeleted,
             });
           } catch (deleteError: any) {
             console.error(`[GSC Integration DELETE] Failed to delete google_gsc_account:`, deleteError?.message);
@@ -413,9 +538,20 @@ export async function DELETE(request: NextRequest) {
           const integration = await getGSCIntegration(supabaseAuthUserId);
           if (integration && integration.id === accountUuid) {
             await deleteGSCIntegration(supabaseAuthUserId);
+            
+            // If account had sites and deleteSites flag is set, delete all sites
+            let sitesDeleted = 0;
+            if (hasSites && deleteSites) {
+              const result = await deleteAllUserSites();
+              sitesDeleted = result.deletedSites;
+            }
+            
             return NextResponse.json({
               success: true,
-              message: 'GSC integration disconnected successfully',
+              message: sitesDeleted > 0 
+                ? `GSC integration disconnected successfully. Deleted ${sitesDeleted} sites.`
+                : 'GSC integration disconnected successfully',
+              deletedSites: sitesDeleted,
             });
           } else {
             return NextResponse.json({

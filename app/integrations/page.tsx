@@ -229,7 +229,14 @@ export default function IntegrationsPage() {
 
   const handleDisconnectGSC = async (account?: GSCAccount) => {
     const accountEmail = account?.google_email || 'this account';
-    if (!confirm(`Are you sure you want to disconnect ${accountEmail}?`)) {
+    const hasSites = account?.hasSites || account?.sitesCount > 0;
+    
+    // Show warning if account has sites
+    const confirmMessage = hasSites
+      ? `Вы уверены, что хотите отвязать аккаунт ${accountEmail}? Все сайты будут удалены из панелей /dashboard-gc и /sites. Это действие нельзя отменить.`
+      : `Вы уверены, что хотите отвязать аккаунт ${accountEmail}?`;
+    
+    if (!confirm(confirmMessage)) {
       return;
     }
 
@@ -244,6 +251,11 @@ export default function IntegrationsPage() {
         } else if (account.source === 'supabase') {
           url += `?accountUuid=${account.id}&source=supabase`;
         }
+        
+        // Add deleteSites parameter if account has sites
+        if (hasSites) {
+          url += url.includes('?') ? '&deleteSites=true' : '?deleteSites=true';
+        }
       }
 
       const response = await fetch(url, {
@@ -251,16 +263,19 @@ export default function IntegrationsPage() {
       });
       const data = await response.json();
       if (data.success) {
-        setMessage({ type: 'success', text: `Account ${accountEmail} disconnected successfully` });
-        setTimeout(() => setMessage(null), 3000);
+        const successMessage = data.deletedSites > 0
+          ? `Аккаунт ${accountEmail} отвязан. Удалено ${data.deletedSites} сайтов.`
+          : `Аккаунт ${accountEmail} отвязан успешно`;
+        setMessage({ type: 'success', text: successMessage });
+        setTimeout(() => setMessage(null), 5000);
         // Reload accounts
         loadGSCIntegration();
       } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to disconnect account' });
+        setMessage({ type: 'error', text: data.error || 'Ошибка отвязки аккаунта' });
       }
     } catch (err) {
       console.error('Error disconnecting GSC:', err);
-      setMessage({ type: 'error', text: 'Failed to disconnect account' });
+      setMessage({ type: 'error', text: 'Ошибка отвязки аккаунта' });
     }
   };
 
@@ -827,9 +842,9 @@ export default function IntegrationsPage() {
                       <button
                         onClick={() => handleDisconnectGSC(account)}
                         className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg text-base font-medium transition-all duration-200 text-white shadow-md hover:shadow-lg transform hover:scale-105"
-                        title={`Disconnect ${account.google_email}`}
+                        title={account.hasSites || account.sitesCount > 0 ? `Отвязать ${account.google_email} (все сайты будут удалены)` : `Отвязать ${account.google_email}`}
                       >
-                        {t('integrations.gscDisconnect')}
+                        Отвязать
                       </button>
                     </div>
                   </div>
