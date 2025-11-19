@@ -125,7 +125,7 @@ export default function Navigation() {
   ];
 
   return (
-    <nav className="bg-gray-800 dark:bg-gray-800 bg-white border-b border-gray-700 dark:border-gray-700 border-gray-200">
+    <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
@@ -143,8 +143,8 @@ export default function Navigation() {
                     href={item.href}
                     className={`inline-flex items-center px-2 pt-1 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${
                       isActive
-                        ? 'border-blue-500 text-blue-400 dark:text-blue-400'
-                        : 'border-transparent text-gray-300 dark:text-gray-300 text-gray-700 hover:text-gray-200 dark:hover:text-gray-200 hover:text-gray-900 hover:border-gray-300 dark:hover:border-gray-300'
+                        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                        : 'border-transparent text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-300'
                     }`}
                   >
                     {t(item.labelKey)}
@@ -158,8 +158,8 @@ export default function Navigation() {
                   onClick={() => setShowToolsDropdown(!showToolsDropdown)}
                   className={`inline-flex items-center px-2 pt-1 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${
                     pathname === '/indexing'
-                      ? 'border-blue-500 text-blue-400 dark:text-blue-400'
-                      : 'border-transparent text-gray-300 dark:text-gray-300 text-gray-700 hover:text-gray-200 dark:hover:text-gray-200 hover:text-gray-900 hover:border-gray-300 dark:hover:border-gray-300'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-300'
                   }`}
                 >
                   {t('nav.tools')}
@@ -174,14 +174,14 @@ export default function Navigation() {
                 </button>
                 
                 {showToolsDropdown && (
-                  <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800 dark:bg-gray-800 bg-white border border-gray-700 dark:border-gray-700 border-gray-200 rounded-lg shadow-lg z-50">
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
                     <Link
                       href="/indexing"
                       onClick={() => setShowToolsDropdown(false)}
                       className={`block px-4 py-2 text-sm transition-colors ${
                         pathname === '/indexing'
-                          ? 'bg-gray-700 dark:bg-gray-700 bg-gray-100 text-blue-400 dark:text-blue-400'
-                          : 'text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-700 dark:hover:bg-gray-700 hover:bg-gray-100 hover:text-white dark:hover:text-white hover:text-gray-900'
+                          ? 'bg-gray-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                       }`}
                     >
                       {t('nav.linkIndexer')}
@@ -193,13 +193,13 @@ export default function Navigation() {
           </div>
           <div className="flex items-center space-x-2 md:space-x-3">
             {/* Language switcher */}
-            <div className="flex items-center border border-gray-600 dark:border-gray-600 border-gray-300 rounded overflow-hidden">
+            <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded overflow-hidden">
               <button
                 onClick={() => setLanguage('ru')}
                 className={`px-2 py-1 text-xs font-medium transition-colors ${
                   language === 'ru'
-                    ? 'bg-blue-600 text-white dark:text-white'
-                    : 'bg-gray-700 dark:bg-gray-700 bg-gray-100 text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-200'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 RU
@@ -208,8 +208,8 @@ export default function Navigation() {
                 onClick={() => setLanguage('en')}
                 className={`px-2 py-1 text-xs font-medium transition-colors ${
                   language === 'en'
-                    ? 'bg-blue-600 text-white dark:text-white'
-                    : 'bg-gray-700 dark:bg-gray-700 bg-gray-100 text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-200'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 EN
@@ -219,7 +219,7 @@ export default function Navigation() {
             {/* Theme switcher */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-md text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-700 dark:hover:bg-gray-700 hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
             >
               {theme === 'dark' ? (
@@ -234,7 +234,7 @@ export default function Navigation() {
             </button>
 
             {loading ? (
-              <div className="text-gray-400 dark:text-gray-400 text-gray-600 text-sm">{t('auth.loading')}</div>
+              <div className="text-gray-600 dark:text-gray-400 text-sm">{t('auth.loading')}</div>
             ) : user ? (
               <div className="flex items-center space-x-4">
                 {(user.avatar || user.picture) && (
@@ -246,7 +246,7 @@ export default function Navigation() {
                 )}
                 <Link
                   href="/profile"
-                  className="text-gray-300 dark:text-gray-300 text-gray-700 text-sm hover:text-white dark:hover:text-white hover:text-gray-900 transition-colors"
+                  className="text-gray-700 dark:text-gray-300 text-sm hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
                   {user.name || user.email}
                 </Link>
@@ -291,8 +291,8 @@ export default function Navigation() {
                 href={item.href}
                 className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors ${
                   isActive
-                    ? 'bg-gray-900 dark:bg-gray-900 bg-gray-100 border-blue-500 text-blue-400 dark:text-blue-400'
-                    : 'border-transparent text-gray-300 dark:text-gray-300 text-gray-700 hover:bg-gray-700 dark:hover:bg-gray-700 hover:bg-gray-100 hover:text-gray-200 dark:hover:text-gray-200 hover:text-gray-900'
+                    ? 'bg-gray-100 dark:bg-gray-900 border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 {t(item.labelKey)}
@@ -302,15 +302,15 @@ export default function Navigation() {
           
           {/* Tools for mobile */}
           <div className="pl-3 pr-4 py-2">
-            <div className="text-base font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-1">
+            <div className="text-base font-medium text-gray-700 dark:text-gray-300 mb-1">
               {t('nav.tools')}
             </div>
             <Link
               href="/indexing"
               className={`block pl-6 pr-4 py-2 border-l-4 text-sm font-medium transition-colors ${
                 pathname === '/indexing'
-                  ? 'bg-gray-900 dark:bg-gray-900 bg-gray-100 border-blue-500 text-blue-400 dark:text-blue-400'
-                  : 'border-transparent text-gray-400 dark:text-gray-400 text-gray-600 hover:bg-gray-700 dark:hover:bg-gray-700 hover:bg-gray-100 hover:text-gray-200 dark:hover:text-gray-200 hover:text-gray-900'
+                  ? 'bg-gray-100 dark:bg-gray-900 border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
               {t('nav.linkIndexer')}
@@ -322,9 +322,9 @@ export default function Navigation() {
       {/* Login Modal */}
       {showLoginModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 dark:bg-gray-800 bg-white rounded-lg p-6 w-full max-w-md border border-gray-700 dark:border-gray-700 border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white dark:text-white text-gray-900">{t('auth.loginTitle')}</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('auth.loginTitle')}</h2>
               <button
                 onClick={() => {
                   setShowLoginModal(false);
@@ -332,7 +332,7 @@ export default function Navigation() {
                   setPassword('');
                   setLoginError(null);
                 }}
-                className="text-gray-400 dark:text-gray-400 text-gray-600 hover:text-white dark:hover:text-white hover:text-gray-900"
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -342,13 +342,13 @@ export default function Navigation() {
 
             <form onSubmit={handleEmailLogin} className="space-y-4">
               {loginError && (
-                <div className="bg-red-900 dark:bg-red-900 bg-red-100 text-red-200 dark:text-red-200 text-red-800 px-4 py-3 rounded">
+                <div className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-4 py-3 rounded">
                   {loginError}
                 </div>
               )}
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('auth.email')}
                 </label>
                 <input
@@ -357,13 +357,13 @@ export default function Navigation() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full px-3 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-50 border border-gray-600 dark:border-gray-600 border-gray-300 rounded text-white dark:text-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="your@email.com"
                 />
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-300 dark:text-gray-300 text-gray-700 mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('auth.password')}
                 </label>
                 <input
@@ -372,7 +372,7 @@ export default function Navigation() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full px-3 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-50 border border-gray-600 dark:border-gray-600 border-gray-300 rounded text-white dark:text-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="••••••••"
                 />
               </div>
@@ -393,7 +393,7 @@ export default function Navigation() {
                     setPassword('');
                     setLoginError(null);
                   }}
-                  className="px-4 py-2 bg-gray-700 dark:bg-gray-700 bg-gray-200 hover:bg-gray-600 dark:hover:bg-gray-600 hover:bg-gray-300 text-white dark:text-white text-gray-900 rounded text-sm font-medium transition-colors"
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded text-sm font-medium transition-colors"
                 >
                   {t('auth.cancel')}
                 </button>
