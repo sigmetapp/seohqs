@@ -108,7 +108,7 @@ export default function SummaryPage() {
     return (
       <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center">{t('common.loading')}</div>
+          <div className="text-center text-gray-900 dark:text-white">{t('common.loading')}</div>
         </div>
       </main>
     );
@@ -118,8 +118,8 @@ export default function SummaryPage() {
     <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">{t('summary.title')}</h1>
-          <p className="text-gray-600 dark:text-gray-400">{t('summary.description')}</p>
+          <h1 className="text-4xl font-bold mb-2 text-gray-900 dark:text-white">{t('summary.title')}</h1>
+          <p className="text-gray-700 dark:text-gray-400">{t('summary.description')}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -171,15 +171,15 @@ export default function SummaryPage() {
             
             <div className="space-y-2 mt-4">
               <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
-                <span className="text-sm text-gray-700 dark:text-gray-300">{t('summary.open')}</span>
-                <span className="text-lg font-bold text-green-500">{taskStats.open}</span>
+                <span className="text-sm text-gray-800 dark:text-gray-300">{t('summary.open')}</span>
+                <span className="text-lg font-bold text-green-600 dark:text-green-500">{taskStats.open}</span>
               </div>
               <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
-                <span className="text-sm text-gray-700 dark:text-gray-300">{t('summary.closed')}</span>
-                <span className="text-lg font-bold text-gray-600 dark:text-gray-400">{taskStats.closed}</span>
+                <span className="text-sm text-gray-800 dark:text-gray-300">{t('summary.closed')}</span>
+                <span className="text-lg font-bold text-gray-700 dark:text-gray-400">{taskStats.closed}</span>
               </div>
               <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
-                <span className="text-sm text-gray-700 dark:text-gray-300">{t('summary.total')}</span>
+                <span className="text-sm text-gray-800 dark:text-gray-300">{t('summary.total')}</span>
                 <span className="text-lg font-bold text-gray-900 dark:text-white">{taskStats.total}</span>
               </div>
             </div>
@@ -210,10 +210,10 @@ export default function SummaryPage() {
                         <span className="truncate text-gray-900 dark:text-white">{member.name || member.email}</span>
                       </div>
                       <div className="flex flex-col items-end text-xs">
-                        <span className={online ? 'text-green-500' : 'text-gray-600 dark:text-gray-400'}>
+                        <span className={online ? 'text-green-600 dark:text-green-500' : 'text-gray-700 dark:text-gray-400'}>
                           {online ? t('common.online') : t('common.offline')}
                         </span>
-                        <span className="text-gray-600 dark:text-gray-500">
+                        <span className="text-gray-700 dark:text-gray-500">
                           {formatLastSeen(member.updatedAt)}
                         </span>
                       </div>
