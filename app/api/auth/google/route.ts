@@ -13,18 +13,18 @@ export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url);
     
     // Определяем правильный origin с учетом заголовков (для продакшена с прокси/CDN)
+    // Приоритет: текущий домен запроса > NEXT_PUBLIC_APP_URL
     const headers = request.headers;
     const host = headers.get('host') || headers.get('x-forwarded-host');
     const protocol = headers.get('x-forwarded-proto') || (origin.startsWith('https') ? 'https' : 'http');
     
-    // Используем NEXT_PUBLIC_APP_URL если установлен, иначе определяем из заголовков
-    let baseOrigin = process.env.NEXT_PUBLIC_APP_URL;
-    if (!baseOrigin) {
-      if (host) {
-        baseOrigin = `${protocol}://${host}`;
-      } else {
-        baseOrigin = origin;
-      }
+    // Используем текущий домен запроса, если доступен
+    let baseOrigin: string;
+    if (host) {
+      baseOrigin = `${protocol}://${host}`;
+    } else {
+      // Fallback на NEXT_PUBLIC_APP_URL или origin
+      baseOrigin = process.env.NEXT_PUBLIC_APP_URL || origin;
     }
     
     // Убираем завершающий слэш из baseOrigin, чтобы избежать двойного слэша
