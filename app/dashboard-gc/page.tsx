@@ -352,7 +352,8 @@ const SiteCard = memo(({
   hoveredDateIndex,
   setHoveredDateIndex,
   onSyncSite,
-  isSyncing
+  isSyncing,
+  syncResults
 }: {
   siteData: SiteData;
   dailyData: DailyData[];
