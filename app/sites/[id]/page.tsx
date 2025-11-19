@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { GoogleSearchConsoleData, PostbackData, SiteTask, ProjectLink, SiteStatus } from '@/lib/types';
+import { useI18n } from '@/lib/i18n-context';
 
 export default function SiteDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { t } = useI18n();
   const siteId = params.id as string;
 
   const [site, setSite] = useState<any>(null);
@@ -1388,7 +1390,7 @@ export default function SiteDetailPage() {
                     </div>
                     {queries.length > 50 && (
                       <div className="p-3 text-xs text-gray-400 border-t border-gray-700">
-                        Показано 50 из {queries.length} запросов
+                        {t('home.showingQueries')} {queries.length} {t('home.queries')}
                       </div>
                     )}
                   </div>
@@ -1434,7 +1436,7 @@ export default function SiteDetailPage() {
                     </div>
                     {pages.length > 50 && (
                       <div className="p-3 text-xs text-gray-400 border-t border-gray-700">
-                        Показано 50 из {pages.length} страниц
+                        {t('home.showingPages')} {pages.length} {t('home.pages')}
                       </div>
                     )}
                   </div>

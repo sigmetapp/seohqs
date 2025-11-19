@@ -47,44 +47,44 @@ export default function Home() {
   const demoFeatures = [
     {
       icon: '🌐',
-      title: 'Управление сайтами',
-      description: 'Централизованное управление всеми вашими сайтами. Отслеживайте статистику, задачи и производительность в одном месте.',
-      stats: `${demoStats.sites} сайтов`,
+      titleKey: 'home.featureSitesTitle',
+      descriptionKey: 'home.featureSitesDesc',
+      stats: `${demoStats.sites} ${t('home.sites')}`,
       color: 'blue',
     },
     {
       icon: '🔗',
-      title: 'Индексация ссылок',
-      description: 'Быстрая индексация ссылок через Google Indexing API. Массовая обработка и автоматическое отслеживание статуса.',
-      stats: `${demoStats.indexedLinks.toLocaleString()} ссылок`,
+      titleKey: 'home.featureIndexingTitle',
+      descriptionKey: 'home.featureIndexingDesc',
+      stats: `${demoStats.indexedLinks.toLocaleString()} ${t('home.indexed')}`,
       color: 'green',
     },
     {
       icon: '📊',
-      title: 'Google Search Console',
-      description: 'Интеграция с Google Search Console для получения данных о кликах, показах и позициях в поиске.',
-      stats: `${demoStats.totalClicks.toLocaleString()} кликов`,
+      titleKey: 'home.featureGscTitle',
+      descriptionKey: 'home.featureGscDesc',
+      stats: `${demoStats.totalClicks.toLocaleString()} ${t('home.clicks')}`,
       color: 'purple',
     },
     {
       icon: '📈',
-      title: 'Аналитика и отчеты',
-      description: 'Детальная аналитика по всем вашим сайтам. Отслеживайте тренды, производительность и рост.',
-      stats: `${demoStats.totalImpressions.toLocaleString()} показов`,
+      titleKey: 'home.featureAnalyticsTitle',
+      descriptionKey: 'home.featureAnalyticsDesc',
+      stats: `${demoStats.totalImpressions.toLocaleString()} ${t('home.impressions')}`,
       color: 'orange',
     },
     {
       icon: '✅',
-      title: 'Управление задачами',
-      description: 'Система управления задачами для каждого сайта. Отслеживайте прогресс и координируйте работу команды.',
-      stats: `${demoStats.tasksCompleted} выполнено`,
+      titleKey: 'home.featureTasksTitle',
+      descriptionKey: 'home.featureTasksDesc',
+      stats: `${demoStats.tasksCompleted} ${t('home.completed')}`,
       color: 'indigo',
     },
     {
       icon: '👥',
-      title: 'Командная работа',
-      description: 'Работайте вместе с командой. Управляйте доступом, назначайте задачи и отслеживайте активность.',
-      stats: `${demoStats.teamMembers} участников`,
+      titleKey: 'home.featureTeamTitle',
+      descriptionKey: 'home.featureTeamDesc',
+      stats: `${demoStats.teamMembers} ${t('common.team')}`,
       color: 'pink',
     },
   ];
@@ -104,23 +104,23 @@ export default function Home() {
         <div className="relative max-w-7xl mx-auto">
           <div className="text-center">
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold mb-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
-              SEO Tools Platform
+              {t('home.heroTitle')}
             </h1>
             <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
-              Комплексное решение для управления SEO, индексации ссылок и аналитики ваших сайтов
+              {t('home.heroDescription')}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <button
                 onClick={handleGetStarted}
                 className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg transform transition-all hover:scale-105 hover:shadow-xl"
               >
-                {user ? 'Перейти в панель' : 'Начать работу'}
+                {user ? t('home.goToDashboard') : t('home.getStarted')}
               </button>
               <Link
                 href="#features"
                 className="px-8 py-4 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-semibold rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:shadow-lg transform transition-all hover:scale-105"
               >
-                Узнать больше
+                {t('home.learnMore')}
               </Link>
             </div>
           </div>
@@ -129,19 +129,19 @@ export default function Home() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16 max-w-5xl mx-auto">
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 transform hover:scale-105 transition-all">
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">{demoStats.sites}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Сайтов</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{t('home.sites')}</div>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 transform hover:scale-105 transition-all">
               <div className="text-3xl font-bold text-green-600 dark:text-green-400">{demoStats.indexedLinks.toLocaleString()}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Индексировано</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{t('home.indexed')}</div>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 transform hover:scale-105 transition-all">
               <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">{demoStats.totalClicks.toLocaleString()}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Кликов</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{t('home.clicks')}</div>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 transform hover:scale-105 transition-all">
               <div className="text-3xl font-bold text-orange-600 dark:text-orange-400">{demoStats.totalImpressions.toLocaleString()}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Показов</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{t('home.impressions')}</div>
             </div>
           </div>
         </div>
@@ -152,10 +152,10 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-              Возможности платформы
+              {t('home.featuresTitle')}
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Все инструменты для эффективного управления SEO в одном месте
+              {t('home.featuresSubtitle')}
             </p>
           </div>
 
@@ -167,10 +167,10 @@ export default function Home() {
               >
                 <div className="text-4xl mb-4">{feature.icon}</div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                  {feature.title}
+                  {t(feature.titleKey)}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  {feature.description}
+                  {t(feature.descriptionKey)}
                 </p>
                 <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold bg-${feature.color}-100 dark:bg-${feature.color}-900/30 text-${feature.color}-700 dark:text-${feature.color}-300`}>
                   {feature.stats}
@@ -186,10 +186,10 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-              Примеры данных
+              {t('home.demoDataTitle')}
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Посмотрите, как выглядят данные в реальной работе
+              {t('home.demoDataSubtitle')}
             </p>
           </div>
 
@@ -199,11 +199,11 @@ export default function Home() {
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-blue-600 to-purple-600">
                   <tr>
-                    <th className="px-6 py-4 text-left text-white font-semibold">Домен</th>
-                    <th className="px-6 py-4 text-right text-white font-semibold">Клики</th>
-                    <th className="px-6 py-4 text-right text-white font-semibold">Показы</th>
-                    <th className="px-6 py-4 text-right text-white font-semibold">CTR</th>
-                    <th className="px-6 py-4 text-right text-white font-semibold">Позиция</th>
+                    <th className="px-6 py-4 text-left text-white font-semibold">{t('home.domain')}</th>
+                    <th className="px-6 py-4 text-right text-white font-semibold">{t('home.clicks')}</th>
+                    <th className="px-6 py-4 text-right text-white font-semibold">{t('home.impressions')}</th>
+                    <th className="px-6 py-4 text-right text-white font-semibold">{t('home.ctr')}</th>
+                    <th className="px-6 py-4 text-right text-white font-semibold">{t('home.position')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -235,19 +235,19 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
             <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Индексация</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('home.indexing')}</h3>
                 <span className="text-2xl">🔗</span>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Индексировано</span>
+                  <span className="text-gray-600 dark:text-gray-400">{t('home.indexed')}</span>
                   <span className="font-semibold text-gray-900 dark:text-white">1,247</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <div className="bg-green-500 h-2 rounded-full" style={{ width: '87%' }}></div>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">В обработке</span>
+                  <span className="text-gray-600 dark:text-gray-400">{t('home.inProgress')}</span>
                   <span className="font-semibold text-gray-900 dark:text-white">156</span>
                 </div>
               </div>
@@ -255,19 +255,19 @@ export default function Home() {
 
             <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Задачи</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('home.tasks')}</h3>
                 <span className="text-2xl">✅</span>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Выполнено</span>
+                  <span className="text-gray-600 dark:text-gray-400">{t('home.completed')}</span>
                   <span className="font-semibold text-green-600 dark:text-green-400">89</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <div className="bg-blue-500 h-2 rounded-full" style={{ width: '74%' }}></div>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">В работе</span>
+                  <span className="text-gray-600 dark:text-gray-400">{t('home.inWork')}</span>
                   <span className="font-semibold text-orange-600 dark:text-orange-400">23</span>
                 </div>
               </div>
@@ -275,12 +275,12 @@ export default function Home() {
 
             <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Команда</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('home.team')}</h3>
                 <span className="text-2xl">👥</span>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Активных</span>
+                  <span className="text-gray-600 dark:text-gray-400">{t('home.active')}</span>
                   <span className="font-semibold text-green-600 dark:text-green-400">5</span>
                 </div>
                 <div className="flex gap-2 mt-3">
@@ -303,16 +303,16 @@ export default function Home() {
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Готовы начать?
+            {t('home.ctaTitle')}
           </h2>
           <p className="text-xl text-white/90 mb-8">
-            Присоединяйтесь к платформе и начните эффективно управлять SEO уже сегодня
+            {t('home.ctaDescription')}
           </p>
           <button
             onClick={handleGetStarted}
             className="px-8 py-4 bg-white text-blue-600 font-semibold rounded-lg shadow-lg transform transition-all hover:scale-105 hover:shadow-xl"
           >
-            {user ? 'Перейти в панель' : 'Начать бесплатно'}
+            {user ? t('home.goToDashboard') : t('home.ctaButton')}
           </button>
         </div>
       </section>
