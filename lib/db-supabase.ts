@@ -772,6 +772,51 @@ export async function bulkInsertGoogleSearchConsoleData(
   }
 }
 
+/**
+ * Получает множество дат, которые уже есть в БД для указанного сайта за период
+ */
+export async function getExistingDatesForSite(
+  siteId: number,
+  startDate: Date,
+  endDate: Date
+): Promise<Set<string>> {
+  if (!supabase) {
+    return new Set();
+  }
+
+  try {
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from('google_search_console_data')
+      .select('date')
+      .eq('site_id', siteId)
+      .gte('date', startDateStr)
+      .lte('date', endDateStr);
+
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return new Set();
+      }
+      console.error('Error fetching existing dates:', error);
+      return new Set();
+    }
+
+    const datesSet = new Set<string>();
+    (data || []).forEach((row: any) => {
+      if (row.date) {
+        datesSet.add(row.date);
+      }
+    });
+
+    return datesSet;
+  } catch (error: any) {
+    console.error('Error fetching existing dates:', error);
+    return new Set();
+  }
+}
+
 export async function clearGoogleSearchConsoleData(siteId?: number): Promise<void> {
   if (!supabase) {
     throw new Error('Supabase client not initialized');
@@ -801,6 +846,40 @@ export async function clearGoogleSearchConsoleData(siteId?: number): Promise<voi
       }
       console.log('Cleared all Google Search Console data');
     }
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+/**
+ * Удаляет данные Google Search Console старше указанной даты для указанного сайта
+ */
+export async function deleteOldGoogleSearchConsoleData(
+  siteId: number,
+  beforeDate: Date
+): Promise<void> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized');
+  }
+
+  try {
+    const beforeDateStr = beforeDate.toISOString().split('T')[0];
+    
+    const { error } = await supabase
+      .from('google_search_console_data')
+      .delete()
+      .eq('site_id', siteId)
+      .lt('date', beforeDateStr);
+    
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        // Таблица не существует, ничего не делаем
+        return;
+      }
+      throw new Error(`Supabase delete old data error: ${error.message}`);
+    }
+    
+    console.log(`Deleted Google Search Console data older than ${beforeDateStr} for site ${siteId}`);
   } catch (error: any) {
     throw error;
   }

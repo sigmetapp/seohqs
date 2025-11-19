@@ -511,6 +511,48 @@ export async function bulkInsertGoogleSearchConsoleData(
   }
 }
 
+/**
+ * Получает множество дат, которые уже есть в БД для указанного сайта за период
+ */
+export async function getExistingDatesForSite(
+  siteId: number,
+  startDate: Date,
+  endDate: Date
+): Promise<Set<string>> {
+  if (!isPostgresAvailable()) {
+    return new Set();
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    const result = await db.query(
+      `SELECT DISTINCT date FROM google_search_console_data 
+       WHERE site_id = $1 
+       AND date >= $2 
+       AND date <= $3`,
+      [siteId, startDateStr, endDateStr]
+    );
+
+    const datesSet = new Set<string>();
+    result.rows.forEach((row: any) => {
+      if (row.date) {
+        datesSet.add(row.date);
+      }
+    });
+
+    return datesSet;
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      return new Set();
+    }
+    console.error('Error fetching existing dates:', error);
+    return new Set();
+  }
+}
+
 export async function clearGoogleSearchConsoleData(siteId?: number): Promise<void> {
   if (!isPostgresAvailable()) {
     throw new Error('PostgreSQL database not configured');
@@ -531,6 +573,36 @@ export async function clearGoogleSearchConsoleData(siteId?: number): Promise<voi
   } catch (error: any) {
     if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
       throw new Error('Table google_search_console_data does not exist. Please run migrations.');
+    }
+    throw error;
+  }
+}
+
+/**
+ * Удаляет данные Google Search Console старше указанной даты для указанного сайта
+ */
+export async function deleteOldGoogleSearchConsoleData(
+  siteId: number,
+  beforeDate: Date
+): Promise<void> {
+  if (!isPostgresAvailable()) {
+    throw new Error('PostgreSQL database not configured');
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const beforeDateStr = beforeDate.toISOString().split('T')[0];
+    
+    const result = await db.query(
+      'DELETE FROM google_search_console_data WHERE site_id = $1 AND date < $2',
+      [siteId, beforeDateStr]
+    );
+    
+    console.log(`Deleted Google Search Console data older than ${beforeDateStr} for site ${siteId} (${result.rowCount || 0} rows)`);
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      // Таблица не существует, ничего не делаем
+      return;
     }
     throw error;
   }

@@ -207,7 +207,7 @@ export async function GET(request: NextRequest) {
               const searchConsoleService = createSearchConsoleService(accountId || undefined, user.id);
               const endDateForIndex = new Date();
               const startDateForIndex = new Date();
-              startDateForIndex.setDate(startDateForIndex.getDate() - 180);
+              startDateForIndex.setDate(startDateForIndex.getDate() - 90);
               
               const timeoutPromise = new Promise((_, reject) => 
                 setTimeout(() => reject(new Error('Timeout')), 5000)

@@ -350,6 +350,33 @@ export async function bulkInsertGoogleSearchConsoleData(
   }
 }
 
+/**
+ * Получает множество дат, которые уже есть в БД для указанного сайта за период
+ * @param siteId ID сайта
+ * @param startDate Начальная дата (включительно)
+ * @param endDate Конечная дата (включительно)
+ * @returns Set строк с датами в формате YYYY-MM-DD
+ */
+export async function getExistingDatesForSite(
+  siteId: number,
+  startDate: Date,
+  endDate: Date
+): Promise<Set<string>> {
+  if (useSupabase()) {
+    const { getExistingDatesForSite: getSupabase } = await import('./db-supabase');
+    return getSupabase(siteId, startDate, endDate);
+  } else if (usePostgres()) {
+    const { getExistingDatesForSite: getPostgres } = await import('./db-postgres');
+    return getPostgres(siteId, startDate, endDate);
+  } else {
+    if (process.env.VERCEL) {
+      return new Set();
+    }
+    const { getExistingDatesForSite: getSQLite } = require('./db');
+    return getSQLite(siteId, startDate, endDate);
+  }
+}
+
 export async function clearGoogleSearchConsoleData(siteId?: number): Promise<void> {
   if (useSupabase()) {
     const { clearGoogleSearchConsoleData: clearSupabase } = await import('./db-supabase');
@@ -363,6 +390,30 @@ export async function clearGoogleSearchConsoleData(siteId?: number): Promise<voi
     }
     const { clearGoogleSearchConsoleData: clearSQLite } = require('./db');
     return clearSQLite(siteId);
+  }
+}
+
+/**
+ * Удаляет данные Google Search Console старше указанной даты для указанного сайта
+ * @param siteId ID сайта
+ * @param beforeDate Удалить все данные до этой даты (не включая)
+ */
+export async function deleteOldGoogleSearchConsoleData(
+  siteId: number,
+  beforeDate: Date
+): Promise<void> {
+  if (useSupabase()) {
+    const { deleteOldGoogleSearchConsoleData: deleteSupabase } = await import('./db-supabase');
+    return deleteSupabase(siteId, beforeDate);
+  } else if (usePostgres()) {
+    const { deleteOldGoogleSearchConsoleData: deletePostgres } = await import('./db-postgres');
+    return deletePostgres(siteId, beforeDate);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { deleteOldGoogleSearchConsoleData: deleteSQLite } = require('./db');
+    return deleteSQLite(siteId, beforeDate);
   }
 }
 

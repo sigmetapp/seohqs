@@ -851,7 +851,7 @@ export default function DashboardGCPage() {
   const { t } = useI18n();
   const [sites, setSites] = useState<SiteData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState<number>(90);
+  const [selectedPeriod, setSelectedPeriod] = useState<number>(30);
   const [showImpressions, setShowImpressions] = useState<boolean>(true);
   const [showClicks, setShowClicks] = useState<boolean>(true);
   const [showPositions, setShowPositions] = useState<boolean>(false);
@@ -1057,7 +1057,7 @@ export default function DashboardGCPage() {
         
         if (data.success) {
           // Дебаг: логируем данные для первых нескольких сайтов
-          if (data.sites && data.sites.length > 0 && (selectedPeriod === 7 || selectedPeriod === 30 || selectedPeriod === 90 || selectedPeriod === 180 || selectedPeriod === 360)) {
+          if (data.sites && data.sites.length > 0 && (selectedPeriod === 7 || selectedPeriod === 14 || selectedPeriod === 30 || selectedPeriod === 60 || selectedPeriod === 90)) {
             data.sites.slice(0, 3).forEach((site: any) => {
               console.log(`[DEBUG Dashboard GC] Site ${site.id} (${site.domain}):`, {
                 totalImpressions: site.totalImpressions,
@@ -1285,7 +1285,7 @@ export default function DashboardGCPage() {
                   <div className="w-4 h-4 border-2 border-blue-600 dark:border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                   <div className="flex-1">
                     <div className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                      Автоматическая синхронизация данных за 360 дней...
+                      Автоматическая синхронизация данных за 90 дней...
                     </div>
                     <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                       Синхронизировано {autoSyncProgress.current} из {autoSyncProgress.total} сайтов
@@ -1384,10 +1384,10 @@ export default function DashboardGCPage() {
                     }}
                   >
                     <option value="7">7 {t('dashboardGc.daysShort')}</option>
+                    <option value="14">14 {t('dashboardGc.daysShort')}</option>
                     <option value="30">30 {t('dashboardGc.daysShort')}</option>
+                    <option value="60">60 {t('dashboardGc.daysShort')}</option>
                     <option value="90">90 {t('dashboardGc.daysShort')}</option>
-                    <option value="180">180 {t('dashboardGc.daysShort')}</option>
-                    <option value="360">360 {t('dashboardGc.daysShort')}</option>
                   </select>
                 </div>
                 

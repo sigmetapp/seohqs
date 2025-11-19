@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSiteById, bulkInsertGoogleSearchConsoleData, getAllGoogleAccounts, getGoogleSearchConsoleDataBySiteId } from '@/lib/db-adapter';
+import { getSiteById, bulkInsertGoogleSearchConsoleData, getAllGoogleAccounts, getGoogleSearchConsoleDataBySiteId, getExistingDatesForSite } from '@/lib/db-adapter';
 import { createSearchConsoleService } from '@/lib/google-search-console';
 import { requireAuth } from '@/lib/middleware-auth';
 import { NextRequest } from 'next/server';
@@ -8,32 +8,84 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 // Функция для проверки, нужно ли синхронизировать данные (кеш на 12 часов)
-async function shouldSync(siteId: number): Promise<boolean> {
+// Теперь также проверяет наличие данных за последние дни
+async function shouldSync(siteId: number): Promise<{ needsSync: boolean; missingDays?: number }> {
   try {
-    // Получаем последние данные для проверки времени последней синхронизации
-    // Берем больше записей, чтобы найти максимальное значение created_at
-    const recentData = await getGoogleSearchConsoleDataBySiteId(siteId, 100);
+    const maxDays = 90; // Максимальный период для хранения данных
+    const endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - maxDays);
+    startDate.setHours(0, 0, 0, 0);
+
+    // Получаем существующие даты из БД
+    const existingDates = await getExistingDatesForSite(siteId, startDate, endDate);
     
-    if (recentData.length === 0) {
-      // Нет данных, нужно синхронизировать
-      return true;
+    // Проверяем, есть ли данные за последние 3 дня (для инкрементального обновления)
+    const recentDays = 3;
+    const recentEndDate = new Date();
+    recentEndDate.setHours(23, 59, 59, 999);
+    const recentStartDate = new Date();
+    recentStartDate.setDate(recentStartDate.getDate() - recentDays);
+    recentStartDate.setHours(0, 0, 0, 0);
+
+    // Подсчитываем отсутствующие дни за последние 3 дня
+    let missingRecentDays = 0;
+    for (let d = new Date(recentStartDate); d <= recentEndDate; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      if (!existingDates.has(dateStr)) {
+        missingRecentDays++;
+      }
     }
-    
-    // Находим максимальное значение created_at (время последней синхронизации)
-    const maxCreatedAt = recentData.reduce((max, item) => {
-      const itemTime = new Date(item.createdAt).getTime();
-      return itemTime > max ? itemTime : max;
-    }, 0);
-    
-    const now = Date.now();
-    const hoursSinceSync = (now - maxCreatedAt) / (1000 * 60 * 60);
-    
-    // Если прошло больше 12 часов, нужно синхронизировать
-    return hoursSinceSync >= 12;
+
+    // Если нет данных вообще, нужно синхронизировать
+    if (existingDates.size === 0) {
+      return { needsSync: true, missingDays: maxDays };
+    }
+
+    // Если отсутствуют данные за последние 3 дня, нужно синхронизировать
+    if (missingRecentDays > 0) {
+      return { needsSync: true, missingDays: missingRecentDays };
+    }
+
+    // Проверяем время последней синхронизации (для обратной совместимости)
+    const recentData = await getGoogleSearchConsoleDataBySiteId(siteId, 100);
+    if (recentData.length > 0) {
+      const maxCreatedAt = recentData.reduce((max, item) => {
+        const itemTime = new Date(item.createdAt).getTime();
+        return itemTime > max ? itemTime : max;
+      }, 0);
+      
+      const now = Date.now();
+      const hoursSinceSync = (now - maxCreatedAt) / (1000 * 60 * 60);
+      
+      // Если прошло больше 12 часов, нужно синхронизировать
+      if (hoursSinceSync >= 12) {
+        // Подсчитываем общее количество отсутствующих дней за последние 14 дней
+        const checkDays = 14;
+        const checkEndDate = new Date();
+        checkEndDate.setHours(23, 59, 59, 999);
+        const checkStartDate = new Date();
+        checkStartDate.setDate(checkStartDate.getDate() - checkDays);
+        checkStartDate.setHours(0, 0, 0, 0);
+
+        let missingDays = 0;
+        for (let d = new Date(checkStartDate); d <= checkEndDate; d.setDate(d.getDate() + 1)) {
+          const dateStr = d.toISOString().split('T')[0];
+          if (!existingDates.has(dateStr)) {
+            missingDays++;
+          }
+        }
+
+        return { needsSync: true, missingDays: Math.min(missingDays, checkDays) };
+      }
+    }
+
+    return { needsSync: false };
   } catch (error) {
     // В случае ошибки синхронизируем для безопасности
     console.warn('Error checking sync cache:', error);
-    return true;
+    return { needsSync: true, missingDays: 90 };
   }
 }
 
@@ -71,14 +123,14 @@ export async function POST(
     }
 
     // Проверяем кеш перед синхронизацией
-    const needsSync = await shouldSync(siteId);
-    if (!needsSync) {
-      // Данные свежие (менее 12 часов), возвращаем успех без синхронизации
+    const syncCheck = await shouldSync(siteId);
+    if (!syncCheck.needsSync) {
+      // Данные свежие (менее 12 часов и все последние дни присутствуют), возвращаем успех без синхронизации
       const existingData = await getGoogleSearchConsoleDataBySiteId(siteId, 1000);
       return NextResponse.json({
         success: true,
         message: 'Данные актуальны (кеш 12 часов), синхронизация не требуется',
-        data: existingData.slice(0, 360).map(item => ({
+        data: existingData.slice(0, 90).map(item => ({
           date: item.date,
           clicks: item.clicks,
           impressions: item.impressions,
@@ -119,14 +171,41 @@ export async function POST(
         console.warn('Не удалось автоматически найти сайт в GSC:', error);
       }
     }
+
+    // Определяем период для загрузки данных
+    // Если есть информация о недостающих днях, загружаем только их + небольшой буфер
+    // Иначе загружаем за последние 90 дней (для первой синхронизации или полного обновления)
+    const maxDays = 90;
+    const endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+    const startDate = new Date();
     
-    // Получаем данные за последние 360 дней (максимальный период, используемый в дашборде)
-    // Это обеспечит наличие данных для всех периодов: 180 и 360 дней
-    // Google Search Console API поддерживает до 16 месяцев данных
-    // Передаем найденный URL или указанный вручную, и домен для автоматического поиска
+    let daysToLoad = maxDays;
+    let incrementalSync = false;
+
+    if (syncCheck.missingDays !== undefined && syncCheck.missingDays < maxDays) {
+      // Инкрементальная синхронизация: загружаем только недостающие дни + небольшой буфер
+      // Загружаем на 7 дней больше, чтобы покрыть возможные пропуски
+      daysToLoad = Math.min(syncCheck.missingDays + 7, maxDays);
+      incrementalSync = true;
+      startDate.setDate(startDate.getDate() - daysToLoad);
+      startDate.setHours(0, 0, 0, 0);
+      console.log(`[Incremental Sync] Loading ${daysToLoad} days for site ${siteId} (missing ${syncCheck.missingDays} days)`);
+    } else {
+      // Полная синхронизация: загружаем за последние 90 дней
+      startDate.setDate(startDate.getDate() - maxDays);
+      startDate.setHours(0, 0, 0, 0);
+      console.log(`[Full Sync] Loading ${maxDays} days for site ${siteId}`);
+    }
+
+    // Получаем существующие даты за период, который будем загружать
+    const existingDates = await getExistingDatesForSite(siteId, startDate, endDate);
+    console.log(`[Sync] Found ${existingDates.size} existing dates in DB for site ${siteId}`);
+
+    // Получаем данные из Google Search Console API
     const aggregatedData = await searchConsoleService.getAggregatedData(
       site.googleSearchConsoleUrl || foundSiteUrl,
-      360,
+      daysToLoad,
       site.domain
     );
 
@@ -139,25 +218,65 @@ export async function POST(
       });
     }
 
-    // Преобразуем данные для сохранения в БД
-    const dataToInsert = aggregatedData.map((item) => ({
-      siteId,
-      clicks: item.clicks,
-      impressions: item.impressions,
-      ctr: item.ctr,
-      position: item.position,
-      date: item.date,
-    }));
+    // Фильтруем данные: оставляем только те, которых нет в БД (инкрементальное обновление)
+    // Или все данные, если это полная синхронизация
+    let dataToInsert;
+    if (incrementalSync && existingDates.size > 0) {
+      // Инкрементальная синхронизация: добавляем только новые данные
+      dataToInsert = aggregatedData
+        .filter((item) => !existingDates.has(item.date))
+        .map((item) => ({
+          siteId,
+          clicks: item.clicks,
+          impressions: item.impressions,
+          ctr: item.ctr,
+          position: item.position,
+          date: item.date,
+        }));
+      
+      console.log(`[Incremental Sync] Filtered ${aggregatedData.length} records to ${dataToInsert.length} new records for site ${siteId}`);
+    } else {
+      // Полная синхронизация: сохраняем все данные (upsert обновит существующие)
+      dataToInsert = aggregatedData.map((item) => ({
+        siteId,
+        clicks: item.clicks,
+        impressions: item.impressions,
+        ctr: item.ctr,
+        position: item.position,
+        date: item.date,
+      }));
+      
+      console.log(`[Full Sync] Saving ${dataToInsert.length} records for site ${siteId}`);
+    }
 
     // Сохраняем данные в БД
-    // Данные всегда сохраняются за 360 дней (максимальный период)
-    await bulkInsertGoogleSearchConsoleData(dataToInsert);
+    // bulkInsertGoogleSearchConsoleData использует upsert, поэтому существующие данные будут обновлены,
+    // а новые - добавлены
+    if (dataToInsert.length > 0) {
+      await bulkInsertGoogleSearchConsoleData(dataToInsert);
+    }
 
+    // Очищаем данные старше 90 дней из БД
+    const cleanupDate = new Date();
+    cleanupDate.setDate(cleanupDate.getDate() - 90);
+    cleanupDate.setHours(0, 0, 0, 0);
+    
+    try {
+      const { deleteOldGoogleSearchConsoleData } = await import('@/lib/db-adapter');
+      await deleteOldGoogleSearchConsoleData(siteId, cleanupDate);
+      console.log(`[Sync] Cleaned up old data (older than 90 days) for site ${siteId}`);
+    } catch (error) {
+      console.warn(`[Sync] Failed to cleanup old data for site ${siteId}:`, error);
+      // Не прерываем выполнение, если очистка не удалась
+    }
+
+    const syncType = incrementalSync ? 'инкрементальная' : 'полная';
     return NextResponse.json({
       success: true,
-      message: `Данные Google Search Console синхронизированы. Загружено ${dataToInsert.length} записей`,
+      message: `Данные Google Search Console синхронизированы (${syncType} синхронизация). ${incrementalSync ? `Добавлено` : `Загружено`} ${dataToInsert.length} записей`,
       data: aggregatedData,
       count: dataToInsert.length,
+      incremental: incrementalSync,
     });
   } catch (error: any) {
     console.error('Ошибка синхронизации Google Search Console:', error);

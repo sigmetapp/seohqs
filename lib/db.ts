@@ -363,6 +363,40 @@ export function bulkInsertGoogleSearchConsoleData(
   insertMany(data);
 }
 
+/**
+ * Получает множество дат, которые уже есть в БД для указанного сайта за период
+ */
+export function getExistingDatesForSite(
+  siteId: number,
+  startDate: Date,
+  endDate: Date
+): Set<string> {
+  const database = getDatabase();
+  const startDateStr = startDate.toISOString().split('T')[0];
+  const endDateStr = endDate.toISOString().split('T')[0];
+
+  try {
+    const rows = database
+      .prepare('SELECT DISTINCT date FROM google_search_console_data WHERE site_id = ? AND date >= ? AND date <= ?')
+      .all(siteId, startDateStr, endDateStr) as any[];
+
+    const datesSet = new Set<string>();
+    rows.forEach((row: any) => {
+      if (row.date) {
+        datesSet.add(row.date);
+      }
+    });
+
+    return datesSet;
+  } catch (error: any) {
+    if (error.message?.includes('no such table')) {
+      return new Set();
+    }
+    console.error('Error fetching existing dates:', error);
+    return new Set();
+  }
+}
+
 export function clearGoogleSearchConsoleData(siteId?: number): void {
   const database = getDatabase();
   
@@ -374,6 +408,29 @@ export function clearGoogleSearchConsoleData(siteId?: number): void {
     // Очищаем все данные
     database.prepare('DELETE FROM google_search_console_data').run();
     console.log('Cleared all Google Search Console data');
+  }
+}
+
+/**
+ * Удаляет данные Google Search Console старше указанной даты для указанного сайта
+ */
+export function deleteOldGoogleSearchConsoleData(
+  siteId: number,
+  beforeDate: Date
+): void {
+  const database = getDatabase();
+  const beforeDateStr = beforeDate.toISOString().split('T')[0];
+  
+  try {
+    const stmt = database.prepare('DELETE FROM google_search_console_data WHERE site_id = ? AND date < ?');
+    const info = stmt.run(siteId, beforeDateStr);
+    console.log(`Deleted Google Search Console data older than ${beforeDateStr} for site ${siteId} (${info.changes || 0} rows)`);
+  } catch (error: any) {
+    if (error.message?.includes('no such table')) {
+      // Таблица не существует, ничего не делаем
+      return;
+    }
+    throw error;
   }
 }
 
