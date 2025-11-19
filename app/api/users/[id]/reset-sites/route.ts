@@ -82,20 +82,20 @@ export async function POST(
 
         if (taskIds.length > 0) {
           // Удаляем сообщения задач
-          const { count: messagesCount } = await supabase
+          const { data: deletedMessages, count: messagesCount } = await supabase
             .from('task_messages')
             .delete()
             .in('task_id', taskIds)
-            .select('id', { count: 'exact', head: true });
-          stats.deletedTaskMessages = messagesCount || 0;
+            .select('*', { count: 'exact' });
+          stats.deletedTaskMessages = messagesCount || deletedMessages?.length || 0;
 
           // Удаляем активность задач
-          const { count: activitiesCount } = await supabase
+          const { data: deletedActivities, count: activitiesCount } = await supabase
             .from('task_activities')
             .delete()
             .in('task_id', taskIds)
-            .select('id', { count: 'exact', head: true });
-          stats.deletedTaskActivities = activitiesCount || 0;
+            .select('*', { count: 'exact' });
+          stats.deletedTaskActivities = activitiesCount || deletedActivities?.length || 0;
 
           // Удаляем задачи
           await supabase
@@ -114,12 +114,12 @@ export async function POST(
       }
 
       // 4. Удаляем теги пользователя
-      const { count: tagsCount } = await supabase
+      const { data: deletedTags, count: tagsCount } = await supabase
         .from('tags')
         .delete()
         .eq('user_id', userId)
-        .select('id', { count: 'exact', head: true });
-      stats.deletedTags = tagsCount || 0;
+        .select('*', { count: 'exact' });
+      stats.deletedTags = tagsCount || deletedTags?.length || 0;
 
       // 5. Удаляем сайты
       await supabase
@@ -139,12 +139,12 @@ export async function POST(
       }
 
       // 7. Удаляем интеграции
-      const { count: integrationsCount } = await supabase
+      const { data: deletedIntegrations, count: integrationsCount } = await supabase
         .from('integrations')
         .delete()
         .eq('user_id', userId)
-        .select('id', { count: 'exact', head: true });
-      stats.deletedIntegrations = integrationsCount || 0;
+        .select('*', { count: 'exact' });
+      stats.deletedIntegrations = integrationsCount || deletedIntegrations?.length || 0;
 
       // 8. Удаляем GSC интеграции (Supabase Auth)
       try {
