@@ -106,7 +106,7 @@ export default function SummaryPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-900 dark:bg-gray-900 bg-white text-white dark:text-white text-gray-900 p-8">
+      <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
         <div className="max-w-6xl mx-auto">
           <div className="text-center">{t('common.loading')}</div>
         </div>
@@ -115,42 +115,42 @@ export default function SummaryPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-900 dark:bg-gray-900 bg-white text-white dark:text-white text-gray-900 p-8">
+    <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">{t('summary.title')}</h1>
-          <p className="text-gray-400 dark:text-gray-400 text-gray-600">{t('summary.description')}</p>
+          <p className="text-gray-600 dark:text-gray-400">{t('summary.description')}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Google аккаунты */}
-          <div className="bg-gray-800 dark:bg-gray-800 bg-gray-50 rounded-lg p-6 border border-gray-700 dark:border-gray-700 border-gray-200">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white dark:text-white text-gray-900">
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
               <span>🔐</span>
               <span>{t('summary.googleAccounts')}</span>
             </h2>
-            <div className="text-3xl font-bold mb-2 text-white dark:text-white text-gray-900">
+            <div className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">
               {googleAccounts.filter(account => isAccountConnected(account)).length}
             </div>
-            <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-4">{t('summary.integratedAccounts')}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{t('summary.integratedAccounts')}</p>
             
             {googleAccounts.length > 0 && (
               <div className="space-y-2 mt-4">
                 {googleAccounts.map((account) => (
                   <div
                     key={account.id}
-                    className="flex items-center justify-between p-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 rounded text-sm"
+                    className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm"
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <span className={isAccountConnected(account) ? 'text-green-500' : 'text-yellow-500'}>
                         {isAccountConnected(account) ? '✓' : '⚠'}
                       </span>
-                      <span className="truncate text-white dark:text-white text-gray-900">{account.email}</span>
+                      <span className="truncate text-gray-900 dark:text-white">{account.email}</span>
                     </div>
                     <span className={`text-xs px-2 py-0.5 rounded ${
                       isAccountConnected(account)
-                        ? 'bg-green-900/30 dark:bg-green-900/30 bg-green-100 text-green-300 dark:text-green-300 text-green-700'
-                        : 'bg-yellow-900/30 dark:bg-yellow-900/30 bg-yellow-100 text-yellow-300 dark:text-yellow-300 text-yellow-700'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                        : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
                     }`}>
                       {isAccountConnected(account) ? t('common.connected') : t('common.notConnected')}
                     </span>
@@ -161,38 +161,38 @@ export default function SummaryPage() {
           </div>
 
           {/* Задачи */}
-          <div className="bg-gray-800 dark:bg-gray-800 bg-gray-50 rounded-lg p-6 border border-gray-700 dark:border-gray-700 border-gray-200">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white dark:text-white text-gray-900">
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
               <span>📋</span>
               <span>{t('summary.tasks')}</span>
             </h2>
-            <div className="text-3xl font-bold mb-2 text-white dark:text-white text-gray-900">{taskStats.total}</div>
-            <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-4">{t('summary.totalTasks')}</p>
+            <div className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">{taskStats.total}</div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{t('summary.totalTasks')}</p>
             
             <div className="space-y-2 mt-4">
-              <div className="flex items-center justify-between p-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 rounded">
-                <span className="text-sm text-gray-300 dark:text-gray-300 text-gray-700">{t('summary.open')}</span>
+              <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
+                <span className="text-sm text-gray-700 dark:text-gray-300">{t('summary.open')}</span>
                 <span className="text-lg font-bold text-green-500">{taskStats.open}</span>
               </div>
-              <div className="flex items-center justify-between p-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 rounded">
-                <span className="text-sm text-gray-300 dark:text-gray-300 text-gray-700">{t('summary.closed')}</span>
-                <span className="text-lg font-bold text-gray-400 dark:text-gray-400 text-gray-600">{taskStats.closed}</span>
+              <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
+                <span className="text-sm text-gray-700 dark:text-gray-300">{t('summary.closed')}</span>
+                <span className="text-lg font-bold text-gray-600 dark:text-gray-400">{taskStats.closed}</span>
               </div>
-              <div className="flex items-center justify-between p-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 rounded">
-                <span className="text-sm text-gray-300 dark:text-gray-300 text-gray-700">{t('summary.total')}</span>
-                <span className="text-lg font-bold text-white dark:text-white text-gray-900">{taskStats.total}</span>
+              <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
+                <span className="text-sm text-gray-700 dark:text-gray-300">{t('summary.total')}</span>
+                <span className="text-lg font-bold text-gray-900 dark:text-white">{taskStats.total}</span>
               </div>
             </div>
           </div>
 
           {/* Команда */}
-          <div className="bg-gray-800 dark:bg-gray-800 bg-gray-50 rounded-lg p-6 border border-gray-700 dark:border-gray-700 border-gray-200">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white dark:text-white text-gray-900">
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
               <span>👥</span>
               <span>{t('summary.team')}</span>
             </h2>
-            <div className="text-3xl font-bold mb-2 text-white dark:text-white text-gray-900">{teamMembers.length}</div>
-            <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-4">{t('summary.peopleInTeam')}</p>
+            <div className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">{teamMembers.length}</div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{t('summary.peopleInTeam')}</p>
             
             {teamMembers.length > 0 && (
               <div className="space-y-2 mt-4 max-h-64 overflow-y-auto">
@@ -201,19 +201,19 @@ export default function SummaryPage() {
                   return (
                     <div
                       key={member.id}
-                      className="flex items-center justify-between p-2 bg-gray-700 dark:bg-gray-700 bg-gray-100 rounded text-sm"
+                      className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded text-sm"
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                           online ? 'bg-green-500' : 'bg-gray-500'
                         }`} />
-                        <span className="truncate text-white dark:text-white text-gray-900">{member.name || member.email}</span>
+                        <span className="truncate text-gray-900 dark:text-white">{member.name || member.email}</span>
                       </div>
                       <div className="flex flex-col items-end text-xs">
-                        <span className={online ? 'text-green-500' : 'text-gray-400 dark:text-gray-400 text-gray-600'}>
+                        <span className={online ? 'text-green-500' : 'text-gray-600 dark:text-gray-400'}>
                           {online ? t('common.online') : t('common.offline')}
                         </span>
-                        <span className="text-gray-500 dark:text-gray-500 text-gray-600">
+                        <span className="text-gray-600 dark:text-gray-500">
                           {formatLastSeen(member.updatedAt)}
                         </span>
                       </div>
@@ -225,13 +225,13 @@ export default function SummaryPage() {
           </div>
 
           {/* Сайты */}
-          <div className="bg-gray-800 dark:bg-gray-800 bg-gray-50 rounded-lg p-6 border border-gray-700 dark:border-gray-700 border-gray-200">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white dark:text-white text-gray-900">
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
               <span>🌐</span>
               <span>{t('summary.sites')}</span>
             </h2>
-            <div className="text-3xl font-bold mb-2 text-white dark:text-white text-gray-900">{sitesCount}</div>
-            <p className="text-sm text-gray-400 dark:text-gray-400 text-gray-600 mb-4">{t('summary.addedSites')}</p>
+            <div className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">{sitesCount}</div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{t('summary.addedSites')}</p>
           </div>
         </div>
       </div>
