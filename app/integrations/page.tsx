@@ -229,7 +229,7 @@ export default function IntegrationsPage() {
 
   const handleDisconnectGSC = async (account?: GSCAccount) => {
     const accountEmail = account?.google_email || 'this account';
-    const hasSites = account?.hasSites || account?.sitesCount > 0;
+    const hasSites = account?.hasSites || (account?.sitesCount ?? 0) > 0;
     
     // Show warning if account has sites
     const confirmMessage = hasSites
@@ -842,7 +842,7 @@ export default function IntegrationsPage() {
                       <button
                         onClick={() => handleDisconnectGSC(account)}
                         className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg text-base font-medium transition-all duration-200 text-white shadow-md hover:shadow-lg transform hover:scale-105"
-                        title={account.hasSites || account.sitesCount > 0 ? `Отвязать ${account.google_email} (все сайты будут удалены)` : `Отвязать ${account.google_email}`}
+                        title={account.hasSites || (account.sitesCount ?? 0) > 0 ? `Отвязать ${account.google_email} (все сайты будут удалены)` : `Отвязать ${account.google_email}`}
                       >
                         Отвязать
                       </button>
