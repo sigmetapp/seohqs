@@ -212,7 +212,7 @@ export default function SiteDetailPage() {
         .filter((line) => line.length > 0);
 
       if (urlLines.length === 0) {
-        alert('Введите хотя бы один URL');
+        alert(t('sites.enterUrl'));
         return;
       }
 
@@ -228,11 +228,11 @@ export default function SiteDetailPage() {
         setUploadLinksText('');
         loadLinkProjectLinks(linkProject.id);
       } else {
-        alert(data.error || 'Ошибка загрузки ссылок');
+        alert(data.error || t('sites.uploadLinksError'));
       }
     } catch (err) {
       console.error('Error uploading links:', err);
-      alert('Ошибка загрузки ссылок');
+      alert(t('sites.uploadLinksError'));
     }
   };
 
@@ -246,13 +246,13 @@ export default function SiteDetailPage() {
       const data = await response.json();
       if (data.success) {
         loadLinkProjectLinks(linkProject.id);
-        alert(`Проверено ${data.checked} ссылок`);
+        alert(t('sites.checkedLinks').replace('{count}', data.checked.toString()));
       } else {
-        alert(data.error || 'Ошибка проверки ссылок');
+        alert(data.error || t('sites.checkLinksError'));
       }
     } catch (err) {
       console.error('Error checking links:', err);
-      alert('Ошибка проверки ссылок');
+      alert(t('sites.checkLinksError'));
     } finally {
       setCheckingLinks(false);
     }
@@ -296,7 +296,7 @@ export default function SiteDetailPage() {
       // Проверяем наличие необходимых настроек перед синхронизацией
       if (!site?.googleConsoleStatus?.hasOAuth) {
         const shouldGoToIntegrations = confirm(
-          'Для синхронизации необходимо авторизоваться через Google. Перейти на страницу интеграций?'
+          t('sites.syncNeedsAuth')
         );
         if (shouldGoToIntegrations) {
           window.location.href = '/integrations';
@@ -308,7 +308,7 @@ export default function SiteDetailPage() {
       // Система попытается найти сайт по домену
       if (!site?.googleConsoleStatus?.hasUrl) {
         const shouldProceed = confirm(
-          'URL сайта не указан. Система попытается автоматически найти сайт в Google Search Console по домену. Продолжить?'
+          t('sites.syncAutoFind')
         );
         if (!shouldProceed) {
           return;
@@ -323,22 +323,22 @@ export default function SiteDetailPage() {
       try {
         data = await response.json();
       } catch (parseError) {
-        throw new Error(`Ошибка сервера: ${response.status} ${response.statusText}`);
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
       }
       
       if (data.success) {
         loadTabData();
-        alert(`Данные Google Search Console обновлены. Загружено ${data.count || 0} записей.`);
+        alert(t('sites.syncSuccess').replace('{count}', (data.count || 0).toString()));
         // Перезагружаем детальные данные после синхронизации
         await loadDetailedData();
       } else {
-        const errorMessage = data.error || 'Ошибка синхронизации';
+        const errorMessage = data.error || t('sites.syncError');
         console.error('Google sync error:', errorMessage);
         alert(errorMessage);
       }
     } catch (err: any) {
       console.error('Error syncing Google:', err);
-      const errorMessage = err.message || 'Ошибка синхронизации Google Search Console';
+      const errorMessage = err.message || t('sites.syncError');
       alert(errorMessage);
     } finally {
       setLoadingData(false);
@@ -382,11 +382,11 @@ export default function SiteDetailPage() {
         });
         loadTasks();
       } else {
-        alert(data.error || 'Ошибка создания задачи');
+        alert(data.error || t('sites.createTaskError'));
       }
     } catch (err) {
       console.error('Error creating task:', err);
-      alert('Ошибка создания задачи');
+      alert(t('sites.createTaskError'));
     }
   };
 
@@ -427,16 +427,16 @@ export default function SiteDetailPage() {
         });
         loadTasks();
       } else {
-        alert(data.error || 'Ошибка обновления задачи');
+        alert(data.error || t('sites.updateTaskError'));
       }
     } catch (err) {
       console.error('Error updating task:', err);
-      alert('Ошибка обновления задачи');
+      alert(t('sites.updateTaskError'));
     }
   };
 
   const handleDeleteTask = async (taskId: number) => {
-    if (!confirm('Удалить задачу?')) return;
+    if (!confirm(t('sites.deleteTask'))) return;
     try {
       const response = await fetch(`/api/sites/${siteId}/tasks/${taskId}`, {
         method: 'DELETE',
@@ -445,11 +445,11 @@ export default function SiteDetailPage() {
       if (data.success) {
         loadTasks();
       } else {
-        alert(data.error || 'Ошибка удаления задачи');
+        alert(data.error || t('sites.deleteTaskError'));
       }
     } catch (err) {
       console.error('Error deleting task:', err);
-      alert('Ошибка удаления задачи');
+      alert(t('sites.deleteTaskError'));
     }
   };
 
@@ -531,11 +531,11 @@ export default function SiteDetailPage() {
         setSite(data.site);
         setShowStatusModal(false);
       } else {
-        alert(data.error || 'Ошибка обновления статуса');
+        alert(data.error || t('sites.updateStatusError'));
       }
     } catch (err) {
       console.error('Error updating site status:', err);
-      alert('Ошибка обновления статуса');
+      alert(t('sites.updateStatusError'));
     }
   };
 
@@ -570,11 +570,11 @@ export default function SiteDetailPage() {
           await loadSite();
         }
       } else {
-        alert(data.error || 'Ошибка сохранения статуса');
+        alert(data.error || t('sites.saveStatusError'));
       }
     } catch (err) {
       console.error('Error saving status:', err);
-      alert('Ошибка сохранения статуса');
+      alert(t('sites.saveStatusError'));
     }
   };
 
@@ -582,7 +582,7 @@ export default function SiteDetailPage() {
     return (
       <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center">Загрузка...</div>
+          <div className="text-center text-gray-900 dark:text-white">{t('common.loading')}</div>
         </div>
       </main>
     );
@@ -596,10 +596,10 @@ export default function SiteDetailPage() {
             onClick={() => router.push('/sites')}
             className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-4"
           >
-            ← Назад к сайтам
+            {t('sites.backToSites')}
           </button>
           <div className="flex items-center gap-4 mb-2">
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">{site?.name || 'Сайт'}</h1>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">{site?.name || t('sites.site')}</h1>
             {site?.status && (
               <span
                 className="px-3 py-1 rounded-full text-sm font-medium"
@@ -614,23 +614,23 @@ export default function SiteDetailPage() {
             )}
             <button
               onClick={() => setShowStatusModal(true)}
-              className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 border border-gray-300 dark:border-gray-600 rounded hover:border-gray-400 dark:hover:border-gray-500"
+              className="px-3 py-1 text-sm text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300 border border-gray-300 dark:border-gray-600 rounded hover:border-gray-400 dark:hover:border-gray-500 bg-white dark:bg-gray-800"
             >
-              {site?.status ? 'Изменить статус' : 'Установить статус'}
+              {site?.status ? t('sites.changeStatus') : t('sites.setStatus')}
             </button>
           </div>
-          <p className="text-gray-600 dark:text-gray-400">{site?.domain}</p>
+          <p className="text-gray-700 dark:text-gray-400">{site?.domain}</p>
         </div>
 
         {/* Вкладки */}
         <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
           <nav className="flex space-x-8">
             {[
-              { id: 'overview', label: 'Обзор' },
-              { id: 'tasks', label: 'Задачи' },
-              { id: 'link-profile', label: 'Link Profile' },
-              { id: 'google', label: 'Google Console' },
-              { id: 'postbacks', label: 'Постбеки' },
+              { id: 'overview', label: t('sites.overview') },
+              { id: 'tasks', label: t('sites.tasks') },
+              { id: 'link-profile', label: t('sites.linkProfile') },
+              { id: 'google', label: t('sites.googleConsole') },
+              { id: 'postbacks', label: t('sites.postbacks') },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -638,7 +638,7 @@ export default function SiteDetailPage() {
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-300'
+                    : 'border-transparent text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-300'
                 }`}
               >
                 {tab.label}
@@ -652,31 +652,31 @@ export default function SiteDetailPage() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-                <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Домен</div>
+                <div className="text-sm text-gray-700 dark:text-gray-400 mb-2">{t('sites.domain')}</div>
                 <div className="text-xl font-bold text-gray-900 dark:text-white">{site?.domain}</div>
               </div>
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-                <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Google Console</div>
+                <div className="text-sm text-gray-700 dark:text-gray-400 mb-2">{t('sites.googleConsole')}</div>
                 <div className="text-xl font-bold mb-2">
                   {site?.hasGoogleConsoleConnection ? (
-                    <span className="text-green-600 dark:text-green-400">Подключено</span>
+                    <span className="text-green-600 dark:text-green-400">{t('sites.connected')}</span>
                   ) : (
-                    <span className="text-yellow-600 dark:text-yellow-400">Не подключено</span>
+                    <span className="text-yellow-600 dark:text-yellow-400">{t('sites.notConnected')}</span>
                   )}
                 </div>
                 {!site?.hasGoogleConsoleConnection && (
-                  <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                  <div className="text-xs text-gray-700 dark:text-gray-400 space-y-1">
                     {!site?.googleConsoleStatus?.hasOAuth && (
                       <div>
-                        ⚠️ OAuth не настроен.{' '}
+                        ⚠️ {t('sites.oauthNotConfigured')}.{' '}
                         <a href="/integrations" className="text-blue-600 dark:text-blue-400 hover:underline">
-                          Настроить
+                          {t('sites.configure')}
                         </a>
                       </div>
                     )}
                     {site?.googleConsoleStatus?.hasOAuth && !site?.googleConsoleStatus?.hasUrl && (
                       <div>
-                        ⚠️ URL не указан (будет определен автоматически по домену)
+                        ⚠️ {t('sites.urlNotSpecified')}
                       </div>
                     )}
                   </div>
@@ -688,12 +688,12 @@ export default function SiteDetailPage() {
             {tasks.length > 0 && tasks.filter(t => t.status !== 'completed').length > 0 && (
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Открытые задачи</h3>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('sites.openTasks')}</h3>
                   <button
                     onClick={() => setActiveTab('tasks')}
                     className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                   >
-                    Все задачи →
+                    {t('sites.allTasks')}
                   </button>
                 </div>
                 <div className="space-y-3">
@@ -724,9 +724,9 @@ export default function SiteDetailPage() {
                         completed: 'bg-green-600',
                       };
                       const statusLabels = {
-                        pending: 'В ожидании',
-                        in_progress: 'В работе',
-                        completed: 'Завершено',
+                        pending: t('sites.pending'),
+                        in_progress: t('sites.inProgress'),
+                        completed: t('sites.completed'),
                       };
                       return (
                         <div
@@ -743,7 +743,7 @@ export default function SiteDetailPage() {
                                 </span>
                                 {isOverdue && (
                                   <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-600 text-white">
-                                    Просрочено
+                                    {t('sites.overdue')}
                                   </span>
                                 )}
                                 {task.priority && (
@@ -752,16 +752,16 @@ export default function SiteDetailPage() {
                                     : task.priority >= 5 ? 'text-yellow-400 border-yellow-400' 
                                     : 'text-green-400 border-green-400'
                                   }`}>
-                                    Приоритет: {task.priority}/10
+                                    {t('sites.priority')}: {task.priority}/10
                                   </span>
                                 )}
                               </div>
-                              <h4 className="font-medium text-sm mb-1 truncate">{task.title}</h4>
+                              <h4 className="font-medium text-sm mb-1 truncate text-gray-900 dark:text-white">{task.title}</h4>
                               {task.deadline && (
                                 <div className={`text-xs ${
-                                  isOverdue ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'
+                                  isOverdue ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-400'
                                 }`}>
-                                  Срок: {new Date(task.deadline).toLocaleDateString('ru-RU', {
+                                  {t('sites.deadline')}: {new Date(task.deadline).toLocaleDateString('en-US', {
                                     day: '2-digit',
                                     month: '2-digit',
                                     year: 'numeric'
@@ -771,9 +771,9 @@ export default function SiteDetailPage() {
                             </div>
                             <button
                               onClick={() => router.push(`/sites/${siteId}/tasks/${task.id}`)}
-                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs flex-shrink-0"
+                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs flex-shrink-0 text-white"
                             >
-                              Открыть
+                              {t('sites.open')}
                             </button>
                           </div>
                         </div>
@@ -784,9 +784,9 @@ export default function SiteDetailPage() {
                   <div className="mt-4 text-center">
                     <button
                       onClick={() => setActiveTab('tasks')}
-                      className="text-sm text-blue-400 hover:text-blue-300"
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                     >
-                      Показать все {tasks.filter(t => t.status !== 'completed').length} задач →
+                      {t('sites.showAllTasks').replace('{count}', tasks.filter(t => t.status !== 'completed').length.toString())}
                     </button>
                   </div>
                 )}
@@ -797,9 +797,9 @@ export default function SiteDetailPage() {
             {overviewGoogleData.length > 0 && (
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Google Console</h3>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('sites.googleConsole')}</h3>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Период:</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-400">{t('sites.period')}:</span>
                     <div className="flex gap-1">
                       {[7, 14, 30, 60, 90].map((days) => (
                         <button
@@ -811,7 +811,7 @@ export default function SiteDetailPage() {
                               : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                           }`}
                         >
-                          {days} дн.
+                          {days} {t('sites.daysShort')}
                         </button>
                       ))}
                     </div>
@@ -821,19 +821,19 @@ export default function SiteDetailPage() {
                 {/* Статистика */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Всего показов</div>
+                    <div className="text-sm text-gray-700 dark:text-gray-400 mb-1">{t('sites.totalImpressions')}</div>
                     <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                       {overviewGoogleData.reduce((sum, d) => sum + d.impressions, 0).toLocaleString()}
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Всего кликов</div>
+                    <div className="text-sm text-gray-700 dark:text-gray-400 mb-1">{t('sites.totalClicks')}</div>
                     <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                       {overviewGoogleData.reduce((sum, d) => sum + d.clicks, 0).toLocaleString()}
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Средний CTR</div>
+                    <div className="text-sm text-gray-700 dark:text-gray-400 mb-1">{t('sites.avgCtr')}</div>
                     <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                       {overviewGoogleData.length > 0
                         ? ((overviewGoogleData.reduce((sum, d) => sum + d.ctr, 0) / overviewGoogleData.length) * 100).toFixed(2)
@@ -841,7 +841,7 @@ export default function SiteDetailPage() {
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Средняя позиция</div>
+                    <div className="text-sm text-gray-700 dark:text-gray-400 mb-1">{t('sites.avgPosition')}</div>
                     <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
                       {overviewGoogleData.length > 0
                         ? (overviewGoogleData.reduce((sum, d) => sum + d.position, 0) / overviewGoogleData.length).toFixed(1)
@@ -852,12 +852,12 @@ export default function SiteDetailPage() {
 
                 {/* График */}
                 <div>
-                  <h4 className="text-md font-semibold mb-4 text-gray-900 dark:text-white">График показов и кликов</h4>
+                  <h4 className="text-md font-semibold mb-4 text-gray-900 dark:text-white">{t('sites.impressionsClicksChart')}</h4>
                   {loadingData ? (
-                    <div className="h-64 flex items-center justify-center text-gray-600 dark:text-gray-400 text-sm">
+                    <div className="h-64 flex items-center justify-center text-gray-700 dark:text-gray-400 text-sm">
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                        <span>Загрузка данных...</span>
+                        <span>{t('sites.loadingData')}</span>
                       </div>
                     </div>
                   ) : overviewGoogleData.length > 0 ? (
@@ -1012,17 +1012,17 @@ export default function SiteDetailPage() {
                         
                         {/* Легенда */}
                         <div className="absolute top-3 left-3 flex flex-col gap-2">
-                          <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
+                          <div className="flex items-center gap-2 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-300 dark:border-gray-700 shadow-sm">
                             <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                            <span className="text-xs font-semibold text-blue-400">Показы:</span>
-                            <span className="text-xs font-bold text-white">
+                            <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">{t('sites.impressions')}:</span>
+                            <span className="text-xs font-bold text-gray-900 dark:text-white">
                               {overviewGoogleData.reduce((sum, d) => sum + d.impressions, 0).toLocaleString()}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
+                          <div className="flex items-center gap-2 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-300 dark:border-gray-700 shadow-sm">
                             <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                            <span className="text-xs font-semibold text-green-400">Клики:</span>
-                            <span className="text-xs font-bold text-white">
+                            <span className="text-xs font-semibold text-green-600 dark:text-green-400">{t('sites.clicks')}:</span>
+                            <span className="text-xs font-bold text-gray-900 dark:text-white">
                               {overviewGoogleData.reduce((sum, d) => sum + d.clicks, 0).toLocaleString()}
                             </span>
                           </div>
@@ -1030,10 +1030,10 @@ export default function SiteDetailPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-500 text-sm">
+                    <div className="h-64 flex items-center justify-center text-gray-700 dark:text-gray-500 text-sm">
                       <div className="text-center">
-                        <div className="text-gray-600 dark:text-gray-400 mb-1">Нет данных</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-500">за выбранный период</div>
+                        <div className="text-gray-700 dark:text-gray-400 mb-1">{t('sites.noData')}</div>
+                        <div className="text-xs text-gray-600 dark:text-gray-500">{t('sites.noDataPeriod')}</div>
                       </div>
                     </div>
                   )}
@@ -1046,24 +1046,24 @@ export default function SiteDetailPage() {
         {activeTab === 'tasks' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Задачи</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('sites.tasks')}</h2>
               <button
                 onClick={() => openTaskModal()}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
               >
-                + Создать задачу
+                + {t('sites.createTask')}
               </button>
             </div>
             {loadingTasks ? (
-              <div className="text-center py-8 text-gray-600 dark:text-gray-400">Загрузка задач...</div>
+              <div className="text-center py-8 text-gray-700 dark:text-gray-400">{t('sites.loadingTasks')}</div>
             ) : tasks.length === 0 ? (
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center border border-gray-200 dark:border-gray-700">
-                <p className="text-gray-600 dark:text-gray-400 mb-4">Задач пока нет</p>
+                <p className="text-gray-700 dark:text-gray-400 mb-4">{t('sites.noTasks')}</p>
                 <button
                   onClick={() => openTaskModal()}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
                 >
-                  Создать первую задачу
+                  {t('sites.createFirstTask')}
                 </button>
               </div>
             ) : (
@@ -1071,7 +1071,7 @@ export default function SiteDetailPage() {
                 {/* Активные задачи */}
                 {tasks.filter(t => t.status !== 'completed').length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="text-xl font-semibold mb-3">Активные задачи</h3>
+                    <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">{t('sites.activeTasks')}</h3>
                     {tasks
                       .filter(t => t.status !== 'completed')
                       .sort((a, b) => (b.priority || 0) - (a.priority || 0))
@@ -1108,58 +1108,58 @@ export default function SiteDetailPage() {
                                   >
                                     {task.title}
                                   </h3>
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[task.status]}`}>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium text-white ${statusColors[task.status]}`}>
                                     {statusLabels[task.status]}
                                   </span>
                                   {task.priority && (
                                     <span className={`px-2 py-1 rounded text-xs font-medium ${priorityColor} border`}>
-                                      Приоритет: {task.priority}/10
+                                      {t('sites.priority')}: {task.priority}/10
                                     </span>
                                   )}
                                   {isOverdue && (
-                                    <span className="px-2 py-1 rounded text-xs font-medium bg-red-600">
-                                      Просрочено
+                                    <span className="px-2 py-1 rounded text-xs font-medium bg-red-600 text-white">
+                                      {t('sites.overdue')}
                                     </span>
                                   )}
                                 </div>
                                 {task.description && (
-                                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">{task.description}</p>
+                                  <p className="text-gray-700 dark:text-gray-400 text-sm mb-3">{task.description}</p>
                                 )}
                                 {task.comments && (
                                   <div className="bg-gray-100 dark:bg-gray-900 rounded p-3 mb-3 border border-gray-200 dark:border-gray-700">
-                                    <div className="text-xs text-gray-500 dark:text-gray-500 mb-1">Комментарии (процесс реализации):</div>
+                                    <div className="text-xs text-gray-600 dark:text-gray-500 mb-1">{t('sites.commentsLabel')}</div>
                                     <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">{task.comments}</p>
                                   </div>
                                 )}
-                                <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                                <div className="flex items-center gap-4 text-sm text-gray-700 dark:text-gray-400">
                                   {task.deadline && (
                                     <span>
-                                      Срок: {new Date(task.deadline).toLocaleDateString('ru-RU')}
+                                      {t('sites.deadline')}: {new Date(task.deadline).toLocaleDateString('en-US')}
                                     </span>
                                   )}
                                   <span>
-                                    Создано: {new Date(task.createdAt).toLocaleDateString('ru-RU')}
+                                    {t('sites.createdAt')}: {new Date(task.createdAt).toLocaleDateString('en-US')}
                                   </span>
                                 </div>
                               </div>
                               <div className="flex gap-2 ml-4">
                                 <button
                                   onClick={() => router.push(`/sites/${siteId}/tasks/${task.id}`)}
-                                  className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm"
+                                  className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm text-white"
                                 >
-                                  Открыть
+                                  {t('sites.open')}
                                 </button>
                                 <button
                                   onClick={() => openTaskModal(task)}
-                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm text-white"
                                 >
-                                  Редактировать
+                                  {t('sites.edit')}
                                 </button>
                                 <button
                                   onClick={() => handleDeleteTask(task.id)}
-                                  className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                                  className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm text-white"
                                 >
-                                  Удалить
+                                  {t('sites.delete')}
                                 </button>
                               </div>
                             </div>
@@ -1172,7 +1172,7 @@ export default function SiteDetailPage() {
                 {/* Завершенные задачи */}
                 {tasks.filter(t => t.status === 'completed').length > 0 && (
                   <div className="space-y-3 mt-8">
-                    <h3 className="text-xl font-semibold mb-3">Завершенные</h3>
+                    <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">{t('sites.completedTasks')}</h3>
                     {tasks
                       .filter(t => t.status === 'completed')
                       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
@@ -1183,9 +1183,9 @@ export default function SiteDetailPage() {
                           completed: 'bg-green-600',
                         };
                         const statusLabels = {
-                          pending: 'В ожидании',
-                          in_progress: 'В работе',
-                          completed: 'Завершено',
+                          pending: t('sites.pending'),
+                          in_progress: t('sites.inProgress'),
+                          completed: t('sites.completed'),
                         };
                         return (
                           <div
@@ -1201,48 +1201,48 @@ export default function SiteDetailPage() {
                                   >
                                     {task.title}
                                   </h3>
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[task.status]}`}>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium text-white ${statusColors[task.status]}`}>
                                     {statusLabels[task.status]}
                                   </span>
                                 </div>
                                 {task.description && (
-                                  <p className="text-gray-500 dark:text-gray-500 text-sm mb-3 line-through">{task.description}</p>
+                                  <p className="text-gray-600 dark:text-gray-500 text-sm mb-3 line-through">{task.description}</p>
                                 )}
                                 {task.comments && (
                                   <div className="bg-gray-100 dark:bg-gray-900 rounded p-3 mb-3 border border-gray-200 dark:border-gray-700">
-                                    <div className="text-xs text-gray-500 dark:text-gray-500 mb-1">Комментарии:</div>
-                                    <p className="text-gray-600 dark:text-gray-400 text-sm whitespace-pre-wrap">{task.comments}</p>
+                                    <div className="text-xs text-gray-600 dark:text-gray-500 mb-1">{t('sites.commentsLabelShort')}</div>
+                                    <p className="text-gray-700 dark:text-gray-400 text-sm whitespace-pre-wrap">{task.comments}</p>
                                   </div>
                                 )}
-                                <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-500">
+                                <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-500">
                                   {task.deadline && (
                                     <span>
-                                      Срок: {new Date(task.deadline).toLocaleDateString('ru-RU')}
+                                      {t('sites.deadline')}: {new Date(task.deadline).toLocaleDateString('en-US')}
                                     </span>
                                   )}
                                   <span>
-                                    Завершено: {new Date(task.updatedAt).toLocaleDateString('ru-RU')}
+                                    {t('sites.completedAt')}: {new Date(task.updatedAt).toLocaleDateString('en-US')}
                                   </span>
                                 </div>
                               </div>
                               <div className="flex gap-2 ml-4">
                                 <button
                                   onClick={() => router.push(`/sites/${siteId}/tasks/${task.id}`)}
-                                  className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm"
+                                  className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm text-white"
                                 >
-                                  Открыть
+                                  {t('sites.open')}
                                 </button>
                                 <button
                                   onClick={() => openTaskModal(task)}
-                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm text-white"
                                 >
-                                  Редактировать
+                                  {t('sites.edit')}
                                 </button>
                                 <button
                                   onClick={() => handleDeleteTask(task.id)}
-                                  className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                                  className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm text-white"
                                 >
-                                  Удалить
+                                  {t('sites.delete')}
                                 </button>
                               </div>
                             </div>
@@ -1259,23 +1259,23 @@ export default function SiteDetailPage() {
         {activeTab === 'google' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center flex-wrap gap-4">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Данные Google Search Console</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('sites.googleSearchConsoleData')}</h2>
               <div className="flex gap-2 flex-wrap">
                 {!site?.hasGoogleConsoleConnection && (
-                  <div className="flex items-center gap-2 text-sm text-yellow-400 mr-4">
+                  <div className="flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400 mr-4">
                     {!site?.googleConsoleStatus?.hasOAuth ? (
                       <>
-                        <span>⚠️ OAuth не настроен</span>
+                        <span>⚠️ {t('sites.oauthNotConfigured')}</span>
                         <a
                           href="/integrations"
-                          className="text-blue-400 hover:underline"
+                          className="text-blue-600 dark:text-blue-400 hover:underline"
                         >
-                          Настроить
+                          {t('sites.configure')}
                         </a>
                       </>
                     ) : !site?.googleConsoleStatus?.hasUrl ? (
                       <>
-                        <span>ℹ️ URL не указан (будет определен автоматически по домену)</span>
+                        <span>ℹ️ {t('sites.urlNotSpecified')}</span>
                       </>
                     ) : null}
                   </div>
@@ -1283,16 +1283,16 @@ export default function SiteDetailPage() {
                 <button
                   onClick={handleSyncGoogle}
                   disabled={loadingData}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loadingData ? 'Синхронизация...' : 'Синхронизировать'}
+                  {loadingData ? t('sites.syncing') : t('sites.sync')}
                 </button>
               </div>
             </div>
             {/* Селектор периода */}
             <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Период:</span>
+                <span className="text-sm text-gray-700 dark:text-gray-400">{t('sites.period')}:</span>
                 <div className="flex gap-2">
                   {[7, 14, 30, 60, 90].map((days) => (
                     <button
@@ -1304,50 +1304,50 @@ export default function SiteDetailPage() {
                           : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                       }`}
                     >
-                      {days} дней
+                      {days} {t('sites.days')}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
             {!site?.hasGoogleConsoleConnection && (
-              <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
-                <p className="text-yellow-300 text-sm">
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
+                <p className="text-yellow-800 dark:text-yellow-300 text-sm">
                   {!site?.googleConsoleStatus?.hasOAuth
-                    ? 'Для синхронизации данных необходимо авторизоваться через Google в разделе Интеграции.'
+                    ? t('sites.syncNeedsOAuth')
                     : !site?.googleConsoleStatus?.hasUrl
-                    ? 'URL сайта не указан. Система автоматически попытается найти сайт в Google Search Console по домену. Если это не сработает, укажите URL вручную.'
-                    : 'Подключение не настроено.'}
+                    ? t('sites.syncUrlHint')
+                    : t('sites.notConnected')}
                 </p>
               </div>
             )}
             {loadingData || loadingDetails ? (
-              <div className="text-center py-8 text-gray-600 dark:text-gray-400">Загрузка данных...</div>
+              <div className="text-center py-8 text-gray-700 dark:text-gray-400">{t('sites.loadingData')}</div>
             ) : googleData.length === 0 && queries.length === 0 && pages.length === 0 && countries.length === 0 ? (
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center border border-gray-200 dark:border-gray-700">
-                <p className="text-gray-600 dark:text-gray-400">Данные не загружены. Нажмите "Синхронизировать" для загрузки данных.</p>
+                <p className="text-gray-700 dark:text-gray-400">{t('sites.dataNotLoaded')}</p>
               </div>
             ) : (
               <div className="space-y-6">
                 {/* Общая статистика */}
                 {googleData.length > 0 && (
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                    <h3 className="text-lg font-bold p-3 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">Показы и клики по дням</h3>
+                    <h3 className="text-lg font-bold p-3 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">{t('sites.impressionsClicksByDay')}</h3>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-100 dark:bg-gray-700">
                           <tr>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Дата</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Клики</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Показы</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">CTR</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Позиция</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.date')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.clicks')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.impressions')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.ctr')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.position')}</th>
                           </tr>
                         </thead>
                         <tbody>
                           {googleData.map((item, index) => (
                             <tr key={index} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-750">
-                              <td className="px-2 py-2 text-xs text-gray-900 dark:text-white">{new Date(item.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}</td>
+                              <td className="px-2 py-2 text-xs text-gray-900 dark:text-white">{new Date(item.date).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' })}</td>
                               <td className="px-2 py-2 text-gray-900 dark:text-white">{item.clicks.toLocaleString()}</td>
                               <td className="px-2 py-2 text-gray-900 dark:text-white">{item.impressions.toLocaleString()}</td>
                               <td className="px-2 py-2 text-gray-900 dark:text-white">{(item.ctr * 100).toFixed(2)}%</td>
@@ -1363,16 +1363,16 @@ export default function SiteDetailPage() {
                 {/* Поисковые запросы */}
                 {queries.length > 0 && (
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                    <h3 className="text-lg font-bold p-3 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">Поисковые запросы</h3>
+                    <h3 className="text-lg font-bold p-3 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">{t('sites.searchQueries')}</h3>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-100 dark:bg-gray-700">
                           <tr>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Запрос</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Клики</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Показы</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">CTR</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Позиция</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.query')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.clicks')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.impressions')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.ctr')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.position')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1389,7 +1389,7 @@ export default function SiteDetailPage() {
                       </table>
                     </div>
                     {queries.length > 50 && (
-                      <div className="p-3 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+                      <div className="p-3 text-xs text-gray-700 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
                         {t('home.showingQueries')} {queries.length} {t('home.queries')}
                       </div>
                     )}
@@ -1399,16 +1399,16 @@ export default function SiteDetailPage() {
                 {/* Страницы */}
                 {pages.length > 0 && (
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                    <h3 className="text-lg font-bold p-3 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">Страницы</h3>
+                    <h3 className="text-lg font-bold p-3 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">{t('sites.pages')}</h3>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-100 dark:bg-gray-700">
                           <tr>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Страница</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Клики</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Показы</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">CTR</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Позиция</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.page')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.clicks')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.impressions')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.ctr')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.position')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1435,7 +1435,7 @@ export default function SiteDetailPage() {
                       </table>
                     </div>
                     {pages.length > 50 && (
-                      <div className="p-3 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
+                      <div className="p-3 text-xs text-gray-700 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
                         {t('home.showingPages')} {pages.length} {t('home.pages')}
                       </div>
                     )}
@@ -1445,16 +1445,16 @@ export default function SiteDetailPage() {
                 {/* География (страны) */}
                 {countries.length > 0 && (
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                    <h3 className="text-lg font-bold p-3 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">География</h3>
+                    <h3 className="text-lg font-bold p-3 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">{t('sites.geography')}</h3>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-100 dark:bg-gray-700">
                           <tr>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Страна</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Клики</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Показы</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">CTR</th>
-                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">Позиция</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.country')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.clicks')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.impressions')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.ctr')}</th>
+                            <th className="px-2 py-2 text-left text-xs text-gray-900 dark:text-white">{t('sites.position')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1480,36 +1480,36 @@ export default function SiteDetailPage() {
         {activeTab === 'link-profile' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Link Profile</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('sites.linkProfile')}</h2>
             </div>
             {loadingLinkProject ? (
-              <div className="text-center py-8">Загрузка проекта...</div>
+              <div className="text-center py-8 text-gray-700 dark:text-gray-400">{t('sites.loadingProject')}</div>
             ) : linkProject ? (
               <>
                 {/* Статистика */}
                 {!loadingLinkProjectLinks && (
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                      <div className="text-2xl font-bold">{linkProjectLinks.length}</div>
-                      <div className="text-sm text-gray-400">Всего ссылок</div>
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-white">{linkProjectLinks.length}</div>
+                      <div className="text-sm text-gray-700 dark:text-gray-400">{t('sites.totalLinks')}</div>
                     </div>
-                    <div className="bg-gray-800 rounded-lg p-4 border border-green-700">
-                      <div className="text-2xl font-bold text-green-400">
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-green-200 dark:border-green-700">
+                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                         {linkProjectLinks.filter((l) => l.status === 'indexed').length}
                       </div>
-                      <div className="text-sm text-gray-400">Проиндексировано</div>
+                      <div className="text-sm text-gray-700 dark:text-gray-400">{t('sites.indexed')}</div>
                     </div>
-                    <div className="bg-gray-800 rounded-lg p-4 border border-red-700">
-                      <div className="text-2xl font-bold text-red-400">
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-red-200 dark:border-red-700">
+                      <div className="text-2xl font-bold text-red-600 dark:text-red-400">
                         {linkProjectLinks.filter((l) => l.status === 'not_found').length}
                       </div>
-                      <div className="text-sm text-gray-400">Не найдено</div>
+                      <div className="text-sm text-gray-700 dark:text-gray-400">{t('sites.notFound')}</div>
                     </div>
-                    <div className="bg-gray-800 rounded-lg p-4 border border-yellow-700">
-                      <div className="text-2xl font-bold text-yellow-400">
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-yellow-200 dark:border-yellow-700">
+                      <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
                         {linkProjectLinks.filter((l) => l.status === 'pending').length}
                       </div>
-                      <div className="text-sm text-gray-400">Ожидает проверки</div>
+                      <div className="text-sm text-gray-700 dark:text-gray-400">{t('sites.pendingCheck')}</div>
                     </div>
                   </div>
                 )}
@@ -1518,74 +1518,74 @@ export default function SiteDetailPage() {
                 <div className="flex gap-4">
                   <button
                     onClick={() => setShowUploadLinksModal(true)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
                   >
-                    + Загрузить ссылки
+                    + {t('sites.uploadLinks')}
                   </button>
                   <button
                     onClick={handleCheckLinks}
                     disabled={checkingLinks || linkProjectLinks.length === 0}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded disabled:opacity-50"
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white disabled:opacity-50"
                   >
-                    {checkingLinks ? 'Проверка...' : 'Проверить все ссылки'}
+                    {checkingLinks ? t('sites.checking') : t('sites.checkAllLinks')}
                   </button>
                 </div>
 
                 {/* Таблица ссылок */}
                 {loadingLinkProjectLinks ? (
-                  <div className="text-center py-8">Загрузка ссылок...</div>
+                  <div className="text-center py-8 text-gray-700 dark:text-gray-400">{t('sites.loadingLinks')}</div>
                 ) : (
-                  <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
                     <table className="w-full">
-                      <thead className="bg-gray-700">
+                      <thead className="bg-gray-100 dark:bg-gray-700">
                         <tr>
-                          <th className="px-4 py-3 text-left">URL</th>
-                          <th className="px-4 py-3 text-left">Целевой URL</th>
-                          <th className="px-4 py-3 text-left">Статус</th>
-                          <th className="px-4 py-3 text-left">Последняя проверка</th>
+                          <th className="px-4 py-3 text-left text-gray-900 dark:text-white">URL</th>
+                          <th className="px-4 py-3 text-left text-gray-900 dark:text-white">{t('sites.targetUrl')}</th>
+                          <th className="px-4 py-3 text-left text-gray-900 dark:text-white">{t('sites.status')}</th>
+                          <th className="px-4 py-3 text-left text-gray-900 dark:text-white">{t('sites.lastCheck')}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {linkProjectLinks.length === 0 ? (
                           <tr>
-                            <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
-                              Ссылки не загружены
+                            <td colSpan={4} className="px-4 py-8 text-center text-gray-700 dark:text-gray-400">
+                              {t('sites.linksNotLoaded')}
                             </td>
                           </tr>
                         ) : (
                           linkProjectLinks.map((link) => (
-                            <tr key={link.id} className="border-t border-gray-700">
+                            <tr key={link.id} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-750">
                               <td className="px-4 py-3">
                                 <a
                                   href={link.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-blue-400 hover:underline"
+                                  className="text-blue-600 dark:text-blue-400 hover:underline"
                                 >
                                   {link.url}
                                 </a>
                               </td>
-                              <td className="px-4 py-3 text-gray-400">{link.targetUrl}</td>
+                              <td className="px-4 py-3 text-gray-700 dark:text-gray-400">{link.targetUrl}</td>
                               <td className="px-4 py-3">
                                 <span
                                   className={`px-2 py-1 rounded text-xs ${
                                     link.status === 'indexed'
-                                      ? 'bg-green-900 text-green-300'
+                                      ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300'
                                       : link.status === 'not_found'
-                                      ? 'bg-red-900 text-red-300'
-                                      : 'bg-yellow-900 text-yellow-300'
+                                      ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'
+                                      : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300'
                                   }`}
                                 >
                                   {link.status === 'indexed'
-                                    ? 'Проиндексировано'
+                                    ? t('sites.indexed')
                                     : link.status === 'not_found'
-                                    ? 'Не найдено'
-                                    : 'Ожидает'}
+                                    ? t('sites.notFound')
+                                    : t('sites.pendingCheck')}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 text-gray-400 text-sm">
+                              <td className="px-4 py-3 text-gray-700 dark:text-gray-400 text-sm">
                                 {link.lastChecked
-                                  ? new Date(link.lastChecked).toLocaleString('ru-RU')
+                                  ? new Date(link.lastChecked).toLocaleString('en-US')
                                   : '—'}
                               </td>
                             </tr>
@@ -1597,8 +1597,8 @@ export default function SiteDetailPage() {
                 )}
               </>
             ) : (
-              <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-                <p className="text-gray-400 mb-4">Ошибка загрузки проекта</p>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center border border-gray-200 dark:border-gray-700">
+                <p className="text-gray-700 dark:text-gray-400 mb-4">{t('sites.projectLoadError')}</p>
               </div>
             )}
           </div>
@@ -1606,34 +1606,34 @@ export default function SiteDetailPage() {
 
         {activeTab === 'postbacks' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Постбеки с партнерок</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('sites.postbacks')}</h2>
             {loadingData ? (
-              <div className="text-center py-8">Загрузка данных...</div>
+              <div className="text-center py-8 text-gray-700 dark:text-gray-400">{t('sites.loadingData')}</div>
             ) : postbacks.length === 0 ? (
-              <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-                <p className="text-gray-400 mb-4">Постбеки не найдены</p>
-                <p className="text-sm text-gray-500">
-                  Настройте endpoint для приема постбеков: <code className="bg-gray-900 px-2 py-1 rounded">/api/sites/{siteId}/postbacks</code>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center border border-gray-200 dark:border-gray-700">
+                <p className="text-gray-700 dark:text-gray-400 mb-4">{t('sites.noPostbacks')}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-500">
+                  {t('sites.postbackEndpoint')} <code className="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded text-gray-900 dark:text-gray-100">/api/sites/{siteId}/postbacks</code>
                 </p>
               </div>
             ) : (
-              <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
                 <table className="w-full">
-                  <thead className="bg-gray-700">
+                  <thead className="bg-gray-100 dark:bg-gray-700">
                     <tr>
-                      <th className="px-4 py-3 text-left">Дата</th>
-                      <th className="px-4 py-3 text-left">Партнерка</th>
-                      <th className="px-4 py-3 text-left">Событие</th>
-                      <th className="px-4 py-3 text-left">Сумма</th>
+                      <th className="px-4 py-3 text-left text-gray-900 dark:text-white">{t('sites.date')}</th>
+                      <th className="px-4 py-3 text-left text-gray-900 dark:text-white">{t('sites.network')}</th>
+                      <th className="px-4 py-3 text-left text-gray-900 dark:text-white">{t('sites.event')}</th>
+                      <th className="px-4 py-3 text-left text-gray-900 dark:text-white">{t('sites.amount')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {postbacks.map((postback, index) => (
-                      <tr key={index} className="border-t border-gray-700">
-                        <td className="px-4 py-3">{new Date(postback.date).toLocaleString('ru-RU')}</td>
-                        <td className="px-4 py-3">{postback.network}</td>
-                        <td className="px-4 py-3">{postback.event}</td>
-                        <td className="px-4 py-3">
+                      <tr key={index} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-750">
+                        <td className="px-4 py-3 text-gray-900 dark:text-white">{new Date(postback.date).toLocaleString('en-US')}</td>
+                        <td className="px-4 py-3 text-gray-900 dark:text-white">{postback.network}</td>
+                        <td className="px-4 py-3 text-gray-900 dark:text-white">{postback.event}</td>
+                        <td className="px-4 py-3 text-gray-900 dark:text-white">
                           {postback.amount} {postback.currency}
                         </td>
                       </tr>
@@ -1648,49 +1648,49 @@ export default function SiteDetailPage() {
         {/* Модальное окно выбора статуса */}
         {showStatusModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
-              <h2 className="text-2xl font-bold mb-4">Выбрать статус</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-200 dark:border-gray-700">
+              <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">{t('sites.selectStatus')}</h2>
               <div className="space-y-2 mb-4 max-h-96 overflow-y-auto">
                 {siteStatuses.map((status) => (
                   <div
                     key={status.id}
                     className={`rounded border transition-colors ${
                       site?.statusId === status.id
-                        ? 'border-blue-500 bg-blue-500/10'
-                        : 'border-gray-600'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10'
+                        : 'border-gray-300 dark:border-gray-600'
                     }`}
                   >
                     {editingStatusId === status.id ? (
                       <div className="p-4 space-y-3">
                         <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
-                            Название статуса
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            {t('sites.statusName')}
                           </label>
                           <input
                             type="text"
                             value={editingStatusForm.name}
                             onChange={(e) => setEditingStatusForm({ ...editingStatusForm, name: e.target.value })}
-                            className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                            placeholder="Название статуса"
+                            className="w-full px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
+                            placeholder={t('sites.statusName')}
                             autoFocus
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
-                            Цвет статуса
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            {t('sites.statusColor')}
                           </label>
                           <div className="flex items-center gap-3">
                             <input
                               type="color"
                               value={editingStatusForm.color}
                               onChange={(e) => setEditingStatusForm({ ...editingStatusForm, color: e.target.value })}
-                              className="w-16 h-10 rounded border border-gray-600 cursor-pointer"
+                              className="w-16 h-10 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
                             />
                             <input
                               type="text"
                               value={editingStatusForm.color}
                               onChange={(e) => setEditingStatusForm({ ...editingStatusForm, color: e.target.value })}
-                              className="flex-1 px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none font-mono text-sm"
+                              className="flex-1 px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none font-mono text-sm"
                               placeholder="#6b7280"
                             />
                           </div>
@@ -1699,25 +1699,25 @@ export default function SiteDetailPage() {
                           <button
                             onClick={() => handleSaveStatus(status.id)}
                             disabled={!editingStatusForm.name.trim()}
-                            className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            Сохранить
+                            {t('sites.save')}
                           </button>
                           <button
                             onClick={handleCancelEditStatus}
-                            className="flex-1 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+                            className="flex-1 px-3 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded text-sm text-gray-900 dark:text-white"
                           >
-                            Отмена
+                            {t('sites.cancel')}
                           </button>
                         </div>
                       </div>
                     ) : (
                       <button
                         onClick={() => handleUpdateSiteStatus(status.id)}
-                        className={`w-full text-left px-4 py-3 rounded transition-colors ${
+                        className={`w-full text-left px-4 py-3 rounded transition-colors text-gray-900 dark:text-white ${
                           site?.statusId === status.id
                             ? ''
-                            : 'hover:bg-gray-700'
+                            : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -1727,15 +1727,15 @@ export default function SiteDetailPage() {
                           ></div>
                           <span className="font-medium flex-1">{status.name}</span>
                           {site?.statusId === status.id && (
-                            <span className="text-blue-400">✓</span>
+                            <span className="text-blue-600 dark:text-blue-400">✓</span>
                           )}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleStartEditStatus(status);
                             }}
-                            className="ml-2 px-2 py-1 text-gray-400 hover:text-gray-300 hover:bg-gray-700 rounded text-sm"
-                            title="Редактировать статус"
+                            className="ml-2 px-2 py-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-sm"
+                            title={t('sites.editStatus')}
                           >
                             ✏️
                           </button>
@@ -1748,14 +1748,14 @@ export default function SiteDetailPage() {
                   onClick={() => handleUpdateSiteStatus(null)}
                   className={`w-full text-left px-4 py-3 rounded border transition-colors ${
                     !site?.statusId
-                      ? 'border-blue-500 bg-blue-500/10'
-                      : 'border-gray-600 hover:border-gray-500 hover:bg-gray-700'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-gray-400">Без статуса</span>
+                    <span className="text-gray-700 dark:text-gray-400">{t('sites.noStatus')}</span>
                     {!site?.statusId && (
-                      <span className="ml-auto text-blue-400">✓</span>
+                      <span className="ml-auto text-blue-600 dark:text-blue-400">✓</span>
                     )}
                   </div>
                 </button>
@@ -1766,9 +1766,9 @@ export default function SiteDetailPage() {
                     setShowStatusModal(false);
                     setEditingStatusId(null);
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded text-gray-900 dark:text-white"
                 >
-                  Закрыть
+                  {t('sites.close')}
                 </button>
               </div>
             </div>
@@ -1778,64 +1778,64 @@ export default function SiteDetailPage() {
         {/* Модальное окно задачи */}
         {showTaskModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-700">
-              <h2 className="text-2xl font-bold mb-4">
-                {editingTask ? 'Редактировать задачу' : 'Создать задачу'}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
+              <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">
+                {editingTask ? t('sites.editTask') : t('sites.createTaskTitle')}
               </h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Название задачи *
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('sites.taskTitle')} *
                   </label>
                   <input
                     type="text"
                     value={taskForm.title}
                     onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="Название задачи"
+                    className="w-full px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
+                    placeholder={t('sites.taskTitlePlaceholder')}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Описание
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('sites.description')}
                   </label>
                   <textarea
                     value={taskForm.description}
                     onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
                     rows={3}
-                    placeholder="Описание задачи"
+                    placeholder={t('sites.descriptionPlaceholder')}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Статус
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('sites.status')}
                   </label>
                   <select
                     value={taskForm.status}
                     onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value as any })}
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
                   >
-                    <option value="pending">В ожидании</option>
-                    <option value="in_progress">В работе</option>
-                    <option value="completed">Завершено</option>
+                    <option value="pending">{t('sites.pending')}</option>
+                    <option value="in_progress">{t('sites.inProgress')}</option>
+                    <option value="completed">{t('sites.completed')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Срок выполнения
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('sites.deadlineDate')}
                   </label>
                   <input
                     type="date"
                     value={taskForm.deadline}
                     onChange={(e) => setTaskForm({ ...taskForm, deadline: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Приоритет (1-10)
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {t('sites.priorityLabel')}
                     </label>
                     <input
                       type="number"
@@ -1843,21 +1843,21 @@ export default function SiteDetailPage() {
                       max="10"
                       value={taskForm.priority}
                       onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
-                      className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                      placeholder="Приоритет от 1 до 10"
+                      className="w-full px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
+                      placeholder={t('sites.priorityPlaceholder')}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Исполнитель
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {t('sites.assignee')}
                     </label>
                     <select
                       value={taskForm.assigneeId}
                       onChange={(e) => setTaskForm({ ...taskForm, assigneeId: e.target.value })}
-                      className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                      className="w-full px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
                       disabled={loadingUsers}
                     >
-                      <option value="">Не назначен</option>
+                      <option value="">{t('sites.notAssigned')}</option>
                       {users.map((user) => (
                         <option key={user.id} value={user.id}>
                           {user.name || user.email}
@@ -1868,63 +1868,63 @@ export default function SiteDetailPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Оценка времени (минуты)
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {t('sites.estimatedTime')}
                     </label>
                     <input
                       type="number"
                       min="0"
                       value={taskForm.estimatedTime}
                       onChange={(e) => setTaskForm({ ...taskForm, estimatedTime: e.target.value })}
-                      className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                      placeholder="Оценка в минутах"
+                      className="w-full px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
+                      placeholder={t('sites.estimatedTimePlaceholder')}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Фактическое время (минуты)
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {t('sites.actualTime')}
                     </label>
                     <input
                       type="number"
                       min="0"
                       value={taskForm.actualTime}
                       onChange={(e) => setTaskForm({ ...taskForm, actualTime: e.target.value })}
-                      className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                      placeholder="Фактическое время в минутах"
+                      className="w-full px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
+                      placeholder={t('sites.actualTimePlaceholder')}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Теги (через запятую)
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('sites.tags')}
                   </label>
                   <input
                     type="text"
                     value={taskForm.tags}
                     onChange={(e) => setTaskForm({ ...taskForm, tags: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="bug, feature, urgent"
+                    className="w-full px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
+                    placeholder={t('sites.tagsPlaceholder')}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Комментарии (процесс реализации)
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('sites.comments')}
                   </label>
                   <textarea
                     value={taskForm.comments}
                     onChange={(e) => setTaskForm({ ...taskForm, comments: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
                     rows={5}
-                    placeholder="Опишите процесс реализации задачи..."
+                    placeholder={t('sites.commentsPlaceholder')}
                   />
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={editingTask ? handleUpdateTask : handleCreateTask}
                     disabled={!taskForm.title}
-                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {editingTask ? 'Сохранить' : 'Создать'}
+                    {editingTask ? t('sites.save') : t('sites.create')}
                   </button>
                   <button
                     onClick={() => {
@@ -1943,9 +1943,9 @@ export default function SiteDetailPage() {
                         actualTime: '',
                       });
                     }}
-                    className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+                    className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded text-gray-900 dark:text-white"
                   >
-                    Отмена
+                    {t('sites.cancel')}
                   </button>
                 </div>
               </div>
@@ -1956,30 +1956,30 @@ export default function SiteDetailPage() {
         {/* Модальное окно загрузки ссылок */}
         {showUploadLinksModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl border border-gray-700">
-              <h2 className="text-2xl font-bold mb-4">Загрузить ссылки</h2>
-              <p className="text-gray-400 text-sm mb-4">
-                Введите URL ссылок по одному на строку. Формат: URL страницы, где размещена ссылка
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl border border-gray-200 dark:border-gray-700">
+              <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">{t('sites.uploadLinksTitle')}</h2>
+              <p className="text-gray-700 dark:text-gray-400 text-sm mb-4">
+                {t('sites.uploadLinksDesc')}
               </p>
               <textarea
                 value={uploadLinksText}
                 onChange={(e) => setUploadLinksText(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none font-mono text-sm"
+                className="w-full px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none font-mono text-sm"
                 rows={10}
                 placeholder="https://example.com/page1&#10;https://example.com/page2&#10;https://example.com/page3"
               />
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={handleUploadLinks}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
                 >
-                  Загрузить
+                  {t('sites.upload')}
                 </button>
                 <button
                   onClick={() => setShowUploadLinksModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded text-gray-900 dark:text-white"
                 >
-                  Отмена
+                  {t('sites.cancel')}
                 </button>
               </div>
             </div>
