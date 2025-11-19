@@ -74,11 +74,35 @@ export async function POST(
     // Это обеспечит наличие данных для всех периодов: 7, 30, 90 и 180 дней
     // Google Search Console API поддерживает до 16 месяцев данных
     // Передаем найденный URL или указанный вручную, и домен для автоматического поиска
+    
+    // Вычисляем ожидаемый диапазон дат для логирования
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 180);
+    console.log(`[GSC Sync] Requesting data for site ${siteId} (${site.domain}):`);
+    console.log(`[GSC Sync] Expected date range: ${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]} (180 days)`);
+    
     const aggregatedData = await searchConsoleService.getAggregatedData(
       site.googleSearchConsoleUrl || foundSiteUrl,
       180,
       site.domain
     );
+
+    // Логируем результаты запроса
+    console.log(`[GSC Sync] Received ${aggregatedData.length} records from Google Console API`);
+    if (aggregatedData.length > 0) {
+      const firstDate = aggregatedData[0].date;
+      const lastDate = aggregatedData[aggregatedData.length - 1].date;
+      const actualDays = Math.ceil((new Date(lastDate).getTime() - new Date(firstDate).getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`[GSC Sync] Actual date range from API: ${firstDate} - ${lastDate} (${actualDays} days)`);
+      
+      if (actualDays < 150) {
+        console.warn(`[GSC Sync] WARNING: Only ${actualDays} days of data received, but 180 days were requested. This may indicate:`);
+        console.warn(`[GSC Sync] - Site was recently added to Google Search Console`);
+        console.warn(`[GSC Sync] - Limited data availability in Google Console`);
+        console.warn(`[GSC Sync] - API returned partial data`);
+      }
+    }
 
     if (aggregatedData.length === 0) {
       return NextResponse.json({
