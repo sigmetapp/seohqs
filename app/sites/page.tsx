@@ -147,9 +147,35 @@ export default function SitesPage() {
         if (selectedStatusIds.length > 0) {
           params.append('statusIds', selectedStatusIds.join(','));
         }
-        const response = await fetch(`/api/sites/google-console-aggregated?${params.toString()}`);
+        const url = `/api/sites/google-console-aggregated?${params.toString()}`;
+        console.log('[DEBUG Sites] Loading aggregated data:', { url, period: selectedPeriodAllSites });
+        const response = await fetch(url);
         const data = await response.json();
+        console.log('[DEBUG Sites] Response:', { 
+          success: data.success, 
+          cached: data.cached,
+          sitesCount: data.sites?.length || 0,
+          period: selectedPeriodAllSites
+        });
         if (data.success) {
+          // Дебаг: логируем данные для каждого сайта
+          if (data.sites && data.sites.length > 0) {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - selectedPeriodAllSites);
+            console.log('[DEBUG Sites] Date range:', {
+              startDate: startDate.toISOString().split('T')[0],
+              endDate: endDate.toISOString().split('T')[0],
+              days: selectedPeriodAllSites
+            });
+            data.sites.forEach((site: any) => {
+              console.log(`[DEBUG Sites] Site ${site.id} (${site.domain}):`, {
+                totalImpressions: site.totalImpressions,
+                totalClicks: site.totalClicks,
+                totalPostbacks: site.totalPostbacks
+              });
+            });
+          }
           setGoogleConsoleAggregatedData(data.sites || []);
         }
       } catch (err) {
@@ -467,6 +493,44 @@ export default function SitesPage() {
             </div>
           ) : (
             <>
+                {/* DEBUG PANEL - временная панель для отладки */}
+                {(selectedPeriodAllSites === 90 || selectedPeriodAllSites === 180) && (
+                  <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-600 rounded-lg">
+                    <h3 className="text-lg font-bold text-yellow-800 dark:text-yellow-200 mb-2">🔍 DEBUG PANEL (90-180 дней)</h3>
+                    <div className="text-sm space-y-1 text-yellow-700 dark:text-yellow-300">
+                      <div><strong>Выбранный период:</strong> {selectedPeriodAllSites} дней</div>
+                      <div>
+                        <strong>Диапазон дат:</strong>{' '}
+                        {(() => {
+                          const endDate = new Date();
+                          const startDate = new Date();
+                          startDate.setDate(startDate.getDate() - selectedPeriodAllSites);
+                          return `${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]}`;
+                        })()}
+                      </div>
+                      <div><strong>Загружено сайтов:</strong> {googleConsoleAggregatedData.length}</div>
+                      <div><strong>Загрузка:</strong> {loadingAggregatedData ? 'Да' : 'Нет'}</div>
+                      <div className="mt-2">
+                        <strong>Данные по сайтам:</strong>
+                        <div className="mt-1 max-h-40 overflow-y-auto bg-white dark:bg-gray-800 p-2 rounded text-xs">
+                          {googleConsoleAggregatedData.slice(0, 5).map((site) => (
+                            <div key={site.id} className="border-b border-yellow-200 dark:border-yellow-700 py-1">
+                              <strong>{site.domain}:</strong> Impressions: {site.totalImpressions.toLocaleString()}, 
+                              Clicks: {site.totalClicks.toLocaleString()}, 
+                              Postbacks: {site.totalPostbacks.toLocaleString()}
+                            </div>
+                          ))}
+                          {googleConsoleAggregatedData.length > 5 && (
+                            <div className="text-yellow-600 dark:text-yellow-400 mt-1">
+                              ... и еще {googleConsoleAggregatedData.length - 5} сайтов
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Фильтры и настройки - зафиксированы вверху */}
                 <div className="sticky top-0 z-40 bg-white dark:bg-gray-900 pb-4 mb-6">
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
