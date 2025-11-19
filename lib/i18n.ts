@@ -10,6 +10,7 @@ export const translations = {
       integrations: 'Интеграции',
       tools: 'Инструменты',
       linkIndexer: 'Индексатор ссылок',
+      users: 'Пользователи',
     },
     // Auth
     auth: {
@@ -427,6 +428,7 @@ export const translations = {
       integrations: 'Integrations',
       tools: 'Tools',
       linkIndexer: 'Link Indexer',
+      users: 'Users',
     },
     // Auth
     auth: {
