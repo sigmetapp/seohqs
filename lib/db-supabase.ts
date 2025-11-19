@@ -402,15 +402,41 @@ export async function getIntegrations(userId: number): Promise<IntegrationsSetti
       }
 
       if (error.code === 'PGRST116') {
-        // Запись не найдена, создаем её
-        const { data: newData, error: insertError } = await supabase
+        // Запись не найдена, создаем её используя upsert для предотвращения ошибки duplicate key
+        const { data: newData, error: upsertError } = await supabase
           .from('integrations')
-          .insert({ user_id: userId })
+          .upsert({ user_id: userId }, {
+            onConflict: 'user_id',
+            ignoreDuplicates: false
+          })
           .select()
           .single();
 
-        if (insertError) {
-          console.error('Error creating integrations record:', insertError);
+        if (upsertError) {
+          console.error('Error creating integrations record:', upsertError);
+          // Если ошибка duplicate key, пытаемся получить существующую запись
+          if (upsertError.message?.includes('duplicate key') || upsertError.code === '23505') {
+            const { data: existingData, error: fetchError } = await supabase
+              .from('integrations')
+              .select('*')
+              .eq('user_id', userId)
+              .single();
+            
+            if (!fetchError && existingData) {
+              return {
+                id: existingData.id,
+                userId: existingData.user_id,
+                googleServiceAccountEmail: existingData.google_service_account_email || '',
+                googlePrivateKey: existingData.google_private_key || '',
+                googleSearchConsoleUrl: existingData.google_search_console_url || '',
+                googleAccessToken: existingData.google_access_token || '',
+                googleRefreshToken: existingData.google_refresh_token || '',
+                googleTokenExpiry: existingData.google_token_expiry || '',
+                updatedAt: existingData.updated_at,
+              };
+            }
+          }
+          
           return {
             id: 1,
             userId: userId,
@@ -484,65 +510,42 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
   }
 
   try {
-    // Сначала убедимся, что запись существует
-    const { data: existing, error: checkError } = await supabase
-      .from('integrations')
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (checkError && checkError.code !== 'PGRST116') {
-      throw new Error(`Supabase check error: ${checkError.message}`);
-    }
-
-    if (!existing) {
-      const { error: insertError } = await supabase
-        .from('integrations')
-        .insert({ user_id: userId });
-      
-      if (insertError) {
-        // Если таблица не существует
-        if (insertError.code === '42P01' || insertError.message?.includes('does not exist') || insertError.message?.includes('schema cache')) {
-          throw new Error(
-            `Таблица integrations не существует в Supabase. Пожалуйста, выполните миграцию:\n` +
-            `1. Откройте Supabase Dashboard\n` +
-            `2. Перейдите в SQL Editor\n` +
-            `3. Выполните SQL из файла: migrations/006_integrations_table_supabase.sql`
-          );
-        }
-        throw new Error(`Supabase insert error: ${insertError.message}`);
-      }
-    }
-
-    const updateData: any = {
+    // Используем upsert для создания или обновления записи
+    // Это предотвращает ошибку duplicate key, если запись уже существует
+    const upsertData: any = {
+      user_id: userId,
       updated_at: new Date().toISOString(),
     };
 
+    // Добавляем только те поля, которые были переданы для обновления
     if (settings.googleServiceAccountEmail !== undefined) {
-      updateData.google_service_account_email = settings.googleServiceAccountEmail || null;
+      upsertData.google_service_account_email = settings.googleServiceAccountEmail || null;
     }
     if (settings.googlePrivateKey !== undefined) {
-      updateData.google_private_key = settings.googlePrivateKey || null;
+      upsertData.google_private_key = settings.googlePrivateKey || null;
     }
     if (settings.googleSearchConsoleUrl !== undefined) {
-      updateData.google_search_console_url = settings.googleSearchConsoleUrl || null;
+      upsertData.google_search_console_url = settings.googleSearchConsoleUrl || null;
     }
     if (settings.googleAccessToken !== undefined) {
-      updateData.google_access_token = settings.googleAccessToken || null;
+      upsertData.google_access_token = settings.googleAccessToken || null;
     }
     if (settings.googleRefreshToken !== undefined) {
-      updateData.google_refresh_token = settings.googleRefreshToken || null;
+      upsertData.google_refresh_token = settings.googleRefreshToken || null;
     }
     if (settings.googleTokenExpiry !== undefined) {
-      updateData.google_token_expiry = settings.googleTokenExpiry || null;
+      upsertData.google_token_expiry = settings.googleTokenExpiry || null;
     }
 
+    // Используем upsert с конфликтом по user_id (уникальный индекс)
     const { data, error } = await supabase
       .from('integrations')
-      .update(updateData)
-      .eq('user_id', userId)
+      .upsert(upsertData, {
+        onConflict: 'user_id',
+        ignoreDuplicates: false
+      })
       .select()
-      .maybeSingle();
+      .single();
 
     if (error) {
       // Если таблица не существует
@@ -553,6 +556,34 @@ export async function updateIntegrations(settings: Partial<Omit<IntegrationsSett
           `2. Перейдите в SQL Editor\n` +
           `3. Выполните SQL из файла: migrations/006_integrations_table_supabase.sql`
         );
+      }
+      
+      // Если ошибка duplicate key (может произойти если миграция еще не выполнена)
+      if (error.message?.includes('duplicate key') || error.code === '23505' || error.message?.includes('unique constraint')) {
+        // Пытаемся обновить существующую запись
+        const { data: existingData, error: updateError } = await supabase
+          .from('integrations')
+          .update(upsertData)
+          .eq('user_id', userId)
+          .select()
+          .single();
+        
+        if (!updateError && existingData) {
+          return {
+            id: existingData.id,
+            userId: existingData.user_id,
+            googleServiceAccountEmail: existingData.google_service_account_email || '',
+            googlePrivateKey: existingData.google_private_key || '',
+            googleSearchConsoleUrl: existingData.google_search_console_url || '',
+            googleAccessToken: existingData.google_access_token || '',
+            googleRefreshToken: existingData.google_refresh_token || '',
+            googleTokenExpiry: existingData.google_token_expiry || '',
+            updatedAt: existingData.updated_at,
+          };
+        }
+        
+        // Если обновление не удалось, выбрасываем оригинальную ошибку
+        throw new Error(`Supabase upsert error: ${error.message}. Возможно, требуется выполнить миграцию migrations/017_fix_integrations_primary_key_supabase.sql`);
       }
       
       // Проверяем специфичные ошибки Supabase
