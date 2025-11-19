@@ -44,7 +44,8 @@ export async function GET(
     startDate.setDate(startDate.getDate() - days);
 
     // Получаем данные из БД (берем достаточно для покрытия периода + запас)
-    // Для 180 дней нужно минимум 180 записей, берем с запасом (days * 2)
+    // Для 180 дней нужно минимум 180 записей, берем с запасом
+    // Используем days * 2 для учета возможных пропусков, но минимум 1000 для больших периодов
     const limit = Math.max(days * 2, 1000);
     const allData = await getGoogleSearchConsoleDataBySiteId(siteId, limit);
 
