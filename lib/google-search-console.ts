@@ -443,12 +443,32 @@ export class GoogleSearchConsoleService {
         dimensions: requestDimensions,
         rowLimit: requestBody.rowLimit,
       });
+      
+      // Вычисляем ожидаемое количество дней
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const expectedDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`[GSC API] Expected days in range: ${expectedDays} days`);
 
       const response = await this.searchConsole.searchanalytics.query(request);
       
       // Log response summary
       const rowCount = response.data?.rows?.length || 0;
       console.log(`[GSC API] Response: ${rowCount} rows returned`);
+      
+      // Логируем диапазон дат в ответе
+      if (rowCount > 0 && response.data?.rows) {
+        const firstRow = response.data.rows[0];
+        const lastRow = response.data.rows[response.data.rows.length - 1];
+        const firstDate = firstRow.keys[0];
+        const lastDate = lastRow.keys[0];
+        const actualDays = Math.ceil((new Date(lastDate).getTime() - new Date(firstDate).getTime()) / (1000 * 60 * 60 * 24));
+        console.log(`[GSC API] Response date range: ${firstDate} - ${lastDate} (${actualDays} days)`);
+        
+        if (actualDays < expectedDays * 0.7) {
+          console.warn(`[GSC API] WARNING: Received only ${actualDays} days of data, but ${expectedDays} days were requested`);
+        }
+      }
 
       // Check for empty results
       if (!response.data?.rows || response.data.rows.length === 0) {
@@ -541,9 +561,14 @@ export class GoogleSearchConsoleService {
 
       // Use reusable date range function
       const dateRange = getLastNDaysRange(days);
+      
+      console.log(`[GSC getAggregatedData] Requesting ${days} days of data for site: ${siteUrl}`);
+      console.log(`[GSC getAggregatedData] Date range: ${dateRange.startDate} - ${dateRange.endDate}`);
 
       // Получаем данные по дням (only date dimension for aggregation)
       const data = await this.getPerformanceData(siteUrl, dateRange.startDate, dateRange.endDate, ['date']);
+      
+      console.log(`[GSC getAggregatedData] Received ${data.rows?.length || 0} rows from API`);
 
       if (!data.rows || data.rows.length === 0) {
         return [];
