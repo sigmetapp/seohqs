@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { createOrUpdateUser } from '@/lib/db-users';
 import { createSession, setSessionCookie } from '@/lib/auth-utils';
+import { supabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -128,13 +129,56 @@ export async function GET(request: Request) {
       );
     }
 
-    // Создаем или обновляем пользователя
+    // Создаем или обновляем пользователя в таблице users
     const dbUser = await createOrUpdateUser({
       email: userInfo.data.email,
       name: userInfo.data.name || undefined,
       picture: userInfo.data.picture || undefined,
       googleId: userInfo.data.id || undefined,
     });
+
+    // Создаем или находим пользователя в Supabase Auth (для GSC интеграции)
+    // Это необходимо, так как GSC интеграция требует Supabase Auth user ID
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabase && supabaseServiceKey) {
+      try {
+        // Проверяем, существует ли пользователь в Supabase Auth
+        const { data: authUsers, error: listError } = await supabase.auth.admin.listUsers();
+        
+        if (!listError && authUsers) {
+          const existingAuthUser = authUsers.users.find(
+            u => u.email?.toLowerCase() === userInfo.data.email.toLowerCase()
+          );
+          
+          if (!existingAuthUser) {
+            // Создаем пользователя в Supabase Auth через Admin API
+            // Пароль не требуется, так как пользователь будет использовать Google OAuth
+            const { data: newAuthUser, error: createError } = await supabase.auth.admin.createUser({
+              email: userInfo.data.email,
+              email_confirm: true, // Автоматически подтверждаем email
+              user_metadata: {
+                name: userInfo.data.name || undefined,
+                picture: userInfo.data.picture || undefined,
+                google_id: userInfo.data.id || undefined,
+                db_user_id: dbUser.id, // Связываем с пользователем из таблицы users
+              },
+            });
+            
+            if (createError) {
+              console.warn('[Google OAuth Callback] Failed to create Supabase Auth user:', createError.message);
+              // Продолжаем выполнение, даже если не удалось создать пользователя в Supabase Auth
+            } else {
+              console.log('[Google OAuth Callback] Created Supabase Auth user:', newAuthUser.user.id);
+            }
+          } else {
+            console.log('[Google OAuth Callback] Supabase Auth user already exists:', existingAuthUser.id);
+          }
+        }
+      } catch (supabaseError: any) {
+        console.warn('[Google OAuth Callback] Error creating Supabase Auth user:', supabaseError?.message || supabaseError);
+        // Продолжаем выполнение, даже если не удалось создать пользователя в Supabase Auth
+      }
+    }
 
     // Создаем сессию
     const user = {
