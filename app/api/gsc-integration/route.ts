@@ -22,10 +22,14 @@ export async function GET(request: NextRequest) {
     const supabaseAuthUserId = await getSupabaseAuthUserId(request);
     
     if (!supabaseAuthUserId) {
+      // Log more details for debugging
+      console.warn('[GSC Integration] Supabase Auth user ID not found. User:', authResult.user?.email);
+      console.warn('[GSC Integration] Supabase configured:', !!process.env.NEXT_PUBLIC_SUPABASE_URL);
+      
       return NextResponse.json(
         {
           success: false,
-          error: 'Supabase Auth user not found. Please ensure you are logged in with Supabase Auth.',
+          error: 'Supabase Auth user not found. GSC integrations require Supabase Auth. Please ensure you are logged in with Supabase Auth or configure Supabase Auth for your account.',
           connected: false,
         },
         { status: 401 }
@@ -84,10 +88,12 @@ export async function DELETE(request: NextRequest) {
     const supabaseAuthUserId = await getSupabaseAuthUserId(request);
     
     if (!supabaseAuthUserId) {
+      console.warn('[GSC Integration DELETE] Supabase Auth user ID not found. User:', authResult.user?.email);
+      
       return NextResponse.json(
         {
           success: false,
-          error: 'Supabase Auth user not found. Please ensure you are logged in with Supabase Auth.',
+          error: 'Supabase Auth user not found. GSC integrations require Supabase Auth. Please ensure you are logged in with Supabase Auth or configure Supabase Auth for your account.',
         },
         { status: 401 }
       );

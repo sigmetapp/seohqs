@@ -18,13 +18,22 @@ export async function GET(request: NextRequest) {
     }
     const { user } = authResult;
     
+    console.log('[Google Accounts API] Fetching accounts for user:', user.id, user.email);
+    
     const accounts = await getAllGoogleAccounts(user.id);
+    
+    console.log('[Google Accounts API] Found accounts:', accounts.length);
+    if (accounts.length > 0) {
+      console.log('[Google Accounts API] Account emails:', accounts.map(a => a.email).join(', '));
+    }
+    
     return NextResponse.json({
       success: true,
       accounts: accounts,
     });
   } catch (error: any) {
-    console.error('Error fetching Google accounts:', error);
+    console.error('[Google Accounts API] Error fetching Google accounts:', error);
+    console.error('[Google Accounts API] Error stack:', error.stack);
     return NextResponse.json(
       {
         success: false,

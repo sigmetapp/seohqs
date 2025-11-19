@@ -24,12 +24,12 @@ import type { GSCIntegration, GSCSite } from './types';
 
 /**
  * Get the current Supabase Auth user ID from the request
- * This function extracts the user ID from the Supabase session
+ * This function extracts the user ID from the Supabase session or maps from JWT auth
  * 
- * IMPORTANT: This requires Supabase Auth to be set up and the user to be authenticated via Supabase Auth.
- * If your application uses a different auth system, you'll need to either:
- * 1. Migrate to Supabase Auth, or
- * 2. Create a mapping between your auth system and Supabase Auth users
+ * IMPORTANT: This function tries multiple methods:
+ * 1. First tries to get Supabase Auth session (if Supabase Auth is configured)
+ * 2. Falls back to JWT auth system and tries to find matching Supabase Auth user by email
+ * 3. Returns null if neither method works
  * 
  * @param request - Optional Request object to extract cookies/headers from
  * @returns The UUID of the authenticated user, or null if not authenticated
@@ -37,7 +37,8 @@ import type { GSCIntegration, GSCSite } from './types';
 export async function getSupabaseAuthUserId(request?: Request): Promise<string | null> {
   if (!supabase) {
     console.warn('Supabase client not initialized');
-    return null;
+    // Try to get user from JWT auth system as fallback
+    return await getSupabaseAuthUserIdFromJWT();
   }
 
   try {
@@ -72,7 +73,7 @@ export async function getSupabaseAuthUserId(request?: Request): Promise<string |
           }
         } catch (sessionError) {
           // If getSession fails, try alternative methods
-          console.warn('Could not get session from Supabase client:', sessionError);
+          console.debug('Could not get session from Supabase client:', sessionError);
         }
       }
     }
@@ -87,12 +88,77 @@ export async function getSupabaseAuthUserId(request?: Request): Promise<string |
       }
     } catch (error) {
       // This is expected if Supabase Auth is not configured or session is not available
-      console.debug('No Supabase Auth session available:', error);
+      console.debug('No Supabase Auth session available, trying JWT fallback:', error);
+    }
+
+    // Fallback: try to get user from JWT auth system and find matching Supabase Auth user
+    return await getSupabaseAuthUserIdFromJWT();
+  } catch (error) {
+    console.error('Error getting Supabase Auth user ID:', error);
+    // Try JWT fallback even on error
+    return await getSupabaseAuthUserIdFromJWT();
+  }
+}
+
+/**
+ * Get Supabase Auth user ID from JWT auth system
+ * This function gets the current user from JWT and tries to find matching Supabase Auth user by email
+ * 
+ * @returns The UUID of the Supabase Auth user, or null if not found
+ */
+async function getSupabaseAuthUserIdFromJWT(): Promise<string | null> {
+  try {
+    // Get current user from JWT auth system
+    const { getCurrentUser } = await import('./auth-utils');
+    const user = await getCurrentUser();
+    
+    if (!user || !user.email) {
+      console.debug('[GSC] No JWT user found');
+      return null;
+    }
+
+    // If Supabase is not configured, return null
+    if (!supabase) {
+      console.debug('[GSC] Supabase not configured');
+      return null;
+    }
+
+    // Check if we have service role key (required for admin API)
+    const hasServiceRoleKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!hasServiceRoleKey) {
+      console.debug('[GSC] No service role key available, cannot use admin API');
+      return null;
+    }
+
+    // Try to find Supabase Auth user by email using admin API
+    // Note: This requires service role key
+    try {
+      const { data: authUsers, error } = await supabase.auth.admin.listUsers();
+      if (error) {
+        console.debug('[GSC] Admin API error:', error.message);
+        return null;
+      }
+
+      // Find user by email (case-insensitive)
+      const authUser = authUsers?.users?.find(u => 
+        u.email?.toLowerCase() === user.email.toLowerCase()
+      );
+      
+      if (authUser?.id) {
+        console.debug('[GSC] Found Supabase Auth user:', authUser.id, 'for email:', user.email);
+        return authUser.id;
+      } else {
+        console.debug('[GSC] No Supabase Auth user found for email:', user.email);
+      }
+    } catch (adminError: any) {
+      // Admin API might not be available, this is OK
+      console.debug('[GSC] Admin API exception:', adminError?.message || adminError);
     }
 
     return null;
-  } catch (error) {
-    console.error('Error getting Supabase Auth user ID:', error);
+  } catch (error: any) {
+    console.debug('[GSC] Error getting Supabase Auth user ID from JWT:', error?.message || error);
     return null;
   }
 }
