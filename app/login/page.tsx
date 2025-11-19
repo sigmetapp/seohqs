@@ -72,10 +72,10 @@ function LoginForm() {
       if (data.success && data.authUrl) {
         window.location.href = data.authUrl;
       } else {
-        setError(data.error || 'Ошибка авторизации через Google');
+        setError(data.error || t('login.googleAuthError'));
       }
     } catch (err: any) {
-      setError('Ошибка авторизации через Google');
+      setError(t('login.googleAuthError'));
       console.error(err);
     } finally {
       setGoogleLoading(false);
@@ -106,10 +106,10 @@ function LoginForm() {
           setForgotPasswordSuccess(false);
         }, 3000);
       } else {
-        setError(data.error || 'Ошибка запроса восстановления пароля');
+        setError(data.error || t('login.resetPasswordError'));
       }
     } catch (err: any) {
-      setError('Ошибка запроса восстановления пароля');
+      setError(t('login.resetPasswordError'));
       console.error(err);
     } finally {
       setForgotPasswordLoading(false);
@@ -165,7 +165,7 @@ function LoginForm() {
           <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400">или</span>
+          <span className="px-2 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400">{t('login.or')}</span>
         </div>
       </div>
 
@@ -196,7 +196,7 @@ function LoginForm() {
               onClick={() => setShowForgotPassword(true)}
               className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
             >
-              Забыли пароль?
+              {t('login.forgotPassword')}
             </button>
           </div>
           <input
@@ -224,7 +224,7 @@ function LoginForm() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700 max-w-md w-full">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Восстановление пароля</h3>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('login.resetPasswordTitle')}</h3>
               <button
                 onClick={() => {
                   setShowForgotPassword(false);
@@ -247,13 +247,13 @@ function LoginForm() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <p className="text-gray-700 dark:text-gray-300 mb-2">Инструкции по восстановлению пароля отправлены на ваш email.</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Проверьте почту и следуйте инструкциям.</p>
+                <p className="text-gray-700 dark:text-gray-300 mb-2">{t('login.resetPasswordSuccess')}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{t('login.resetPasswordCheckEmail')}</p>
               </div>
             ) : (
               <>
                 <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
-                  Введите ваш email адрес, и мы отправим вам инструкции по восстановлению пароля.
+                  {t('login.resetPasswordDesc')}
                 </p>
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div>
@@ -280,14 +280,14 @@ function LoginForm() {
                       }}
                       className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white px-4 py-2 rounded-lg font-medium transition-colors"
                     >
-                      Отмена
+                      {t('login.cancel')}
                     </button>
                     <button
                       type="submit"
                       disabled={forgotPasswordLoading}
                       className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {forgotPasswordLoading ? 'Отправка...' : 'Отправить'}
+                      {forgotPasswordLoading ? t('login.sending') : t('login.send')}
                     </button>
                   </div>
                 </form>
@@ -311,7 +311,7 @@ export default function LoginPage() {
             {t('auth.loginTitle')}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Войдите в свой аккаунт для доступа к системе
+            {t('login.subtitle')}
           </p>
         </div>
         
