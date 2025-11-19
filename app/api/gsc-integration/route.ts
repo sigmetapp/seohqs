@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { getSupabaseAuthUserId, getGSCIntegration, deleteGSCIntegration, getGSCSites } from '@/lib/gsc-integrations';
 import { requireAuth } from '@/lib/middleware-auth';
 import { getAllGoogleAccounts, deleteGoogleAccount, getAllSites } from '@/lib/db-adapter';
+import { getGoogleGSCAccounts, deactivateGoogleGSCAccount } from '@/lib/google-gsc-accounts';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
       google_user_id: string;
       created_at: string;
       updated_at: string;
-      source: 'supabase' | 'jwt';
+      source: 'supabase' | 'jwt' | 'google_gsc_accounts';
       accountId?: number; // For JWT accounts, the numeric ID
       hasSites?: boolean; // Whether this account has sites in the database
       sitesCount?: number; // Number of sites associated with this account
@@ -63,7 +64,10 @@ export async function GET(request: NextRequest) {
     // Get Supabase Auth user ID
     const supabaseAuthUserId = await getSupabaseAuthUserId(request);
     
-    // Try to get GSC integration from Supabase Auth table first
+    // Track which emails we've already added to avoid duplicates
+    const addedEmails = new Set<string>();
+    
+    // Try to get GSC integration from Supabase Auth table first (gsc_integrations)
     if (supabaseAuthUserId) {
       const integration = await getGSCIntegration(supabaseAuthUserId);
       
@@ -99,6 +103,43 @@ export async function GET(request: NextRequest) {
           // Also include matched count for better info
           gscSitesMatchedCount: gscSitesMatchedCount,
         });
+        
+        addedEmails.add(integration.google_email.toLowerCase());
+      }
+      
+      // Also get accounts from google_gsc_accounts table (supports multiple accounts)
+      try {
+        const googleGSCAccounts = await getGoogleGSCAccounts(supabaseAuthUserId);
+        
+        for (const account of googleGSCAccounts) {
+          // Skip if we already added this email from gsc_integrations
+          if (addedEmails.has(account.google_email.toLowerCase())) {
+            continue;
+          }
+          
+          // For google_gsc_accounts, we need to check if there's a corresponding gsc_integration
+          // to get GSC sites count. For now, we'll mark it as having sites if user has sites.
+          // In the future, we could link google_gsc_accounts to gsc_integrations or gsc_sites.
+          const hasSites = userSitesCount > 0;
+          
+          allAccounts.push({
+            id: account.id,
+            google_email: account.google_email,
+            google_user_id: account.google_user_id,
+            created_at: account.created_at,
+            updated_at: account.updated_at,
+            source: 'google_gsc_accounts',
+            hasSites,
+            sitesCount: userSitesCount,
+            gscSitesCount: 0, // We don't have direct link to gsc_sites for these accounts
+            gscSitesMatchedCount: 0,
+          });
+          
+          addedEmails.add(account.google_email.toLowerCase());
+        }
+      } catch (googleGSCAccountsError: any) {
+        // Log but don't fail - this table might not exist in all setups
+        console.debug('[GSC Integration] Error fetching google_gsc_accounts:', googleGSCAccountsError?.message);
       }
     }
 
@@ -178,11 +219,13 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get('accountId');
     const accountUuid = searchParams.get('accountUuid');
+    const accountSource = searchParams.get('source'); // 'supabase', 'jwt', or 'google_gsc_accounts'
 
     // If specific account ID is provided, delete only that one
     if (accountId) {
       const numericId = parseInt(accountId);
       if (!isNaN(numericId)) {
+        // JWT account (numeric ID)
         try {
           await deleteGoogleAccount(numericId, authResult.user.id);
           return NextResponse.json({
@@ -203,6 +246,24 @@ export async function DELETE(request: NextRequest) {
     if (accountUuid) {
       const supabaseAuthUserId = await getSupabaseAuthUserId(request);
       if (supabaseAuthUserId) {
+        // Check if it's from google_gsc_accounts table
+        if (accountSource === 'google_gsc_accounts') {
+          try {
+            await deactivateGoogleGSCAccount(accountUuid, supabaseAuthUserId);
+            return NextResponse.json({
+              success: true,
+              message: 'Google GSC account disconnected successfully',
+            });
+          } catch (deleteError: any) {
+            console.error(`[GSC Integration DELETE] Failed to delete google_gsc_account:`, deleteError?.message);
+            return NextResponse.json({
+              success: false,
+              error: deleteError.message || 'Failed to delete account',
+            }, { status: 500 });
+          }
+        }
+        
+        // Otherwise, try gsc_integrations table
         try {
           // Verify that this integration belongs to the current user
           const integration = await getGSCIntegration(supabaseAuthUserId);
@@ -236,13 +297,28 @@ export async function DELETE(request: NextRequest) {
     // No specific account specified - delete all (backward compatibility)
     const supabaseAuthUserId = await getSupabaseAuthUserId(request);
     
-    // Try to delete from Supabase Auth table first
+    // Try to delete from Supabase Auth tables
     if (supabaseAuthUserId) {
       try {
+        // Delete from gsc_integrations
         await deleteGSCIntegration(supabaseAuthUserId);
       } catch (supabaseError: any) {
         console.debug('[GSC Integration DELETE] Supabase deletion failed:', supabaseError?.message);
         // Continue to fallback
+      }
+      
+      // Also deactivate all google_gsc_accounts
+      try {
+        const googleGSCAccounts = await getGoogleGSCAccounts(supabaseAuthUserId);
+        for (const account of googleGSCAccounts) {
+          try {
+            await deactivateGoogleGSCAccount(account.id, supabaseAuthUserId);
+          } catch (deactivateError: any) {
+            console.warn(`[GSC Integration DELETE] Failed to deactivate account ${account.id}:`, deactivateError?.message);
+          }
+        }
+      } catch (googleGSCAccountsError: any) {
+        console.debug('[GSC Integration DELETE] Error deactivating google_gsc_accounts:', googleGSCAccountsError?.message);
       }
     }
 
