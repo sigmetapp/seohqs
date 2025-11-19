@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import Link from 'next/link';
 import { GoogleAccount, Tag, SiteStatus } from '@/lib/types';
+import { useTheme } from '@/lib/theme-context';
 
 type SiteData = {
   id: number;
@@ -94,16 +95,16 @@ const LazySiteCard = memo(({
   }, [onLoad]);
 
   if (!isVisible) {
-    return (
-      <div ref={cardRef} className="relative" style={{ minHeight: '300px' }}>
-        <div className="h-64 flex items-center justify-center text-gray-500 text-sm">
-          <div className="text-center">
-            <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-            <div className="text-xs text-gray-500">Загрузка...</div>
-          </div>
+  return (
+    <div ref={cardRef} className="relative" style={{ minHeight: '300px' }}>
+      <div className="h-64 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
+        <div className="text-center">
+          <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+          <div className="text-xs text-gray-400 dark:text-gray-500">Загрузка...</div>
         </div>
       </div>
-    );
+    </div>
+  );
   }
 
   return (
@@ -154,10 +155,15 @@ const SiteCard = memo(({
   hoveredDateIndex: { siteId: number; index: number } | null;
   setHoveredDateIndex: (value: { siteId: number; index: number } | null) => void;
 }) => {
+  const { theme } = useTheme();
   const isHovered = hoveredSiteId === siteData.id;
   const hoveredDate = hoveredDateIndex?.siteId === siteData.id 
     ? dailyData[hoveredDateIndex.index] 
     : null;
+  
+  // Цвета для SVG в зависимости от темы
+  const gridColor = theme === 'dark' ? '#374151' : '#d1d5db';
+  const axisColor = theme === 'dark' ? '#6b7280' : '#9ca3af';
 
   // Подготовка данных для графика
   // Автоматически подбираем максимальное значение: если макс значение 2, шкала будет 4
@@ -191,7 +197,7 @@ const SiteCard = memo(({
 
   return (
     <div
-      className="relative"
+      className="relative bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700"
       onMouseEnter={onHover}
       onMouseLeave={onHoverLeave}
     >
@@ -200,7 +206,7 @@ const SiteCard = memo(({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <p className={`text-sm truncate transition-all duration-200 ${
-              blurMode && !isHovered ? 'blur-sm select-none' : 'text-gray-400'
+              blurMode && !isHovered ? 'blur-sm select-none' : 'text-gray-600 dark:text-gray-400'
             }`}>
               {siteData.domain}
             </p>
@@ -220,7 +226,7 @@ const SiteCard = memo(({
           </div>
           <Link
             href={`/sites/${siteData.id}`}
-            className="text-blue-400 hover:text-blue-300 hover:underline text-sm whitespace-nowrap ml-2 flex-shrink-0"
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline text-sm whitespace-nowrap ml-2 flex-shrink-0"
           >
             Открыть →
           </Link>
@@ -229,9 +235,9 @@ const SiteCard = memo(({
 
       {/* График */}
       {isLoading ? (
-        <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
+        <div className="h-64 flex items-center justify-center text-gray-600 dark:text-gray-400 text-sm">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-4 h-4 border-2 border-blue-600 dark:border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             <span>Загрузка данных...</span>
           </div>
         </div>
@@ -263,7 +269,7 @@ const SiteCard = memo(({
                   y1={20 + (i * 35)}
                   x2="750"
                   y2={20 + (i * 35)}
-                  stroke="#374151"
+                  stroke={gridColor}
                   strokeWidth="0.5"
                   opacity="0.3"
                 />
@@ -275,7 +281,7 @@ const SiteCard = memo(({
                 y1="175"
                 x2="750"
                 y2="175"
-                stroke="#6b7280"
+                stroke={axisColor}
                 strokeWidth="2"
               />
               <line
@@ -283,7 +289,7 @@ const SiteCard = memo(({
                 y1="20"
                 x2="50"
                 y2="175"
-                stroke="#6b7280"
+                stroke={axisColor}
                 strokeWidth="2"
               />
               
@@ -475,9 +481,9 @@ const SiteCard = memo(({
             {/* Значки и цифры на графике - показы и клики */}
             <div className="absolute top-3 left-3 flex flex-col gap-2">
               {showImpressions && (
-                <div className="flex items-center gap-1.5 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
+                <div className="flex items-center gap-1.5 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-300 dark:border-gray-700">
                   <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  <span className="text-xs font-bold text-white">
+                  <span className="text-xs font-bold text-gray-900 dark:text-white">
                     {hoveredDate 
                       ? hoveredDate.impressions.toLocaleString() 
                       : aggregatedData.impressions.toLocaleString()}
@@ -485,9 +491,9 @@ const SiteCard = memo(({
                 </div>
               )}
               {showClicks && (
-                <div className="flex items-center gap-1.5 bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700">
+                <div className="flex items-center gap-1.5 bg-gray-900/90 dark:bg-gray-900/90 bg-white/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700 dark:border-gray-700 border-gray-300">
                   <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  <span className="text-xs font-bold text-white">
+                  <span className="text-xs font-bold text-white dark:text-white text-gray-900">
                     {hoveredDate 
                       ? hoveredDate.clicks.toLocaleString() 
                       : aggregatedData.clicks.toLocaleString()}
@@ -497,7 +503,7 @@ const SiteCard = memo(({
             </div>
           </div>
           {/* Дата под графиком - зарезервировано место */}
-          <div className="text-xs text-gray-500 text-center py-1 px-2 h-6">
+          <div className="text-xs text-gray-400 dark:text-gray-500 text-center py-1 px-2 h-6">
             {hoveredDate && (
               <span>
                 {new Date(hoveredDate.date).toLocaleDateString('ru-RU', { 
@@ -510,10 +516,10 @@ const SiteCard = memo(({
           </div>
         </div>
       ) : (
-        <div className="h-64 flex items-center justify-center text-gray-500 text-sm">
+        <div className="h-64 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
           <div className="text-center">
-            <div className="text-gray-400 mb-1">Нет данных</div>
-            <div className="text-xs text-gray-500">за выбранный период</div>
+            <div className="text-gray-600 dark:text-gray-400 mb-1">Нет данных</div>
+            <div className="text-xs text-gray-400 dark:text-gray-500">за выбранный период</div>
           </div>
         </div>
       )}
@@ -524,6 +530,7 @@ const SiteCard = memo(({
 SiteCard.displayName = 'SiteCard';
 
 export default function DashboardGCPage() {
+  const { theme } = useTheme();
   const [sites, setSites] = useState<SiteData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState<number>(30);
@@ -690,28 +697,28 @@ export default function DashboardGCPage() {
   }, [sites, selectedStatusIds, searchDomain]);
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white p-8">
+    <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-4xl font-bold mb-2">Dashboard GC</h1>
-            <p className="text-gray-400">Все сайты с Google Console</p>
+            <p className="text-gray-600 dark:text-gray-400">Все сайты с Google Console</p>
           </div>
           <Link
             href="/sites"
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded text-sm text-gray-900 dark:text-white"
           >
             ← Назад к сайтам
           </Link>
         </div>
 
         {loading ? (
-          <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-            <div className="text-gray-400">Загрузка данных...</div>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center border border-gray-200 dark:border-gray-700">
+            <div className="text-gray-600 dark:text-gray-400">Загрузка данных...</div>
           </div>
         ) : error ? (
-          <div className="bg-gray-800 rounded-lg p-8 border border-red-500">
-            <div className="text-red-400">
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 border border-red-400 dark:border-red-500">
+            <div className="text-red-600 dark:text-red-400">
               <h3 className="text-xl font-bold mb-2">Ошибка загрузки</h3>
               <p className="text-sm">{error}</p>
             </div>
@@ -719,7 +726,7 @@ export default function DashboardGCPage() {
         ) : (
           <>
             {/* Контролы - зафиксированы в одну строку */}
-            <div className="sticky top-0 z-50 bg-gray-800 rounded-lg p-2 mb-6 border border-gray-700 shadow-lg backdrop-blur-sm">
+            <div className="sticky top-0 z-50 bg-gray-50 dark:bg-gray-800 rounded-lg p-2 mb-6 border border-gray-200 dark:border-gray-700 shadow-lg backdrop-blur-sm">
               <div className="flex flex-nowrap gap-2 items-center overflow-x-auto">
                 {/* Фильтр по тегам */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -729,7 +736,7 @@ export default function DashboardGCPage() {
                       const tagId = e.target.value ? parseInt(e.target.value) : null;
                       setSelectedTagIds(tagId ? [tagId] : []);
                     }}
-                    className="px-2 py-1 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
+                    className="px-2 py-1 rounded text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
                     style={{
                       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%9ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                       backgroundRepeat: 'no-repeat',
@@ -747,7 +754,7 @@ export default function DashboardGCPage() {
                   {/* Показываем цвет выбранного тега */}
                   {selectedTagIds.length > 0 && tags.find(t => t.id === selectedTagIds[0]) && (
                     <div 
-                      className="w-3.5 h-3.5 rounded border border-gray-600 flex-shrink-0"
+                      className="w-3.5 h-3.5 rounded border border-gray-300 dark:border-gray-600 flex-shrink-0"
                       style={{ backgroundColor: tags.find(t => t.id === selectedTagIds[0])?.color || '#3b82f6' }}
                       title={tags.find(t => t.id === selectedTagIds[0])?.name}
                     />
@@ -762,7 +769,7 @@ export default function DashboardGCPage() {
                       const statusId = e.target.value ? parseInt(e.target.value) : null;
                       setSelectedStatusIds(statusId ? [statusId] : []);
                     }}
-                    className="px-2 py-1 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
+                    className="px-2 py-1 rounded text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
                     style={{
                       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%9ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                       backgroundRepeat: 'no-repeat',
@@ -780,7 +787,7 @@ export default function DashboardGCPage() {
                   {/* Показываем цвет выбранного статуса */}
                   {selectedStatusIds.length > 0 && statuses.find(s => s.id === selectedStatusIds[0]) && (
                     <div 
-                      className="w-3.5 h-3.5 rounded border border-gray-600 flex-shrink-0"
+                      className="w-3.5 h-3.5 rounded border border-gray-300 dark:border-gray-600 flex-shrink-0"
                       style={{ backgroundColor: statuses.find(s => s.id === selectedStatusIds[0])?.color || '#6b7280' }}
                       title={statuses.find(s => s.id === selectedStatusIds[0])?.name}
                     />
@@ -792,7 +799,7 @@ export default function DashboardGCPage() {
                   <select
                     value={selectedPeriod}
                     onChange={(e) => setSelectedPeriod(parseInt(e.target.value))}
-                    className="px-2 py-1 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
+                    className="px-2 py-1 rounded text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
                     style={{
                       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%9ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                       backgroundRepeat: 'no-repeat',
@@ -812,7 +819,7 @@ export default function DashboardGCPage() {
                   <select
                     value={columnsPerRow}
                     onChange={(e) => setColumnsPerRow(parseInt(e.target.value))}
-                    className="px-2 py-1 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
+                    className="px-2 py-1 rounded text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
                     style={{
                       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%9ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                       backgroundRepeat: 'no-repeat',
@@ -834,8 +841,8 @@ export default function DashboardGCPage() {
                     onClick={() => setBlurMode(!blurMode)}
                     className={`px-2 py-1 rounded text-sm whitespace-nowrap ${
                       blurMode
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        ? 'bg-purple-500 dark:bg-purple-600 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                     }`}
                   >
                     {blurMode ? '🔓' : '🔒'}
@@ -851,7 +858,7 @@ export default function DashboardGCPage() {
                       onChange={(e) => setShowImpressions(e.target.checked)}
                       className="w-4 h-4"
                     />
-                    <span className="text-gray-300 text-xs">Показы</span>
+                    <span className="text-gray-700 dark:text-gray-300 text-xs">Показы</span>
                   </label>
                   <label className="flex items-center gap-1 text-sm cursor-pointer whitespace-nowrap">
                     <input
@@ -860,7 +867,7 @@ export default function DashboardGCPage() {
                       onChange={(e) => setShowClicks(e.target.checked)}
                       className="w-4 h-4"
                     />
-                    <span className="text-gray-300 text-xs">Клики</span>
+                    <span className="text-gray-700 dark:text-gray-300 text-xs">Клики</span>
                   </label>
                   <label className="flex items-center gap-1 text-sm cursor-pointer whitespace-nowrap">
                     <input
@@ -869,7 +876,7 @@ export default function DashboardGCPage() {
                       onChange={(e) => setShowPositions(e.target.checked)}
                       className="w-4 h-4"
                     />
-                    <span className="text-gray-300 text-xs">Позиции</span>
+                    <span className="text-gray-700 dark:text-gray-300 text-xs">Позиции</span>
                   </label>
                 </div>
                 
@@ -880,7 +887,7 @@ export default function DashboardGCPage() {
                     placeholder="Поиск..."
                     value={searchDomain}
                     onChange={(e) => setSearchDomain(e.target.value)}
-                    className="px-2 py-1 rounded text-sm bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-24"
+                    className="px-2 py-1 rounded text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-24"
                   />
                 </div>
               </div>
@@ -888,9 +895,9 @@ export default function DashboardGCPage() {
 
             {/* Карточки сайтов с ленивой загрузкой или сообщение об отсутствии сайтов */}
             {visibleSites.length === 0 ? (
-              <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-                <p className="text-gray-400 mb-4">Сайты не найдены</p>
-                <p className="text-gray-500 text-sm mb-4">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center border border-gray-200 dark:border-gray-700">
+                <p className="text-gray-600 dark:text-gray-400 mb-4">Сайты не найдены</p>
+                <p className="text-gray-500 dark:text-gray-500 text-sm mb-4">
                   Убедитесь, что вы авторизованы через Google в разделе Интеграции
                 </p>
               </div>
