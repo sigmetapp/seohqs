@@ -367,6 +367,16 @@ export const translations = {
       gscDisconnectConfirm: 'Вы уверены, что хотите отключить Google Search Console? Это удалит все сохраненные токены доступа.',
       gscDisconnectedSuccess: 'Google Search Console успешно отключен',
       gscDisconnectError: 'Ошибка отключения Google Search Console',
+      linkedAccounts: 'Linked Accounts',
+      linkedAccountsDesc: 'Управление подключенными аккаунтами Google Search Console',
+      unlinkAccount: 'Отвязать аккаунт',
+      unlinkConfirm: 'Вы уверены, что хотите отвязать этот аккаунт?',
+      unlinkSuccess: 'Аккаунт успешно отвязан',
+      unlinkError: 'Ошибка при отвязывании аккаунта',
+      account: 'аккаунт',
+      accounts: 'аккаунтов',
+      addAccount: 'Добавить аккаунт',
+      connectedAt: 'Подключено',
     },
     // Profile
     profile: {
@@ -908,6 +918,16 @@ export const translations = {
       gscDisconnectConfirm: 'Are you sure you want to disconnect Google Search Console? This will remove all stored access tokens.',
       gscDisconnectedSuccess: 'Google Search Console disconnected successfully',
       gscDisconnectError: 'Error disconnecting Google Search Console',
+      linkedAccounts: 'Linked Accounts',
+      linkedAccountsDesc: 'Manage connected Google Search Console accounts',
+      unlinkAccount: 'Unlink account',
+      unlinkConfirm: 'Are you sure you want to unlink this account?',
+      unlinkSuccess: 'Account successfully unlinked',
+      unlinkError: 'Error unlinking account',
+      account: 'account',
+      accounts: 'accounts',
+      addAccount: 'Add account',
+      connectedAt: 'Connected at',
     },
     // Profile
     profile: {
