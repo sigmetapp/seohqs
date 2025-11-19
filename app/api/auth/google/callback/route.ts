@@ -141,8 +141,14 @@ export async function GET(request: Request) {
       });
       
       if (userInfoResponse.ok) {
-        googleUserInfo = await userInfoResponse.json();
-        console.log('[Google OAuth Callback] Google userinfo:', { email: googleUserInfo.email, sub: googleUserInfo.sub });
+        const userInfoData = await userInfoResponse.json();
+        googleUserInfo = {
+          email: userInfoData.email || '',
+          sub: userInfoData.sub || '',
+        };
+        if (googleUserInfo.email && googleUserInfo.sub) {
+          console.log('[Google OAuth Callback] Google userinfo:', { email: googleUserInfo.email, sub: googleUserInfo.sub });
+        }
       } else {
         console.warn('[Google OAuth Callback] Failed to fetch userinfo:', userInfoResponse.status, userInfoResponse.statusText);
       }
@@ -180,7 +186,7 @@ export async function GET(request: Request) {
     const supabaseAuthUserId = await getSupabaseAuthUserId(request);
     
     // Сохраняем в gsc_integrations если у нас есть Supabase Auth user и Google userinfo
-    if (supabaseAuthUserId && googleUserInfo?.email && googleUserInfo?.sub) {
+    if (supabaseAuthUserId && googleUserInfo && googleUserInfo.email && googleUserInfo.sub) {
       try {
         await upsertGSCIntegration(supabaseAuthUserId, {
           google_email: googleUserInfo.email,
