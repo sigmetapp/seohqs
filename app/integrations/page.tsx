@@ -20,7 +20,7 @@ interface GSCAccount {
   google_user_id: string;
   created_at: string;
   updated_at: string;
-  source: 'supabase' | 'jwt';
+  source: 'supabase' | 'jwt' | 'google_gsc_accounts';
   accountId?: number;
   hasSites?: boolean;
   sitesCount?: number;
@@ -234,11 +234,13 @@ export default function IntegrationsPage() {
     try {
       let url = '/api/gsc-integration';
       if (account) {
-        // Delete specific account
+        // Delete specific account based on source
         if (account.source === 'jwt' && account.accountId) {
           url += `?accountId=${account.accountId}`;
+        } else if (account.source === 'google_gsc_accounts') {
+          url += `?accountUuid=${account.id}&source=google_gsc_accounts`;
         } else if (account.source === 'supabase') {
-          url += `?accountUuid=${account.id}`;
+          url += `?accountUuid=${account.id}&source=supabase`;
         }
       }
 
@@ -647,7 +649,11 @@ export default function IntegrationsPage() {
                               </span>
                             )}
                             <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium rounded">
-                              {account.source === 'supabase' ? 'Supabase Auth' : 'JWT Auth'}
+                              {account.source === 'supabase' 
+                                ? 'Supabase Auth' 
+                                : account.source === 'google_gsc_accounts'
+                                ? 'Google GSC Account'
+                                : 'JWT Auth'}
                             </span>
                           </div>
                           <div className="text-sm text-gray-600 dark:text-gray-400">
