@@ -205,7 +205,7 @@ export default function IntegrationsPage() {
     return (
       <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center">Загрузка...</div>
+          <div className="text-center text-gray-900 dark:text-white">Загрузка...</div>
         </div>
       </main>
     );
@@ -215,7 +215,7 @@ export default function IntegrationsPage() {
     <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Интеграции</h1>
+          <h1 className="text-4xl font-bold mb-2 text-gray-900 dark:text-white">Интеграции</h1>
           <p className="text-gray-600 dark:text-gray-400">
             Настройте подключения к внешним сервисам для использования во всех разделах приложения
           </p>
@@ -240,7 +240,7 @@ export default function IntegrationsPage() {
               <div className="flex items-center gap-3">
                 <div className="text-3xl">🔍</div>
                 <div>
-                  <h2 className="text-xl font-bold">Google Search Console</h2>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Google Search Console</h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     Автоматическая синхронизация данных о производительности сайта в поиске Google
                   </p>
@@ -249,7 +249,7 @@ export default function IntegrationsPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowSearchConsoleGuide(true)}
-                  className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2"
+                  className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
                 >
                   <span>📖</span>
                   <span>Как настроить?</span>
@@ -293,7 +293,7 @@ export default function IntegrationsPage() {
                   </div>
                   <button
                     onClick={handleGoogleAuth}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                   >
                     <span>🔐</span>
                     <span>Добавить Google аккаунт</span>
@@ -326,7 +326,7 @@ export default function IntegrationsPage() {
                           </div>
                           <button
                             onClick={() => handleDeleteAccount(account.id)}
-                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-medium transition-colors"
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium transition-colors"
                             title="Удалить аккаунт"
                           >
                             Удалить
@@ -370,7 +370,7 @@ export default function IntegrationsPage() {
                   placeholder="sc-domain:example.com или https://example.com"
                 />
                 <p className="text-xs text-gray-600 dark:text-gray-500 mt-1">
-                  Укажите URL сайта из Google Search Console. Поддерживаются форматы: <code className="bg-gray-200 dark:bg-gray-900 px-1 rounded">sc-domain:example.com</code>, <code className="bg-gray-200 dark:bg-gray-900 px-1 rounded">https://example.com</code> или полный URL из интерфейса
+                  Укажите URL сайта из Google Search Console. Поддерживаются форматы: <code className="bg-gray-200 dark:bg-gray-900 text-gray-900 dark:text-white px-1 rounded">sc-domain:example.com</code>, <code className="bg-gray-200 dark:bg-gray-900 text-gray-900 dark:text-white px-1 rounded">https://example.com</code> или полный URL из интерфейса
                 </p>
               </div>
             </div>
@@ -381,7 +381,7 @@ export default function IntegrationsPage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
             >
               {saving ? 'Сохранение...' : 'Сохранить настройки'}
             </button>
@@ -529,7 +529,7 @@ export default function IntegrationsPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-red-600 dark:text-red-400 mb-1">Неверный формат URL</p>
-                    <p className="text-gray-700 dark:text-gray-300">Убедитесь, что URL корректный. Используйте формат <code className="bg-gray-200 dark:bg-gray-900 px-1 rounded">sc-domain:example.com</code> или <code className="bg-gray-200 dark:bg-gray-900 px-1 rounded">https://example.com</code></p>
+                    <p className="text-gray-700 dark:text-gray-300">Убедитесь, что URL корректный. Используйте формат <code className="bg-gray-200 dark:bg-gray-900 text-gray-900 dark:text-white px-1 rounded">sc-domain:example.com</code> или <code className="bg-gray-200 dark:bg-gray-900 text-gray-900 dark:text-white px-1 rounded">https://example.com</code></p>
                   </div>
                 </div>
               </div>
