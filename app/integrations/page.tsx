@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { IntegrationsSettings, GoogleAccount } from '@/lib/types';
+import { useI18n } from '@/lib/i18n-context';
 
 export default function IntegrationsPage() {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [integrations, setIntegrations] = useState<IntegrationsSettings>({
@@ -56,7 +58,7 @@ export default function IntegrationsPage() {
       }
     } catch (err) {
       console.error('Error loading integrations:', err);
-      setMessage({ type: 'error', text: 'Ошибка загрузки настроек интеграций' });
+      setMessage({ type: 'error', text: t('integrations.errorLoading') });
     } finally {
       setLoading(false);
     }
@@ -75,7 +77,7 @@ export default function IntegrationsPage() {
   };
 
   const handleDeleteAccount = async (accountId: number) => {
-    if (!confirm('Вы уверены, что хотите удалить этот Google аккаунт?')) {
+    if (!confirm(t('integrations.confirmDeleteAccount'))) {
       return;
     }
 
@@ -85,15 +87,15 @@ export default function IntegrationsPage() {
       });
       const data = await response.json();
       if (data.success) {
-        setMessage({ type: 'success', text: 'Аккаунт успешно удален' });
+        setMessage({ type: 'success', text: t('integrations.accountDeleted') });
         setTimeout(() => setMessage(null), 3000);
         loadGoogleAccounts();
       } else {
-        setMessage({ type: 'error', text: data.error || 'Ошибка удаления аккаунта' });
+        setMessage({ type: 'error', text: data.error || t('integrations.errorDeleteAccount') });
       }
     } catch (err) {
       console.error('Error deleting account:', err);
-      setMessage({ type: 'error', text: 'Ошибка удаления аккаунта' });
+      setMessage({ type: 'error', text: t('integrations.errorDeleteAccount') });
     }
   };
 
@@ -111,14 +113,14 @@ export default function IntegrationsPage() {
       const data = await response.json();
       if (data.success) {
         setIntegrations(data.integrations);
-        setMessage({ type: 'success', text: 'Настройки успешно сохранены' });
+        setMessage({ type: 'success', text: t('integrations.settingsSaved') });
         setTimeout(() => setMessage(null), 3000);
       } else {
-        setMessage({ type: 'error', text: data.error || 'Ошибка сохранения настроек' });
+        setMessage({ type: 'error', text: data.error || t('integrations.errorSaving') });
       }
     } catch (err) {
       console.error('Error saving integrations:', err);
-      setMessage({ type: 'error', text: 'Ошибка сохранения настроек' });
+      setMessage({ type: 'error', text: t('integrations.errorSaving') });
     } finally {
       setSaving(false);
     }
@@ -142,11 +144,11 @@ export default function IntegrationsPage() {
         // Перенаправляем на страницу авторизации Google
         window.location.href = data.authUrl;
       } else {
-        setMessage({ type: 'error', text: data.error || 'Ошибка начала авторизации' });
+        setMessage({ type: 'error', text: data.error || t('integrations.errorAuth') });
       }
     } catch (err) {
       console.error('Error starting Google auth:', err);
-      setMessage({ type: 'error', text: 'Ошибка начала авторизации' });
+      setMessage({ type: 'error', text: t('integrations.errorAuth') });
     }
   };
 
@@ -167,7 +169,7 @@ export default function IntegrationsPage() {
   };
 
   const handleResetOAuth = async () => {
-    if (!confirm('Вы уверены, что хотите сбросить авторизацию Google? После этого вам нужно будет авторизоваться заново.')) {
+    if (!confirm(t('integrations.confirmDeleteAccount'))) {
       return;
     }
 
@@ -203,21 +205,21 @@ export default function IntegrationsPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-900 text-white p-8">
+      <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center">Загрузка...</div>
+          <div className="text-center">{t('integrations.loading')}</div>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white p-8">
+    <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Интеграции</h1>
-          <p className="text-gray-400">
-            Настройте подключения к внешним сервисам для использования во всех разделах приложения
+          <h1 className="text-4xl font-bold mb-2">{t('integrations.title')}</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            {t('integrations.description')}
           </p>
         </div>
 
@@ -235,29 +237,29 @@ export default function IntegrationsPage() {
 
         <div className="space-y-6">
           {/* Google Search Console */}
-          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="text-3xl">🔍</div>
                 <div>
-                  <h2 className="text-xl font-bold">Google Search Console</h2>
-                  <p className="text-sm text-gray-400">
-                    Автоматическая синхронизация данных о производительности сайта в поиске Google
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('integrations.googleSearchConsole')}</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {t('integrations.googleSearchConsoleDesc')}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowSearchConsoleGuide(true)}
-                  className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2"
+                  className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-2 text-white"
                 >
                   <span>📖</span>
-                  <span>Как настроить?</span>
+                  <span>{t('integrations.howToSetup')}</span>
                 </button>
                 {hasAnyAuthorizedAccount() ? (
                   <div className="flex flex-col gap-1 items-end">
-                    <div className="px-3 py-1 bg-green-900/30 text-green-300 border border-green-700 rounded-full text-xs font-medium">
-                      Авторизовано в Google Search Console
+                    <div className="px-3 py-1 bg-green-900/30 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-700 rounded-full text-xs font-medium">
+                      {t('integrations.authorized')}
                     </div>
                     {getAuthorizedAccounts().length > 0 && (
                       <div className="text-xs text-gray-400 text-right max-w-xs truncate" title={getAuthorizedAccounts().map(a => a.email).join(', ')}>
@@ -274,8 +276,8 @@ export default function IntegrationsPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="px-3 py-1 rounded-full text-xs font-medium bg-gray-700 text-gray-400 border border-gray-600">
-                    Не авторизовано
+                  <div className="px-3 py-1 rounded-full text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600">
+                    {t('integrations.notAuthorized')}
                   </div>
                 )}
               </div>
@@ -283,53 +285,53 @@ export default function IntegrationsPage() {
 
             <div className="space-y-4">
               {/* OAuth авторизация */}
-              <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h3 className="text-sm font-bold text-blue-300 mb-1">Авторизация Google Search Console</h3>
-                    <p className="text-xs text-gray-400">
-                      Авторизуйтесь через Google аккаунт для доступа к данным Search Console. Можно добавить несколько аккаунтов.
+                    <h3 className="text-sm font-bold text-blue-700 dark:text-blue-300 mb-1">{t('integrations.googleSearchConsole')} Authorization</h3>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      Authorize through Google account to access Search Console data. You can add multiple accounts.
                     </p>
                   </div>
                   <button
                     onClick={handleGoogleAuth}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 text-white"
                   >
                     <span>🔐</span>
-                    <span>Добавить Google аккаунт</span>
+                    <span>{t('integrations.addGoogleAccount')}</span>
                   </button>
                 </div>
                 
                 {/* Список подключенных аккаунтов */}
                 {googleAccounts.length > 0 && (
                   <div className="mt-4 space-y-2">
-                    <h4 className="text-xs font-semibold text-gray-300 mb-2">Подключенные аккаунты:</h4>
+                    <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('integrations.connectedAccounts')}</h4>
                     {googleAccounts.map((account) => {
                       const isConfigured = !!(account.googleAccessToken?.trim() && account.googleRefreshToken?.trim());
                       return (
                         <div
                           key={account.id}
-                          className="flex items-center justify-between bg-gray-800/50 rounded-lg p-3 border border-gray-700"
+                          className="flex items-center justify-between bg-gray-100 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700"
                         >
                           <div className="flex items-center gap-3">
                             <div className="text-lg">👤</div>
                             <div>
-                              <div className="text-sm font-medium text-white">{account.email}</div>
-                              <div className="text-xs text-gray-400">
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">{account.email}</div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400">
                                 {isConfigured ? (
-                                  <span className="text-green-400">✓ Авторизован</span>
+                                  <span className="text-green-600 dark:text-green-400">{t('integrations.authorizedStatus')}</span>
                                 ) : (
-                                  <span className="text-yellow-400">⚠ Требуется авторизация</span>
+                                  <span className="text-yellow-600 dark:text-yellow-400">{t('integrations.requiresAuth')}</span>
                                 )}
                               </div>
                             </div>
                           </div>
                           <button
                             onClick={() => handleDeleteAccount(account.id)}
-                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-medium transition-colors"
-                            title="Удалить аккаунт"
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-medium transition-colors text-white"
+                            title={t('integrations.deleteAccount')}
                           >
-                            Удалить
+                            {t('integrations.delete')}
                           </button>
                         </div>
                       );
@@ -338,27 +340,27 @@ export default function IntegrationsPage() {
                 )}
                 
                 {googleAccounts.length === 0 && (
-                  <div className="mt-3 text-xs text-gray-400">
-                    Нет подключенных Google аккаунтов. Нажмите кнопку выше, чтобы добавить первый аккаунт.
+                  <div className="mt-3 text-xs text-gray-600 dark:text-gray-400">
+                    {t('integrations.noAccounts')}
                   </div>
                 )}
-                <div className="text-xs text-yellow-300 mt-2">
-                  ⚠️ Перед авторизацией убедитесь, что GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET настроены в переменных окружения.
+                <div className="text-xs text-yellow-700 dark:text-yellow-300 mt-2">
+                  {t('integrations.warningBeforeAuth')}
                   <br />
                   <a 
                     href="https://github.com/sigmetapp/seohqs/blob/main/GOOGLE_SEARCH_CONSOLE_OAUTH_SETUP.md" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="underline hover:text-yellow-200"
+                    className="underline hover:text-yellow-800 dark:hover:text-yellow-200"
                   >
-                    См. инструкцию по настройке
+                    {t('integrations.seeInstructions')}
                   </a>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  URL сайта в Google Search Console
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t('integrations.siteUrl')}
                 </label>
                 <input
                   type="url"
@@ -366,11 +368,11 @@ export default function IntegrationsPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, googleSearchConsoleUrl: e.target.value })
                   }
-                  className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                  placeholder="sc-domain:example.com или https://example.com"
+                  className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
+                  placeholder={t('integrations.siteUrlPlaceholder')}
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Укажите URL сайта из Google Search Console. Поддерживаются форматы: <code className="bg-gray-900 px-1 rounded">sc-domain:example.com</code>, <code className="bg-gray-900 px-1 rounded">https://example.com</code> или полный URL из интерфейса
+                <p className="text-xs text-gray-600 dark:text-gray-500 mt-1">
+                  {t('integrations.siteUrlHint')} <code className="bg-gray-200 dark:bg-gray-900 px-1 rounded">sc-domain:example.com</code>, <code className="bg-gray-200 dark:bg-gray-900 px-1 rounded">https://example.com</code> {t('common.or')} full URL from interface
                 </p>
               </div>
             </div>
@@ -381,25 +383,25 @@ export default function IntegrationsPage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed rounded-lg font-medium transition-colors text-white"
             >
-              {saving ? 'Сохранение...' : 'Сохранить настройки'}
+              {saving ? t('integrations.saving') : t('integrations.saveSettings')}
             </button>
           </div>
         </div>
 
         {/* Info Section */}
-        <div className="mt-8 bg-blue-900/20 border border-blue-700 rounded-lg p-6">
-          <h3 className="text-lg font-bold mb-2 text-blue-300">ℹ️ Информация</h3>
-          <ul className="space-y-2 text-sm text-gray-300">
+        <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-6">
+          <h3 className="text-lg font-bold mb-2 text-blue-700 dark:text-blue-300">{t('integrations.infoTitle')}</h3>
+          <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
             <li>
-              • Настройки интеграций сохраняются централизованно и используются во всех разделах приложения
+              • {t('integrations.info1')}
             </li>
             <li>
-              • Google Search Console использует авторизацию через OAuth 2.0 для доступа к данным
+              • {t('integrations.info2')}
             </li>
             <li>
-              • Google Search Console позволяет автоматически получать данные о кликах, показах, CTR и позициях в поиске
+              • {t('integrations.info3')}
             </li>
           </ul>
         </div>
@@ -408,15 +410,15 @@ export default function IntegrationsPage() {
       {/* Google Search Console Guide Modal */}
       {showSearchConsoleGuide && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-lg border border-gray-700 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
                 <span>🔍</span>
-                <span>Настройка Google Search Console</span>
+                <span>{t('integrations.guideTitle')}</span>
               </h2>
               <button
                 onClick={() => setShowSearchConsoleGuide(false)}
-                className="text-gray-400 hover:text-white text-2xl leading-none"
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-2xl leading-none"
               >
                 ×
               </button>
@@ -535,12 +537,12 @@ export default function IntegrationsPage() {
               </div>
             </div>
 
-            <div className="sticky bottom-0 bg-gray-800 border-t border-gray-700 p-4 flex justify-end gap-3">
+            <div className="sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 flex justify-end gap-3">
               <button
                 onClick={() => setShowSearchConsoleGuide(false)}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors text-gray-900 dark:text-white"
               >
-                Закрыть
+                {t('integrations.close')}
               </button>
               <button
                 onClick={() => {
@@ -551,9 +553,9 @@ export default function IntegrationsPage() {
                     (document.querySelector('input[type="url"]') as HTMLInputElement)?.focus();
                   }, 100);
                 }}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-white"
               >
-                Настроить сейчас
+                {t('integrations.setupNow')}
               </button>
             </div>
           </div>

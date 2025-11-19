@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useI18n } from '@/lib/i18n-context';
 
 interface UserProfile {
   id: number;
@@ -27,6 +28,7 @@ interface TeamMember {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { t, language } = useI18n();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,11 +94,11 @@ export default function ProfilePage() {
         if (response.status === 401) {
           router.push('/');
         } else {
-          setError(data.error || 'Ошибка загрузки профиля');
+          setError(data.error || t('profile.errorLoading'));
         }
       }
     } catch (err: any) {
-      setError('Ошибка загрузки профиля');
+      setError(t('profile.errorLoading'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -113,7 +115,7 @@ export default function ProfilePage() {
         setTeamMembers(data.members || []);
       }
     } catch (err: any) {
-      console.error('Ошибка загрузки команды:', err);
+      console.error('Error loading team:', err);
     } finally {
       setLoadingTeam(false);
     }
@@ -125,12 +127,12 @@ export default function ProfilePage() {
     setPasswordSuccess(null);
 
     if (!password || password.length < 6) {
-      setPasswordError('Пароль должен содержать минимум 6 символов');
+      setPasswordError(t('profile.passwordMinLength'));
       return;
     }
 
     if (password !== passwordConfirm) {
-      setPasswordError('Пароли не совпадают');
+      setPasswordError(t('profile.passwordsNotMatch'));
       return;
     }
 
@@ -148,16 +150,16 @@ export default function ProfilePage() {
       const data = await response.json();
 
       if (data.success) {
-        setPasswordSuccess('Пароль успешно установлен');
+        setPasswordSuccess(t('profile.passwordSetSuccess'));
         setPassword('');
         setPasswordConfirm('');
         setShowSetPassword(false);
         fetchProfile();
       } else {
-        setPasswordError(data.error || 'Ошибка установки пароля');
+        setPasswordError(data.error || t('profile.passwordSetError'));
       }
     } catch (err: any) {
-      setPasswordError('Ошибка установки пароля');
+      setPasswordError(t('profile.passwordSetError'));
       console.error(err);
     } finally {
       setPasswordLoading(false);
@@ -170,17 +172,17 @@ export default function ProfilePage() {
     setChangePasswordSuccess(null);
 
     if (!currentPassword) {
-      setChangePasswordError('Введите текущий пароль');
+      setChangePasswordError(t('profile.enterCurrentPassword'));
       return;
     }
 
     if (!newPassword || newPassword.length < 6) {
-      setChangePasswordError('Новый пароль должен содержать минимум 6 символов');
+      setChangePasswordError(t('profile.newPasswordMinLength'));
       return;
     }
 
     if (newPassword !== newPasswordConfirm) {
-      setChangePasswordError('Новые пароли не совпадают');
+      setChangePasswordError(t('profile.newPasswordsNotMatch'));
       return;
     }
 
@@ -201,16 +203,16 @@ export default function ProfilePage() {
       const data = await response.json();
 
       if (data.success) {
-        setChangePasswordSuccess('Пароль успешно изменен');
+        setChangePasswordSuccess(t('profile.passwordChangedSuccess'));
         setCurrentPassword('');
         setNewPassword('');
         setNewPasswordConfirm('');
         setShowChangePassword(false);
       } else {
-        setChangePasswordError(data.error || 'Ошибка изменения пароля');
+        setChangePasswordError(data.error || t('profile.passwordChangedError'));
       }
     } catch (err: any) {
-      setChangePasswordError('Ошибка изменения пароля');
+      setChangePasswordError(t('profile.passwordChangedError'));
       console.error(err);
     } finally {
       setChangePasswordLoading(false);
@@ -219,7 +221,7 @@ export default function ProfilePage() {
 
   const handleUpdateName = async () => {
     if (!newName.trim()) {
-      setNameError('Имя не может быть пустым');
+      setNameError(t('profile.nameEmpty'));
       return;
     }
 
@@ -241,10 +243,10 @@ export default function ProfilePage() {
         setUser(data.user);
         setEditingName(false);
       } else {
-        setNameError(data.error || 'Ошибка обновления имени');
+        setNameError(data.error || t('profile.nameUpdateError'));
       }
     } catch (err: any) {
-      setNameError('Ошибка обновления имени');
+      setNameError(t('profile.nameUpdateError'));
       console.error(err);
     } finally {
       setNameLoading(false);
@@ -256,12 +258,12 @@ export default function ProfilePage() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setAvatarError('Файл должен быть изображением');
+      setAvatarError(t('profile.avatarMustBeImage'));
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      setAvatarError('Размер изображения не должен превышать 2MB');
+      setAvatarError(t('profile.avatarMaxSize'));
       return;
     }
 
@@ -287,10 +289,10 @@ export default function ProfilePage() {
           if (data.success) {
             setUser(prev => prev ? { ...prev, avatar: data.avatar } : null);
           } else {
-            setAvatarError(data.error || 'Ошибка загрузки аватара');
+            setAvatarError(data.error || t('profile.avatarError'));
           }
         } catch (err: any) {
-          setAvatarError('Ошибка загрузки аватара');
+          setAvatarError(t('profile.avatarError'));
           console.error(err);
         } finally {
           setAvatarLoading(false);
@@ -298,7 +300,7 @@ export default function ProfilePage() {
       };
       reader.readAsDataURL(file);
     } catch (err: any) {
-      setAvatarError('Ошибка загрузки аватара');
+      setAvatarError(t('profile.avatarError'));
       setAvatarLoading(false);
     }
   };
@@ -315,7 +317,7 @@ export default function ProfilePage() {
     setGeneratedPassword(null);
 
     if (!newMemberEmail.trim()) {
-      setTeamError('Email обязателен');
+      setTeamError(t('profile.emailRequired'));
       return;
     }
 
@@ -336,17 +338,17 @@ export default function ProfilePage() {
       const data = await response.json();
 
       if (data.success) {
-        setTeamSuccess('Участник команды добавлен');
+        setTeamSuccess(t('profile.memberAdded'));
         setNewMemberEmail('');
         setNewMemberName('');
         setShowAddMember(false);
         setGeneratedPassword(data.password);
         fetchTeamMembers();
       } else {
-        setTeamError(data.error || 'Ошибка добавления участника');
+        setTeamError(data.error || t('profile.memberAddError'));
       }
     } catch (err: any) {
-      setTeamError('Ошибка добавления участника');
+      setTeamError(t('profile.memberAddError'));
       console.error(err);
     } finally {
       setTeamLoading(false);
@@ -354,7 +356,7 @@ export default function ProfilePage() {
   };
 
   const handleDeleteTeamMember = async (memberId: number) => {
-    if (!confirm('Вы уверены, что хотите удалить этого участника?')) {
+    if (!confirm(t('profile.confirmDeleteMember'))) {
       return;
     }
 
@@ -374,13 +376,13 @@ export default function ProfilePage() {
       const data = await response.json();
 
       if (data.success) {
-        setTeamSuccess('Участник команды удален');
+        setTeamSuccess(t('profile.memberDeleted'));
         fetchTeamMembers();
       } else {
-        setTeamError(data.error || 'Ошибка удаления участника');
+        setTeamError(data.error || t('profile.memberDeleteError'));
       }
     } catch (err: any) {
-      setTeamError('Ошибка удаления участника');
+      setTeamError(t('profile.memberDeleteError'));
       console.error(err);
     } finally {
       setTeamLoading(false);
@@ -405,10 +407,10 @@ export default function ProfilePage() {
       if (data.success) {
         router.push('/');
       } else {
-        setDeleteError(data.error || 'Ошибка удаления аккаунта');
+        setDeleteError(data.error || t('profile.deleteAccountError'));
       }
     } catch (err: any) {
-      setDeleteError('Ошибка удаления аккаунта');
+      setDeleteError(t('profile.deleteAccountError'));
       console.error(err);
     } finally {
       setDeleteLoading(false);
@@ -417,16 +419,16 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-xl">Загрузка...</div>
+      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-gray-900 dark:text-white text-xl">{t('profile.loading')}</div>
       </div>
     );
   }
 
   if (error || !user) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-red-400 text-xl">{error || 'Пользователь не найден'}</div>
+      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-red-600 dark:text-red-400 text-xl">{error || t('profile.userNotFound')}</div>
       </div>
     );
   }
@@ -434,13 +436,13 @@ export default function ProfilePage() {
   const avatarUrl = user.avatar || user.picture || getDefaultAvatar(user.name, user.email);
 
   return (
-    <div className="min-h-screen bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-white mb-8">Профиль пользователя</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">{t('profile.title')}</h1>
 
         {/* Информация о пользователе */}
-        <div className="bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Информация о пользователе</h2>
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6 border border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('profile.userInfo')}</h2>
           
           <div className="space-y-4">
             {/* Аватар */}
@@ -455,7 +457,7 @@ export default function ProfilePage() {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={avatarLoading}
                   className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Изменить аватар"
+                  title={t('profile.changeAvatar')}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -471,36 +473,36 @@ export default function ProfilePage() {
                 />
               </div>
               {avatarLoading && (
-                <div className="text-gray-400 text-sm">Загрузка...</div>
+                <div className="text-gray-600 dark:text-gray-400 text-sm">{t('profile.avatarUploading')}</div>
               )}
               {avatarError && (
-                <div className="text-red-400 text-sm">{avatarError}</div>
+                <div className="text-red-600 dark:text-red-400 text-sm">{avatarError}</div>
               )}
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">Email</label>
-              <div className="text-white text-lg">{user.email}</div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('profile.email')}</label>
+              <div className="text-gray-900 dark:text-white text-lg">{user.email}</div>
             </div>
 
             {/* Имя с возможностью редактирования */}
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">Имя</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('profile.name')}</label>
               {editingName ? (
                 <div className="flex items-center space-x-2">
                   <input
                     type="text"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    className="flex-1 bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="Введите имя"
+                    className="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
+                    placeholder={t('profile.name')}
                   />
                   <button
                     onClick={handleUpdateName}
                     disabled={nameLoading}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {nameLoading ? 'Сохранение...' : 'Сохранить'}
+                    {nameLoading ? t('profile.saving') : t('profile.save')}
                   </button>
                   <button
                     onClick={() => {
@@ -508,60 +510,60 @@ export default function ProfilePage() {
                       setNewName(user.name || '');
                       setNameError(null);
                     }}
-                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded font-medium transition-colors"
+                    className="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded font-medium transition-colors"
                   >
-                    Отмена
+                    {t('profile.cancel')}
                   </button>
                 </div>
               ) : (
                 <div className="flex items-center space-x-2">
-                  <div className="text-white text-lg">{user.name || 'Не указано'}</div>
+                  <div className="text-gray-900 dark:text-white text-lg">{user.name || t('profile.notSpecified')}</div>
                   <button
                     onClick={() => {
                       setEditingName(true);
                       setNewName(user.name || '');
                     }}
-                    className="text-blue-400 hover:text-blue-300 text-sm"
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm"
                   >
-                    Изменить
+                    {t('profile.change')}
                   </button>
                 </div>
               )}
               {nameError && (
-                <div className="text-red-400 text-sm mt-1">{nameError}</div>
+                <div className="text-red-600 dark:text-red-400 text-sm mt-1">{nameError}</div>
               )}
             </div>
 
             {user.googleId && (
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Google ID</label>
-                <div className="text-gray-300 text-sm font-mono">{user.googleId}</div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('profile.googleId')}</label>
+                <div className="text-gray-600 dark:text-gray-300 text-sm font-mono">{user.googleId}</div>
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">Пароль</label>
-              <div className="text-white">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('profile.password')}</label>
+              <div className="text-gray-900 dark:text-white">
                 {user.hasPassword ? (
-                  <span className="text-green-400">✓ Установлен</span>
+                  <span className="text-green-600 dark:text-green-400">{t('profile.passwordSet')}</span>
                 ) : (
-                  <span className="text-yellow-400">⚠ Не установлен</span>
+                  <span className="text-yellow-600 dark:text-yellow-400">{t('profile.passwordNotSet')}</span>
                 )}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">Дата регистрации</label>
-              <div className="text-gray-300 text-sm">
-                {new Date(user.createdAt).toLocaleString('ru-RU')}
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('profile.registrationDate')}</label>
+              <div className="text-gray-600 dark:text-gray-300 text-sm">
+                {new Date(user.createdAt).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US')}
               </div>
             </div>
 
             {user.deletedAt && (
-              <div className="bg-yellow-900/50 border border-yellow-500 text-yellow-200 px-4 py-3 rounded">
-                <p className="font-semibold">Аккаунт запланирован к удалению</p>
+              <div className="bg-yellow-50 dark:bg-yellow-900/50 border border-yellow-500 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded">
+                <p className="font-semibold">{t('profile.accountScheduledDeletion')}</p>
                 <p className="text-sm mt-1">
-                  Дата удаления: {new Date(user.deletedAt).toLocaleString('ru-RU')}
+                  {t('profile.deletionDate')} {new Date(user.deletedAt).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US')}
                 </p>
               </div>
             )}
@@ -570,54 +572,54 @@ export default function ProfilePage() {
 
         {/* Установка пароля */}
         {!user.hasPassword && (
-          <div className="bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-semibold text-white mb-4">Установить пароль</h2>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6 border border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('profile.setPassword')}</h2>
             
             {!showSetPassword ? (
               <button
                 onClick={() => setShowSetPassword(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors"
               >
-                Установить пароль
+                {t('profile.setPassword')}
               </button>
             ) : (
               <form onSubmit={handleSetPassword} className="space-y-4">
                 {passwordError && (
-                  <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded">
+                  <div className="bg-red-50 dark:bg-red-900/50 border border-red-500 text-red-800 dark:text-red-200 px-4 py-3 rounded">
                     {passwordError}
                   </div>
                 )}
                 {passwordSuccess && (
-                  <div className="bg-green-900/50 border border-green-500 text-green-200 px-4 py-3 rounded">
+                  <div className="bg-green-50 dark:bg-green-900/50 border border-green-500 text-green-800 dark:text-green-200 px-4 py-3 rounded">
                     {passwordSuccess}
                   </div>
                 )}
                 
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                    Новый пароль
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('profile.newPassword')}
                   </label>
                   <input
                     type="password"
                     id="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
                     required
                     minLength={6}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="passwordConfirm" className="block text-sm font-medium text-gray-300 mb-2">
-                    Подтвердите пароль
+                  <label htmlFor="passwordConfirm" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('profile.confirmPassword')}
                   </label>
                   <input
                     type="password"
                     id="passwordConfirm"
                     value={passwordConfirm}
                     onChange={(e) => setPasswordConfirm(e.target.value)}
-                    className="w-full bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
                     required
                     minLength={6}
                   />
@@ -629,7 +631,7 @@ export default function ProfilePage() {
                     disabled={passwordLoading}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {passwordLoading ? 'Сохранение...' : 'Установить пароль'}
+                    {passwordLoading ? t('profile.saving') : t('profile.setPassword')}
                   </button>
                   <button
                     type="button"
@@ -640,9 +642,9 @@ export default function ProfilePage() {
                       setPasswordError(null);
                       setPasswordSuccess(null);
                     }}
-                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded font-medium transition-colors"
+                    className="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded font-medium transition-colors"
                   >
-                    Отмена
+                    {t('profile.cancel')}
                   </button>
                 </div>
               </form>
@@ -652,68 +654,68 @@ export default function ProfilePage() {
 
         {/* Изменение пароля */}
         {user.hasPassword && (
-          <div className="bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-semibold text-white mb-4">Изменить пароль</h2>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6 border border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('profile.changePassword')}</h2>
             
             {!showChangePassword ? (
               <button
                 onClick={() => setShowChangePassword(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors"
               >
-                Изменить пароль
+                {t('profile.changePassword')}
               </button>
             ) : (
               <form onSubmit={handleChangePassword} className="space-y-4">
                 {changePasswordError && (
-                  <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded">
+                  <div className="bg-red-50 dark:bg-red-900/50 border border-red-500 text-red-800 dark:text-red-200 px-4 py-3 rounded">
                     {changePasswordError}
                   </div>
                 )}
                 {changePasswordSuccess && (
-                  <div className="bg-green-900/50 border border-green-500 text-green-200 px-4 py-3 rounded">
+                  <div className="bg-green-50 dark:bg-green-900/50 border border-green-500 text-green-800 dark:text-green-200 px-4 py-3 rounded">
                     {changePasswordSuccess}
                   </div>
                 )}
                 
                 <div>
-                  <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-300 mb-2">
-                    Текущий пароль
+                  <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('profile.currentPassword')}
                   </label>
                   <input
                     type="password"
                     id="currentPassword"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
                     required
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-300 mb-2">
-                    Новый пароль
+                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('profile.newPassword')}
                   </label>
                   <input
                     type="password"
                     id="newPassword"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
                     required
                     minLength={6}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="newPasswordConfirm" className="block text-sm font-medium text-gray-300 mb-2">
-                    Подтвердите новый пароль
+                  <label htmlFor="newPasswordConfirm" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('profile.confirmNewPassword')}
                   </label>
                   <input
                     type="password"
                     id="newPasswordConfirm"
                     value={newPasswordConfirm}
                     onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                    className="w-full bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    className="w-full bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
                     required
                     minLength={6}
                   />
@@ -725,7 +727,7 @@ export default function ProfilePage() {
                     disabled={changePasswordLoading}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {changePasswordLoading ? 'Сохранение...' : 'Изменить пароль'}
+                    {changePasswordLoading ? t('profile.saving') : t('profile.changePassword')}
                   </button>
                   <button
                     type="button"
@@ -737,9 +739,9 @@ export default function ProfilePage() {
                       setChangePasswordError(null);
                       setChangePasswordSuccess(null);
                     }}
-                    className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded font-medium transition-colors"
+                    className="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded font-medium transition-colors"
                   >
-                    Отмена
+                    {t('profile.cancel')}
                   </button>
                 </div>
               </form>
@@ -748,64 +750,64 @@ export default function ProfilePage() {
         )}
 
         {/* Команда */}
-        <div className="bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">Команда</h2>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{t('profile.team')}</h2>
             {teamMembers.length < 3 && (
               <button
                 onClick={() => setShowAddMember(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors"
               >
-                Добавить участника
+                {t('profile.addMember')}
               </button>
             )}
           </div>
 
           {teamError && (
-            <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded mb-4">
+            <div className="bg-red-50 dark:bg-red-900/50 border border-red-500 text-red-800 dark:text-red-200 px-4 py-3 rounded mb-4">
               {teamError}
             </div>
           )}
 
           {teamSuccess && (
-            <div className="bg-green-900/50 border border-green-500 text-green-200 px-4 py-3 rounded mb-4">
+            <div className="bg-green-50 dark:bg-green-900/50 border border-green-500 text-green-800 dark:text-green-200 px-4 py-3 rounded mb-4">
               {teamSuccess}
             </div>
           )}
 
           {generatedPassword && (
-            <div className="bg-blue-900/50 border border-blue-500 text-blue-200 px-4 py-3 rounded mb-4">
-              <p className="font-semibold">Участник добавлен!</p>
-              <p className="text-sm mt-1">Сгенерированный пароль: <code className="bg-blue-800 px-2 py-1 rounded">{generatedPassword}</code></p>
-              <p className="text-xs mt-2 text-blue-300">Сохраните этот пароль! Участник сможет изменить его при первом входе.</p>
+            <div className="bg-blue-50 dark:bg-blue-900/50 border border-blue-500 text-blue-800 dark:text-blue-200 px-4 py-3 rounded mb-4">
+              <p className="font-semibold">{t('profile.memberAdded')}</p>
+              <p className="text-sm mt-1">{t('profile.generatedPassword')} <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded">{generatedPassword}</code></p>
+              <p className="text-xs mt-2 text-blue-700 dark:text-blue-300">{t('profile.savePasswordHint')}</p>
             </div>
           )}
 
           {showAddMember && (
-            <form onSubmit={handleAddTeamMember} className="mb-6 p-4 bg-gray-700 rounded-lg space-y-4">
+            <form onSubmit={handleAddTeamMember} className="mb-6 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg space-y-4 border border-gray-200 dark:border-gray-600">
               <div>
-                <label htmlFor="memberEmail" className="block text-sm font-medium text-gray-300 mb-2">
-                  Email *
+                <label htmlFor="memberEmail" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t('profile.email')} *
                 </label>
                 <input
                   type="email"
                   id="memberEmail"
                   value={newMemberEmail}
                   onChange={(e) => setNewMemberEmail(e.target.value)}
-                  className="w-full bg-gray-600 text-white px-4 py-2 rounded border border-gray-500 focus:border-blue-500 focus:outline-none"
+                  className="w-full bg-white dark:bg-gray-600 text-gray-900 dark:text-white px-4 py-2 rounded border border-gray-300 dark:border-gray-500 focus:border-blue-500 focus:outline-none"
                   required
                 />
               </div>
               <div>
-                <label htmlFor="memberName" className="block text-sm font-medium text-gray-300 mb-2">
-                  Имя (необязательно)
+                <label htmlFor="memberName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t('profile.name')} ({t('profile.optional')})
                 </label>
                 <input
                   type="text"
                   id="memberName"
                   value={newMemberName}
                   onChange={(e) => setNewMemberName(e.target.value)}
-                  className="w-full bg-gray-600 text-white px-4 py-2 rounded border border-gray-500 focus:border-blue-500 focus:outline-none"
+                  className="w-full bg-white dark:bg-gray-600 text-gray-900 dark:text-white px-4 py-2 rounded border border-gray-300 dark:border-gray-500 focus:border-blue-500 focus:outline-none"
                 />
               </div>
               <div className="flex space-x-4">
@@ -814,7 +816,7 @@ export default function ProfilePage() {
                   disabled={teamLoading}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {teamLoading ? 'Добавление...' : 'Добавить'}
+                  {teamLoading ? t('profile.adding') : t('profile.add')}
                 </button>
                 <button
                   type="button"
@@ -826,29 +828,29 @@ export default function ProfilePage() {
                     setTeamSuccess(null);
                     setGeneratedPassword(null);
                   }}
-                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded font-medium transition-colors"
+                  className="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded font-medium transition-colors"
                 >
-                  Отмена
+                  {t('profile.cancel')}
                 </button>
               </div>
             </form>
           )}
 
           {loadingTeam ? (
-            <div className="text-gray-400">Загрузка...</div>
+            <div className="text-gray-600 dark:text-gray-400">{t('profile.loading')}</div>
           ) : teamMembers.length === 0 ? (
-            <div className="text-gray-400">Участники команды отсутствуют</div>
+            <div className="text-gray-600 dark:text-gray-400">{t('profile.noTeamMembers')}</div>
           ) : (
             <div className="space-y-3">
               {teamMembers.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
+                <div key={member.id} className="flex items-center justify-between p-4 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                   <div>
-                    <div className="text-white font-medium">{member.name || member.email}</div>
-                    <div className="text-gray-400 text-sm">{member.email}</div>
-                    <div className="text-gray-500 text-xs mt-1">Логин: {member.username}</div>
+                    <div className="text-gray-900 dark:text-white font-medium">{member.name || member.email}</div>
+                    <div className="text-gray-600 dark:text-gray-400 text-sm">{member.email}</div>
+                    <div className="text-gray-500 dark:text-gray-500 text-xs mt-1">{t('profile.login')}: {member.username}</div>
                     {member.firstLogin && (
-                      <span className="inline-block mt-1 text-xs bg-yellow-900 text-yellow-200 px-2 py-1 rounded">
-                        Требуется смена пароля при первом входе
+                      <span className="inline-block mt-1 text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded">
+                        {t('profile.passwordChangeRequired')}
                       </span>
                     )}
                   </div>
@@ -857,7 +859,7 @@ export default function ProfilePage() {
                     disabled={teamLoading}
                     className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Удалить
+                    {t('profile.delete')}
                   </button>
                 </div>
               ))}
@@ -866,15 +868,14 @@ export default function ProfilePage() {
         </div>
 
         {/* Удаление аккаунта */}
-        <div className="bg-gray-800 rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Удаление аккаунта</h2>
-          <p className="text-gray-400 mb-4">
-            При удалении аккаунта вся информация (сайты, карточки и прочее) будет удалена в течение 14 дней. 
-            Вы сможете отменить удаление в течение этого периода.
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('profile.deleteAccount')}</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            {t('profile.deleteAccountWarning')}
           </p>
 
           {deleteError && (
-            <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded mb-4">
+            <div className="bg-red-50 dark:bg-red-900/50 border border-red-500 text-red-800 dark:text-red-200 px-4 py-3 rounded mb-4">
               {deleteError}
             </div>
           )}
@@ -884,14 +885,14 @@ export default function ProfilePage() {
               onClick={() => setShowDeleteConfirm(true)}
               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-medium transition-colors"
             >
-              Удалить аккаунт
+              {t('profile.deleteAccount')}
             </button>
           ) : (
             <div className="space-y-4">
-              <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded">
-                <p className="font-semibold">Внимание!</p>
+              <div className="bg-red-50 dark:bg-red-900/50 border border-red-500 text-red-800 dark:text-red-200 px-4 py-3 rounded">
+                <p className="font-semibold">{t('profile.warning')}</p>
                 <p className="text-sm mt-1">
-                  Вы уверены, что хотите удалить аккаунт? Это действие нельзя отменить после истечения 14 дней.
+                  {t('profile.deleteAccountConfirmText')}
                 </p>
               </div>
               <div className="flex space-x-4">
@@ -900,16 +901,16 @@ export default function ProfilePage() {
                   disabled={deleteLoading}
                   className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {deleteLoading ? 'Удаление...' : 'Да, удалить аккаунт'}
+                  {deleteLoading ? t('profile.deleting') : t('profile.confirmDeleteAccount')}
                 </button>
                 <button
                   onClick={() => {
                     setShowDeleteConfirm(false);
                     setDeleteError(null);
                   }}
-                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded font-medium transition-colors"
+                  className="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded font-medium transition-colors"
                 >
-                  Отмена
+                  {t('profile.cancel')}
                 </button>
               </div>
             </div>
