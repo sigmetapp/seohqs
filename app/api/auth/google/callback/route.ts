@@ -241,8 +241,16 @@ export async function GET(request: Request) {
           console.warn('[Google OAuth Callback] Error fetching GSC sites:', sitesError);
           // Don't fail the whole flow if sites fetch fails
         }
-      } catch (gscError) {
+      } catch (gscError: any) {
         console.error('[Google OAuth Callback] Error saving GSC integration:', gscError);
+        
+        // If table doesn't exist, log helpful message
+        if (gscError?.message?.includes('does not exist') || 
+            gscError?.message?.includes('schema cache')) {
+          console.error('[Google OAuth Callback] Table gsc_integrations does not exist.');
+          console.error('[Google OAuth Callback] Please run migration: migrations/018_gsc_integrations_table_supabase.sql');
+          console.error('[Google OAuth Callback] The integration will be saved to other tables (google_accounts) but not to gsc_integrations.');
+        }
         // Continue with existing flow even if GSC integration save fails
       }
     } else {
