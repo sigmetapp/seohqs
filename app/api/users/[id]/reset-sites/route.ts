@@ -251,7 +251,7 @@ export async function POST(
 
       // 2. Удаляем задачи и связанные данные
       if (siteIds.length > 0) {
-        const placeholders = siteIds.map((_, i) => `$${i + 1}`).join(',');
+        const placeholders = siteIds.map((_: number, i: number) => `$${i + 1}`).join(',');
         
         // Получаем ID задач
         const tasksResult = await db.query(
@@ -262,7 +262,7 @@ export async function POST(
         stats.deletedTasks = taskIds.length;
 
         if (taskIds.length > 0) {
-          const taskPlaceholders = taskIds.map((_, i) => `$${i + 1}`).join(',');
+          const taskPlaceholders = taskIds.map((_: number, i: number) => `$${i + 1}`).join(',');
           
           // Удаляем сообщения задач
           const messagesResult = await db.query(
@@ -288,7 +288,7 @@ export async function POST(
 
       // 3. Удаляем связи сайтов с тегами
       if (siteIds.length > 0) {
-        const placeholders = siteIds.map((_, i) => `$${i + 1}`).join(',');
+        const placeholders = siteIds.map((_: number, i: number) => `$${i + 1}`).join(',');
         await db.query(
           `DELETE FROM site_tags WHERE site_id IN (${placeholders})`,
           siteIds
@@ -332,7 +332,7 @@ export async function POST(
       stats.deletedLinkProjects = linkProjectIds.length;
 
       if (linkProjectIds.length > 0) {
-        const projectPlaceholders = linkProjectIds.map((_, i) => `$${i + 1}`).join(',');
+        const projectPlaceholders = linkProjectIds.map((_: number, i: number) => `$${i + 1}`).join(',');
         await db.query(
           `DELETE FROM project_links WHERE project_id IN (${projectPlaceholders})`,
           linkProjectIds
