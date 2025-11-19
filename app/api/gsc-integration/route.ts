@@ -161,6 +161,7 @@ export async function GET(request: NextRequest) {
 
     // Check google_accounts table for JWT-authenticated users
     // This allows users authenticated via JWT/PostgreSQL auth to see their connected accounts
+    // Also sync to gsc_integrations/google_gsc_accounts if Supabase Auth is available
     try {
       console.log('[GSC Integration GET] Looking for accounts in google_accounts for JWT user:', authResult.user.id);
       const googleAccounts = await getAllGoogleAccounts(authResult.user.id);
@@ -182,7 +183,125 @@ export async function GET(request: NextRequest) {
           gscSitesCount: 0, // JWT accounts don't have gsc_sites table
         }));
       
-      allAccounts.push(...connectedAccounts);
+      // If we have Supabase Auth user ID and accounts in google_accounts but not in gsc_integrations/google_gsc_accounts,
+      // try to sync them by fetching Google user info from the access token
+      if (supabaseAuthUserId && connectedAccounts.length > 0) {
+        for (const account of googleAccounts.filter(acc => acc.googleAccessToken && acc.googleRefreshToken)) {
+          // Check if this email is already in gsc_integrations or google_gsc_accounts
+          const emailLower = account.email.toLowerCase();
+          const alreadySynced = addedEmails.has(emailLower);
+          
+          if (!alreadySynced) {
+            try {
+              // Try to get Google user info from access token
+              const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: {
+                  Authorization: `Bearer ${account.googleAccessToken}`,
+                },
+              });
+              
+              if (userInfoResponse.ok) {
+                const userInfoData = await userInfoResponse.json();
+                const googleEmail = userInfoData.email || account.email;
+                const googleUserId = userInfoData.sub || `user-${authResult.user.id}`;
+                
+                // Try to save to gsc_integrations
+                try {
+                  const { upsertGSCIntegration } = await import('@/lib/gsc-integrations');
+                  await upsertGSCIntegration(supabaseAuthUserId, {
+                    google_email: googleEmail,
+                    google_user_id: googleUserId,
+                    access_token: account.googleAccessToken!,
+                    refresh_token: account.googleRefreshToken!,
+                  });
+                  console.log('[GSC Integration GET] Synced account to gsc_integrations:', googleEmail);
+                  
+                  // Also save to google_gsc_accounts
+                  try {
+                    const { upsertGoogleGSCAccount } = await import('@/lib/google-gsc-accounts');
+                    await upsertGoogleGSCAccount(supabaseAuthUserId, {
+                      google_email: googleEmail,
+                      google_user_id: googleUserId,
+                      source: 'gsc',
+                    });
+                    console.log('[GSC Integration GET] Synced account to google_gsc_accounts:', googleEmail);
+                    
+                    // Reload integration to get the synced data
+                    const syncedIntegration = await getGSCIntegration(supabaseAuthUserId);
+                    if (syncedIntegration && syncedIntegration.google_email.toLowerCase() === emailLower) {
+                      // Check GSC sites for this integration
+                      let gscSitesCount = 0;
+                      let gscSitesMatchedCount = 0;
+                      try {
+                        const gscSites = await getGSCSites(syncedIntegration.id);
+                        gscSitesCount = gscSites.length;
+                        gscSitesMatchedCount = gscSites.filter(site => matchesUserSite(site.site_url)).length;
+                      } catch (gscSitesError: any) {
+                        console.debug('[GSC Integration] Error fetching GSC sites:', gscSitesError?.message);
+                      }
+                      
+                      const hasSites = userSitesCount > 0 || gscSitesMatchedCount > 0 || gscSitesCount > 0;
+                      
+                      // Replace JWT account with Supabase account
+                      const existingIndex = allAccounts.findIndex(a => a.google_email.toLowerCase() === emailLower && a.source === 'jwt');
+                      if (existingIndex >= 0) {
+                        allAccounts[existingIndex] = {
+                          id: syncedIntegration.id,
+                          google_email: syncedIntegration.google_email,
+                          google_user_id: syncedIntegration.google_user_id,
+                          created_at: syncedIntegration.created_at,
+                          updated_at: syncedIntegration.updated_at,
+                          source: 'supabase',
+                          hasSites,
+                          sitesCount: userSitesCount,
+                          gscSitesCount,
+                          gscSitesMatchedCount,
+                        };
+                      } else {
+                        allAccounts.push({
+                          id: syncedIntegration.id,
+                          google_email: syncedIntegration.google_email,
+                          google_user_id: syncedIntegration.google_user_id,
+                          created_at: syncedIntegration.created_at,
+                          updated_at: syncedIntegration.updated_at,
+                          source: 'supabase',
+                          hasSites,
+                          sitesCount: userSitesCount,
+                          gscSitesCount,
+                          gscSitesMatchedCount,
+                        });
+                      }
+                      
+                      addedEmails.add(emailLower);
+                      continue; // Skip adding as JWT account
+                    }
+                  } catch (gscAccountError: any) {
+                    console.debug('[GSC Integration GET] Error syncing to google_gsc_accounts:', gscAccountError?.message);
+                  }
+                } catch (gscIntegrationError: any) {
+                  console.debug('[GSC Integration GET] Error syncing to gsc_integrations:', gscIntegrationError?.message);
+                }
+              }
+            } catch (syncError: any) {
+              console.debug('[GSC Integration GET] Error syncing account:', syncError?.message);
+            }
+          }
+        }
+      }
+      
+      // Add accounts that weren't synced to Supabase tables
+      for (const acc of connectedAccounts) {
+        const emailLower = acc.google_email.toLowerCase();
+        if (!addedEmails.has(emailLower)) {
+          console.log('[GSC Integration GET] Adding JWT account (not synced):', acc.google_email);
+          allAccounts.push(acc);
+          addedEmails.add(emailLower);
+        } else {
+          console.log('[GSC Integration GET] Skipping JWT account (already synced):', acc.google_email);
+        }
+      }
+      
+      console.log('[GSC Integration GET] Total accounts after google_accounts check:', allAccounts.length);
     } catch (fallbackError: any) {
       // Log but don't fail - this is a fallback mechanism
       console.debug('[GSC Integration] Fallback to google_accounts failed:', fallbackError?.message);
