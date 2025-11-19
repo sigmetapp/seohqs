@@ -2,6 +2,87 @@ import { NextResponse } from 'next/server';
 import { getGoogleSearchConsoleDataBySiteId } from '@/lib/db-adapter';
 import { cache } from '@/lib/cache';
 
+// Вспомогательная функция для прямой загрузки данных из БД с фильтрацией по дате
+async function loadGoogleConsoleDataFromDB(
+  siteId: number,
+  startDate: Date,
+  endDate: Date,
+  limit: number = 2000
+): Promise<any[]> {
+  // Проверяем, какая БД используется
+  const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && 
+    (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY));
+  const usePostgres = !useSupabase && !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
+
+  if (useSupabase) {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data, error } = await supabase
+      .from('google_search_console_data')
+      .select('*')
+      .eq('site_id', siteId)
+      .gte('date', startDate.toISOString().split('T')[0])
+      .lte('date', endDate.toISOString().split('T')[0])
+      .order('date', { ascending: true })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error loading data from Supabase:', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      siteId: row.site_id,
+      clicks: row.clicks,
+      impressions: row.impressions,
+      ctr: parseFloat(row.ctr),
+      position: parseFloat(row.position),
+      date: row.date,
+      createdAt: row.created_at,
+    }));
+  } else if (usePostgres) {
+    const { getPostgresClient } = await import('@/lib/postgres-client');
+    const db = await getPostgresClient();
+    
+    const result = await db.query(
+      `SELECT * FROM google_search_console_data 
+       WHERE site_id = $1 
+       AND date >= $2 
+       AND date <= $3 
+       ORDER BY date ASC 
+       LIMIT $4`,
+      [siteId, startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0], limit]
+    );
+
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      siteId: row.site_id,
+      clicks: row.clicks,
+      impressions: row.impressions,
+      ctr: parseFloat(row.ctr),
+      position: parseFloat(row.position),
+      date: row.date,
+      createdAt: row.created_at,
+    }));
+  } else {
+    // Fallback к существующей функции для SQLite (локальная разработка)
+    const allData = await getGoogleSearchConsoleDataBySiteId(siteId, limit);
+    return allData.filter((item) => {
+      const itemDate = new Date(item.date);
+      itemDate.setHours(0, 0, 0, 0);
+      const startDateNormalized = new Date(startDate);
+      startDateNormalized.setHours(0, 0, 0, 0);
+      const endDateNormalized = new Date(endDate);
+      endDateNormalized.setHours(23, 59, 59, 999);
+      return itemDate >= startDateNormalized && itemDate <= endDateNormalized;
+    });
+  }
+}
+
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
@@ -91,22 +172,36 @@ export async function GET(
       const periodCachedData = cache.get<any[]>(periodCacheKey);
       if (periodCachedData && Array.isArray(periodCachedData) && periodCachedData.length > 0) {
         // Проверяем, что кешированные данные покрывают нужный период
-        const cachedFirstDate = new Date(periodCachedData[0].date);
+        // Сортируем данные по дате для правильной проверки
+        const sortedCachedData = [...periodCachedData].sort((a, b) => 
+          new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+        const cachedFirstDate = new Date(sortedCachedData[0].date);
         cachedFirstDate.setHours(0, 0, 0, 0);
-        const cachedLastDate = new Date(periodCachedData[periodCachedData.length - 1].date);
+        const cachedLastDate = new Date(sortedCachedData[sortedCachedData.length - 1].date);
         cachedLastDate.setHours(23, 59, 59, 999);
         
-        if (cachedFirstDate <= startDateNormalized && cachedLastDate >= endDateNormalized) {
+        // Проверяем, что кешированные данные покрывают запрошенный период
+        // Допускаем небольшое расхождение (до 2 дней) для учета возможных пропусков в данных
+        const daysDiff = Math.abs((cachedFirstDate.getTime() - startDateNormalized.getTime()) / (1000 * 60 * 60 * 24));
+        const daysDiffEnd = Math.abs((cachedLastDate.getTime() - endDateNormalized.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (cachedFirstDate <= startDateNormalized && cachedLastDate >= endDateNormalized && daysDiff <= 2 && daysDiffEnd <= 2) {
           const cachedDays = Math.ceil((cachedLastDate.getTime() - cachedFirstDate.getTime()) / (1000 * 60 * 60 * 24));
-          if (cachedDays >= days - 1) { // -1 для учета возможных пропусков
-            console.log(`[Google Console Daily] Using period cache for site ${siteId}, period: ${days} days, cached records: ${periodCachedData.length}`);
+          // Проверяем, что кешированные данные покрывают хотя бы 80% запрошенного периода
+          if (cachedDays >= days * 0.8) {
+            console.log(`[Google Console Daily] Using period cache for site ${siteId}, period: ${days} days, cached records: ${sortedCachedData.length}, cached range: ${cachedFirstDate.toISOString().split('T')[0]} - ${cachedLastDate.toISOString().split('T')[0]}`);
             return NextResponse.json({
               success: true,
-              data: periodCachedData,
-              count: periodCachedData.length,
+              data: sortedCachedData,
+              count: sortedCachedData.length,
               cached: true,
             });
+          } else {
+            console.log(`[Google Console Daily] Period cache for site ${siteId} doesn't cover enough days (${cachedDays} < ${days * 0.8}), reloading...`);
           }
+        } else {
+          console.log(`[Google Console Daily] Period cache for site ${siteId} date range mismatch. Cached: ${cachedFirstDate.toISOString().split('T')[0]} - ${cachedLastDate.toISOString().split('T')[0]}, Requested: ${startDateNormalized.toISOString().split('T')[0]} - ${endDateNormalized.toISOString().split('T')[0]}, reloading...`);
         }
       }
     }
@@ -122,14 +217,6 @@ export async function GET(
 
     // Шаг 3: Если базового кеша нет, загружаем из БД за 180 дней
     if (!baseData) {
-      // Загружаем достаточно данных из БД для покрытия 180 дней
-      // В БД всегда хранятся данные за 180 дней (при синхронизации)
-      const limit = Math.max(BASE_CACHE_DAYS * 3, 2000); // Минимум 2000 записей для 180 дней
-      
-      console.log(`[Google Console Daily] Loading base data (180 days) from DB for site ${siteId}, limit: ${limit}`);
-      const allData = await getGoogleSearchConsoleDataBySiteId(siteId, limit);
-      console.log(`[Google Console Daily] Loaded ${allData.length} records from DB for site ${siteId}`);
-
       // Вычисляем даты для базового периода (180 дней)
       const baseEndDate = new Date();
       baseEndDate.setHours(23, 59, 59, 999);
@@ -137,18 +224,15 @@ export async function GET(
       baseStartDate.setDate(baseStartDate.getDate() - BASE_CACHE_DAYS);
       baseStartDate.setHours(0, 0, 0, 0);
 
-      const baseStartDateNormalized = new Date(baseStartDate);
-      baseStartDateNormalized.setHours(0, 0, 0, 0);
-      const baseEndDateNormalized = new Date(baseEndDate);
-      baseEndDateNormalized.setHours(23, 59, 59, 999);
+      // Загружаем данные напрямую из БД с фильтрацией по дате
+      const limit = Math.max(BASE_CACHE_DAYS * 3, 2000); // Минимум 2000 записей для 180 дней
+      
+      console.log(`[Google Console Daily] Loading base data (180 days) from DB for site ${siteId}, date range: ${baseStartDate.toISOString().split('T')[0]} - ${baseEndDate.toISOString().split('T')[0]}, limit: ${limit}`);
+      const allData = await loadGoogleConsoleDataFromDB(siteId, baseStartDate, baseEndDate, limit);
+      console.log(`[Google Console Daily] Loaded ${allData.length} records from DB for site ${siteId}`);
 
-      // Фильтруем данные по базовому периоду (180 дней)
+      // Преобразуем данные в нужный формат
       baseData = allData
-        .filter((item) => {
-          const itemDate = new Date(item.date);
-          itemDate.setHours(0, 0, 0, 0);
-          return itemDate >= baseStartDateNormalized && itemDate <= baseEndDateNormalized;
-        })
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         .map((item) => ({
           siteId: item.siteId,
@@ -172,7 +256,26 @@ export async function GET(
     });
 
     // Логирование для отладки
-    console.log(`[Google Console Daily] Site ${siteId}, Period: ${days} days, Base records: ${baseData.length}, Filtered: ${filteredData.length} records, Date range: ${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]}`);
+    if (filteredData.length > 0) {
+      const firstDate = new Date(filteredData[0].date);
+      const lastDate = new Date(filteredData[filteredData.length - 1].date);
+      const actualDays = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`[Google Console Daily] Site ${siteId}, Period: ${days} days, Base records: ${baseData.length}, Filtered: ${filteredData.length} records`);
+      console.log(`[Google Console Daily] Requested date range: ${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]}`);
+      console.log(`[Google Console Daily] Actual data range: ${firstDate.toISOString().split('T')[0]} - ${lastDate.toISOString().split('T')[0]} (${actualDays} days)`);
+      
+      if (actualDays < days * 0.7) {
+        console.warn(`[Google Console Daily] WARNING: Site ${siteId} has only ${actualDays} days of data, but ${days} days were requested. Data coverage: ${Math.round((actualDays / days) * 100)}%`);
+      }
+    } else {
+      console.log(`[Google Console Daily] Site ${siteId}, Period: ${days} days, Base records: ${baseData.length}, Filtered: 0 records (no data for requested period)`);
+      console.log(`[Google Console Daily] Requested date range: ${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]}`);
+      if (baseData.length > 0) {
+        const baseFirstDate = new Date(baseData[0].date);
+        const baseLastDate = new Date(baseData[baseData.length - 1].date);
+        console.log(`[Google Console Daily] Available data range in base cache: ${baseFirstDate.toISOString().split('T')[0]} - ${baseLastDate.toISOString().split('T')[0]}`);
+      }
+    }
 
     // Шаг 5: Сохраняем отфильтрованные данные в кеш для конкретного периода
     const periodTTL = PERIOD_CACHE_TTL[days as keyof typeof PERIOD_CACHE_TTL] || PERIOD_CACHE_TTL[30];
