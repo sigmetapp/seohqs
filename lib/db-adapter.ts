@@ -350,6 +350,22 @@ export async function bulkInsertGoogleSearchConsoleData(
   }
 }
 
+export async function clearGoogleSearchConsoleData(siteId?: number): Promise<void> {
+  if (useSupabase()) {
+    const { clearGoogleSearchConsoleData: clearSupabase } = await import('./db-supabase');
+    return clearSupabase(siteId);
+  } else if (usePostgres()) {
+    const { clearGoogleSearchConsoleData: clearPostgres } = await import('./db-postgres');
+    return clearPostgres(siteId);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { clearGoogleSearchConsoleData: clearSQLite } = require('./db');
+    return clearSQLite(siteId);
+  }
+}
+
 // Tags adapter functions
 export async function createTag(tag: Omit<import('./types').Tag, 'id' | 'createdAt' | 'updatedAt'>, userId: number): Promise<import('./types').Tag> {
   if (useSupabase()) {

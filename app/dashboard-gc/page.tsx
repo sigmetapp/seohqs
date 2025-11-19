@@ -1339,9 +1339,9 @@ export default function DashboardGCPage() {
         ) : (
           <>
             {/* DEBUG PANEL - временная панель для отладки */}
-            {(selectedPeriod === 90 || selectedPeriod === 180) && (
+            {selectedPeriod === 180 && (
               <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-600 rounded-lg">
-                <h3 className="text-lg font-bold text-yellow-800 dark:text-yellow-200 mb-2">🔍 DEBUG PANEL (90-180 дней)</h3>
+                <h3 className="text-lg font-bold text-yellow-800 dark:text-yellow-200 mb-2">🔍 DEBUG PANEL (180 дней)</h3>
                 <div className="text-sm space-y-1 text-yellow-700 dark:text-yellow-300">
                   <div><strong>Выбранный период:</strong> {selectedPeriod} дней</div>
                   <div>
@@ -1364,6 +1364,16 @@ export default function DashboardGCPage() {
                         const dataCount = siteDailyData.length;
                         const isLoading = loadingDailyData[site.id] || false;
                         
+                        // Вычисляем фактический диапазон дат в данных
+                        let dateRangeText = 'Нет данных';
+                        let actualDays = 0;
+                        if (dataCount > 0) {
+                          const firstDate = new Date(siteDailyData[0].date);
+                          const lastDate = new Date(siteDailyData[siteDailyData.length - 1].date);
+                          actualDays = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+                          dateRangeText = `${firstDate.toISOString().split('T')[0]} - ${lastDate.toISOString().split('T')[0]} (${actualDays} дней)`;
+                        }
+                        
                         return (
                           <div key={site.id} className="border-b border-yellow-200 dark:border-yellow-700 py-1">
                             <strong>{site.domain}:</strong>
@@ -1372,7 +1382,12 @@ export default function DashboardGCPage() {
                               <div>Daily Data: Records: {dataCount}, Impressions: {totalImpressions.toLocaleString()}, Clicks: {totalClicks.toLocaleString()}, Loading: {isLoading ? 'Yes' : 'No'}</div>
                               {dataCount > 0 && (
                                 <div className="text-yellow-600 dark:text-yellow-400">
-                                  Date range: {new Date(siteDailyData[0].date).toISOString().split('T')[0]} - {new Date(siteDailyData[siteDailyData.length - 1].date).toISOString().split('T')[0]}
+                                  Date range: {dateRangeText}
+                                </div>
+                              )}
+                              {dataCount > 0 && actualDays < 180 * 0.7 && (
+                                <div className="text-red-600 dark:text-red-400 text-xs mt-1">
+                                  ⚠️ Данных меньше ожидаемого (только {actualDays} дней из {selectedPeriod})
                                 </div>
                               )}
                             </div>
@@ -1380,6 +1395,35 @@ export default function DashboardGCPage() {
                         );
                       })}
                     </div>
+                  </div>
+                  <div className="mt-2 text-xs">
+                    <strong>Примечание:</strong> Данные всегда запрашиваются из Google Search Console за 180 дней и сохраняются в БД. Кеширование отключено.
+                  </div>
+                  <div className="mt-2">
+                    <button
+                      onClick={async () => {
+                        if (confirm('Вы уверены, что хотите очистить все данные Google Search Console из БД? После очистки нужно будет синхронизировать данные заново.')) {
+                          try {
+                            const response = await fetch('/api/google-console/clear-data', {
+                              method: 'POST',
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                              alert('Данные успешно очищены. Теперь синхронизируйте данные заново.');
+                              // Перезагружаем страницу для обновления данных
+                              window.location.reload();
+                            } else {
+                              alert(`Ошибка очистки данных: ${data.error}`);
+                            }
+                          } catch (error: any) {
+                            alert(`Ошибка: ${error.message}`);
+                          }
+                        }
+                      }}
+                      className="px-3 py-1 bg-red-600 dark:bg-red-500 text-white rounded text-sm hover:bg-red-700 dark:hover:bg-red-600"
+                    >
+                      🗑️ Очистить все данные из БД
+                    </button>
                   </div>
                 </div>
               </div>

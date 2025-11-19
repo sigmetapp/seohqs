@@ -363,6 +363,20 @@ export function bulkInsertGoogleSearchConsoleData(
   insertMany(data);
 }
 
+export function clearGoogleSearchConsoleData(siteId?: number): void {
+  const database = getDatabase();
+  
+  if (siteId) {
+    // Очищаем данные для конкретного сайта
+    database.prepare('DELETE FROM google_search_console_data WHERE site_id = ?').run(siteId);
+    console.log(`Cleared Google Search Console data for site ${siteId}`);
+  } else {
+    // Очищаем все данные
+    database.prepare('DELETE FROM google_search_console_data').run();
+    console.log('Cleared all Google Search Console data');
+  }
+}
+
 // Google Accounts functions
 export function getAllGoogleAccounts(userId: number): GoogleAccount[] {
   const database = getDatabase();

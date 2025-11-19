@@ -511,6 +511,31 @@ export async function bulkInsertGoogleSearchConsoleData(
   }
 }
 
+export async function clearGoogleSearchConsoleData(siteId?: number): Promise<void> {
+  if (!isPostgresAvailable()) {
+    throw new Error('PostgreSQL database not configured');
+  }
+
+  try {
+    const db = await getPostgresClient();
+    
+    if (siteId) {
+      // Очищаем данные для конкретного сайта
+      await db.query('DELETE FROM google_search_console_data WHERE site_id = $1', [siteId]);
+      console.log(`Cleared Google Search Console data for site ${siteId}`);
+    } else {
+      // Очищаем все данные
+      await db.query('DELETE FROM google_search_console_data');
+      console.log('Cleared all Google Search Console data');
+    }
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      throw new Error('Table google_search_console_data does not exist. Please run migrations.');
+    }
+    throw error;
+  }
+}
+
 // Tags functions
 export async function createTag(tag: Omit<Tag, 'id' | 'createdAt' | 'updatedAt'>, userId: number): Promise<Tag> {
   if (!isPostgresAvailable()) {
