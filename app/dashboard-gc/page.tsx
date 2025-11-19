@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import Link from 'next/link';
 import { GoogleAccount, Tag, SiteStatus } from '@/lib/types';
 import { useTheme } from '@/lib/theme-context';
+import { useI18n } from '@/lib/i18n-context';
 
 type SiteData = {
   id: number;
@@ -64,6 +65,7 @@ const LazySiteCard = memo(({
   setHoveredDateIndex: (value: { siteId: number; index: number } | null) => void;
   onLoad: () => void;
 }) => {
+  const { t } = useI18n();
   const cardRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
   const hasLoadedRef = useRef(false);
@@ -100,7 +102,7 @@ const LazySiteCard = memo(({
       <div className="h-64 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
         <div className="text-center">
           <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-          <div className="text-xs text-gray-400 dark:text-gray-500">Загрузка...</div>
+          <div className="text-xs text-gray-400 dark:text-gray-500">{t('dashboardGc.loading')}</div>
         </div>
       </div>
     </div>
@@ -156,6 +158,7 @@ const SiteCard = memo(({
   setHoveredDateIndex: (value: { siteId: number; index: number } | null) => void;
 }) => {
   const { theme } = useTheme();
+  const { t, language } = useI18n();
   const isHovered = hoveredSiteId === siteData.id;
   const hoveredDate = hoveredDateIndex?.siteId === siteData.id 
     ? dailyData[hoveredDateIndex.index] 
@@ -228,7 +231,7 @@ const SiteCard = memo(({
             href={`/sites/${siteData.id}`}
             className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline text-sm whitespace-nowrap ml-2 flex-shrink-0"
           >
-            Открыть →
+            {t('dashboardGc.openSite')}
           </Link>
         </div>
       </div>
@@ -238,7 +241,7 @@ const SiteCard = memo(({
         <div className="h-64 flex items-center justify-center text-gray-600 dark:text-gray-400 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 border-2 border-blue-600 dark:border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            <span>Загрузка данных...</span>
+            <span>{t('dashboardGc.loadingData')}</span>
           </div>
         </div>
       ) : dailyData.length > 0 ? (
@@ -506,7 +509,7 @@ const SiteCard = memo(({
           <div className="text-xs text-gray-400 dark:text-gray-500 text-center py-1 px-2 h-6">
             {hoveredDate && (
               <span>
-                {new Date(hoveredDate.date).toLocaleDateString('ru-RU', { 
+                {new Date(hoveredDate.date).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { 
                   day: '2-digit', 
                   month: 'short', 
                   year: 'numeric'
@@ -518,8 +521,8 @@ const SiteCard = memo(({
       ) : (
         <div className="h-64 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
           <div className="text-center">
-            <div className="text-gray-600 dark:text-gray-400 mb-1">Нет данных</div>
-            <div className="text-xs text-gray-400 dark:text-gray-500">за выбранный период</div>
+            <div className="text-gray-600 dark:text-gray-400 mb-1">{t('dashboardGc.noData')}</div>
+            <div className="text-xs text-gray-400 dark:text-gray-500">{t('dashboardGc.noDataPeriod')}</div>
           </div>
         </div>
       )}
@@ -531,6 +534,7 @@ SiteCard.displayName = 'SiteCard';
 
 export default function DashboardGCPage() {
   const { theme } = useTheme();
+  const { t } = useI18n();
   const [sites, setSites] = useState<SiteData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState<number>(30);
@@ -628,11 +632,11 @@ export default function DashboardGCPage() {
         if (data.success) {
           setSites(data.sites || []);
         } else {
-          setError(data.error || 'Ошибка загрузки данных');
+          setError(data.error || t('dashboardGc.errorLoading'));
         }
       } catch (err) {
         console.error('Error loading aggregated data:', err);
-        setError('Ошибка загрузки данных');
+        setError(t('dashboardGc.errorLoading'));
       } finally {
         setLoading(false);
       }
@@ -701,25 +705,25 @@ export default function DashboardGCPage() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Dashboard GC</h1>
-            <p className="text-gray-600 dark:text-gray-400">Все сайты с Google Console</p>
+            <h1 className="text-4xl font-bold mb-2">{t('dashboardGc.title')}</h1>
+            <p className="text-gray-600 dark:text-gray-400">{t('dashboardGc.description')}</p>
           </div>
           <Link
             href="/sites"
             className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded text-sm text-gray-900 dark:text-white"
           >
-            ← Назад к сайтам
+            {t('dashboardGc.backToSites')}
           </Link>
         </div>
 
         {loading ? (
           <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center border border-gray-200 dark:border-gray-700">
-            <div className="text-gray-600 dark:text-gray-400">Загрузка данных...</div>
+            <div className="text-gray-600 dark:text-gray-400">{t('dashboardGc.loading')}</div>
           </div>
         ) : error ? (
           <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 border border-red-400 dark:border-red-500">
             <div className="text-red-600 dark:text-red-400">
-              <h3 className="text-xl font-bold mb-2">Ошибка загрузки</h3>
+              <h3 className="text-xl font-bold mb-2">{t('dashboardGc.errorLoading')}</h3>
               <p className="text-sm">{error}</p>
             </div>
           </div>
@@ -744,7 +748,7 @@ export default function DashboardGCPage() {
                       paddingRight: '1.75rem'
                     }}
                   >
-                    <option value="">Все теги</option>
+                    <option value="">{t('dashboardGc.allTags')}</option>
                     {tags.map((tag) => (
                       <option key={tag.id} value={tag.id} style={{ backgroundColor: tag.color + '20' }}>
                         {tag.name}
@@ -777,7 +781,7 @@ export default function DashboardGCPage() {
                       paddingRight: '1.75rem'
                     }}
                   >
-                    <option value="">Все статусы</option>
+                    <option value="">{t('dashboardGc.allStatuses')}</option>
                     {statuses.map((status) => (
                       <option key={status.id} value={status.id} style={{ backgroundColor: status.color + '20' }}>
                         {status.name}
@@ -807,10 +811,10 @@ export default function DashboardGCPage() {
                       paddingRight: '1.75rem'
                     }}
                   >
-                    <option value="7">7 дн.</option>
-                    <option value="30">30 дн.</option>
-                    <option value="90">90 дн.</option>
-                    <option value="180">180 дн.</option>
+                    <option value="7">7 {t('dashboardGc.daysShort')}</option>
+                    <option value="30">30 {t('dashboardGc.daysShort')}</option>
+                    <option value="90">90 {t('dashboardGc.daysShort')}</option>
+                    <option value="180">180 {t('dashboardGc.daysShort')}</option>
                   </select>
                 </div>
                 
@@ -858,7 +862,7 @@ export default function DashboardGCPage() {
                       onChange={(e) => setShowImpressions(e.target.checked)}
                       className="w-4 h-4"
                     />
-                    <span className="text-gray-700 dark:text-gray-300 text-xs">Показы</span>
+                    <span className="text-gray-700 dark:text-gray-300 text-xs">{t('dashboardGc.impressions')}</span>
                   </label>
                   <label className="flex items-center gap-1 text-sm cursor-pointer whitespace-nowrap">
                     <input
@@ -867,7 +871,7 @@ export default function DashboardGCPage() {
                       onChange={(e) => setShowClicks(e.target.checked)}
                       className="w-4 h-4"
                     />
-                    <span className="text-gray-700 dark:text-gray-300 text-xs">Клики</span>
+                    <span className="text-gray-700 dark:text-gray-300 text-xs">{t('dashboardGc.clicks')}</span>
                   </label>
                   <label className="flex items-center gap-1 text-sm cursor-pointer whitespace-nowrap">
                     <input
@@ -876,7 +880,7 @@ export default function DashboardGCPage() {
                       onChange={(e) => setShowPositions(e.target.checked)}
                       className="w-4 h-4"
                     />
-                    <span className="text-gray-700 dark:text-gray-300 text-xs">Позиции</span>
+                    <span className="text-gray-700 dark:text-gray-300 text-xs">{t('dashboardGc.positions')}</span>
                   </label>
                 </div>
                 
@@ -884,7 +888,7 @@ export default function DashboardGCPage() {
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <input
                     type="text"
-                    placeholder="Поиск..."
+                    placeholder={t('dashboardGc.search')}
                     value={searchDomain}
                     onChange={(e) => setSearchDomain(e.target.value)}
                     className="px-2 py-1 rounded text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-24"
@@ -896,9 +900,9 @@ export default function DashboardGCPage() {
             {/* Карточки сайтов с ленивой загрузкой или сообщение об отсутствии сайтов */}
             {visibleSites.length === 0 ? (
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 text-center border border-gray-200 dark:border-gray-700">
-                <p className="text-gray-600 dark:text-gray-400 mb-4">Сайты не найдены</p>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">{t('dashboardGc.sitesNotFound')}</p>
                 <p className="text-gray-500 dark:text-gray-500 text-sm mb-4">
-                  Убедитесь, что вы авторизованы через Google в разделе Интеграции
+                  {t('dashboardGc.sitesNotFoundHint')}
                 </p>
               </div>
             ) : (
