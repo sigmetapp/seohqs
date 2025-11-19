@@ -10,6 +10,7 @@ interface User {
   name?: string;
   createdAt?: string;
   updatedAt?: string;
+  sitesCount?: number;
 }
 
 export default function AdminUsersPage() {
@@ -290,6 +291,9 @@ export default function AdminUsersPage() {
                         Имя
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Кол-во сайтов
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Создан
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -300,7 +304,7 @@ export default function AdminUsersPage() {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {users.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                        <td colSpan={6} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                           Пользователи не найдены
                         </td>
                       </tr>
@@ -315,6 +319,9 @@ export default function AdminUsersPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                             {user.name || '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 font-medium">
+                            {user.sitesCount !== undefined ? user.sitesCount : '-'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {user.createdAt ? new Date(user.createdAt).toLocaleDateString('ru-RU') : '-'}

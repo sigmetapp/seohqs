@@ -2,15 +2,18 @@ import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 import { requireAuth } from '@/lib/middleware-auth';
 import { createUserAdmin, updateUserAdmin, deleteUserAdmin } from '@/lib/db-users';
+import { getAllSites } from '@/lib/db-adapter';
 import bcrypt from 'bcryptjs';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-async function getUsers(): Promise<Array<{ id: number; email: string; name?: string; updatedAt?: string; createdAt?: string }>> {
+async function getUsers(): Promise<Array<{ id: number; email: string; name?: string; updatedAt?: string; createdAt?: string; sitesCount?: number }>> {
   const useSupabase = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && 
     (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY));
   const usePostgres = !useSupabase && !!(process.env.POSTGRES_URL || process.env.DATABASE_URL);
+
+  let users: Array<{ id: number; email: string; name?: string; updatedAt?: string; createdAt?: string }> = [];
 
   if (useSupabase) {
     const { createClient } = await import('@supabase/supabase-js');
@@ -23,7 +26,7 @@ async function getUsers(): Promise<Array<{ id: number; email: string; name?: str
       .select('id, email, name, updated_at, created_at')
       .order('email', { ascending: true });
     if (error) throw error;
-    return (data || []).map((user: any) => ({
+    users = (data || []).map((user: any) => ({
       id: user.id,
       email: user.email,
       name: user.name,
@@ -37,7 +40,7 @@ async function getUsers(): Promise<Array<{ id: number; email: string; name?: str
     });
     const result = await pool.query('SELECT id, email, name, updated_at, created_at FROM users ORDER BY email ASC');
     await pool.end();
-    return result.rows.map((user: any) => ({
+    users = result.rows.map((user: any) => ({
       id: user.id,
       email: user.email,
       name: user.name,
@@ -50,9 +53,9 @@ async function getUsers(): Promise<Array<{ id: number; email: string; name?: str
     const { join } = require('path');
     const dbPath = join(process.cwd(), 'data', 'affiliate.db');
     const db = new Database(dbPath);
-    const users = db.prepare('SELECT id, email, name, updated_at, created_at FROM users ORDER BY email ASC').all();
+    const usersData = db.prepare('SELECT id, email, name, updated_at, created_at FROM users ORDER BY email ASC').all();
     db.close();
-    return users.map((user: any) => ({
+    users = usersData.map((user: any) => ({
       id: user.id,
       email: user.email,
       name: user.name,
@@ -60,6 +63,27 @@ async function getUsers(): Promise<Array<{ id: number; email: string; name?: str
       createdAt: user.created_at,
     }));
   }
+
+  // Получаем количество сайтов для каждого пользователя
+  const usersWithSitesCount = await Promise.all(
+    users.map(async (user) => {
+      try {
+        const sites = await getAllSites(user.id);
+        return {
+          ...user,
+          sitesCount: sites.length,
+        };
+      } catch (error) {
+        console.error(`Error getting sites count for user ${user.id}:`, error);
+        return {
+          ...user,
+          sitesCount: 0,
+        };
+      }
+    })
+  );
+
+  return usersWithSitesCount;
 }
 
 export async function GET(request: NextRequest) {
