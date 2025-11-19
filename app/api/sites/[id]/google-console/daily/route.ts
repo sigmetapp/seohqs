@@ -35,6 +35,18 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const daysParam = searchParams.get('days');
     const days = daysParam ? parseInt(daysParam) : 30; // По умолчанию 30 дней
+    
+    // Валидация периода
+    if (isNaN(days) || days < 1 || days > 365) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Неверный период: "${daysParam}" должен быть числом от 1 до 365`,
+        },
+        { status: 400 }
+      );
+    }
+    
     const refresh = searchParams.get('refresh') === 'true'; // Принудительное обновление кеша
 
     // Вычисляем дату начала периода (устанавливаем время на начало дня для корректного сравнения)
@@ -56,43 +68,64 @@ export async function GET(
         cachedFirstDate.setHours(0, 0, 0, 0);
         const cachedLastDate = new Date(cachedData[cachedData.length - 1].date);
         cachedLastDate.setHours(23, 59, 59, 999);
-        // Если данные покрывают нужный период, возвращаем из кеша
-        if (cachedFirstDate <= startDate && cachedLastDate >= endDate) {
-          return NextResponse.json({
-            success: true,
-            data: cachedData,
-            count: cachedData.length,
-            cached: true,
-          });
+        
+        // Строгая проверка: данные должны полностью покрывать запрошенный период
+        const startDateNormalized = new Date(startDate);
+        startDateNormalized.setHours(0, 0, 0, 0);
+        const endDateNormalized = new Date(endDate);
+        endDateNormalized.setHours(23, 59, 59, 999);
+        
+        if (cachedFirstDate <= startDateNormalized && cachedLastDate >= endDateNormalized) {
+          // Дополнительная проверка: убеждаемся, что количество дней в кеше соответствует запрошенному
+          const cachedDays = Math.ceil((cachedLastDate.getTime() - cachedFirstDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (cachedDays >= days - 1) { // -1 для учета возможных пропусков
+            console.log(`[Google Console Daily] Using cached data for site ${siteId}, period: ${days} days, cached records: ${cachedData.length}`);
+            return NextResponse.json({
+              success: true,
+              data: cachedData,
+              count: cachedData.length,
+              cached: true,
+            });
+          }
         }
       }
     }
 
     // Получаем данные из БД (берем достаточно для покрытия периода + запас)
-    // Для больших периодов увеличиваем лимит:
-    // - 30 дней: ~60-100 записей (с запасом)
-    // - 90 дней: ~200-300 записей
-    // - 180 дней: ~400-500 записей (учитывая возможные пропуски)
+    // Для больших периодов значительно увеличиваем лимит:
+    // - 30 дней: минимум 200 записей (с запасом на пропуски)
+    // - 90 дней: минимум 500 записей
+    // - 180 дней: минимум 2000 записей (учитывая возможные пропуски и исторические данные)
     const limit = days <= 30 
-      ? Math.max(days * 2, 200)
+      ? Math.max(days * 3, 200)
       : days <= 90
-      ? Math.max(days * 2, 500)
-      : Math.max(days * 2, 1000); // Для 180 дней берем минимум 1000 записей
+      ? Math.max(days * 3, 500)
+      : Math.max(days * 3, 2000); // Для 180 дней берем минимум 2000 записей
+    
+    console.log(`[Google Console Daily] Loading data for site ${siteId}, period: ${days} days, limit: ${limit}`);
     const allData = await getGoogleSearchConsoleDataBySiteId(siteId, limit);
+    console.log(`[Google Console Daily] Loaded ${allData.length} records from DB for site ${siteId}`);
 
     // Фильтруем данные по периоду (сравниваем только даты, без учета времени)
+    const startDateNormalized = new Date(startDate);
+    startDateNormalized.setHours(0, 0, 0, 0);
+    const endDateNormalized = new Date(endDate);
+    endDateNormalized.setHours(23, 59, 59, 999);
+    
     const filteredData = allData.filter((item) => {
       const itemDate = new Date(item.date);
       itemDate.setHours(0, 0, 0, 0);
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      return itemDate >= start && itemDate <= end;
+      return itemDate >= startDateNormalized && itemDate <= endDateNormalized;
     });
 
     // Логирование для отладки
     console.log(`[Google Console Daily] Site ${siteId}, Period: ${days} days, Loaded: ${allData.length} records, Filtered: ${filteredData.length} records, Date range: ${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]}`);
+    
+    // Дополнительная проверка: если данных меньше ожидаемого, логируем предупреждение
+    const expectedMinRecords = Math.floor(days * 0.7); // Минимум 70% дней должны иметь данные
+    if (filteredData.length < expectedMinRecords) {
+      console.warn(`[Google Console Daily] Site ${siteId}: Expected at least ${expectedMinRecords} records for ${days} days period, but got only ${filteredData.length}. This may indicate missing data in the database.`);
+    }
 
     // Сортируем по дате
     filteredData.sort((a, b) => {

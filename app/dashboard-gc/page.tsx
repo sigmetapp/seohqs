@@ -395,11 +395,23 @@ const SiteCard = memo(({
     if (dailyData.length === 0) {
       return { impressions: 0, clicks: 0 };
     }
+    
+    // Отладочная информация для проверки данных
+    if (dailyData.length > 0) {
+      const firstDate = new Date(dailyData[0].date);
+      const lastDate = new Date(dailyData[dailyData.length - 1].date);
+      const actualDays = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+      // Логируем только если данных меньше ожидаемого (чтобы не засорять консоль)
+      if (actualDays < 20 && dailyData.length < 20) {
+        console.log(`[SiteCard] Site ${siteData.id}: Displaying ${dailyData.length} records covering ${actualDays} days`);
+      }
+    }
+    
     return {
       impressions: dailyData.reduce((sum, d) => sum + (d.impressions || 0), 0),
       clicks: dailyData.reduce((sum, d) => sum + (d.clicks || 0), 0),
     };
-  }, [dailyData]);
+  }, [dailyData, siteData.id]);
 
   return (
     <div
@@ -504,7 +516,10 @@ const SiteCard = memo(({
                 const padding = 50;
                 const width = 700;
                 const height = 155;
-                const x = padding + (index / (dailyData.length - 1 || 1)) * width;
+                // Используем все данные для расчета позиции X, чтобы график правильно отображал весь период
+                const x = dailyData.length > 1 
+                  ? padding + (index / (dailyData.length - 1)) * width
+                  : padding + width / 2; // Если только одна точка, размещаем по центру
                 const impressionsY = 175 - (item.impressions / maxImpressions) * height;
                 const clicksY = 175 - (item.clicks / maxClicks) * height;
                 const positionY = 175 - (item.position / maxPosition) * height;
@@ -640,6 +655,7 @@ const SiteCard = memo(({
                 const tension = chartStyle === 'smooth' ? 0.7 : 0.5;
 
                 // Подготовка точек для всех метрик
+                // Используем все данные для правильного распределения точек по ширине графика
                 const divisor = Math.max(dailyData.length - 1, 1);
                 const impressionsPoints = dailyData.map((item, index) => ({
                   x: padding + (index / divisor) * width,
@@ -889,9 +905,11 @@ export default function DashboardGCPage() {
 
   // Очистка dailyData при изменении периода и принудительное обновление
   useEffect(() => {
+    console.log(`[Dashboard GC] Period changed to ${selectedPeriod} days, clearing all cached data`);
     setDailyData({});
     setLoadingDailyData({});
     activeRequestIdsRef.current = {};
+    requestCounterRef.current = 0;
     // При изменении периода принудительно обновляем данные для всех уже загруженных сайтов
     // Это гарантирует, что данные будут загружены заново из БД, а не из кеша
   }, [selectedPeriod]);
@@ -952,7 +970,7 @@ export default function DashboardGCPage() {
   }, [selectedPeriod]);
 
   const loadDailyDataForSite = useCallback(async (siteId: number, forceRefresh: boolean = false) => {
-    const requestPeriod = selectedPeriod;
+    const requestPeriod = selectedPeriodRef.current;
     const requestId = ++requestCounterRef.current;
     activeRequestIdsRef.current[siteId] = requestId;
 
@@ -962,15 +980,16 @@ export default function DashboardGCPage() {
 
     try {
       setLoadingDailyData(prev => ({ ...prev, [siteId]: true }));
-      // При изменении периода или принудительном обновлении добавляем параметр refresh
-      // Также добавляем timestamp для избежания кеширования браузером
+      
+      // Всегда принудительно обновляем при изменении периода или явном запросе
+      // Добавляем timestamp для избежания кеширования браузером
       const params = new URLSearchParams({
         days: requestPeriod.toString(),
+        refresh: 'true', // Всегда принудительно обновляем для корректной работы периодов
         _t: Date.now().toString()
       });
-      if (forceRefresh) {
-        params.append('refresh', 'true');
-      }
+      
+      console.log(`[Dashboard GC] Loading daily data for site ${siteId}, period: ${requestPeriod} days`);
       const response = await fetch(`/api/sites/${siteId}/google-console/daily?${params.toString()}`);
       
       if (!response.ok) {
@@ -979,15 +998,37 @@ export default function DashboardGCPage() {
       
       const data = await response.json();
       if (!isLatestRequest()) {
+        console.log(`[Dashboard GC] Ignoring stale response for site ${siteId}, current period: ${selectedPeriodRef.current}, response period: ${requestPeriod}`);
         return;
       }
+      
       if (data.success) {
+        const receivedData = data.data || [];
+        
+        // Валидация: проверяем, что получено достаточно данных для запрошенного периода
+        const expectedMinDays = Math.floor(requestPeriod * 0.5); // Минимум 50% дней должны иметь данные
+        if (receivedData.length < expectedMinDays && receivedData.length > 0) {
+          console.warn(`[Dashboard GC] Site ${siteId}: Received only ${receivedData.length} records for ${requestPeriod} days period. Expected at least ${expectedMinDays}.`);
+        }
+        
+        // Проверяем диапазон дат в полученных данных
+        if (receivedData.length > 0) {
+          const firstDate = new Date(receivedData[0].date);
+          const lastDate = new Date(receivedData[receivedData.length - 1].date);
+          const actualDays = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+          console.log(`[Dashboard GC] Site ${siteId}: Received ${receivedData.length} records covering ${actualDays} days (requested: ${requestPeriod} days)`);
+          
+          if (actualDays < requestPeriod * 0.7) {
+            console.warn(`[Dashboard GC] Site ${siteId}: Data range (${actualDays} days) is significantly less than requested period (${requestPeriod} days)`);
+          }
+        }
+        
         setDailyData(prev => ({
           ...prev,
-          [siteId]: data.data || []
+          [siteId]: receivedData
         }));
       } else {
-        console.error(`Error loading daily data for site ${siteId}:`, data.error);
+        console.error(`[Dashboard GC] Error loading daily data for site ${siteId}:`, data.error);
         // Устанавливаем пустой массив при ошибке, чтобы не показывать старые данные
         setDailyData(prev => ({
           ...prev,
@@ -995,7 +1036,7 @@ export default function DashboardGCPage() {
         }));
       }
     } catch (err: any) {
-      console.error(`Error loading daily data for site ${siteId}:`, err);
+      console.error(`[Dashboard GC] Error loading daily data for site ${siteId}:`, err);
       if (!isLatestRequest()) {
         return;
       }
@@ -1009,28 +1050,24 @@ export default function DashboardGCPage() {
         setLoadingDailyData(prev => ({ ...prev, [siteId]: false }));
       }
     }
-  }, [selectedPeriod]);
+  }, []);
 
   const handlePeriodChange = useCallback((value: number) => {
+    console.log(`[Dashboard GC] Period change requested: ${selectedPeriod} -> ${value}`);
     selectedPeriodRef.current = value;
+    lastPeriodRef.current = value;
     setSelectedPeriod(value);
-  }, [setSelectedPeriod]);
+  }, [selectedPeriod]);
 
   const handleSiteLoad = useCallback((siteId: number) => {
-    // Проверяем, изменился ли период - если да, принудительно обновляем данные
-    const periodChanged = lastPeriodRef.current !== selectedPeriod;
-    if (periodChanged) {
-      lastPeriodRef.current = selectedPeriod;
-    }
+    const currentPeriod = selectedPeriodRef.current;
     
-    // Всегда загружаем данные при изменении периода или если данных нет
+    // Всегда загружаем данные заново при загрузке сайта, чтобы гарантировать актуальность
     if (!loadingDailyDataRef.current[siteId]) {
-      const existingData = dailyDataRef.current[siteId];
-      // Принудительно обновляем, если период изменился или данных нет
-      const shouldRefresh = periodChanged || !existingData || existingData.length === 0;
-      loadDailyDataForSite(siteId, shouldRefresh);
+      console.log(`[Dashboard GC] Loading data for site ${siteId}, period: ${currentPeriod} days`);
+      loadDailyDataForSite(siteId, true); // Всегда принудительно обновляем
     }
-  }, [loadDailyDataForSite, selectedPeriod]);
+  }, [loadDailyDataForSite]);
 
   // Видимые сайты для рендеринга - фильтруем по тегам, статусам и поиску
   const visibleSites = useMemo(() => {
