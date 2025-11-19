@@ -79,11 +79,12 @@ export async function loadGoogleConsoleSites(userId: number) {
       sitesLoaded++;
     }
 
-    // Загружаем данные производительности за последние 30 дней
+    // Загружаем данные производительности за последние 180 дней
+    // Это обеспечит наличие данных для всех периодов: 7, 30, 90 и 180 дней
     try {
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
+      startDate.setDate(startDate.getDate() - 180); // Загружаем 180 дней вместо 30
 
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];

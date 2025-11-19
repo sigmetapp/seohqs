@@ -5,6 +5,27 @@ import { cache } from '@/lib/cache';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+/**
+ * Оптимизированная система кеширования для данных Google Search Console:
+ * 1. Базовый кеш за 180 дней (основной источник данных)
+ * 2. Кеш для каждого периода (7, 30, 90, 180 дней) для быстрого доступа
+ * 3. Все данные берутся из БД (180 дней всегда хранятся в БД при синхронизации)
+ */
+
+// Константы для кеширования
+const BASE_CACHE_DAYS = 180; // Базовый период для кеша (всегда загружаем 180 дней из БД)
+const BASE_CACHE_KEY_PREFIX = 'google-console-base'; // Префикс для базового кеша
+const PERIOD_CACHE_KEY_PREFIX = 'google-console-daily'; // Префикс для кеша периодов
+
+// TTL для разных типов кеша (в миллисекундах)
+const BASE_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 часа для базового кеша (180 дней)
+const PERIOD_CACHE_TTL = {
+  7: 12 * 60 * 60 * 1000,   // 12 часов для 7 дней
+  30: 12 * 60 * 60 * 1000,  // 12 часов для 30 дней
+  90: 6 * 60 * 60 * 1000,   // 6 часов для 90 дней
+  180: 2 * 60 * 60 * 1000,  // 2 часа для 180 дней
+};
+
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -49,41 +70,40 @@ export async function GET(
     
     const refresh = searchParams.get('refresh') === 'true'; // Принудительное обновление кеша
 
-    // Вычисляем дату начала периода (устанавливаем время на начало дня для корректного сравнения)
+    // Вычисляем дату начала периода
     const endDate = new Date();
     endDate.setHours(23, 59, 59, 999); // Конец текущего дня
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0); // Начало дня
 
-    // Проверяем кеш только если не требуется обновление
-    // Для больших периодов (90+ дней) используем более короткий TTL кеша
-    const cacheKey = `google-console-daily-${siteId}-${days}`;
+    const startDateNormalized = new Date(startDate);
+    startDateNormalized.setHours(0, 0, 0, 0);
+    const endDateNormalized = new Date(endDate);
+    endDateNormalized.setHours(23, 59, 59, 999);
+
+    // Ключи кеша
+    const periodCacheKey = `${PERIOD_CACHE_KEY_PREFIX}-${siteId}-${days}`;
+    const baseCacheKey = `${BASE_CACHE_KEY_PREFIX}-${siteId}`;
+
+    // Шаг 1: Проверяем кеш для конкретного периода (быстрый путь)
     if (!refresh) {
-      const cachedData = cache.get<any>(cacheKey);
-      if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
-        // Данные в кеше уже отсортированы по дате (от старых к новым после фильтрации)
+      const periodCachedData = cache.get<any[]>(periodCacheKey);
+      if (periodCachedData && Array.isArray(periodCachedData) && periodCachedData.length > 0) {
         // Проверяем, что кешированные данные покрывают нужный период
-        const cachedFirstDate = new Date(cachedData[0].date);
+        const cachedFirstDate = new Date(periodCachedData[0].date);
         cachedFirstDate.setHours(0, 0, 0, 0);
-        const cachedLastDate = new Date(cachedData[cachedData.length - 1].date);
+        const cachedLastDate = new Date(periodCachedData[periodCachedData.length - 1].date);
         cachedLastDate.setHours(23, 59, 59, 999);
         
-        // Строгая проверка: данные должны полностью покрывать запрошенный период
-        const startDateNormalized = new Date(startDate);
-        startDateNormalized.setHours(0, 0, 0, 0);
-        const endDateNormalized = new Date(endDate);
-        endDateNormalized.setHours(23, 59, 59, 999);
-        
         if (cachedFirstDate <= startDateNormalized && cachedLastDate >= endDateNormalized) {
-          // Дополнительная проверка: убеждаемся, что количество дней в кеше соответствует запрошенному
           const cachedDays = Math.ceil((cachedLastDate.getTime() - cachedFirstDate.getTime()) / (1000 * 60 * 60 * 24));
           if (cachedDays >= days - 1) { // -1 для учета возможных пропусков
-            console.log(`[Google Console Daily] Using cached data for site ${siteId}, period: ${days} days, cached records: ${cachedData.length}`);
+            console.log(`[Google Console Daily] Using period cache for site ${siteId}, period: ${days} days, cached records: ${periodCachedData.length}`);
             return NextResponse.json({
               success: true,
-              data: cachedData,
-              count: cachedData.length,
+              data: periodCachedData,
+              count: periodCachedData.length,
               cached: true,
             });
           }
@@ -91,70 +111,78 @@ export async function GET(
       }
     }
 
-    // Получаем данные из БД (берем достаточно для покрытия периода + запас)
-    // Для больших периодов значительно увеличиваем лимит:
-    // - 30 дней: минимум 200 записей (с запасом на пропуски)
-    // - 90 дней: минимум 500 записей
-    // - 180 дней: минимум 2000 записей (учитывая возможные пропуски и исторические данные)
-    const limit = days <= 30 
-      ? Math.max(days * 3, 200)
-      : days <= 90
-      ? Math.max(days * 3, 500)
-      : Math.max(days * 3, 2000); // Для 180 дней берем минимум 2000 записей
-    
-    console.log(`[Google Console Daily] Loading data for site ${siteId}, period: ${days} days, limit: ${limit}`);
-    const allData = await getGoogleSearchConsoleDataBySiteId(siteId, limit);
-    console.log(`[Google Console Daily] Loaded ${allData.length} records from DB for site ${siteId}`);
+    // Шаг 2: Проверяем базовый кеш за 180 дней
+    let baseData: any[] | null = null;
+    if (!refresh) {
+      baseData = cache.get<any[]>(baseCacheKey);
+      if (baseData && Array.isArray(baseData) && baseData.length > 0) {
+        console.log(`[Google Console Daily] Using base cache (180 days) for site ${siteId}, records: ${baseData.length}`);
+      }
+    }
 
-    // Фильтруем данные по периоду (сравниваем только даты, без учета времени)
-    const startDateNormalized = new Date(startDate);
-    startDateNormalized.setHours(0, 0, 0, 0);
-    const endDateNormalized = new Date(endDate);
-    endDateNormalized.setHours(23, 59, 59, 999);
-    
-    const filteredData = allData.filter((item) => {
+    // Шаг 3: Если базового кеша нет, загружаем из БД за 180 дней
+    if (!baseData) {
+      // Загружаем достаточно данных из БД для покрытия 180 дней
+      // В БД всегда хранятся данные за 180 дней (при синхронизации)
+      const limit = Math.max(BASE_CACHE_DAYS * 3, 2000); // Минимум 2000 записей для 180 дней
+      
+      console.log(`[Google Console Daily] Loading base data (180 days) from DB for site ${siteId}, limit: ${limit}`);
+      const allData = await getGoogleSearchConsoleDataBySiteId(siteId, limit);
+      console.log(`[Google Console Daily] Loaded ${allData.length} records from DB for site ${siteId}`);
+
+      // Вычисляем даты для базового периода (180 дней)
+      const baseEndDate = new Date();
+      baseEndDate.setHours(23, 59, 59, 999);
+      const baseStartDate = new Date();
+      baseStartDate.setDate(baseStartDate.getDate() - BASE_CACHE_DAYS);
+      baseStartDate.setHours(0, 0, 0, 0);
+
+      const baseStartDateNormalized = new Date(baseStartDate);
+      baseStartDateNormalized.setHours(0, 0, 0, 0);
+      const baseEndDateNormalized = new Date(baseEndDate);
+      baseEndDateNormalized.setHours(23, 59, 59, 999);
+
+      // Фильтруем данные по базовому периоду (180 дней)
+      baseData = allData
+        .filter((item) => {
+          const itemDate = new Date(item.date);
+          itemDate.setHours(0, 0, 0, 0);
+          return itemDate >= baseStartDateNormalized && itemDate <= baseEndDateNormalized;
+        })
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .map((item) => ({
+          siteId: item.siteId,
+          clicks: item.clicks,
+          impressions: item.impressions,
+          ctr: item.ctr,
+          position: item.position,
+          date: item.date,
+        }));
+
+      // Сохраняем базовый кеш
+      cache.set(baseCacheKey, baseData, BASE_CACHE_TTL);
+      console.log(`[Google Console Daily] Cached base data (180 days) for site ${siteId}, records: ${baseData.length}`);
+    }
+
+    // Шаг 4: Фильтруем данные из базового кеша для запрошенного периода
+    const filteredData = baseData.filter((item) => {
       const itemDate = new Date(item.date);
       itemDate.setHours(0, 0, 0, 0);
       return itemDate >= startDateNormalized && itemDate <= endDateNormalized;
     });
 
     // Логирование для отладки
-    console.log(`[Google Console Daily] Site ${siteId}, Period: ${days} days, Loaded: ${allData.length} records, Filtered: ${filteredData.length} records, Date range: ${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]}`);
-    
-    // Дополнительная проверка: если данных меньше ожидаемого, логируем предупреждение
-    const expectedMinRecords = Math.floor(days * 0.7); // Минимум 70% дней должны иметь данные
-    if (filteredData.length < expectedMinRecords) {
-      console.warn(`[Google Console Daily] Site ${siteId}: Expected at least ${expectedMinRecords} records for ${days} days period, but got only ${filteredData.length}. This may indicate missing data in the database.`);
-    }
+    console.log(`[Google Console Daily] Site ${siteId}, Period: ${days} days, Base records: ${baseData.length}, Filtered: ${filteredData.length} records, Date range: ${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]}`);
 
-    // Сортируем по дате
-    filteredData.sort((a, b) => {
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
-    });
-
-    // Преобразуем в формат, ожидаемый фронтендом
-    const formattedData = filteredData.map((item) => ({
-      siteId: item.siteId,
-      clicks: item.clicks,
-      impressions: item.impressions,
-      ctr: item.ctr,
-      position: item.position,
-      date: item.date,
-    }));
-
-    // Сохраняем в кеш с разным TTL в зависимости от периода
-    // Для больших периодов используем более короткий TTL, чтобы данные обновлялись чаще
-    const cacheTTL = days <= 30 
-      ? 12 * 60 * 60 * 1000 // 12 часов для малых периодов
-      : days <= 90
-      ? 6 * 60 * 60 * 1000  // 6 часов для средних периодов
-      : 2 * 60 * 60 * 1000; // 2 часа для больших периодов (90+ дней)
-    cache.set(cacheKey, formattedData, cacheTTL);
+    // Шаг 5: Сохраняем отфильтрованные данные в кеш для конкретного периода
+    const periodTTL = PERIOD_CACHE_TTL[days as keyof typeof PERIOD_CACHE_TTL] || PERIOD_CACHE_TTL[30];
+    cache.set(periodCacheKey, filteredData, periodTTL);
+    console.log(`[Google Console Daily] Cached period data (${days} days) for site ${siteId}, records: ${filteredData.length}`);
 
     return NextResponse.json({
       success: true,
-      data: formattedData,
-      count: formattedData.length,
+      data: filteredData,
+      count: filteredData.length,
       cached: false,
     });
   } catch (error: any) {
