@@ -41,8 +41,22 @@ export async function POST(
       );
     }
 
+    // Получаем Google аккаунты пользователя
+    // Используем первый доступный аккаунт с токенами
+    const accounts = await getAllGoogleAccounts(user.id);
+    let accountId: number | undefined = undefined;
+    
+    // Ищем первый аккаунт с валидными токенами
+    for (const account of accounts) {
+      if (account.googleAccessToken && account.googleRefreshToken) {
+        accountId = account.id;
+        break;
+      }
+    }
+    
+    // Если аккаунт не найден, используем undefined (fallback к старой таблице integrations)
     // Получаем данные из Google Search Console API
-    const searchConsoleService = createSearchConsoleService(undefined, user.id);
+    const searchConsoleService = createSearchConsoleService(accountId, user.id);
     
     // Если URL не указан, пытаемся найти автоматически по домену
     let foundSiteUrl: string | null = null;
@@ -100,7 +114,7 @@ export async function POST(
     }
     
     // Также инвалидируем агрегированные данные для всех аккаунтов и периодов
-    const accounts = await getAllGoogleAccounts(user.id);
+    // Используем уже загруженный список аккаунтов
     for (const days of [7, 30, 90, 180]) {
       // Очищаем для default (без accountId)
       cache.delete(`google-console-aggregated-${user.id}-default-${days}`);
@@ -118,18 +132,23 @@ export async function POST(
     });
   } catch (error: any) {
     console.error('Ошибка синхронизации Google Search Console:', error);
+    console.error('Error stack:', error.stack);
     
     // Более детальная обработка ошибок
     let errorMessage = error.message || 'Ошибка синхронизации Google Console';
     
-    if (errorMessage.includes('OAuth') || errorMessage.includes('авторизоваться')) {
+    if (errorMessage.includes('OAuth') || errorMessage.includes('авторизоваться') || errorMessage.includes('необходимо авторизоваться')) {
       errorMessage = 'Ошибка аутентификации. Убедитесь, что вы авторизованы через Google в разделе Интеграции.';
-    } else if (errorMessage.includes('доступ запрещен') || errorMessage.includes('403')) {
+    } else if (errorMessage.includes('доступ запрещен') || errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
       errorMessage = 'Доступ запрещен. Убедитесь, что ваш Google аккаунт имеет доступ к сайту в Google Search Console.';
     } else if (errorMessage.includes('не удалось извлечь URL') || errorMessage.includes('Не удалось автоматически найти сайт')) {
       errorMessage = 'Не удалось автоматически найти сайт в Google Search Console. Укажите URL сайта вручную в настройках сайта.';
     } else if (errorMessage.includes('Не указан URL сайта')) {
       errorMessage = 'Не указан URL сайта и домен для автоматического поиска. Укажите URL сайта в настройках сайта.';
+    } else if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+      errorMessage = 'Ошибка авторизации. Токены доступа истекли. Пожалуйста, переавторизуйтесь через Google в разделе Интеграции.';
+    } else if (errorMessage.includes('API не включен') || errorMessage.includes('has not been used') || errorMessage.includes('is disabled')) {
+      errorMessage = 'Google Search Console API не включен. Включите API в Google Cloud Console.';
     }
 
     return NextResponse.json(
