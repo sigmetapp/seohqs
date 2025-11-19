@@ -578,6 +578,36 @@ export async function clearGoogleSearchConsoleData(siteId?: number): Promise<voi
   }
 }
 
+/**
+ * Удаляет данные Google Search Console старше указанной даты для указанного сайта
+ */
+export async function deleteOldGoogleSearchConsoleData(
+  siteId: number,
+  beforeDate: Date
+): Promise<void> {
+  if (!isPostgresAvailable()) {
+    throw new Error('PostgreSQL database not configured');
+  }
+
+  try {
+    const db = await getPostgresClient();
+    const beforeDateStr = beforeDate.toISOString().split('T')[0];
+    
+    const result = await db.query(
+      'DELETE FROM google_search_console_data WHERE site_id = $1 AND date < $2',
+      [siteId, beforeDateStr]
+    );
+    
+    console.log(`Deleted Google Search Console data older than ${beforeDateStr} for site ${siteId} (${result.rowCount || 0} rows)`);
+  } catch (error: any) {
+    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+      // Таблица не существует, ничего не делаем
+      return;
+    }
+    throw error;
+  }
+}
+
 // Tags functions
 export async function createTag(tag: Omit<Tag, 'id' | 'createdAt' | 'updatedAt'>, userId: number): Promise<Tag> {
   if (!isPostgresAvailable()) {

@@ -217,11 +217,10 @@ export async function PUT(
     // Инвалидируем кеш списка сайтов
     cache.delete(`sites-list-${user.id}`);
     // Также инвалидируем кеш агрегированных данных для всех периодов
-    cache.delete(`google-console-aggregated-${user.id}-default-180`);
-    cache.delete(`google-console-aggregated-${user.id}-default-360`);
-    // Инвалидируем кеш для конкретного сайта
-    cache.delete(`google-console-daily-${siteId}-180`);
-    cache.delete(`google-console-daily-${siteId}-360`);
+    for (const days of [7, 14, 30, 60, 90]) {
+      cache.delete(`google-console-aggregated-${user.id}-default-${days}`);
+      cache.delete(`google-console-daily-${siteId}-${days}`);
+    }
 
     // Загружаем статус сайта, если он есть
     let siteStatus = null;

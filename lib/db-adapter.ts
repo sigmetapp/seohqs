@@ -393,6 +393,30 @@ export async function clearGoogleSearchConsoleData(siteId?: number): Promise<voi
   }
 }
 
+/**
+ * Удаляет данные Google Search Console старше указанной даты для указанного сайта
+ * @param siteId ID сайта
+ * @param beforeDate Удалить все данные до этой даты (не включая)
+ */
+export async function deleteOldGoogleSearchConsoleData(
+  siteId: number,
+  beforeDate: Date
+): Promise<void> {
+  if (useSupabase()) {
+    const { deleteOldGoogleSearchConsoleData: deleteSupabase } = await import('./db-supabase');
+    return deleteSupabase(siteId, beforeDate);
+  } else if (usePostgres()) {
+    const { deleteOldGoogleSearchConsoleData: deletePostgres } = await import('./db-postgres');
+    return deletePostgres(siteId, beforeDate);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    const { deleteOldGoogleSearchConsoleData: deleteSQLite } = require('./db');
+    return deleteSQLite(siteId, beforeDate);
+  }
+}
+
 // Tags adapter functions
 export async function createTag(tag: Omit<import('./types').Tag, 'id' | 'createdAt' | 'updatedAt'>, userId: number): Promise<import('./types').Tag> {
   if (useSupabase()) {

@@ -411,6 +411,29 @@ export function clearGoogleSearchConsoleData(siteId?: number): void {
   }
 }
 
+/**
+ * Удаляет данные Google Search Console старше указанной даты для указанного сайта
+ */
+export function deleteOldGoogleSearchConsoleData(
+  siteId: number,
+  beforeDate: Date
+): void {
+  const database = getDatabase();
+  const beforeDateStr = beforeDate.toISOString().split('T')[0];
+  
+  try {
+    const stmt = database.prepare('DELETE FROM google_search_console_data WHERE site_id = ? AND date < ?');
+    const info = stmt.run(siteId, beforeDateStr);
+    console.log(`Deleted Google Search Console data older than ${beforeDateStr} for site ${siteId} (${info.changes || 0} rows)`);
+  } catch (error: any) {
+    if (error.message?.includes('no such table')) {
+      // Таблица не существует, ничего не делаем
+      return;
+    }
+    throw error;
+  }
+}
+
 // Google Accounts functions
 export function getAllGoogleAccounts(userId: number): GoogleAccount[] {
   const database = getDatabase();

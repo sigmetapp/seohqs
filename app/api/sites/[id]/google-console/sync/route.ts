@@ -11,7 +11,7 @@ export const runtime = 'nodejs';
 // Теперь также проверяет наличие данных за последние дни
 async function shouldSync(siteId: number): Promise<{ needsSync: boolean; missingDays?: number }> {
   try {
-    const maxDays = 360; // Максимальный период для хранения данных
+    const maxDays = 90; // Максимальный период для хранения данных
     const endDate = new Date();
     endDate.setHours(23, 59, 59, 999);
     const startDate = new Date();
@@ -85,7 +85,7 @@ async function shouldSync(siteId: number): Promise<{ needsSync: boolean; missing
   } catch (error) {
     // В случае ошибки синхронизируем для безопасности
     console.warn('Error checking sync cache:', error);
-    return { needsSync: true, missingDays: 360 };
+    return { needsSync: true, missingDays: 90 };
   }
 }
 
@@ -130,7 +130,7 @@ export async function POST(
       return NextResponse.json({
         success: true,
         message: 'Данные актуальны (кеш 12 часов), синхронизация не требуется',
-        data: existingData.slice(0, 360).map(item => ({
+        data: existingData.slice(0, 90).map(item => ({
           date: item.date,
           clicks: item.clicks,
           impressions: item.impressions,
@@ -174,8 +174,8 @@ export async function POST(
 
     // Определяем период для загрузки данных
     // Если есть информация о недостающих днях, загружаем только их + небольшой буфер
-    // Иначе загружаем за последние 360 дней (для первой синхронизации или полного обновления)
-    const maxDays = 360;
+    // Иначе загружаем за последние 90 дней (для первой синхронизации или полного обновления)
+    const maxDays = 90;
     const endDate = new Date();
     endDate.setHours(23, 59, 59, 999);
     const startDate = new Date();
@@ -192,7 +192,7 @@ export async function POST(
       startDate.setHours(0, 0, 0, 0);
       console.log(`[Incremental Sync] Loading ${daysToLoad} days for site ${siteId} (missing ${syncCheck.missingDays} days)`);
     } else {
-      // Полная синхронизация: загружаем за последние 360 дней
+      // Полная синхронизация: загружаем за последние 90 дней
       startDate.setDate(startDate.getDate() - maxDays);
       startDate.setHours(0, 0, 0, 0);
       console.log(`[Full Sync] Loading ${maxDays} days for site ${siteId}`);
@@ -254,6 +254,20 @@ export async function POST(
     // а новые - добавлены
     if (dataToInsert.length > 0) {
       await bulkInsertGoogleSearchConsoleData(dataToInsert);
+    }
+
+    // Очищаем данные старше 90 дней из БД
+    const cleanupDate = new Date();
+    cleanupDate.setDate(cleanupDate.getDate() - 90);
+    cleanupDate.setHours(0, 0, 0, 0);
+    
+    try {
+      const { deleteOldGoogleSearchConsoleData } = await import('@/lib/db-adapter');
+      await deleteOldGoogleSearchConsoleData(siteId, cleanupDate);
+      console.log(`[Sync] Cleaned up old data (older than 90 days) for site ${siteId}`);
+    } catch (error) {
+      console.warn(`[Sync] Failed to cleanup old data for site ${siteId}:`, error);
+      // Не прерываем выполнение, если очистка не удалась
     }
 
     const syncType = incrementalSync ? 'инкрементальная' : 'полная';
