@@ -23,6 +23,35 @@ import { supabase } from './supabase';
 import type { GSCIntegration, GSCSite } from './types';
 
 /**
+ * Check if gsc_integrations table exists
+ * Returns true if table exists, false otherwise
+ */
+async function checkGSCIntegrationsTableExists(): Promise<boolean> {
+  if (!supabase) {
+    return false;
+  }
+
+  try {
+    const { error } = await supabase
+      .from('gsc_integrations')
+      .select('id')
+      .limit(1);
+
+    // If no error, table exists
+    return !error;
+  } catch (error: any) {
+    // Check if it's a "table doesn't exist" error
+    if (error?.code === '42P01' || 
+        error?.message?.includes('does not exist') || 
+        error?.message?.includes('schema cache')) {
+      return false;
+    }
+    // Other error - assume table doesn't exist or there's a problem
+    return false;
+  }
+}
+
+/**
  * Get the current Supabase Auth user ID from the request
  * This function extracts the user ID from the Supabase session or maps from JWT auth
  * 
@@ -258,8 +287,11 @@ export async function getGSCIntegration(userId: string): Promise<GSCIntegration 
  * Upsert GSC integration for a user
  * Creates a new integration or updates existing one if it already exists
  * 
+ * IMPORTANT: This function saves the user's Google email (google_email) to the table
+ * This serves as proof that the user's email is integrated with the site
+ * 
  * @param userId - The UUID of the authenticated user from Supabase Auth
- * @param integrationData - The integration data to save
+ * @param integrationData - The integration data to save (includes google_email)
  * @returns The saved GSC integration
  */
 export async function upsertGSCIntegration(
@@ -275,13 +307,24 @@ export async function upsertGSCIntegration(
     throw new Error('Supabase client not initialized');
   }
 
+  // Check if table exists first
+  const tableExists = await checkGSCIntegrationsTableExists();
+  if (!tableExists) {
+    const errorMsg = `Table gsc_integrations does not exist. Please run migration: migrations/018_gsc_integrations_table_supabase.sql\n\n` +
+      `You can create the table manually in Supabase SQL Editor or use the migration endpoint: /api/migrations/create-gsc-integrations-table`;
+    console.error('[GSC]', errorMsg);
+    throw new Error(errorMsg);
+  }
+
   try {
+    // Save integration with user's email
+    // The google_email field stores the user's Google account email as proof of integration
     const { data, error } = await supabase
       .from('gsc_integrations')
       .upsert(
         {
           user_id: userId,
-          google_email: integrationData.google_email,
+          google_email: integrationData.google_email, // User's email is saved here
           google_user_id: integrationData.google_user_id,
           access_token: integrationData.access_token,
           refresh_token: integrationData.refresh_token,
@@ -303,6 +346,8 @@ export async function upsertGSCIntegration(
       throw new Error('Failed to save GSC integration: no data returned');
     }
 
+    console.log(`[GSC] Integration saved successfully for user ${userId} with email: ${data.google_email}`);
+
     return {
       id: data.id,
       user_id: data.user_id,
@@ -314,6 +359,14 @@ export async function upsertGSCIntegration(
       updated_at: data.updated_at,
     };
   } catch (error: any) {
+    // Re-throw with more context if it's a table not found error
+    if (error?.code === '42P01' || 
+        error?.message?.includes('does not exist') || 
+        error?.message?.includes('schema cache')) {
+      const errorMsg = `Table gsc_integrations does not exist. Please run migration: migrations/018_gsc_integrations_table_supabase.sql`;
+      console.error('[GSC]', errorMsg);
+      throw new Error(errorMsg);
+    }
     throw error;
   }
 }
