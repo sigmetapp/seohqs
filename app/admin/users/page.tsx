@@ -21,6 +21,7 @@ export default function AdminUsersPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showResetDataModal, setShowResetDataModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({ email: '', name: '', password: '' });
   const [resetPasswordData, setResetPasswordData] = useState({ password: '', confirmPassword: '' });
@@ -207,6 +208,38 @@ export default function AdminUsersPage() {
     setShowDeleteModal(true);
   };
 
+  const openResetDataModal = (user: User) => {
+    setSelectedUser(user);
+    setShowResetDataModal(true);
+  };
+
+  const handleResetUserData = async () => {
+    if (!selectedUser) return;
+
+    if (!confirm(`Вы уверены, что хотите сбросить все данные пользователя ${selectedUser.email}? Это удалит все его сайты, задачи, теги, интеграции и другие данные. Пользователь сможет заново добавить все данные.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/users/${selectedUser.id}/reset-sites`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showMessage('success', data.message || 'Все данные пользователя успешно сброшены');
+        setShowResetDataModal(false);
+        setSelectedUser(null);
+        loadUsers();
+      } else {
+        showMessage('error', data.error || 'Ошибка сброса данных пользователя');
+      }
+    } catch (error: any) {
+      showMessage('error', error.message || 'Ошибка сброса данных пользователя');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -298,6 +331,12 @@ export default function AdminUsersPage() {
                               className="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300"
                             >
                               Сбросить пароль
+                            </button>
+                            <button
+                              onClick={() => openResetDataModal(user)}
+                              className="text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300"
+                            >
+                              Сбросить данные
                             </button>
                             <button
                               onClick={() => openDeleteModal(user)}
@@ -488,6 +527,47 @@ export default function AdminUsersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reset User Data Modal */}
+      {showResetDataModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Сбросить все данные пользователя</h2>
+            <p className="mb-4 text-gray-700 dark:text-gray-300">
+              Вы уверены, что хотите сбросить все данные пользователя <strong>{selectedUser.email}</strong>? 
+              Это действие удалит:
+            </p>
+            <ul className="mb-4 text-sm text-gray-600 dark:text-gray-400 list-disc list-inside space-y-1">
+              <li>Все сайты пользователя</li>
+              <li>Все задачи и связанные данные</li>
+              <li>Все теги</li>
+              <li>Все интеграции (Google аккаунты, GSC интеграции)</li>
+              <li>Все ссылочные проекты</li>
+              <li>Данные Google Search Console</li>
+            </ul>
+            <p className="mb-4 text-sm text-orange-600 dark:text-orange-400 font-medium">
+              Пользователь сможет заново добавить все данные после сброса.
+            </p>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => {
+                  setShowResetDataModal(false);
+                  setSelectedUser(null);
+                }}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleResetUserData}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+              >
+                Сбросить данные
+              </button>
+            </div>
           </div>
         </div>
       )}
