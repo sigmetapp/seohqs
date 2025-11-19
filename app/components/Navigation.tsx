@@ -122,6 +122,7 @@ export default function Navigation() {
     { href: '/sites', labelKey: 'nav.sites' },
     { href: '/dashboard-gc', labelKey: 'nav.dashboardGc' },
     { href: '/integrations', labelKey: 'nav.integrations' },
+    { href: '/admin/users', labelKey: 'nav.users' },
   ];
 
   return (
