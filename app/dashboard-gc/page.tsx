@@ -219,7 +219,9 @@ const LazySiteCard = memo(({
   hoveredSiteId,
   hoveredDateIndex,
   setHoveredDateIndex,
-  onLoad
+  onLoad,
+  onSyncSite,
+  isSyncing
 }: {
   siteData: SiteData;
   dailyData: DailyData[];
@@ -235,6 +237,9 @@ const LazySiteCard = memo(({
   hoveredDateIndex: { siteId: number; index: number } | null;
   setHoveredDateIndex: (value: { siteId: number; index: number } | null) => void;
   onLoad: () => void;
+  onSyncSite?: (siteId: number) => void;
+  isSyncing?: boolean;
+  syncResults?: Record<number, { success: boolean; message: string }>;
 }) => {
   const { t } = useI18n();
   const cardRef = useRef<HTMLDivElement>(null);
@@ -295,6 +300,9 @@ const LazySiteCard = memo(({
       hoveredSiteId={hoveredSiteId}
       hoveredDateIndex={hoveredDateIndex}
       setHoveredDateIndex={setHoveredDateIndex}
+      onSyncSite={onSyncSite}
+      isSyncing={isSyncing}
+      syncResults={syncResults}
     />
   );
 });
@@ -341,7 +349,9 @@ const SiteCard = memo(({
   onHoverLeave,
   hoveredSiteId,
   hoveredDateIndex,
-  setHoveredDateIndex
+  setHoveredDateIndex,
+  onSyncSite,
+  isSyncing
 }: {
   siteData: SiteData;
   dailyData: DailyData[];
@@ -356,6 +366,9 @@ const SiteCard = memo(({
   hoveredSiteId: number | null;
   hoveredDateIndex: { siteId: number; index: number } | null;
   setHoveredDateIndex: (value: { siteId: number; index: number } | null) => void;
+  onSyncSite?: (siteId: number) => void;
+  isSyncing?: boolean;
+  syncResults?: Record<number, { success: boolean; message: string }>;
 }) => {
   const { theme } = useTheme();
   const { t, language } = useI18n();
@@ -421,6 +434,16 @@ const SiteCard = memo(({
     >
       {/* Заголовок с доменом */}
       <div className="px-2 pt-2 pb-1 mb-2">
+        {/* Уведомление о результате синхронизации */}
+        {syncResults?.[siteData.id] && (
+          <div className={`mb-2 p-2 rounded text-xs ${
+            syncResults[siteData.id].success
+              ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-700'
+              : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-700'
+          }`}>
+            {syncResults[siteData.id].message}
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <p className={`text-sm truncate transition-all duration-200 ${
@@ -442,12 +465,36 @@ const SiteCard = memo(({
               </span>
             )}
           </div>
-          <Link
-            href={`/sites/${siteData.id}`}
-            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline text-sm whitespace-nowrap ml-2 flex-shrink-0"
-          >
-            {t('dashboardGc.openSite')}
-          </Link>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {siteData.hasGoogleConsoleConnection && onSyncSite && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onSyncSite(siteData.id);
+                }}
+                disabled={isSyncing}
+                className={`text-xs px-2 py-1 rounded transition-all ${
+                  isSyncing
+                    ? 'bg-gray-400 dark:bg-gray-600 text-white cursor-not-allowed'
+                    : 'bg-green-600 dark:bg-green-500 text-white hover:bg-green-700 dark:hover:bg-green-600'
+                }`}
+                title={isSyncing ? 'Синхронизация...' : 'Синхронизировать данные Google Search Console за 180 дней'}
+              >
+                {isSyncing ? (
+                  <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                ) : (
+                  '🔄'
+                )}
+              </button>
+            )}
+            <Link
+              href={`/sites/${siteData.id}`}
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline text-sm whitespace-nowrap"
+            >
+              {t('dashboardGc.openSite')}
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -851,6 +898,8 @@ export default function DashboardGCPage() {
   const [selectedStatusIds, setSelectedStatusIds] = useState<number[]>([]);
   const [searchDomain, setSearchDomain] = useState<string>('');
   const [chartStyle, setChartStyle] = useState<ChartStyle>('default');
+  const [syncingSites, setSyncingSites] = useState<Set<number>>(new Set());
+  const [syncResults, setSyncResults] = useState<Record<number, { success: boolean; message: string }>>({});
 
   // Загрузка Google аккаунтов
   useEffect(() => {
@@ -1123,6 +1172,119 @@ export default function DashboardGCPage() {
     }
   }, [loadDailyDataForSite]);
 
+  // Функция для синхронизации данных Google Search Console для сайта
+  const handleSyncSite = useCallback(async (siteId: number) => {
+    if (syncingSites.has(siteId)) {
+      return; // Уже синхронизируется
+    }
+
+    try {
+      setSyncingSites(prev => new Set(prev).add(siteId));
+      setSyncResults(prev => ({ ...prev, [siteId]: { success: false, message: 'Синхронизация...' } }));
+
+      const response = await fetch(`/api/sites/${siteId}/google-console/sync`, {
+        method: 'POST',
+      });
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        throw new Error(`Ошибка сервера: ${response.status} ${response.statusText}`);
+      }
+
+      if (data.success) {
+        const message = `Синхронизировано: ${data.count || 0} записей за 180 дней`;
+        setSyncResults(prev => ({
+          ...prev,
+          [siteId]: {
+            success: true,
+            message,
+          },
+        }));
+
+        // Показываем уведомление об успехе
+        console.log(`[Dashboard GC] Sync success for site ${siteId}: ${message}`);
+
+        // Очищаем кеш для этого сайта и перезагружаем данные
+        setDailyData(prev => {
+          const newData = { ...prev };
+          delete newData[siteId];
+          return newData;
+        });
+        setLoadingDailyData(prev => ({ ...prev, [siteId]: false }));
+
+        // Перезагружаем данные для сайта
+        setTimeout(() => {
+          loadDailyDataForSite(siteId, true);
+        }, 500);
+
+        // Очищаем результат через 5 секунд
+        setTimeout(() => {
+          setSyncResults(prev => {
+            const newResults = { ...prev };
+            delete newResults[siteId];
+            return newResults;
+          });
+        }, 5000);
+      } else {
+        const errorMessage = data.error || 'Ошибка синхронизации';
+        setSyncResults(prev => ({
+          ...prev,
+          [siteId]: { success: false, message: errorMessage },
+        }));
+        console.error(`[Dashboard GC] Sync error for site ${siteId}: ${errorMessage}`);
+        
+        // Очищаем результат через 10 секунд при ошибке
+        setTimeout(() => {
+          setSyncResults(prev => {
+            const newResults = { ...prev };
+            delete newResults[siteId];
+            return newResults;
+          });
+        }, 10000);
+      }
+    } catch (err: any) {
+      console.error(`Error syncing site ${siteId}:`, err);
+      const errorMessage = err.message || 'Ошибка синхронизации Google Search Console';
+      setSyncResults(prev => ({
+        ...prev,
+        [siteId]: { success: false, message: errorMessage },
+      }));
+    } finally {
+      setSyncingSites(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(siteId);
+        return newSet;
+      });
+    }
+  }, [syncingSites, loadDailyDataForSite]);
+
+  // Функция для синхронизации всех видимых сайтов
+  const handleSyncAllVisibleSites = useCallback(async () => {
+    if (visibleSites.length === 0) {
+      alert('Нет сайтов для синхронизации');
+      return;
+    }
+
+    const confirmed = confirm(
+      `Вы уверены, что хотите синхронизировать данные Google Search Console за 180 дней для всех ${visibleSites.length} видимых сайтов? Это может занять некоторое время.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    // Синхронизируем все сайты последовательно
+    for (const site of visibleSites) {
+      if (site.hasGoogleConsoleConnection) {
+        await handleSyncSite(site.id);
+        // Небольшая задержка между запросами, чтобы не перегружать API
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  }, [visibleSites, handleSyncSite]);
+
   // Видимые сайты для рендеринга - фильтруем по тегам, статусам и поиску
   const visibleSites = useMemo(() => {
     let filtered = sites;
@@ -1224,6 +1386,28 @@ export default function DashboardGCPage() {
             {/* Контролы - зафиксированы в одну строку */}
             <div className="sticky top-0 z-50 bg-gray-50 dark:bg-gray-800 rounded-lg p-2 mb-6 border border-gray-200 dark:border-gray-700 shadow-lg backdrop-blur-sm">
               <div className="flex flex-nowrap gap-2 items-center overflow-x-auto">
+                {/* Кнопка синхронизации всех сайтов */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={handleSyncAllVisibleSites}
+                    disabled={syncingSites.size > 0 || visibleSites.length === 0}
+                    className={`px-3 py-1 rounded text-sm whitespace-nowrap ${
+                      syncingSites.size > 0
+                        ? 'bg-gray-400 dark:bg-gray-600 text-white cursor-not-allowed'
+                        : 'bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600'
+                    }`}
+                    title="Синхронизировать данные Google Search Console за 180 дней для всех видимых сайтов"
+                  >
+                    {syncingSites.size > 0 ? (
+                      <>
+                        <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></span>
+                        Синхронизация...
+                      </>
+                    ) : (
+                      '🔄 Синхронизировать (180 дней)'
+                    )}
+                  </button>
+                </div>
                 {/* Фильтр по тегам */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <select
@@ -1447,6 +1631,9 @@ export default function DashboardGCPage() {
                     hoveredDateIndex={hoveredDateIndex}
                     setHoveredDateIndex={setHoveredDateIndex}
                     onLoad={() => handleSiteLoad(siteData.id)}
+                    onSyncSite={handleSyncSite}
+                    isSyncing={syncingSites.has(siteData.id)}
+                    syncResults={syncResults}
                   />
                 ))}
                 </div>
