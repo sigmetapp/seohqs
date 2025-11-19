@@ -3,9 +3,63 @@ import { storage } from './storage';
 import { getIntegrations, updateIntegrations, getGoogleAccountById, updateGoogleAccount } from './db-adapter';
 
 /**
+ * TypeScript types for Google Search Console API
+ */
+
+/**
+ * Request body for GSC Search Analytics API query
+ * POST https://searchconsole.googleapis.com/webmasters/v3/sites/{siteUrl}/searchAnalytics/query
+ */
+export interface GSCQueryRequest {
+  startDate: string; // Format: YYYY-MM-DD
+  endDate: string; // Format: YYYY-MM-DD
+  dimensions: string[]; // ["date", "query", "page", "country", "device", "searchAppearance"]
+  rowLimit: number; // Maximum 25000
+  startRow?: number; // For pagination
+  dimensionFilterGroups?: Array<{
+    groupType?: string;
+    filters: Array<{
+      dimension: string;
+      operator: string;
+      expression: string;
+    }>;
+  }>;
+}
+
+/**
+ * Response row from GSC Search Analytics API
+ */
+export interface GSCRow {
+  keys: string[]; // Dimension values (e.g., ["2024-01-01"] for date, ["query text"] for query)
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+/**
+ * Response from GSC Search Analytics API
+ */
+export interface GSCQueryResponse {
+  responseAggregationType?: string;
+  rows?: GSCRow[];
+}
+
+/**
+ * Date range object
+ */
+export interface DateRange {
+  startDate: string; // Format: YYYY-MM-DD
+  endDate: string; // Format: YYYY-MM-DD
+}
+
+/**
  * Сервис для работы с Google Search Console API
  * Получает данные о производительности сайта в поиске Google
  * Использует OAuth 2.0 для аутентификации
+ * 
+ * IMPORTANT: Uses Search Analytics API only, NOT URL Inspection API
+ * Endpoint: POST https://searchconsole.googleapis.com/webmasters/v3/sites/{siteUrl}/searchAnalytics/query
  */
 export class GoogleSearchConsoleService {
   private auth: any;
@@ -129,6 +183,55 @@ export class GoogleSearchConsoleService {
     if (!this.auth) {
       await this.initializeAuth();
     }
+  }
+
+  /**
+   * Validates and normalizes siteUrl to ensure it's in the exact format required by GSC API
+   * GSC accepts formats like:
+   * - sc-domain:example.com
+   * - https://example.com/
+   * - https://www.example.com/
+   * 
+   * @param siteUrl URL from GSC or user input
+   * @returns Normalized siteUrl or throws error if invalid
+   */
+  private validateAndNormalizeSiteUrl(siteUrl: string): string {
+    if (!siteUrl || typeof siteUrl !== 'string') {
+      throw new Error('siteUrl must be a non-empty string');
+    }
+
+    const trimmed = siteUrl.trim();
+
+    // If it's already a valid GSC format, return as is
+    if (trimmed.startsWith('sc-domain:')) {
+      return trimmed;
+    }
+
+    // If it's an HTTP(S) URL, ensure it has trailing slash if it's a domain root
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      try {
+        const url = new URL(trimmed);
+        // If path is empty or just '/', return with trailing slash
+        if (url.pathname === '' || url.pathname === '/') {
+          return `${url.protocol}//${url.host}/`;
+        }
+        return trimmed;
+      } catch (error) {
+        // If URL parsing fails, try to fix it
+        if (!trimmed.endsWith('/')) {
+          return `${trimmed}/`;
+        }
+        return trimmed;
+      }
+    }
+
+    // If it's just a domain, try to convert to sc-domain format
+    if (trimmed.includes('.') && !trimmed.includes('/')) {
+      return `sc-domain:${trimmed}`;
+    }
+
+    // Return as is if we can't determine format (let API handle validation)
+    return trimmed;
   }
 
   /**
@@ -294,10 +397,12 @@ export class GoogleSearchConsoleService {
 
   /**
    * Получает данные о производительности сайта за период
+   * Uses Search Analytics API: POST /webmasters/v3/sites/{siteUrl}/searchAnalytics/query
+   * 
    * @param siteUrl URL сайта в Search Console (sc-domain:example.com или https://example.com)
    * @param startDate Начальная дата (формат: YYYY-MM-DD)
    * @param endDate Конечная дата (формат: YYYY-MM-DD)
-   * @param dimensions Размерности для группировки (query, page, country, device, searchAppearance)
+   * @param dimensions Размерности для группировки (date, query, page, country, device, searchAppearance)
    * @returns Данные о производительности
    */
   async getPerformanceData(
@@ -305,33 +410,92 @@ export class GoogleSearchConsoleService {
     startDate: string,
     endDate: string,
     dimensions: string[] = []
-  ): Promise<any> {
+  ): Promise<GSCQueryResponse> {
     await this.ensureInitialized();
+    
+    // Validate and normalize siteUrl
+    const normalizedSiteUrl = this.validateAndNormalizeSiteUrl(siteUrl);
+    
+    // Ensure dimensions array is always provided (default to ["date", "query", "page", "country"])
+    const requestDimensions = dimensions.length > 0 
+      ? dimensions 
+      : ["date", "query", "page", "country"];
+
+    // Build request body with all required fields
+    const requestBody: GSCQueryRequest = {
+      startDate: startDate,
+      endDate: endDate,
+      dimensions: requestDimensions,
+      rowLimit: 25000, // Maximum allowed by GSC API
+    };
+
+    const request: any = {
+      siteUrl: normalizedSiteUrl,
+      requestBody: requestBody,
+    };
+
     try {
-      const request: any = {
-        siteUrl: siteUrl,
-        requestBody: {
-          startDate: startDate,
-          endDate: endDate,
-          dimensions: dimensions.length > 0 ? dimensions : undefined,
-          rowLimit: 25000, // Максимальное количество строк
-        },
-      };
+      // Log request for debugging
+      console.log('[GSC API] Request:', {
+        siteUrl: normalizedSiteUrl,
+        startDate,
+        endDate,
+        dimensions: requestDimensions,
+        rowLimit: requestBody.rowLimit,
+      });
 
       const response = await this.searchConsole.searchanalytics.query(request);
-      return response.data;
-    } catch (error: any) {
-      console.error('Ошибка получения данных производительности:', error);
       
-      if (error.response?.data?.error?.code === 403) {
+      // Log response summary
+      const rowCount = response.data?.rows?.length || 0;
+      console.log(`[GSC API] Response: ${rowCount} rows returned`);
+
+      // Check for empty results
+      if (!response.data?.rows || response.data.rows.length === 0) {
+        console.warn('[GSC API] Empty results returned', {
+          siteUrl: normalizedSiteUrl,
+          startDate,
+          endDate,
+          dimensions: requestDimensions,
+          requestBody: JSON.stringify(requestBody),
+        });
+      }
+
+      return response.data as GSCQueryResponse;
+    } catch (error: any) {
+      const errorCode = error.response?.data?.error?.code;
+      const errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error';
+      const errorDetails = error.response?.data?.error || {};
+
+      // Comprehensive error logging
+      console.error('[GSC API] Error:', {
+        code: errorCode,
+        message: errorMessage,
+        siteUrl: normalizedSiteUrl,
+        requestBody: JSON.stringify(requestBody),
+        fullError: JSON.stringify(errorDetails),
+        status: error.response?.status,
+      });
+
+      // Handle specific error codes
+      if (errorCode === 403) {
+        const permissionHint = 'This may indicate that the user does not have OWNER permissions for this site in Google Search Console.';
+        console.error('[GSC API] 403 Forbidden:', permissionHint);
         throw new Error(
-          'Доступ запрещен. Убедитесь, что ваш Google аккаунт имеет доступ к сайту в Google Search Console.'
+          `Доступ запрещен (403). Убедитесь, что ваш Google аккаунт имеет права OWNER для сайта "${normalizedSiteUrl}" в Google Search Console. ${permissionHint}`
         );
       }
-      
+
+      if (errorCode === 400) {
+        console.error('[GSC API] 400 Bad Request:', errorDetails);
+        throw new Error(
+          `Неверный запрос (400): ${errorMessage}. Проверьте формат siteUrl и даты.`
+        );
+      }
+
+      // Generic error
       throw new Error(
-        error.response?.data?.error?.message || 
-        'Ошибка получения данных из Google Search Console'
+        errorMessage || 'Ошибка получения данных из Google Search Console'
       );
     }
   }
@@ -375,23 +539,18 @@ export class GoogleSearchConsoleService {
         throw new Error('Не указан URL сайта и домен для автоматического поиска');
       }
 
-      // Вычисляем даты
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      // Use reusable date range function
+      const dateRange = getLastNDaysRange(days);
 
-      const startDateStr = startDate.toISOString().split('T')[0];
-      const endDateStr = endDate.toISOString().split('T')[0];
-
-      // Получаем данные по дням
-      const data = await this.getPerformanceData(siteUrl, startDateStr, endDateStr, ['date']);
+      // Получаем данные по дням (only date dimension for aggregation)
+      const data = await this.getPerformanceData(siteUrl, dateRange.startDate, dateRange.endDate, ['date']);
 
       if (!data.rows || data.rows.length === 0) {
         return [];
       }
 
       // Преобразуем данные в удобный формат
-      return data.rows.map((row: any) => ({
+      return data.rows.map((row: GSCRow) => ({
         date: row.keys[0], // Дата в формате YYYY-MM-DD
         clicks: row.clicks || 0,
         impressions: row.impressions || 0,
@@ -429,14 +588,10 @@ export class GoogleSearchConsoleService {
         throw new Error('Не удалось извлечь URL сайта из настроек Search Console');
       }
 
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      // Use reusable date range function
+      const dateRange = getLastNDaysRange(days);
 
-      const startDateStr = startDate.toISOString().split('T')[0];
-      const endDateStr = endDate.toISOString().split('T')[0];
-
-      const data = await this.getPerformanceData(siteUrl, startDateStr, endDateStr, ['query']);
+      const data = await this.getPerformanceData(siteUrl, dateRange.startDate, dateRange.endDate, ['query']);
 
       if (!data.rows || data.rows.length === 0) {
         return [];
@@ -444,7 +599,7 @@ export class GoogleSearchConsoleService {
 
       return data.rows
         .slice(0, limit)
-        .map((row: any) => ({
+        .map((row: GSCRow) => ({
           query: row.keys[0],
           clicks: row.clicks || 0,
           impressions: row.impressions || 0,
@@ -482,14 +637,10 @@ export class GoogleSearchConsoleService {
         throw new Error('Не удалось извлечь URL сайта из настроек Search Console');
       }
 
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      // Use reusable date range function
+      const dateRange = getLastNDaysRange(days);
 
-      const startDateStr = startDate.toISOString().split('T')[0];
-      const endDateStr = endDate.toISOString().split('T')[0];
-
-      const data = await this.getPerformanceData(siteUrl, startDateStr, endDateStr, ['page']);
+      const data = await this.getPerformanceData(siteUrl, dateRange.startDate, dateRange.endDate, ['page']);
 
       if (!data.rows || data.rows.length === 0) {
         return [];
@@ -497,7 +648,7 @@ export class GoogleSearchConsoleService {
 
       return data.rows
         .slice(0, limit)
-        .map((row: any) => ({
+        .map((row: GSCRow) => ({
           page: row.keys[0],
           clicks: row.clicks || 0,
           impressions: row.impressions || 0,
@@ -533,20 +684,16 @@ export class GoogleSearchConsoleService {
         throw new Error('Не удалось извлечь URL сайта из настроек Search Console');
       }
 
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      // Use reusable date range function
+      const dateRange = getLastNDaysRange(days);
 
-      const startDateStr = startDate.toISOString().split('T')[0];
-      const endDateStr = endDate.toISOString().split('T')[0];
-
-      const data = await this.getPerformanceData(siteUrl, startDateStr, endDateStr, ['country']);
+      const data = await this.getPerformanceData(siteUrl, dateRange.startDate, dateRange.endDate, ['country']);
 
       if (!data.rows || data.rows.length === 0) {
         return [];
       }
 
-      return data.rows.map((row: any) => ({
+      return data.rows.map((row: GSCRow) => ({
         country: row.keys[0],
         clicks: row.clicks || 0,
         impressions: row.impressions || 0,
@@ -582,20 +729,16 @@ export class GoogleSearchConsoleService {
         throw new Error('Не удалось извлечь URL сайта из настроек Search Console');
       }
 
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      // Use reusable date range function
+      const dateRange = getLastNDaysRange(days);
 
-      const startDateStr = startDate.toISOString().split('T')[0];
-      const endDateStr = endDate.toISOString().split('T')[0];
-
-      const data = await this.getPerformanceData(siteUrl, startDateStr, endDateStr, ['device']);
+      const data = await this.getPerformanceData(siteUrl, dateRange.startDate, dateRange.endDate, ['device']);
 
       if (!data.rows || data.rows.length === 0) {
         return [];
       }
 
-      return data.rows.map((row: any) => ({
+      return data.rows.map((row: GSCRow) => ({
         device: row.keys[0],
         clicks: row.clicks || 0,
         impressions: row.impressions || 0,
@@ -607,6 +750,66 @@ export class GoogleSearchConsoleService {
       throw error;
     }
   }
+}
+
+/**
+ * Получает диапазон дат за последние N дней от сегодня
+ * @param days Количество дней назад
+ * @returns Объект с startDate и endDate в формате YYYY-MM-DD
+ */
+export function getLastNDaysRange(days: number): DateRange {
+  if (days <= 0) {
+    throw new Error('days must be greater than 0');
+  }
+
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  // Format dates as YYYY-MM-DD
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  return {
+    startDate: formatDate(startDate),
+    endDate: formatDate(endDate),
+  };
+}
+
+/**
+ * Получает данные из Google Search Console за указанное количество дней
+ * Uses Search Analytics API with all required dimensions: ["date", "query", "page", "country"]
+ * 
+ * @param siteUrl Exact URL from Google Search Console (e.g., sc-domain:example.com or https://example.com/)
+ * @param days Number of days to fetch (e.g., 90 or 180)
+ * @param accountId Optional Google account ID
+ * @param userId Optional user ID
+ * @returns GSC Query Response with rows containing all dimensions
+ */
+export async function fetchGSCData(
+  siteUrl: string,
+  days: number,
+  accountId?: number,
+  userId?: number
+): Promise<GSCQueryResponse> {
+  const service = createSearchConsoleService(accountId, userId);
+  
+  // Get date range for the specified number of days
+  const dateRange = getLastNDaysRange(days);
+  
+  // Fetch data with all required dimensions
+  const response = await service.getPerformanceData(
+    siteUrl,
+    dateRange.startDate,
+    dateRange.endDate,
+    ["date", "query", "page", "country"] // All required dimensions
+  );
+  
+  return response;
 }
 
 /**
