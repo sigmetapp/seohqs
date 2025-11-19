@@ -376,7 +376,6 @@ export const translations = {
       account: 'аккаунт',
       accounts: 'аккаунтов',
       addAccount: 'Добавить аккаунт',
-      noAccounts: 'Нет подключенных аккаунтов',
       connectedAt: 'Подключено',
     },
     // Profile
@@ -928,7 +927,6 @@ export const translations = {
       account: 'account',
       accounts: 'accounts',
       addAccount: 'Add account',
-      noAccounts: 'No connected accounts',
       connectedAt: 'Connected at',
     },
     // Profile
