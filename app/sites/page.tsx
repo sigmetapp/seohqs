@@ -790,7 +790,7 @@ export default function SitesPage() {
                       const siteData = googleConsoleAggregatedData.find(s => s.id === site.id);
                       const stats = sitesStats[site.id];
                       return (
-                        <tr key={site.id} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-750">
+                        <tr key={site.id} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <div className="font-medium text-gray-900 dark:text-white">{site.domain}</div>
