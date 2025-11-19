@@ -887,6 +887,12 @@ export default function DashboardGCPage() {
     loadStatuses();
   }, []);
 
+  // Очистка dailyData при изменении периода
+  useEffect(() => {
+    setDailyData({});
+    setLoadingDailyData({});
+  }, [selectedPeriod]);
+
   // Загрузка агрегированных данных
   useEffect(() => {
     const loadAggregatedData = async () => {
@@ -1217,7 +1223,7 @@ export default function DashboardGCPage() {
                 }`}>
                 {visibleSites.map((siteData) => (
                   <LazySiteCard
-                    key={siteData.id}
+                    key={`${siteData.id}-${selectedPeriod}`}
                     siteData={siteData}
                     dailyData={dailyData[siteData.id] || []}
                     isLoading={loadingDailyData[siteData.id] || false}
