@@ -12,11 +12,11 @@ interface I18nContextType {
 const I18nContext = createContext<I18nContextType | undefined>(undefined);
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('ru');
+  const [language, setLanguageState] = useState<Language>('en');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Load language from localStorage or default to ru
+    // Load language from localStorage or default to en
     try {
       const savedLang = localStorage.getItem('language') as Language | null;
       if (savedLang && (savedLang === 'ru' || savedLang === 'en')) {
@@ -61,9 +61,9 @@ export function useI18n() {
   if (context === undefined) {
     // Return default values during SSR/SSG when provider is not available
     return {
-      language: 'ru' as Language,
+      language: 'en' as Language,
       setLanguage: () => {},
-      t: (key: string) => getTranslation('ru', key),
+      t: (key: string) => getTranslation('en', key),
     };
   }
   return context;
