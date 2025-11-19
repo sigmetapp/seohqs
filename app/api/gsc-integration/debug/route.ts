@@ -134,7 +134,12 @@ export async function GET(request: NextRequest) {
           .eq('user_id', debugData.supabase.authUserId);
 
         if (directGSCError) {
-          debugData.errors.push(`Direct Supabase query error (gsc_integrations): ${directGSCError.message}`);
+          // Only add error if it's not a "table doesn't exist" error
+          if (!(directGSCError.code === '42P01' || directGSCError.message?.includes('does not exist') || directGSCError.message?.includes('schema cache'))) {
+            debugData.errors.push(`Direct Supabase query error (gsc_integrations): ${directGSCError.message}`);
+          } else {
+            debugData.errors.push(`Direct Supabase query error (gsc_integrations): Could not find the table 'public.gsc_integrations' in the schema cache`);
+          }
         } else {
           debugData.tables.direct_gsc_integrations_query = directGSCData || [];
         }
@@ -146,12 +151,20 @@ export async function GET(request: NextRequest) {
           .eq('user_id', debugData.supabase.authUserId);
 
         if (directGSCAccountsError) {
-          debugData.errors.push(`Direct Supabase query error (google_gsc_accounts): ${directGSCAccountsError.message}`);
+          // Only add error if it's not a "table doesn't exist" error
+          if (!(directGSCAccountsError.code === '42P01' || directGSCAccountsError.message?.includes('does not exist') || directGSCAccountsError.message?.includes('schema cache'))) {
+            debugData.errors.push(`Direct Supabase query error (google_gsc_accounts): ${directGSCAccountsError.message}`);
+          }
         } else {
           debugData.tables.direct_google_gsc_accounts_query = directGSCAccountsData || [];
         }
       } catch (directQueryError: any) {
-        debugData.errors.push(`Direct Supabase query exception: ${directQueryError.message}`);
+        // Handle table not found errors gracefully
+        if (directQueryError?.code === '42P01' || directQueryError?.message?.includes('does not exist') || directQueryError?.message?.includes('schema cache')) {
+          debugData.errors.push(`Direct Supabase query exception: Table not found - ${directQueryError.message}`);
+        } else {
+          debugData.errors.push(`Direct Supabase query exception: ${directQueryError.message}`);
+        }
       }
     }
 
