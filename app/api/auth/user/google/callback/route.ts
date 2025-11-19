@@ -140,14 +140,15 @@ export async function GET(request: Request) {
     // Создаем или находим пользователя в Supabase Auth (для GSC интеграции)
     // Это необходимо, так как GSC интеграция требует Supabase Auth user ID
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (supabase && supabaseServiceKey) {
+    if (supabase && supabaseServiceKey && userInfo.data.email) {
       try {
         // Проверяем, существует ли пользователь в Supabase Auth
         const { data: authUsers, error: listError } = await supabase.auth.admin.listUsers();
         
         if (!listError && authUsers) {
+          const userEmail = userInfo.data.email.toLowerCase();
           const existingAuthUser = authUsers.users.find(
-            u => u.email?.toLowerCase() === userInfo.data.email.toLowerCase()
+            u => u.email?.toLowerCase() === userEmail
           );
           
           if (!existingAuthUser) {
