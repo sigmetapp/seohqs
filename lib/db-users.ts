@@ -1963,3 +1963,314 @@ function cancelAccountDeletionSQLite(userId: number): void {
   
   db.prepare('UPDATE users SET deleted_at = NULL WHERE id = ?').run(userId);
 }
+
+// Admin functions for user management
+export async function createUserAdmin(user: { email: string; name?: string; passwordHash?: string }): Promise<DbUser> {
+  if (useSupabase()) {
+    return createUserAdminSupabase(user);
+  } else if (usePostgres()) {
+    return createUserAdminPostgres(user);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    return createUserAdminSQLite(user);
+  }
+}
+
+async function createUserAdminSupabase(user: { email: string; name?: string; passwordHash?: string }): Promise<DbUser> {
+  const { supabase } = await import('./supabase');
+  if (!supabase) {
+    throw new Error('Supabase client not initialized');
+  }
+  
+  const { data, error } = await supabase
+    .from('users')
+    .insert({
+      email: user.email,
+      name: user.name || null,
+      password_hash: user.passwordHash || null,
+    })
+    .select()
+    .single();
+  
+  if (error) throw error;
+  
+  return {
+    id: data.id,
+    email: data.email,
+    name: data.name,
+    picture: data.picture,
+    avatar: data.avatar,
+    googleId: data.google_id,
+    passwordHash: data.password_hash,
+    deletedAt: data.deleted_at,
+    ownerId: data.owner_id,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+async function createUserAdminPostgres(user: { email: string; name?: string; passwordHash?: string }): Promise<DbUser> {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+  });
+  
+  try {
+    const result = await pool.query(`
+      INSERT INTO users (email, name, password_hash, created_at, updated_at)
+      VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING *
+    `, [user.email, user.name || null, user.passwordHash || null]);
+    
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      picture: row.picture,
+      avatar: row.avatar,
+      googleId: row.google_id,
+      passwordHash: row.password_hash,
+      deletedAt: row.deleted_at,
+      ownerId: row.owner_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } finally {
+    await pool.end();
+  }
+}
+
+function createUserAdminSQLite(user: { email: string; name?: string; passwordHash?: string }): DbUser {
+  const Database = require('better-sqlite3');
+  const { join } = require('path');
+  const { existsSync, mkdirSync } = require('fs');
+  
+  const dbDir = join(process.cwd(), 'data');
+  if (!existsSync(dbDir)) {
+    mkdirSync(dbDir, { recursive: true });
+  }
+  
+  const dbPath = join(dbDir, 'affiliate.db');
+  const db = new Database(dbPath);
+  
+  const result = db.prepare(`
+    INSERT INTO users (email, name, password_hash, created_at, updated_at)
+    VALUES (?, ?, ?, datetime('now'), datetime('now'))
+  `).run(user.email, user.name || null, user.passwordHash || null);
+  
+  const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(result.lastInsertRowid)) as any;
+  return {
+    id: newUser.id,
+    email: newUser.email,
+    name: newUser.name,
+    picture: newUser.picture,
+    avatar: newUser.avatar,
+    googleId: newUser.google_id,
+    passwordHash: newUser.password_hash,
+    deletedAt: newUser.deleted_at,
+    ownerId: newUser.owner_id,
+    createdAt: newUser.created_at,
+    updatedAt: newUser.updated_at,
+  };
+}
+
+export async function updateUserAdmin(userId: number, updates: { email?: string; name?: string }): Promise<DbUser> {
+  if (useSupabase()) {
+    return updateUserAdminSupabase(userId, updates);
+  } else if (usePostgres()) {
+    return updateUserAdminPostgres(userId, updates);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    return updateUserAdminSQLite(userId, updates);
+  }
+}
+
+async function updateUserAdminSupabase(userId: number, updates: { email?: string; name?: string }): Promise<DbUser> {
+  const { supabase } = await import('./supabase');
+  if (!supabase) {
+    throw new Error('Supabase client not initialized');
+  }
+  
+  const updateData: any = { updated_at: new Date().toISOString() };
+  if (updates.email !== undefined) updateData.email = updates.email;
+  if (updates.name !== undefined) updateData.name = updates.name;
+  
+  const { data, error } = await supabase
+    .from('users')
+    .update(updateData)
+    .eq('id', userId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  
+  return {
+    id: data.id,
+    email: data.email,
+    name: data.name,
+    picture: data.picture,
+    avatar: data.avatar,
+    googleId: data.google_id,
+    passwordHash: data.password_hash,
+    deletedAt: data.deleted_at,
+    ownerId: data.owner_id,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+async function updateUserAdminPostgres(userId: number, updates: { email?: string; name?: string }): Promise<DbUser> {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+  });
+  
+  try {
+    const updatesList: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+    
+    if (updates.email !== undefined) {
+      updatesList.push(`email = $${paramIndex++}`);
+      values.push(updates.email);
+    }
+    if (updates.name !== undefined) {
+      updatesList.push(`name = $${paramIndex++}`);
+      values.push(updates.name || null);
+    }
+    
+    if (updatesList.length === 0) {
+      const user = await getUserByIdPostgres(userId);
+      if (!user) throw new Error('User not found');
+      return user;
+    }
+    
+    updatesList.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(userId);
+    
+    const query = `UPDATE users SET ${updatesList.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+    const result = await pool.query(query, values);
+    
+    if (result.rows.length === 0) throw new Error('User not found');
+    
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      picture: row.picture,
+      avatar: row.avatar,
+      googleId: row.google_id,
+      passwordHash: row.password_hash,
+      deletedAt: row.deleted_at,
+      ownerId: row.owner_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  } finally {
+    await pool.end();
+  }
+}
+
+function updateUserAdminSQLite(userId: number, updates: { email?: string; name?: string }): DbUser {
+  const Database = require('better-sqlite3');
+  const { join } = require('path');
+  const { existsSync, mkdirSync } = require('fs');
+  
+  const dbDir = join(process.cwd(), 'data');
+  if (!existsSync(dbDir)) {
+    mkdirSync(dbDir, { recursive: true });
+  }
+  
+  const dbPath = join(dbDir, 'affiliate.db');
+  const db = new Database(dbPath);
+  
+  const updatesList: string[] = [];
+  const values: any[] = [];
+  
+  if (updates.email !== undefined) {
+    updatesList.push('email = ?');
+    values.push(updates.email);
+  }
+  if (updates.name !== undefined) {
+    updatesList.push('name = ?');
+    values.push(updates.name || null);
+  }
+  
+  if (updatesList.length === 0) {
+    const user = getUserByIdSQLite(userId);
+    if (!user) throw new Error('User not found');
+    return user;
+  }
+  
+  updatesList.push("updated_at = datetime('now')");
+  values.push(userId);
+  
+  const query = `UPDATE users SET ${updatesList.join(', ')} WHERE id = ?`;
+  db.prepare(query).run(...values);
+  
+  const user = getUserByIdSQLite(userId);
+  if (!user) throw new Error('User not found');
+  return user;
+}
+
+export async function deleteUserAdmin(userId: number): Promise<void> {
+  if (useSupabase()) {
+    return deleteUserAdminSupabase(userId);
+  } else if (usePostgres()) {
+    return deleteUserAdminPostgres(userId);
+  } else {
+    if (process.env.VERCEL) {
+      throw new Error('No database configured on Vercel. Please set up Supabase or PostgreSQL.');
+    }
+    return deleteUserAdminSQLite(userId);
+  }
+}
+
+async function deleteUserAdminSupabase(userId: number): Promise<void> {
+  const { supabase } = await import('./supabase');
+  if (!supabase) {
+    throw new Error('Supabase client not initialized');
+  }
+  
+  const { error } = await supabase
+    .from('users')
+    .delete()
+    .eq('id', userId);
+  
+  if (error) throw error;
+}
+
+async function deleteUserAdminPostgres(userId: number): Promise<void> {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+  });
+  
+  try {
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+  } finally {
+    await pool.end();
+  }
+}
+
+function deleteUserAdminSQLite(userId: number): void {
+  const Database = require('better-sqlite3');
+  const { join } = require('path');
+  const { existsSync, mkdirSync } = require('fs');
+  
+  const dbDir = join(process.cwd(), 'data');
+  if (!existsSync(dbDir)) {
+    mkdirSync(dbDir, { recursive: true });
+  }
+  
+  const dbPath = join(dbDir, 'affiliate.db');
+  const db = new Database(dbPath);
+  
+  db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+}
