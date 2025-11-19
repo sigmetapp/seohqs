@@ -36,7 +36,7 @@ type DailyData = {
 };
 
 // Типы стилей графиков
-type ChartStyle = 'default' | 'google-console' | 'bold' | 'minimal';
+type ChartStyle = 'default' | 'google-console' | 'bold' | 'minimal' | 'smooth';
 
 type ChartStyleConfig = {
   name: string;
@@ -97,7 +97,7 @@ const chartStyles: Record<ChartStyle, ChartStyleConfig> = {
   'google-console': {
     name: 'Google Search Console',
     impressions: {
-      color: '#4285f4', // Google blue
+      color: '#1a73e8', // Google Search Console impressions color (darker blue)
       strokeWidth: 2,
       pointRadius: 4,
       pointRadiusHover: 6,
@@ -105,7 +105,7 @@ const chartStyles: Record<ChartStyle, ChartStyleConfig> = {
       lineOpacity: 0.85,
     },
     clicks: {
-      color: '#1a73e8', // Google darker blue
+      color: '#34a853', // Google green for clicks
       strokeWidth: 2,
       pointRadius: 4,
       pointRadiusHover: 6,
@@ -173,6 +173,33 @@ const chartStyles: Record<ChartStyle, ChartStyleConfig> = {
       pointRadiusHover: 5,
       gradientOpacity: 0.1,
       lineOpacity: 0.7,
+    },
+  },
+  smooth: {
+    name: 'Плавный',
+    impressions: {
+      color: '#6366f1', // Indigo
+      strokeWidth: 3,
+      pointRadius: 0, // Без точек для плавности
+      pointRadiusHover: 5,
+      gradientOpacity: 0.25,
+      lineOpacity: 1,
+    },
+    clicks: {
+      color: '#10b981', // Emerald
+      strokeWidth: 3,
+      pointRadius: 0,
+      pointRadiusHover: 5,
+      gradientOpacity: 0.25,
+      lineOpacity: 1,
+    },
+    positions: {
+      color: '#f59e0b', // Amber
+      strokeWidth: 3,
+      pointRadius: 0,
+      pointRadiusHover: 5,
+      gradientOpacity: 0.25,
+      lineOpacity: 1,
     },
   },
 };
@@ -273,6 +300,32 @@ const LazySiteCard = memo(({
 });
 
 LazySiteCard.displayName = 'LazySiteCard';
+
+// Функция для создания плавной кривой через Catmull-Rom сплайн
+function createSmoothPath(points: Array<{ x: number; y: number }>, tension: number = 0.5): string {
+  if (points.length < 2) return '';
+  if (points.length === 2) {
+    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+  }
+
+  let path = `M ${points[0].x} ${points[0].y}`;
+  
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(0, i - 1)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(points.length - 1, i + 2)];
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6 * tension;
+    const cp1y = p1.y + (p2.y - p0.y) / 6 * tension;
+    const cp2x = p2.x - (p3.x - p1.x) / 6 * tension;
+    const cp2y = p2.y - (p3.y - p1.y) / 6 * tension;
+
+    path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+  }
+
+  return path;
+}
 
 // Мемоизированный компонент карточки сайта для оптимизации рендеринга
 const SiteCard = memo(({ 
@@ -495,7 +548,7 @@ const SiteCard = memo(({
                     )}
                     
                     {/* Показы */}
-                    {showImpressions && (
+                    {showImpressions && styleConfig.impressions.pointRadius > 0 && (
                       <circle
                         cx={x}
                         cy={impressionsY}
@@ -508,7 +561,7 @@ const SiteCard = memo(({
                       />
                     )}
                     {/* Клики */}
-                    {showClicks && (
+                    {showClicks && styleConfig.clicks.pointRadius > 0 && (
                       <circle
                         cx={x}
                         cy={clicksY}
@@ -521,7 +574,7 @@ const SiteCard = memo(({
                       />
                     )}
                     {/* Позиции */}
-                    {showPositions && (
+                    {showPositions && styleConfig.positions.pointRadius > 0 && (
                       <circle
                         cx={x}
                         cy={positionY}
@@ -533,102 +586,178 @@ const SiteCard = memo(({
                         style={{ cursor: 'pointer', filter: isHoveredPoint ? `drop-shadow(0 0 6px ${styleConfig.positions.color}90)` : `drop-shadow(0 0 2px ${styleConfig.positions.color}50)` }}
                       />
                     )}
+                    {/* Показываем точки при наведении для плавного стиля */}
+                    {chartStyle === 'smooth' && isHoveredPoint && (
+                      <>
+                        {showImpressions && (
+                          <circle
+                            cx={x}
+                            cy={impressionsY}
+                            r={styleConfig.impressions.pointRadiusHover}
+                            fill={styleConfig.impressions.color}
+                            stroke="white"
+                            strokeWidth="2"
+                            className="transition-all duration-200"
+                            style={{ cursor: 'pointer', filter: `drop-shadow(0 0 6px ${styleConfig.impressions.color}90)` }}
+                          />
+                        )}
+                        {showClicks && (
+                          <circle
+                            cx={x}
+                            cy={clicksY}
+                            r={styleConfig.clicks.pointRadiusHover}
+                            fill={styleConfig.clicks.color}
+                            stroke="white"
+                            strokeWidth="2"
+                            className="transition-all duration-200"
+                            style={{ cursor: 'pointer', filter: `drop-shadow(0 0 6px ${styleConfig.clicks.color}90)` }}
+                          />
+                        )}
+                        {showPositions && (
+                          <circle
+                            cx={x}
+                            cy={positionY}
+                            r={styleConfig.positions.pointRadiusHover}
+                            fill={styleConfig.positions.color}
+                            stroke="white"
+                            strokeWidth="2"
+                            className="transition-all duration-200"
+                            style={{ cursor: 'pointer', filter: `drop-shadow(0 0 6px ${styleConfig.positions.color}90)` }}
+                          />
+                        )}
+                      </>
+                    )}
                   </g>
                 );
               })}
               
               {/* Линии с градиентом */}
-              {dailyData.length > 1 && (
-                <>
-                  {showImpressions && (
-                    <>
-                      <polygon
-                        points={`50,175 ${dailyData.map((item, index) => {
-                          const padding = 50;
-                          const width = 700;
-                          const height = 155;
-                          const x = padding + (index / (dailyData.length - 1)) * width;
-                          const y = 175 - (item.impressions / maxImpressions) * height;
-                          return `${x},${y}`;
-                        }).join(' ')} 750,175`}
-                        fill={`url(#impressionsGradient-${siteData.id})`}
-                      />
-                      <polyline
-                        points={dailyData.map((item, index) => {
-                          const padding = 50;
-                          const width = 700;
-                          const height = 155;
-                          const x = padding + (index / (dailyData.length - 1)) * width;
-                          const y = 175 - (item.impressions / maxImpressions) * height;
-                          return `${x},${y}`;
-                        }).join(' ')}
-                        fill="none"
-                        stroke={styleConfig.impressions.color}
-                        strokeWidth={styleConfig.impressions.strokeWidth}
-                        opacity={styleConfig.impressions.lineOpacity}
-                      />
-                    </>
-                  )}
-                  {showClicks && (
-                    <>
-                      <polygon
-                        points={`50,175 ${dailyData.map((item, index) => {
-                          const padding = 50;
-                          const width = 700;
-                          const height = 155;
-                          const x = padding + (index / (dailyData.length - 1)) * width;
-                          const y = 175 - (item.clicks / maxClicks) * height;
-                          return `${x},${y}`;
-                        }).join(' ')} 750,175`}
-                        fill={`url(#clicksGradient-${siteData.id})`}
-                      />
-                      <polyline
-                        points={dailyData.map((item, index) => {
-                          const padding = 50;
-                          const width = 700;
-                          const height = 155;
-                          const x = padding + (index / (dailyData.length - 1)) * width;
-                          const y = 175 - (item.clicks / maxClicks) * height;
-                          return `${x},${y}`;
-                        }).join(' ')}
-                        fill="none"
-                        stroke={styleConfig.clicks.color}
-                        strokeWidth={styleConfig.clicks.strokeWidth}
-                        opacity={styleConfig.clicks.lineOpacity}
-                      />
-                    </>
-                  )}
-                  {showPositions && (
-                    <>
-                      <polygon
-                        points={`50,175 ${dailyData.map((item, index) => {
-                          const padding = 50;
-                          const width = 700;
-                          const height = 155;
-                          const x = padding + (index / (dailyData.length - 1)) * width;
-                          const y = 175 - (item.position / maxPosition) * height;
-                          return `${x},${y}`;
-                        }).join(' ')} 750,175`}
-                        fill={`url(#positionsGradient-${siteData.id})`}
-                      />
-                      <polyline
-                        points={dailyData.map((item, index) => {
-                          const padding = 50;
-                          const width = 700;
-                          const height = 155;
-                          const x = padding + (index / (dailyData.length - 1)) * width;
-                          const y = 175 - (item.position / maxPosition) * height;
-                          return `${x},${y}`;
-                        }).join(' ')}
-                        fill="none"
-                        stroke={styleConfig.positions.color}
-                        strokeWidth={styleConfig.positions.strokeWidth}
-                        opacity={styleConfig.positions.lineOpacity}
-                      />
-                    </>
-                  )}
-                </>
-              )}
+              {dailyData.length > 1 && (() => {
+                const padding = 50;
+                const width = 700;
+                const height = 155;
+                const useSmooth = chartStyle === 'smooth' || chartStyle === 'google-console';
+                const tension = chartStyle === 'smooth' ? 0.7 : 0.5;
+
+                // Подготовка точек для всех метрик
+                const divisor = Math.max(dailyData.length - 1, 1);
+                const impressionsPoints = dailyData.map((item, index) => ({
+                  x: padding + (index / divisor) * width,
+                  y: 175 - (item.impressions / maxImpressions) * height,
+                }));
+
+                const clicksPoints = dailyData.map((item, index) => ({
+                  x: padding + (index / divisor) * width,
+                  y: 175 - (item.clicks / maxClicks) * height,
+                }));
+
+                const positionsPoints = dailyData.map((item, index) => ({
+                  x: padding + (index / divisor) * width,
+                  y: 175 - (item.position / maxPosition) * height,
+                }));
+
+                // Создаем пути для градиентов (закрытые пути)
+                const createGradientPath = (points: Array<{ x: number; y: number }>) => {
+                  if (useSmooth) {
+                    const smoothPath = createSmoothPath(points, tension);
+                    return `${smoothPath} L ${points[points.length - 1].x} 175 L ${points[0].x} 175 Z`;
+                  } else {
+                    return `M ${points[0].x} ${points[0].y} ${points.map(p => `L ${p.x} ${p.y}`).join(' ')} L ${points[points.length - 1].x} 175 L ${points[0].x} 175 Z`;
+                  }
+                };
+
+                return (
+                  <>
+                    {showImpressions && (
+                      <>
+                        <path
+                          d={createGradientPath(impressionsPoints)}
+                          fill={`url(#impressionsGradient-${siteData.id})`}
+                        />
+                        {useSmooth ? (
+                          <path
+                            d={createSmoothPath(impressionsPoints, tension)}
+                            fill="none"
+                            stroke={styleConfig.impressions.color}
+                            strokeWidth={styleConfig.impressions.strokeWidth}
+                            opacity={styleConfig.impressions.lineOpacity}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        ) : (
+                          <polyline
+                            points={impressionsPoints.map(p => `${p.x},${p.y}`).join(' ')}
+                            fill="none"
+                            stroke={styleConfig.impressions.color}
+                            strokeWidth={styleConfig.impressions.strokeWidth}
+                            opacity={styleConfig.impressions.lineOpacity}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        )}
+                      </>
+                    )}
+                    {showClicks && (
+                      <>
+                        <path
+                          d={createGradientPath(clicksPoints)}
+                          fill={`url(#clicksGradient-${siteData.id})`}
+                        />
+                        {useSmooth ? (
+                          <path
+                            d={createSmoothPath(clicksPoints, tension)}
+                            fill="none"
+                            stroke={styleConfig.clicks.color}
+                            strokeWidth={styleConfig.clicks.strokeWidth}
+                            opacity={styleConfig.clicks.lineOpacity}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        ) : (
+                          <polyline
+                            points={clicksPoints.map(p => `${p.x},${p.y}`).join(' ')}
+                            fill="none"
+                            stroke={styleConfig.clicks.color}
+                            strokeWidth={styleConfig.clicks.strokeWidth}
+                            opacity={styleConfig.clicks.lineOpacity}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        )}
+                      </>
+                    )}
+                    {showPositions && (
+                      <>
+                        <path
+                          d={createGradientPath(positionsPoints)}
+                          fill={`url(#positionsGradient-${siteData.id})`}
+                        />
+                        {useSmooth ? (
+                          <path
+                            d={createSmoothPath(positionsPoints, tension)}
+                            fill="none"
+                            stroke={styleConfig.positions.color}
+                            strokeWidth={styleConfig.positions.strokeWidth}
+                            opacity={styleConfig.positions.lineOpacity}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        ) : (
+                          <polyline
+                            points={positionsPoints.map(p => `${p.x},${p.y}`).join(' ')}
+                            fill="none"
+                            stroke={styleConfig.positions.color}
+                            strokeWidth={styleConfig.positions.strokeWidth}
+                            opacity={styleConfig.positions.lineOpacity}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        )}
+                      </>
+                    )}
+                  </>
+                );
+              })()}
             </svg>
             
             {/* Значки и цифры на графике - показы и клики */}
