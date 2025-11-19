@@ -1174,6 +1174,28 @@ export default function DashboardGCPage() {
     }
   }, [loadDailyDataForSite]);
 
+  // Видимые сайты для рендеринга - фильтруем по тегам, статусам и поиску
+  const visibleSites = useMemo(() => {
+    let filtered = sites;
+    
+    // Фильтрация по статусам
+    if (selectedStatusIds.length > 0) {
+      filtered = filtered.filter(site => 
+        site.status && selectedStatusIds.includes(site.status.id)
+      );
+    }
+    
+    // Фильтрация по поисковому запросу
+    if (searchDomain.trim()) {
+      const searchLower = searchDomain.toLowerCase().trim();
+      filtered = filtered.filter(site => 
+        site.domain.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return filtered;
+  }, [sites, selectedStatusIds, searchDomain]);
+
   // Функция для синхронизации данных Google Search Console для сайта
   const handleSyncSite = useCallback(async (siteId: number) => {
     if (syncingSites.has(siteId)) {
@@ -1286,28 +1308,6 @@ export default function DashboardGCPage() {
       }
     }
   }, [visibleSites, handleSyncSite]);
-
-  // Видимые сайты для рендеринга - фильтруем по тегам, статусам и поиску
-  const visibleSites = useMemo(() => {
-    let filtered = sites;
-    
-    // Фильтрация по статусам
-    if (selectedStatusIds.length > 0) {
-      filtered = filtered.filter(site => 
-        site.status && selectedStatusIds.includes(site.status.id)
-      );
-    }
-    
-    // Фильтрация по поисковому запросу
-    if (searchDomain.trim()) {
-      const searchLower = searchDomain.toLowerCase().trim();
-      filtered = filtered.filter(site => 
-        site.domain.toLowerCase().includes(searchLower)
-      );
-    }
-    
-    return filtered;
-  }, [sites, selectedStatusIds, searchDomain]);
 
   return (
     <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
