@@ -239,6 +239,57 @@ export default function IntegrationsPage() {
     }
   };
 
+  const handleResetAllIntegrations = async () => {
+    if (!confirm(t('integrations.resetAllConfirm'))) {
+      return;
+    }
+
+    try {
+      addDebugInfo({
+        timestamp: new Date().toISOString(),
+        type: 'api',
+        endpoint: '/api/gsc-integration',
+        message: 'Resetting all integrations...',
+      });
+
+      const response = await fetch('/api/gsc-integration', {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      
+      addDebugInfo({
+        timestamp: new Date().toISOString(),
+        type: 'api',
+        endpoint: '/api/gsc-integration',
+        status: response.status,
+        data: {
+          success: data.success,
+          message: data.message,
+          error: data.error,
+        },
+      });
+
+      if (data.success) {
+        setMessage({ type: 'success', text: t('integrations.resetAllSuccess') });
+        setTimeout(() => setMessage(null), 5000);
+        // Reload accounts
+        loadGSCIntegration();
+      } else {
+        setMessage({ type: 'error', text: data.error || t('integrations.resetAllError') });
+      }
+    } catch (err: any) {
+      console.error('Error resetting all integrations:', err);
+      setMessage({ type: 'error', text: t('integrations.resetAllError') });
+      addDebugInfo({
+        timestamp: new Date().toISOString(),
+        type: 'error',
+        endpoint: '/api/gsc-integration',
+        error: err.message || String(err),
+        message: 'Exception while resetting all integrations',
+      });
+    }
+  };
+
   const handleGoogleAuth = async () => {
     try {
       addDebugInfo({
@@ -453,6 +504,16 @@ export default function IntegrationsPage() {
               </div>
             ) : gscAccounts.length > 0 ? (
               <div className="space-y-4">
+                {/* Reset All Button */}
+                <div className="flex justify-end mb-4">
+                  <button
+                    onClick={handleResetAllIntegrations}
+                    className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg text-base font-medium transition-all duration-200 text-white shadow-md hover:shadow-lg transform hover:scale-105"
+                    title={t('integrations.resetAll')}
+                  >
+                    {t('integrations.resetAll')}
+                  </button>
+                </div>
                 {/* Connected Accounts List */}
                 {gscAccounts.map((account, index) => (
                   <div
