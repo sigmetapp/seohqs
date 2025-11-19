@@ -92,8 +92,8 @@ export default function TaskDetailPage() {
   const loadUsers = async () => {
     try {
       setLoadingUsers(true);
-      // Загружаем список пользователей (можно создать отдельный API endpoint)
-      const response = await fetch('/api/users');
+      // Загружаем только владельца и участников его команды
+      const response = await fetch('/api/auth/user/team-assignees');
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
