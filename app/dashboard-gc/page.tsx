@@ -881,7 +881,7 @@ export default function DashboardGCPage() {
   const { t } = useI18n();
   const [sites, setSites] = useState<SiteData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState<number>(180);
+  const [selectedPeriod, setSelectedPeriod] = useState<number>(90);
   const [showImpressions, setShowImpressions] = useState<boolean>(true);
   const [showClicks, setShowClicks] = useState<boolean>(true);
   const [showPositions, setShowPositions] = useState<boolean>(false);
@@ -1005,7 +1005,7 @@ export default function DashboardGCPage() {
         
         if (data.success) {
           // Дебаг: логируем данные для первых нескольких сайтов
-          if (data.sites && data.sites.length > 0 && (selectedPeriod === 90 || selectedPeriod === 180)) {
+          if (data.sites && data.sites.length > 0 && (selectedPeriod === 7 || selectedPeriod === 30 || selectedPeriod === 90 || selectedPeriod === 180 || selectedPeriod === 360)) {
             data.sites.slice(0, 3).forEach((site: any) => {
               console.log(`[DEBUG Dashboard GC] Site ${site.id} (${site.domain}):`, {
                 totalImpressions: site.totalImpressions,
@@ -1339,7 +1339,7 @@ export default function DashboardGCPage() {
         ) : (
           <>
             {/* DEBUG PANEL - временная панель для отладки */}
-            {(selectedPeriod === 180 || selectedPeriod === 360) && (
+            {(selectedPeriod === 90 || selectedPeriod === 180 || selectedPeriod === 360) && (
               <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-400 dark:border-yellow-600 rounded-lg">
                 <h3 className="text-lg font-bold text-yellow-800 dark:text-yellow-200 mb-2">🔍 DEBUG PANEL ({selectedPeriod} дней)</h3>
                 <div className="text-sm space-y-1 text-yellow-700 dark:text-yellow-300">
@@ -1533,6 +1533,9 @@ export default function DashboardGCPage() {
                       paddingRight: '1.75rem'
                     }}
                   >
+                    <option value="7">7 {t('dashboardGc.daysShort')}</option>
+                    <option value="30">30 {t('dashboardGc.daysShort')}</option>
+                    <option value="90">90 {t('dashboardGc.daysShort')}</option>
                     <option value="180">180 {t('dashboardGc.daysShort')}</option>
                     <option value="360">360 {t('dashboardGc.daysShort')}</option>
                   </select>

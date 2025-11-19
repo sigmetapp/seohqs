@@ -398,18 +398,21 @@ export class GoogleSearchConsoleService {
   /**
    * Получает данные о производительности сайта за период
    * Uses Search Analytics API: POST /webmasters/v3/sites/{siteUrl}/searchAnalytics/query
+   * Поддерживает пагинацию для обхода лимита в 25,000 строк
    * 
    * @param siteUrl URL сайта в Search Console (sc-domain:example.com или https://example.com)
    * @param startDate Начальная дата (формат: YYYY-MM-DD)
    * @param endDate Конечная дата (формат: YYYY-MM-DD)
    * @param dimensions Размерности для группировки (date, query, page, country, device, searchAppearance)
+   * @param startRow Начальная строка для пагинации (по умолчанию 0)
    * @returns Данные о производительности
    */
   async getPerformanceData(
     siteUrl: string,
     startDate: string,
     endDate: string,
-    dimensions: string[] = []
+    dimensions: string[] = [],
+    startRow: number = 0
   ): Promise<GSCQueryResponse> {
     await this.ensureInitialized();
     
@@ -427,6 +430,7 @@ export class GoogleSearchConsoleService {
       endDate: endDate,
       dimensions: requestDimensions,
       rowLimit: 25000, // Maximum allowed by GSC API
+      startRow: startRow > 0 ? startRow : undefined,
     };
 
     const request: any = {
@@ -442,13 +446,14 @@ export class GoogleSearchConsoleService {
         endDate,
         dimensions: requestDimensions,
         rowLimit: requestBody.rowLimit,
+        startRow: requestBody.startRow,
       });
 
       const response = await this.searchConsole.searchanalytics.query(request);
       
       // Log response summary
       const rowCount = response.data?.rows?.length || 0;
-      console.log(`[GSC API] Response: ${rowCount} rows returned`);
+      console.log(`[GSC API] Response: ${rowCount} rows returned${startRow > 0 ? ` (starting from row ${startRow})` : ''}`);
 
       // Check for empty results
       if (!response.data?.rows || response.data.rows.length === 0) {
@@ -457,6 +462,7 @@ export class GoogleSearchConsoleService {
           startDate,
           endDate,
           dimensions: requestDimensions,
+          startRow,
           requestBody: JSON.stringify(requestBody),
         });
       }
@@ -501,7 +507,53 @@ export class GoogleSearchConsoleService {
   }
 
   /**
+   * Получает все данные о производительности сайта за период с поддержкой пагинации
+   * Автоматически обрабатывает пагинацию для обхода лимита в 25,000 строк
+   * 
+   * @param siteUrl URL сайта в Search Console
+   * @param startDate Начальная дата (формат: YYYY-MM-DD)
+   * @param endDate Конечная дата (формат: YYYY-MM-DD)
+   * @param dimensions Размерности для группировки
+   * @returns Все данные о производительности (объединенные из всех страниц)
+   */
+  async getAllPerformanceData(
+    siteUrl: string,
+    startDate: string,
+    endDate: string,
+    dimensions: string[] = []
+  ): Promise<GSCRow[]> {
+    const allRows: GSCRow[] = [];
+    let startRow = 0;
+    const maxRowsPerPage = 25000;
+    let hasMoreData = true;
+
+    while (hasMoreData) {
+      const response = await this.getPerformanceData(siteUrl, startDate, endDate, dimensions, startRow);
+      
+      if (response.rows && response.rows.length > 0) {
+        allRows.push(...response.rows);
+        
+        // Если получили меньше строк, чем запросили, значит это последняя страница
+        if (response.rows.length < maxRowsPerPage) {
+          hasMoreData = false;
+        } else {
+          // Переходим к следующей странице
+          startRow += response.rows.length;
+          // Небольшая задержка между запросами, чтобы не перегружать API
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } else {
+        hasMoreData = false;
+      }
+    }
+
+    console.log(`[GSC API] Total rows fetched: ${allRows.length} (across ${Math.ceil(allRows.length / maxRowsPerPage)} pages)`);
+    return allRows;
+  }
+
+  /**
    * Получает агрегированные данные за период (по дням)
+   * Для больших периодов (>90 дней) разбивает запрос на части для обхода лимита API
    * @param searchConsoleUrl URL из настроек сайта или домен для автоматического поиска
    * @param days Количество дней назад (по умолчанию 30)
    * @param domain Домен сайта для автоматического поиска, если searchConsoleUrl не указан
@@ -539,24 +591,119 @@ export class GoogleSearchConsoleService {
         throw new Error('Не указан URL сайта и домен для автоматического поиска');
       }
 
-      // Use reusable date range function
-      const dateRange = getLastNDaysRange(days);
+      // Для периодов больше 90 дней разбиваем на части по 90 дней
+      // Это помогает обойти возможные проблемы с лимитом API и обеспечивает более надежную загрузку
+      const chunkSize = 90; // Размер части в днях
+      const allData: Array<{
+        date: string;
+        clicks: number;
+        impressions: number;
+        ctr: number;
+        position: number;
+      }> = [];
 
-      // Получаем данные по дням (only date dimension for aggregation)
-      const data = await this.getPerformanceData(siteUrl, dateRange.startDate, dateRange.endDate, ['date']);
-
-      if (!data.rows || data.rows.length === 0) {
-        return [];
+      if (days <= chunkSize) {
+        // Для периодов <= 90 дней делаем один запрос
+        const dateRange = getLastNDaysRange(days);
+        const rows = await this.getAllPerformanceData(siteUrl, dateRange.startDate, dateRange.endDate, ['date']);
+        
+        if (rows.length > 0) {
+          allData.push(...rows.map((row: GSCRow) => ({
+            date: row.keys[0],
+            clicks: row.clicks || 0,
+            impressions: row.impressions || 0,
+            ctr: row.ctr || 0,
+            position: row.position || 0,
+          })));
+        }
+      } else {
+        // Для периодов > 90 дней разбиваем на части
+        // Вычисляем общий диапазон дат
+        const overallEndDate = new Date();
+        const overallStartDate = new Date();
+        overallStartDate.setDate(overallStartDate.getDate() - days);
+        
+        // Разбиваем на части по chunkSize дней
+        const chunks: Array<{ startDate: Date; endDate: Date }> = [];
+        let currentStart = new Date(overallStartDate);
+        
+        while (currentStart < overallEndDate) {
+          const chunkEnd = new Date(currentStart);
+          chunkEnd.setDate(chunkEnd.getDate() + chunkSize - 1); // -1 чтобы включить начальный день
+          
+          // Убеждаемся, что не выходим за общий диапазон
+          if (chunkEnd > overallEndDate) {
+            chunkEnd.setTime(overallEndDate.getTime());
+          }
+          
+          chunks.push({
+            startDate: new Date(currentStart),
+            endDate: new Date(chunkEnd)
+          });
+          
+          // Переходим к следующей части (начинаем со следующего дня после конца текущей части)
+          currentStart = new Date(chunkEnd);
+          currentStart.setDate(currentStart.getDate() + 1);
+        }
+        
+        console.log(`[GSC API] Splitting ${days} days period into ${chunks.length} chunks of ~${chunkSize} days each`);
+        
+        // Загружаем данные для каждой части
+        for (let i = 0; i < chunks.length; i++) {
+          const chunk = chunks[i];
+          const startDateStr = chunk.startDate.toISOString().split('T')[0];
+          const endDateStr = chunk.endDate.toISOString().split('T')[0];
+          
+          const chunkDays = Math.ceil((chunk.endDate.getTime() - chunk.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          console.log(`[GSC API] Fetching chunk ${i + 1}/${chunks.length}: ${startDateStr} to ${endDateStr} (${chunkDays} days)`);
+          
+          const rows = await this.getAllPerformanceData(siteUrl, startDateStr, endDateStr, ['date']);
+          
+          if (rows.length > 0) {
+            allData.push(...rows.map((row: GSCRow) => ({
+              date: row.keys[0],
+              clicks: row.clicks || 0,
+              impressions: row.impressions || 0,
+              ctr: row.ctr || 0,
+              position: row.position || 0,
+            })));
+          }
+          
+          // Небольшая задержка между запросами для разных частей (кроме последней)
+          if (i < chunks.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
       }
 
-      // Преобразуем данные в удобный формат
-      return data.rows.map((row: GSCRow) => ({
-        date: row.keys[0], // Дата в формате YYYY-MM-DD
-        clicks: row.clicks || 0,
-        impressions: row.impressions || 0,
-        ctr: row.ctr || 0,
-        position: row.position || 0,
-      }));
+      // Сортируем данные по дате и удаляем дубликаты (если есть)
+      const dataMap = new Map<string, {
+        date: string;
+        clicks: number;
+        impressions: number;
+        ctr: number;
+        position: number;
+      }>();
+
+      for (const item of allData) {
+        const existing = dataMap.get(item.date);
+        if (existing) {
+          // Если есть дубликат, суммируем значения
+          existing.clicks += item.clicks;
+          existing.impressions += item.impressions;
+          existing.position = (existing.position + item.position) / 2; // Среднее значение позиции
+          existing.ctr = existing.impressions > 0 ? (existing.clicks / existing.impressions) * 100 : 0;
+        } else {
+          dataMap.set(item.date, { ...item });
+        }
+      }
+
+      const result = Array.from(dataMap.values()).sort((a, b) => 
+        new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+
+      console.log(`[GSC API] Aggregated data: ${result.length} unique days from ${days} days period`);
+      return result;
     } catch (error: any) {
       console.error('Ошибка получения агрегированных данных:', error);
       throw error;
