@@ -35,6 +35,148 @@ type DailyData = {
   position: number;
 };
 
+// Типы стилей графиков
+type ChartStyle = 'default' | 'google-console' | 'bold' | 'minimal';
+
+type ChartStyleConfig = {
+  name: string;
+  impressions: {
+    color: string;
+    strokeWidth: number;
+    pointRadius: number;
+    pointRadiusHover: number;
+    gradientOpacity: number;
+    lineOpacity: number;
+  };
+  clicks: {
+    color: string;
+    strokeWidth: number;
+    pointRadius: number;
+    pointRadiusHover: number;
+    gradientOpacity: number;
+    lineOpacity: number;
+  };
+  positions: {
+    color: string;
+    strokeWidth: number;
+    pointRadius: number;
+    pointRadiusHover: number;
+    gradientOpacity: number;
+    lineOpacity: number;
+  };
+};
+
+const chartStyles: Record<ChartStyle, ChartStyleConfig> = {
+  default: {
+    name: 'По умолчанию',
+    impressions: {
+      color: '#3b82f6',
+      strokeWidth: 2.5,
+      pointRadius: 5,
+      pointRadiusHover: 7,
+      gradientOpacity: 0.3,
+      lineOpacity: 0.9,
+    },
+    clicks: {
+      color: '#10b981',
+      strokeWidth: 2.5,
+      pointRadius: 5,
+      pointRadiusHover: 7,
+      gradientOpacity: 0.3,
+      lineOpacity: 0.9,
+    },
+    positions: {
+      color: '#f59e0b',
+      strokeWidth: 2.5,
+      pointRadius: 5,
+      pointRadiusHover: 7,
+      gradientOpacity: 0.3,
+      lineOpacity: 0.9,
+    },
+  },
+  'google-console': {
+    name: 'Google Search Console',
+    impressions: {
+      color: '#4285f4', // Google blue
+      strokeWidth: 2,
+      pointRadius: 4,
+      pointRadiusHover: 6,
+      gradientOpacity: 0.15,
+      lineOpacity: 0.85,
+    },
+    clicks: {
+      color: '#1a73e8', // Google darker blue
+      strokeWidth: 2,
+      pointRadius: 4,
+      pointRadiusHover: 6,
+      gradientOpacity: 0.15,
+      lineOpacity: 0.85,
+    },
+    positions: {
+      color: '#ea4335', // Google red
+      strokeWidth: 2,
+      pointRadius: 4,
+      pointRadiusHover: 6,
+      gradientOpacity: 0.15,
+      lineOpacity: 0.85,
+    },
+  },
+  bold: {
+    name: 'Жирный',
+    impressions: {
+      color: '#2563eb',
+      strokeWidth: 4,
+      pointRadius: 6,
+      pointRadiusHover: 9,
+      gradientOpacity: 0.4,
+      lineOpacity: 1,
+    },
+    clicks: {
+      color: '#059669',
+      strokeWidth: 4,
+      pointRadius: 6,
+      pointRadiusHover: 9,
+      gradientOpacity: 0.4,
+      lineOpacity: 1,
+    },
+    positions: {
+      color: '#d97706',
+      strokeWidth: 4,
+      pointRadius: 6,
+      pointRadiusHover: 9,
+      gradientOpacity: 0.4,
+      lineOpacity: 1,
+    },
+  },
+  minimal: {
+    name: 'Минималистичный',
+    impressions: {
+      color: '#60a5fa',
+      strokeWidth: 1.5,
+      pointRadius: 3,
+      pointRadiusHover: 5,
+      gradientOpacity: 0.1,
+      lineOpacity: 0.7,
+    },
+    clicks: {
+      color: '#34d399',
+      strokeWidth: 1.5,
+      pointRadius: 3,
+      pointRadiusHover: 5,
+      gradientOpacity: 0.1,
+      lineOpacity: 0.7,
+    },
+    positions: {
+      color: '#fbbf24',
+      strokeWidth: 1.5,
+      pointRadius: 3,
+      pointRadiusHover: 5,
+      gradientOpacity: 0.1,
+      lineOpacity: 0.7,
+    },
+  },
+};
+
 // Компонент для ленивой загрузки графиков
 const LazySiteCard = memo(({ 
   siteData, 
@@ -44,6 +186,7 @@ const LazySiteCard = memo(({
   showClicks, 
   showPositions,
   blurMode,
+  chartStyle,
   onHover,
   onHoverLeave,
   hoveredSiteId,
@@ -58,6 +201,7 @@ const LazySiteCard = memo(({
   showClicks: boolean;
   showPositions: boolean;
   blurMode: boolean;
+  chartStyle: ChartStyle;
   onHover: () => void;
   onHoverLeave: () => void;
   hoveredSiteId: number | null;
@@ -118,6 +262,7 @@ const LazySiteCard = memo(({
       showClicks={showClicks}
       showPositions={showPositions}
       blurMode={blurMode}
+      chartStyle={chartStyle}
       onHover={onHover}
       onHoverLeave={onHoverLeave}
       hoveredSiteId={hoveredSiteId}
@@ -138,6 +283,7 @@ const SiteCard = memo(({
   showClicks, 
   showPositions,
   blurMode,
+  chartStyle,
   onHover,
   onHoverLeave,
   hoveredSiteId,
@@ -151,6 +297,7 @@ const SiteCard = memo(({
   showClicks: boolean;
   showPositions: boolean;
   blurMode: boolean;
+  chartStyle: ChartStyle;
   onHover: () => void;
   onHoverLeave: () => void;
   hoveredSiteId: number | null;
@@ -163,6 +310,9 @@ const SiteCard = memo(({
   const hoveredDate = hoveredDateIndex?.siteId === siteData.id 
     ? dailyData[hoveredDateIndex.index] 
     : null;
+  
+  // Получаем конфигурацию стиля графика
+  const styleConfig = chartStyles[chartStyle];
   
   // Цвета для SVG в зависимости от темы
   const gridColor = theme === 'dark' ? '#374151' : '#d1d5db';
@@ -251,16 +401,16 @@ const SiteCard = memo(({
               {/* Определения градиентов */}
               <defs>
                 <linearGradient id={`impressionsGradient-${siteData.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                  <stop offset="0%" stopColor={styleConfig.impressions.color} stopOpacity={styleConfig.impressions.gradientOpacity} />
+                  <stop offset="100%" stopColor={styleConfig.impressions.color} stopOpacity="0" />
                 </linearGradient>
                 <linearGradient id={`clicksGradient-${siteData.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                  <stop offset="0%" stopColor={styleConfig.clicks.color} stopOpacity={styleConfig.clicks.gradientOpacity} />
+                  <stop offset="100%" stopColor={styleConfig.clicks.color} stopOpacity="0" />
                 </linearGradient>
                 <linearGradient id={`positionsGradient-${siteData.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+                  <stop offset="0%" stopColor={styleConfig.positions.color} stopOpacity={styleConfig.positions.gradientOpacity} />
+                  <stop offset="100%" stopColor={styleConfig.positions.color} stopOpacity="0" />
                 </linearGradient>
               </defs>
               
@@ -349,12 +499,12 @@ const SiteCard = memo(({
                       <circle
                         cx={x}
                         cy={impressionsY}
-                        r={isHoveredPoint ? "7" : "5"}
-                        fill="#3b82f6"
-                        stroke={isHoveredPoint ? "#60a5fa" : "#1e40af"}
+                        r={isHoveredPoint ? styleConfig.impressions.pointRadiusHover : styleConfig.impressions.pointRadius}
+                        fill={styleConfig.impressions.color}
+                        stroke={isHoveredPoint ? styleConfig.impressions.color : styleConfig.impressions.color}
                         strokeWidth={isHoveredPoint ? "2.5" : "1.5"}
                         className="transition-all duration-200"
-                        style={{ cursor: 'pointer', filter: isHoveredPoint ? 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.9))' : 'drop-shadow(0 0 2px rgba(59, 130, 246, 0.5))' }}
+                        style={{ cursor: 'pointer', filter: isHoveredPoint ? `drop-shadow(0 0 6px ${styleConfig.impressions.color}90)` : `drop-shadow(0 0 2px ${styleConfig.impressions.color}50)` }}
                       />
                     )}
                     {/* Клики */}
@@ -362,12 +512,12 @@ const SiteCard = memo(({
                       <circle
                         cx={x}
                         cy={clicksY}
-                        r={isHoveredPoint ? "7" : "5"}
-                        fill="#10b981"
-                        stroke={isHoveredPoint ? "#34d399" : "#047857"}
+                        r={isHoveredPoint ? styleConfig.clicks.pointRadiusHover : styleConfig.clicks.pointRadius}
+                        fill={styleConfig.clicks.color}
+                        stroke={isHoveredPoint ? styleConfig.clicks.color : styleConfig.clicks.color}
                         strokeWidth={isHoveredPoint ? "2.5" : "1.5"}
                         className="transition-all duration-200"
-                        style={{ cursor: 'pointer', filter: isHoveredPoint ? 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.9))' : 'drop-shadow(0 0 2px rgba(16, 185, 129, 0.5))' }}
+                        style={{ cursor: 'pointer', filter: isHoveredPoint ? `drop-shadow(0 0 6px ${styleConfig.clicks.color}90)` : `drop-shadow(0 0 2px ${styleConfig.clicks.color}50)` }}
                       />
                     )}
                     {/* Позиции */}
@@ -375,12 +525,12 @@ const SiteCard = memo(({
                       <circle
                         cx={x}
                         cy={positionY}
-                        r={isHoveredPoint ? "7" : "5"}
-                        fill="#f59e0b"
-                        stroke={isHoveredPoint ? "#fbbf24" : "#d97706"}
+                        r={isHoveredPoint ? styleConfig.positions.pointRadiusHover : styleConfig.positions.pointRadius}
+                        fill={styleConfig.positions.color}
+                        stroke={isHoveredPoint ? styleConfig.positions.color : styleConfig.positions.color}
                         strokeWidth={isHoveredPoint ? "2.5" : "1.5"}
                         className="transition-all duration-200"
-                        style={{ cursor: 'pointer', filter: isHoveredPoint ? 'drop-shadow(0 0 6px rgba(245, 158, 11, 0.9))' : 'drop-shadow(0 0 2px rgba(245, 158, 11, 0.5))' }}
+                        style={{ cursor: 'pointer', filter: isHoveredPoint ? `drop-shadow(0 0 6px ${styleConfig.positions.color}90)` : `drop-shadow(0 0 2px ${styleConfig.positions.color}50)` }}
                       />
                     )}
                   </g>
@@ -413,9 +563,9 @@ const SiteCard = memo(({
                           return `${x},${y}`;
                         }).join(' ')}
                         fill="none"
-                        stroke="#3b82f6"
-                        strokeWidth="2.5"
-                        opacity="0.9"
+                        stroke={styleConfig.impressions.color}
+                        strokeWidth={styleConfig.impressions.strokeWidth}
+                        opacity={styleConfig.impressions.lineOpacity}
                       />
                     </>
                   )}
@@ -442,9 +592,9 @@ const SiteCard = memo(({
                           return `${x},${y}`;
                         }).join(' ')}
                         fill="none"
-                        stroke="#10b981"
-                        strokeWidth="2.5"
-                        opacity="0.9"
+                        stroke={styleConfig.clicks.color}
+                        strokeWidth={styleConfig.clicks.strokeWidth}
+                        opacity={styleConfig.clicks.lineOpacity}
                       />
                     </>
                   )}
@@ -471,9 +621,9 @@ const SiteCard = memo(({
                           return `${x},${y}`;
                         }).join(' ')}
                         fill="none"
-                        stroke="#f59e0b"
-                        strokeWidth="2.5"
-                        opacity="0.9"
+                        stroke={styleConfig.positions.color}
+                        strokeWidth={styleConfig.positions.strokeWidth}
+                        opacity={styleConfig.positions.lineOpacity}
                       />
                     </>
                   )}
@@ -485,7 +635,7 @@ const SiteCard = memo(({
             <div className="absolute top-3 left-3 flex flex-col gap-2">
               {showImpressions && (
                 <div className="flex items-center gap-1.5 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-300 dark:border-gray-700">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: styleConfig.impressions.color }}></div>
                   <span className="text-xs font-bold text-gray-900 dark:text-white">
                     {hoveredDate 
                       ? hoveredDate.impressions.toLocaleString() 
@@ -494,9 +644,9 @@ const SiteCard = memo(({
                 </div>
               )}
               {showClicks && (
-                <div className="flex items-center gap-1.5 bg-gray-900/90 dark:bg-gray-900/90 bg-white/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-700 dark:border-gray-700 border-gray-300">
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  <span className="text-xs font-bold text-white dark:text-white text-gray-900">
+                <div className="flex items-center gap-1.5 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-2 py-1 rounded border border-gray-300 dark:border-gray-700">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: styleConfig.clicks.color }}></div>
+                  <span className="text-xs font-bold text-gray-900 dark:text-white">
                     {hoveredDate 
                       ? hoveredDate.clicks.toLocaleString() 
                       : aggregatedData.clicks.toLocaleString()}
@@ -555,6 +705,7 @@ export default function DashboardGCPage() {
   const [statuses, setStatuses] = useState<SiteStatus[]>([]);
   const [selectedStatusIds, setSelectedStatusIds] = useState<number[]>([]);
   const [searchDomain, setSearchDomain] = useState<string>('');
+  const [chartStyle, setChartStyle] = useState<ChartStyle>('default');
 
   // Загрузка Google аккаунтов
   useEffect(() => {
@@ -884,6 +1035,27 @@ export default function DashboardGCPage() {
                   </label>
                 </div>
                 
+                {/* Стиль графика */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <select
+                    value={chartStyle}
+                    onChange={(e) => setChartStyle(e.target.value as ChartStyle)}
+                    className="px-2 py-1 rounded text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none pr-7"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%9ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 0.5rem center',
+                      paddingRight: '1.75rem'
+                    }}
+                  >
+                    {Object.entries(chartStyles).map(([key, style]) => (
+                      <option key={key} value={key}>
+                        {style.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
                 {/* Поиск по домену */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <input
@@ -924,6 +1096,7 @@ export default function DashboardGCPage() {
                     showClicks={showClicks}
                     showPositions={showPositions}
                     blurMode={blurMode}
+                    chartStyle={chartStyle}
                     onHover={() => setHoveredSiteId(siteData.id)}
                     onHoverLeave={() => {
                       setHoveredSiteId(null);
