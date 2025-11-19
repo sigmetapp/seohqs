@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useI18n } from '@/lib/i18n-context';
 
 export default function IndexingPage() {
+  const { t } = useI18n();
   const [indexingUrl, setIndexingUrl] = useState('');
   const [indexingUrls, setIndexingUrls] = useState('');
   const [indexingLoading, setIndexingLoading] = useState(false);
@@ -12,7 +14,7 @@ export default function IndexingPage() {
 
   const handleIndexUrl = async () => {
     if (!indexingUrl.trim()) {
-      setIndexingError('Введите URL для индексации');
+      setIndexingError(t('indexing.enterUrlError'));
       return;
     }
 
@@ -39,12 +41,12 @@ export default function IndexingPage() {
         setIndexingUrl('');
         setIndexingStatus(data);
       } else {
-        setIndexingError(data.error || data.message || 'Ошибка индексации');
+        setIndexingError(data.error || data.message || t('indexing.indexingError'));
         setIndexingStatus(data);
       }
     } catch (err: any) {
       console.error('Index error:', err);
-      setIndexingError(err.message || 'Ошибка подключения');
+      setIndexingError(err.message || t('indexing.connectionError'));
     } finally {
       setIndexingLoading(false);
     }
@@ -52,7 +54,7 @@ export default function IndexingPage() {
 
   const handleIndexUrls = async () => {
     if (!indexingUrls.trim()) {
-      setIndexingError('Введите URL для индексации (по одному на строку)');
+      setIndexingError(t('indexing.enterUrlsError'));
       return;
     }
 
@@ -67,7 +69,7 @@ export default function IndexingPage() {
         .filter((url) => url.length > 0);
 
       if (urls.length === 0) {
-        setIndexingError('Не найдено валидных URL');
+        setIndexingError(t('indexing.noValidUrls'));
         return;
       }
 
@@ -89,12 +91,12 @@ export default function IndexingPage() {
         setIndexingUrls('');
         setIndexingStatus(data);
       } else {
-        setIndexingError(data.error || data.message || 'Ошибка индексации');
+        setIndexingError(data.error || data.message || t('indexing.indexingError'));
         setIndexingStatus(data);
       }
     } catch (err: any) {
       console.error('Index error:', err);
-      setIndexingError(err.message || 'Ошибка подключения');
+      setIndexingError(err.message || t('indexing.connectionError'));
     } finally {
       setIndexingLoading(false);
     }
@@ -102,7 +104,7 @@ export default function IndexingPage() {
 
   const handleRemoveUrl = async () => {
     if (!indexingUrl.trim()) {
-      setIndexingError('Введите URL для удаления из индекса');
+      setIndexingError(t('indexing.enterUrlRemoveError'));
       return;
     }
 
@@ -129,12 +131,12 @@ export default function IndexingPage() {
         setIndexingUrl('');
         setIndexingStatus(data);
       } else {
-        setIndexingError(data.error || data.message || 'Ошибка удаления');
+        setIndexingError(data.error || data.message || t('indexing.removeError'));
         setIndexingStatus(data);
       }
     } catch (err: any) {
       console.error('Remove error:', err);
-      setIndexingError(err.message || 'Ошибка подключения');
+      setIndexingError(err.message || t('indexing.connectionError'));
     } finally {
       setIndexingLoading(false);
     }
@@ -153,114 +155,113 @@ export default function IndexingPage() {
   useEffect(() => {
     checkIndexingStatus();
     
-    // Проверяем URL параметры для сообщений об ошибках от OAuth callback
+    // Check URL parameters for error messages from OAuth callback
     const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get('error');
     
     if (error) {
       setIndexingError(decodeURIComponent(error));
-      // Убираем параметр из URL
+      // Remove parameter from URL
       window.history.replaceState({}, '', '/indexing');
     }
   }, []);
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white p-8">
+    <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Индексатор ссылок</h1>
-          <p className="text-gray-400">Индексируйте URL в Google через Indexing API</p>
+          <h1 className="text-4xl font-bold mb-2">{t('indexing.title')}</h1>
+          <p className="text-gray-600 dark:text-gray-400">{t('indexing.description')}</p>
         </div>
 
-        <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-blue-500">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 border border-gray-200 dark:border-blue-500 shadow-sm dark:shadow-none">
           {indexingStatus && (
-            <div className="mb-4 p-3 bg-gray-700 rounded">
-              <p className="text-sm text-gray-300">
-                <strong>Статус сервиса:</strong>{' '}
+            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                <strong>{t('indexing.serviceStatus')}</strong>{' '}
                 {indexingStatus.configured ? (
-                  <span className="text-green-400">✓ Настроен</span>
+                  <span className="text-green-600 dark:text-green-400">{t('indexing.configured')}</span>
                 ) : (
-                  <span className="text-red-400">✗ Не настроен</span>
+                  <span className="text-red-600 dark:text-red-400">{t('indexing.notConfigured')}</span>
                 )}
               </p>
               {indexingStatus.message && (
-                <p className="text-xs text-gray-400 mt-1">{indexingStatus.message}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{indexingStatus.message}</p>
               )}
             </div>
           )}
 
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Индексировать один URL:
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              {t('indexing.indexSingleUrl')}
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={indexingUrl}
                 onChange={(e) => setIndexingUrl(e.target.value)}
-                placeholder="https://example.com/page"
-                className="flex-1 px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                placeholder={t('indexing.indexUrlPlaceholder')}
+                className="flex-1 px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
                 disabled={indexingLoading}
               />
               <button
                 onClick={handleIndexUrl}
                 disabled={indexingLoading || !indexingUrl.trim()}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {indexingLoading ? 'Индексация...' : 'Индексировать'}
+                {indexingLoading ? t('indexing.indexing') : t('indexing.indexButton')}
               </button>
               <button
                 onClick={handleRemoveUrl}
                 disabled={indexingLoading || !indexingUrl.trim()}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Удалить
+                {t('indexing.removeButton')}
               </button>
             </div>
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Индексировать несколько URL (по одному на строку, максимум 100):
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              {t('indexing.indexMultipleUrls')}
             </label>
             <textarea
               value={indexingUrls}
               onChange={(e) => setIndexingUrls(e.target.value)}
-              placeholder="https://example.com/page1&#10;https://example.com/page2&#10;https://example.com/page3"
+              placeholder={t('indexing.indexMultiplePlaceholder')}
               rows={6}
-              className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none font-mono text-sm"
+              className="w-full px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none font-mono text-sm"
               disabled={indexingLoading}
             />
             <button
               onClick={handleIndexUrls}
               disabled={indexingLoading || !indexingUrls.trim()}
-              className="mt-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mt-2 px-4 py-2 bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {indexingLoading ? 'Индексация...' : 'Индексировать все'}
+              {indexingLoading ? t('indexing.indexing') : t('indexing.indexAllButton')}
             </button>
           </div>
 
           {indexingSuccess && (
-            <div className="bg-green-900 border border-green-700 rounded p-3 mb-4">
-              <p className="text-green-200 font-bold">✓ {indexingSuccess}</p>
+            <div className="bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded p-3 mb-4">
+              <p className="text-green-800 dark:text-green-200 font-bold">✓ {indexingSuccess}</p>
             </div>
           )}
 
           {indexingError && (
-            <div className="bg-red-900 border border-red-700 rounded p-3 mb-4">
-              <p className="text-red-200 font-bold">✗ {indexingError}</p>
+            <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded p-3 mb-4">
+              <p className="text-red-800 dark:text-red-200 font-bold">✗ {indexingError}</p>
             </div>
           )}
 
-          <div className="mt-4 p-3 bg-gray-700 rounded text-sm text-gray-400">
+          <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 text-sm text-gray-600 dark:text-gray-400">
             <p className="mb-2">
-              <strong>Примечание:</strong> Google Indexing API позволяет индексировать любые URL,
-              но для успешной индексации:
+              <strong>{t('indexing.note')}</strong> {t('indexing.noteText')}
             </p>
             <ul className="list-disc list-inside ml-4 space-y-1">
-              <li>URL должен принадлежать сайту, добавленному в Google Search Console</li>
-              <li>Service Account должен иметь доступ к сайту в Search Console</li>
-              <li>Indexing API должен быть включен в Google Cloud Console</li>
+              <li>{t('indexing.noteItem1')}</li>
+              <li>{t('indexing.noteItem2')}</li>
+              <li>{t('indexing.noteItem3')}</li>
             </ul>
           </div>
         </div>
