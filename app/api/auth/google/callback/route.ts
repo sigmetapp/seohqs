@@ -3,6 +3,7 @@ import { google } from 'googleapis';
 import { storage } from '@/lib/storage';
 import { updateIntegrations, getAllGoogleAccounts, createGoogleAccount, updateGoogleAccount } from '@/lib/db-adapter';
 import { getCurrentUser } from '@/lib/auth-utils';
+import { getSupabaseAuthUserId, upsertGSCIntegration, upsertGSCSites } from '@/lib/gsc-integrations';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -129,23 +130,114 @@ export async function GET(request: Request) {
       ? new Date(tokens.expiry_date).toISOString() 
       : '';
 
-    // Получаем информацию о пользователе для получения email
+    // Получаем информацию о пользователе Google через userinfo endpoint (v3)
+    // This is required for GSC integration to get google_email and google_user_id
+    let googleUserInfo: { email: string; sub: string } | null = null;
+    try {
+      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      
+      if (userInfoResponse.ok) {
+        const userInfoData = await userInfoResponse.json();
+        googleUserInfo = {
+          email: userInfoData.email || '',
+          sub: userInfoData.sub || '',
+        };
+        if (googleUserInfo.email && googleUserInfo.sub) {
+          console.log('[Google OAuth Callback] Google userinfo:', { email: googleUserInfo.email, sub: googleUserInfo.sub });
+        }
+      } else {
+        console.warn('[Google OAuth Callback] Failed to fetch userinfo:', userInfoResponse.status, userInfoResponse.statusText);
+      }
+    } catch (error) {
+      console.warn('[Google OAuth Callback] Error fetching userinfo:', error);
+    }
+
+    // Fallback: также получаем через oauth2 v2 API для обратной совместимости
     oauth2Client.setCredentials(tokens);
     const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
     let userEmail = '';
     try {
       const userInfo = await oauth2.userinfo.get();
       userEmail = userInfo.data.email || '';
+      // Use v2 email if v3 didn't work
+      if (!googleUserInfo && userEmail) {
+        googleUserInfo = { email: userEmail, sub: userInfo.data.id || '' };
+      }
     } catch (error) {
-      console.warn('[Google OAuth Callback] Не удалось получить email пользователя:', error);
+      console.warn('[Google OAuth Callback] Не удалось получить email пользователя через v2:', error);
     }
 
-    // Получаем текущего пользователя из сессии
+    // Получаем текущего пользователя из сессии (для обратной совместимости)
     const currentUser = await getCurrentUser();
     if (!currentUser) {
       return NextResponse.redirect(
         `${baseUrl}/integrations?error=${encodeURIComponent('Требуется авторизация пользователя')}`
       );
+    }
+
+    // Получаем Supabase Auth user ID для GSC интеграции
+    // This is the UUID from auth.users table
+    // Note: This requires Supabase Auth to be set up and the user to be authenticated via Supabase Auth
+    // If Supabase Auth is not configured, this will be null and GSC integration won't be saved
+    const supabaseAuthUserId = await getSupabaseAuthUserId(request);
+    
+    // Сохраняем в gsc_integrations если у нас есть Supabase Auth user и Google userinfo
+    if (supabaseAuthUserId && googleUserInfo && googleUserInfo.email && googleUserInfo.sub) {
+      try {
+        await upsertGSCIntegration(supabaseAuthUserId, {
+          google_email: googleUserInfo.email,
+          google_user_id: googleUserInfo.sub,
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        console.log('[Google OAuth Callback] GSC integration saved for Supabase Auth user:', supabaseAuthUserId);
+        
+        // Optionally fetch and save GSC sites immediately
+        try {
+          const sitesResponse = await fetch('https://www.googleapis.com/webmasters/v3/sites', {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+          
+          if (sitesResponse.ok) {
+            const sitesData = await sitesResponse.json();
+            const sites = sitesData.siteEntry || [];
+            
+            // Get the integration ID to save sites
+            const { getGSCIntegration } = await import('@/lib/gsc-integrations');
+            const integration = await getGSCIntegration(supabaseAuthUserId);
+            
+            if (integration && sites.length > 0) {
+              await upsertGSCSites(
+                integration.id,
+                sites.map((site: any) => ({
+                  siteUrl: site.siteUrl,
+                  permissionLevel: site.permissionLevel,
+                }))
+              );
+              console.log('[Google OAuth Callback] GSC sites saved:', sites.length);
+            }
+          }
+        } catch (sitesError) {
+          console.warn('[Google OAuth Callback] Error fetching GSC sites:', sitesError);
+          // Don't fail the whole flow if sites fetch fails
+        }
+      } catch (gscError) {
+        console.error('[Google OAuth Callback] Error saving GSC integration:', gscError);
+        // Continue with existing flow even if GSC integration save fails
+      }
+    } else {
+      if (!supabaseAuthUserId) {
+        console.warn('[Google OAuth Callback] Supabase Auth user ID not found. GSC integration will not be saved.');
+      }
+      if (!googleUserInfo) {
+        console.warn('[Google OAuth Callback] Google userinfo not available. GSC integration will not be saved.');
+      }
     }
 
     // Сохраняем в новую таблицу google_accounts

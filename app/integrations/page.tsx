@@ -1,17 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { GoogleAccount } from '@/lib/types';
+import { GoogleAccount, GSCIntegration } from '@/lib/types';
 import { useI18n } from '@/lib/i18n-context';
 
 export default function IntegrationsPage() {
   const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [googleAccounts, setGoogleAccounts] = useState<GoogleAccount[]>([]);
+  const [gscIntegration, setGscIntegration] = useState<GSCIntegration | null>(null);
+  const [gscLoading, setGscLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     loadGoogleAccounts();
+    loadGSCIntegration();
     
     // Проверяем URL параметры для сообщений от OAuth callback
     const urlParams = new URLSearchParams(window.location.search);
@@ -25,6 +28,7 @@ export default function IntegrationsPage() {
       setTimeout(() => setMessage(null), 5000);
       // Перезагружаем аккаунты после успешной авторизации
       loadGoogleAccounts();
+      loadGSCIntegration();
     } else if (error) {
       setMessage({ type: 'error', text: decodeURIComponent(error) });
       // Убираем параметр из URL
@@ -44,6 +48,49 @@ export default function IntegrationsPage() {
       console.error('Error loading Google accounts:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadGSCIntegration = async () => {
+    try {
+      setGscLoading(true);
+      const response = await fetch('/api/gsc-integration');
+      const data = await response.json();
+      if (data.success) {
+        if (data.connected && data.integration) {
+          setGscIntegration(data.integration);
+        } else {
+          setGscIntegration(null);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading GSC integration:', err);
+      setGscIntegration(null);
+    } finally {
+      setGscLoading(false);
+    }
+  };
+
+  const handleDisconnectGSC = async () => {
+    if (!confirm('Are you sure you want to disconnect Google Search Console? This will remove all stored access tokens.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/gsc-integration', {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (data.success) {
+        setMessage({ type: 'success', text: 'Google Search Console disconnected successfully' });
+        setTimeout(() => setMessage(null), 3000);
+        setGscIntegration(null);
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Error disconnecting Google Search Console' });
+      }
+    } catch (err) {
+      console.error('Error disconnecting GSC:', err);
+      setMessage({ type: 'error', text: 'Error disconnecting Google Search Console' });
     }
   };
 
@@ -87,7 +134,7 @@ export default function IntegrationsPage() {
     }
   };
 
-  if (loading) {
+  if (loading && gscLoading) {
     return (
       <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
         <div className="max-w-4xl mx-auto">
@@ -120,7 +167,64 @@ export default function IntegrationsPage() {
         )}
 
         <div className="space-y-6">
-          {/* Google Account Integration */}
+          {/* Google Search Console Integration (New GSC Integration) */}
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="text-3xl">🔍</div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Google Search Console</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Connect your Google Search Console account to access site data and analytics
+                </p>
+              </div>
+            </div>
+
+            {gscLoading ? (
+              <div className="text-sm text-gray-600 dark:text-gray-400">Loading...</div>
+            ) : gscIntegration ? (
+              <div className="space-y-4">
+                {/* Connected State */}
+                <div className="bg-white dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="text-xl">✅</div>
+                      <div>
+                        <div className="text-base font-medium text-gray-900 dark:text-white">
+                          Connected account: {gscIntegration.google_email}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          Connected at: {new Date(gscIntegration.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleDisconnectGSC}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium transition-colors text-white"
+                      title="Disconnect Google Search Console"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Not Connected State */}
+                <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Google Search Console is not connected yet.
+                </div>
+                <button
+                  onClick={handleGoogleAuth}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-base font-medium transition-colors flex items-center gap-2 text-white"
+                >
+                  <span>🔐</span>
+                  <span>Connect Google</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Google Account Integration (Legacy) */}
           <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3 mb-6">
               <div className="text-3xl">🔍</div>
