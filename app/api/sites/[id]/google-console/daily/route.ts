@@ -43,8 +43,10 @@ export async function GET(
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    // Получаем данные из БД (берем больше, чтобы отфильтровать по дате)
-    const allData = await getGoogleSearchConsoleDataBySiteId(siteId, 1000);
+    // Получаем данные из БД (берем достаточно для покрытия периода + запас)
+    // Для 180 дней нужно минимум 180 записей, берем с запасом (days * 2)
+    const limit = Math.max(days * 2, 1000);
+    const allData = await getGoogleSearchConsoleDataBySiteId(siteId, limit);
 
     // Фильтруем данные по периоду
     const filteredData = allData.filter((item) => {
