@@ -295,8 +295,8 @@ const Chart = memo(({
     return null;
   }
 
-  const padding = 50;
-  const width = 700;
+  const padding = 30;
+  const width = 740;
   const height = 109; // Уменьшено на 30% (155 * 0.7 = 108.5, округлено до 109)
   const chartTop = 20;
   const chartBottom = chartTop + height; // 20 + 109 = 129
@@ -346,8 +346,8 @@ const Chart = memo(({
   };
 
   return (
-    <div className="relative w-full flex justify-center">
-      <div className="relative" style={{ width: '97%', height: '180px' }}>
+    <div className="relative w-full">
+      <div className="relative" style={{ width: '100%', height: '180px' }}>
         <svg width="100%" height="100%" viewBox="0 0 800 150" preserveAspectRatio="none" className="overflow-visible">
           <defs>
             <linearGradient id={`impressionsGradient-${siteId}`} x1="0%" y1="0%" x2="0%" y2="100%">
@@ -368,9 +368,9 @@ const Chart = memo(({
           {[0, 1, 2, 3, 4].map((i) => (
             <line
               key={`grid-h-${i}`}
-              x1="50"
+              x1={padding}
               y1={chartTop + (i * (height / 4))}
-              x2="750"
+              x2={padding + width}
               y2={chartTop + (i * (height / 4))}
               stroke={gridColor}
               strokeWidth="0.5"
@@ -380,17 +380,17 @@ const Chart = memo(({
           
           {/* Оси */}
           <line
-            x1="50"
+            x1={padding}
             y1={chartBottom}
-            x2="750"
+            x2={padding + width}
             y2={chartBottom}
             stroke={axisColor}
             strokeWidth="2"
           />
           <line
-            x1="50"
+            x1={padding}
             y1={chartTop}
-            x2="50"
+            x2={padding}
             y2={chartBottom}
             stroke={axisColor}
             strokeWidth="2"
@@ -577,18 +577,6 @@ const Chart = memo(({
           )}
         </div>
       </div>
-      {/* Дата под графиком */}
-      <div className="text-xs text-gray-400 dark:text-gray-500 text-center py-1 px-2 h-6">
-        {hoveredDate && (
-          <span>
-            {new Date(hoveredDate.date).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { 
-              day: '2-digit', 
-              month: 'short', 
-              year: 'numeric'
-            })}
-          </span>
-        )}
-      </div>
     </div>
   );
 });
@@ -631,12 +619,12 @@ const SiteCard = memo(({
 
   return (
     <div
-      className="relative bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-700"
+      className="relative bg-white dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700"
       onMouseEnter={onHover}
       onMouseLeave={onHoverLeave}
     >
       {/* Заголовок с доменом */}
-      <div className="px-1.5 pt-1.5 pb-1 mb-2">
+      <div className="px-1 pt-1 pb-0.5 mb-1">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <p className={`text-sm truncate transition-all duration-200 ${
@@ -655,6 +643,15 @@ const SiteCard = memo(({
                 title={siteData.status.name}
               >
                 {siteData.status.name}
+              </span>
+            )}
+            {hoveredDateIndex?.siteId === siteData.id && dailyData[hoveredDateIndex.index] && (
+              <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                {new Date(dailyData[hoveredDateIndex.index].date).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { 
+                  day: '2-digit', 
+                  month: 'short', 
+                  year: 'numeric'
+                })}
               </span>
             )}
           </div>
