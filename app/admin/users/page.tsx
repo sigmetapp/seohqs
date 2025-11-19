@@ -42,7 +42,11 @@ export default function AdminUsersPage() {
       const data = await response.json();
       
       if (data.success && data.user) {
-        if (data.user.email === ADMIN_EMAIL) {
+        // Сравниваем email без учета регистра и пробелов
+        const userEmail = (data.user.email || '').trim().toLowerCase();
+        const adminEmail = ADMIN_EMAIL.trim().toLowerCase();
+        
+        if (userEmail === adminEmail) {
           setAuthorized(true);
           loadUsers();
         } else {
