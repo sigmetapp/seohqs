@@ -697,7 +697,7 @@ export default function SitesPage() {
                           onChange={(e) => setSelectedPeriodAllSites(Number(e.target.value))}
                           className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:outline-none"
                         >
-                          {[7, 30, 90, 180].map((days) => (
+                          {[7, 14, 30, 60, 90].map((days) => (
                             <option key={days} value={days}>
                               {days} {t('sites.days')}
                             </option>
