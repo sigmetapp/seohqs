@@ -130,7 +130,11 @@ export default function Navigation() {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <h1 className="text-xl font-bold text-white dark:text-white text-gray-900">SEO Tools</h1>
+              <Link href="/" className="flex items-center">
+                <h1 className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 dark:from-blue-400 dark:via-blue-300 dark:to-indigo-400 bg-clip-text text-transparent tracking-tight">
+                  seohqs
+                </h1>
+              </Link>
             </div>
             <div className="hidden md:ml-4 md:flex md:space-x-4 lg:space-x-6 md:items-center">
               {navItems.map((item) => {
