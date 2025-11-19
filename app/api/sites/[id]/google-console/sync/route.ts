@@ -3,7 +3,6 @@ import { getSiteById, bulkInsertGoogleSearchConsoleData, getAllGoogleAccounts } 
 import { createSearchConsoleService } from '@/lib/google-search-console';
 import { requireAuth } from '@/lib/middleware-auth';
 import { NextRequest } from 'next/server';
-import { cache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -103,26 +102,6 @@ export async function POST(
     // Сохраняем данные в БД
     // Данные всегда сохраняются за 180 дней (максимальный период)
     await bulkInsertGoogleSearchConsoleData(dataToInsert);
-
-    // Инвалидируем базовый кеш за 180 дней (основной источник данных)
-    cache.delete(`google-console-base-${siteId}`);
-    
-    // Инвалидируем кеш для всех периодов (7, 30, 90, 180 дней)
-    // Эти кеши будут автоматически пересозданы при следующем запросе из базового кеша
-    for (const days of [7, 30, 90, 180]) {
-      cache.delete(`google-console-daily-${siteId}-${days}`);
-    }
-    
-    // Также инвалидируем агрегированные данные для всех аккаунтов и периодов
-    // Используем уже загруженный список аккаунтов
-    for (const days of [7, 30, 90, 180]) {
-      // Очищаем для default (без accountId)
-      cache.delete(`google-console-aggregated-${user.id}-default-${days}`);
-      // Очищаем для всех аккаунтов пользователя
-      for (const account of accounts) {
-        cache.delete(`google-console-aggregated-${user.id}-${account.id}-${days}`);
-      }
-    }
 
     return NextResponse.json({
       success: true,

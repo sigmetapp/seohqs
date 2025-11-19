@@ -4,7 +4,6 @@ import { createSearchConsoleService } from '@/lib/google-search-console';
 import { hasGoogleOAuth } from '@/lib/oauth-utils';
 import { requireAuth } from '@/lib/middleware-auth';
 import { NextRequest } from 'next/server';
-import { cache } from '@/lib/cache';
 import { getPostgresClient } from '@/lib/postgres-client';
 
 export const dynamic = 'force-dynamic';
@@ -34,19 +33,6 @@ export async function GET(request: NextRequest) {
     const tagIds = tagIdsParam ? tagIdsParam.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
     const statusIdsParam = searchParams.get('statusIds');
     const statusIds = statusIdsParam ? statusIdsParam.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
-
-      // Проверяем кеш (кеш на 12 часов, так как данные Google Search Console обновляются раз в сутки)
-      const normalizedTagKey = tagIds.length > 0 ? tagIds.slice().sort((a, b) => a - b).join('-') : 'all';
-      const normalizedStatusKey = statusIds.length > 0 ? statusIds.slice().sort((a, b) => a - b).join('-') : 'all';
-      const cacheKey = `google-console-aggregated-${user.id}-${accountId || 'default'}-${days}-${normalizedTagKey}-${normalizedStatusKey}`;
-    const cachedData = cache.get<any>(cacheKey);
-    if (cachedData) {
-      return NextResponse.json({
-        success: true,
-        sites: cachedData,
-        cached: true,
-      });
-    }
 
     let sites = await getAllSites(user.id);
     
@@ -211,16 +197,11 @@ export async function GET(request: NextRequest) {
         
         // Получаем данные о проиндексированных страницах из Google Search Console API
         // Это стабильные данные, не зависящие от выбранного периода
-        // Используем кеш и делаем запрос неблокирующим (в фоне)
+        // Запрос выполняется в фоне, не блокируя основной ответ
         let indexedPages: number | null = null;
-        const indexedPagesCacheKey = `indexed-pages-${site.id}-${googleConsoleSiteUrl || site.domain}`;
-        const cachedIndexedPages = cache.get<number>(indexedPagesCacheKey);
-        
-        if (cachedIndexedPages !== undefined) {
-          indexedPages = cachedIndexedPages;
-        } else if (hasGoogleConsoleConnection && googleConsoleSiteUrl && isOAuthConfigured) {
+        if (hasGoogleConsoleConnection && googleConsoleSiteUrl && isOAuthConfigured) {
           // Запускаем запрос в фоне, не блокируя основной ответ
-          // Используем более короткий таймаут (5 секунд) и кешируем результат на 24 часа
+          // Используем более короткий таймаут (5 секунд)
           (async () => {
             try {
               const searchConsoleService = createSearchConsoleService(accountId || undefined, user.id);
@@ -244,12 +225,7 @@ export async function GET(request: NextRequest) {
               if (performanceData.rows && performanceData.rows.length > 0) {
                 const uniquePages = new Set(performanceData.rows.map((row: any) => row.keys[0]));
                 const pagesCount = uniquePages.size;
-                // Кешируем на 24 часа
-                cache.set(indexedPagesCacheKey, pagesCount, 24 * 60 * 60 * 1000);
                 console.log(`Получено индексированных страниц для ${site.domain}: ${pagesCount}`);
-              } else {
-                // Кешируем null на 1 час, чтобы не делать повторные запросы
-                cache.set(indexedPagesCacheKey, null, 60 * 60 * 1000);
               }
             } catch (apiError: any) {
               if (apiError?.message === 'Timeout') {
@@ -257,8 +233,6 @@ export async function GET(request: NextRequest) {
               } else {
                 console.warn(`Не удалось получить данные об индексации через API для сайта ${site.domain}:`, apiError?.message || apiError);
               }
-              // Кешируем null на 1 час при ошибке
-              cache.set(indexedPagesCacheKey, null, 60 * 60 * 1000);
             }
           })().catch(err => {
             console.warn(`Ошибка в фоновом запросе indexedPages для ${site.domain}:`, err);
@@ -354,9 +328,6 @@ export async function GET(request: NextRequest) {
       ...site,
       totalPostbacks: postbacksBySite[site.id] || 0
     }));
-    
-    // Сохраняем в кеш на 12 часов (43200000 мс)
-    cache.set(cacheKey, sitesWithPostbacks, 12 * 60 * 60 * 1000);
     
     return NextResponse.json({
       success: true,

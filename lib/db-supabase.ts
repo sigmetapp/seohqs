@@ -772,6 +772,40 @@ export async function bulkInsertGoogleSearchConsoleData(
   }
 }
 
+export async function clearGoogleSearchConsoleData(siteId?: number): Promise<void> {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized');
+  }
+
+  try {
+    if (siteId) {
+      // Очищаем данные для конкретного сайта
+      const { error } = await supabase
+        .from('google_search_console_data')
+        .delete()
+        .eq('site_id', siteId);
+      
+      if (error) {
+        throw new Error(`Supabase delete error: ${error.message}`);
+      }
+      console.log(`Cleared Google Search Console data for site ${siteId}`);
+    } else {
+      // Очищаем все данные
+      const { error } = await supabase
+        .from('google_search_console_data')
+        .delete()
+        .neq('id', 0); // Удаляем все записи
+      
+      if (error) {
+        throw new Error(`Supabase delete error: ${error.message}`);
+      }
+      console.log('Cleared all Google Search Console data');
+    }
+  } catch (error: any) {
+    throw error;
+  }
+}
+
 // Google Accounts functions
 export async function getAllGoogleAccounts(userId: number): Promise<GoogleAccount[]> {
   if (!supabase) {
