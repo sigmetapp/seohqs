@@ -349,76 +349,76 @@ export default function SitesPage() {
 
   // Фильтрация и сортировка сайтов
   const filteredAndSortedSites = useMemo(() => {
-      let result = sites;
+    let result = sites;
 
-      if (selectedTagIds.length > 0) {
-        result = result.filter(site => {
-          const siteTagIds = (site.tags || []).map(t => t.id);
-          return selectedTagIds.some(tagId => siteTagIds.includes(tagId));
-        });
-      }
+    if (selectedTagIds.length > 0) {
+      result = result.filter(site => {
+        const siteTagIds = (site.tags || []).map(t => t.id);
+        return selectedTagIds.some(tagId => siteTagIds.includes(tagId));
+      });
+    }
 
-      if (selectedStatusIds.length > 0) {
-        result = result.filter(site => 
-          site.status && selectedStatusIds.includes(site.status.id)
-        );
-      }
+    if (selectedStatusIds.length > 0) {
+      result = result.filter(site => 
+        site.status && selectedStatusIds.includes(site.status.id)
+      );
+    }
 
-      const normalizedSearch = siteSearchTerm.trim().toLowerCase();
-      if (normalizedSearch) {
-        result = result.filter(site => {
-          const domain = site.domain?.toLowerCase() || '';
-          const name = site.name?.toLowerCase() || '';
-          return domain.includes(normalizedSearch) || name.includes(normalizedSearch);
-        });
-      }
+    const normalizedSearch = siteSearchTerm.trim().toLowerCase();
+    if (normalizedSearch) {
+      result = result.filter(site => {
+        const domain = site.domain?.toLowerCase() || '';
+        const name = site.name?.toLowerCase() || '';
+        return domain.includes(normalizedSearch) || name.includes(normalizedSearch);
+      });
+    }
 
-      // Сортировка
-      if (sortColumn) {
-        result = [...result].sort((a, b) => {
-          let aValue: number | string = 0;
-          let bValue: number | string = 0;
+    // Сортировка
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        let aValue: number | string = 0;
+        let bValue: number | string = 0;
 
-          switch (sortColumn) {
-            case 'tasks':
-              aValue = sitesStats[a.id]?.tasks?.total || 0;
-              bValue = sitesStats[b.id]?.tasks?.total || 0;
-              break;
-            case 'links':
-              aValue = sitesStats[a.id]?.links || 0;
-              bValue = sitesStats[b.id]?.links || 0;
-              break;
-            case 'impressions':
-              const aData = googleConsoleAggregatedData.find(s => s.id === a.id);
-              const bData = googleConsoleAggregatedData.find(s => s.id === b.id);
-              aValue = aData?.totalImpressions || 0;
-              bValue = bData?.totalImpressions || 0;
-              break;
-            case 'clicks':
-              const aDataClicks = googleConsoleAggregatedData.find(s => s.id === a.id);
-              const bDataClicks = googleConsoleAggregatedData.find(s => s.id === b.id);
-              aValue = aDataClicks?.totalClicks || 0;
-              bValue = bDataClicks?.totalClicks || 0;
-              break;
-            case 'postbacks':
-              const aDataPostbacks = googleConsoleAggregatedData.find(s => s.id === a.id);
-              const bDataPostbacks = googleConsoleAggregatedData.find(s => s.id === b.id);
-              aValue = aDataPostbacks?.totalPostbacks || 0;
-              bValue = bDataPostbacks?.totalPostbacks || 0;
-              break;
-            default:
-              return 0;
-          }
+        switch (sortColumn) {
+          case 'tasks':
+            aValue = sitesStats[a.id]?.tasks?.total || 0;
+            bValue = sitesStats[b.id]?.tasks?.total || 0;
+            break;
+          case 'links':
+            aValue = sitesStats[a.id]?.links || 0;
+            bValue = sitesStats[b.id]?.links || 0;
+            break;
+          case 'impressions':
+            const aData = googleConsoleAggregatedData.find(s => s.id === a.id);
+            const bData = googleConsoleAggregatedData.find(s => s.id === b.id);
+            aValue = aData?.totalImpressions || 0;
+            bValue = bData?.totalImpressions || 0;
+            break;
+          case 'clicks':
+            const aDataClicks = googleConsoleAggregatedData.find(s => s.id === a.id);
+            const bDataClicks = googleConsoleAggregatedData.find(s => s.id === b.id);
+            aValue = aDataClicks?.totalClicks || 0;
+            bValue = bDataClicks?.totalClicks || 0;
+            break;
+          case 'postbacks':
+            const aDataPostbacks = googleConsoleAggregatedData.find(s => s.id === a.id);
+            const bDataPostbacks = googleConsoleAggregatedData.find(s => s.id === b.id);
+            aValue = aDataPostbacks?.totalPostbacks || 0;
+            bValue = bDataPostbacks?.totalPostbacks || 0;
+            break;
+          default:
+            return 0;
+        }
 
-          if (typeof aValue === 'number' && typeof bValue === 'number') {
-            return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-          }
-          return 0;
-        });
-      }
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+        }
+        return 0;
+      });
+    }
 
-      return result;
-    }, [sites, selectedTagIds, selectedStatusIds, siteSearchTerm, sortColumn, sortDirection, sitesStats, googleConsoleAggregatedData]);
+    return result;
+  }, [sites, selectedTagIds, selectedStatusIds, siteSearchTerm, sortColumn, sortDirection, sitesStats, googleConsoleAggregatedData]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
