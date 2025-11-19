@@ -297,41 +297,58 @@ const Chart = memo(({
 
   const padding = 50;
   const width = 700;
-  const height = 155;
+  const height = 109; // Уменьшено на 30% (155 * 0.7 = 108.5, округлено до 109)
+  const chartTop = 20;
+  const chartBottom = chartTop + height; // 20 + 109 = 129
   const useSmooth = chartStyle === 'smooth' || chartStyle === 'google-console';
   const tension = chartStyle === 'smooth' ? 0.7 : 0.5;
+
+  // Определяем границы дней для разделителей
+  const dayBoundaries = useMemo(() => {
+    const boundaries: number[] = [];
+    for (let i = 1; i < dailyData.length; i++) {
+      const prevDate = new Date(dailyData[i - 1].date);
+      const currDate = new Date(dailyData[i].date);
+      if (prevDate.getDate() !== currDate.getDate() || 
+          prevDate.getMonth() !== currDate.getMonth() || 
+          prevDate.getFullYear() !== currDate.getFullYear()) {
+        boundaries.push(i);
+      }
+    }
+    return boundaries;
+  }, [dailyData]);
 
   // Подготовка точек для всех метрик
   const divisor = Math.max(dailyData.length - 1, 1);
   const impressionsPoints = dailyData.map((item, index) => ({
     x: padding + (index / divisor) * width,
-    y: 175 - (item.impressions / maxImpressions) * height,
+    y: chartBottom - (item.impressions / maxImpressions) * height,
   }));
 
   const clicksPoints = dailyData.map((item, index) => ({
     x: padding + (index / divisor) * width,
-    y: 175 - (item.clicks / maxClicks) * height,
+    y: chartBottom - (item.clicks / maxClicks) * height,
   }));
 
   const positionsPoints = dailyData.map((item, index) => ({
     x: padding + (index / divisor) * width,
-    y: 175 - (item.position / maxPosition) * height,
+    y: chartBottom - (item.position / maxPosition) * height,
   }));
 
   // Создаем пути для градиентов
   const createGradientPath = (points: Array<{ x: number; y: number }>) => {
     if (useSmooth) {
       const smoothPath = createSmoothPath(points, tension);
-      return `${smoothPath} L ${points[points.length - 1].x} 175 L ${points[0].x} 175 Z`;
+      return `${smoothPath} L ${points[points.length - 1].x} ${chartBottom} L ${points[0].x} ${chartBottom} Z`;
     } else {
-      return `M ${points[0].x} ${points[0].y} ${points.map(p => `L ${p.x} ${p.y}`).join(' ')} L ${points[points.length - 1].x} 175 L ${points[0].x} 175 Z`;
+      return `M ${points[0].x} ${points[0].y} ${points.map(p => `L ${p.x} ${p.y}`).join(' ')} L ${points[points.length - 1].x} ${chartBottom} L ${points[0].x} ${chartBottom} Z`;
     }
   };
 
   return (
     <div className="relative w-full">
-      <div className="h-64 relative w-full">
-        <svg width="100%" height="100%" viewBox="0 0 800 200" preserveAspectRatio="none" className="overflow-visible">
+      <div className="relative w-full" style={{ height: '180px' }}>
+        <svg width="100%" height="100%" viewBox="0 0 800 150" preserveAspectRatio="none" className="overflow-visible">
           <defs>
             <linearGradient id={`impressionsGradient-${siteId}`} x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor={styleConfig.impressions.color} stopOpacity={styleConfig.impressions.gradientOpacity} />
@@ -352,9 +369,9 @@ const Chart = memo(({
             <line
               key={`grid-h-${i}`}
               x1="50"
-              y1={20 + (i * 35)}
+              y1={chartTop + (i * (height / 4))}
               x2="750"
-              y2={20 + (i * 35)}
+              y2={chartTop + (i * (height / 4))}
               stroke={gridColor}
               strokeWidth="0.5"
               opacity="0.3"
@@ -364,29 +381,52 @@ const Chart = memo(({
           {/* Оси */}
           <line
             x1="50"
-            y1="175"
+            y1={chartBottom}
             x2="750"
-            y2="175"
+            y2={chartBottom}
             stroke={axisColor}
             strokeWidth="2"
           />
           <line
             x1="50"
-            y1="20"
+            y1={chartTop}
             x2="50"
-            y2="175"
+            y2={chartBottom}
             stroke={axisColor}
             strokeWidth="2"
           />
+          
+          {/* Разделители по дням (видимы только при hover) */}
+          {dayBoundaries.map((boundaryIndex) => {
+            const x = dailyData.length > 1 
+              ? padding + (boundaryIndex / divisor) * width
+              : padding + width / 2;
+            const isHovered = hoveredDateIndex?.siteId === siteId && 
+              (hoveredDateIndex?.index === boundaryIndex || hoveredDateIndex?.index === boundaryIndex - 1);
+            
+            return (
+              <line
+                key={`day-divider-${boundaryIndex}`}
+                x1={x}
+                y1={chartTop}
+                x2={x}
+                y2={chartBottom}
+                stroke={axisColor}
+                strokeWidth="1"
+                opacity={isHovered ? "0.4" : "0"}
+                className="transition-opacity duration-200"
+              />
+            );
+          })}
           
           {/* Данные */}
           {dailyData.map((item, index) => {
             const x = dailyData.length > 1 
               ? padding + (index / divisor) * width
               : padding + width / 2;
-            const impressionsY = 175 - (item.impressions / maxImpressions) * height;
-            const clicksY = 175 - (item.clicks / maxClicks) * height;
-            const positionY = 175 - (item.position / maxPosition) * height;
+            const impressionsY = chartBottom - (item.impressions / maxImpressions) * height;
+            const clicksY = chartBottom - (item.clicks / maxClicks) * height;
+            const positionY = chartBottom - (item.position / maxPosition) * height;
             const isHoveredPoint = hoveredDateIndex?.siteId === siteId && hoveredDateIndex?.index === index;
             
             return (
@@ -398,107 +438,22 @@ const Chart = memo(({
               >
                 <rect
                   x={x - 20}
-                  y={20}
+                  y={chartTop}
                   width={40}
-                  height={155}
+                  height={height}
                   fill="transparent"
                 />
                 
                 {isHoveredPoint && (
-                  <>
-                    <line
-                      x1={x}
-                      y1={20}
-                      x2={x}
-                      y2={175}
-                      stroke="#60a5fa"
-                      strokeWidth="2"
-                      opacity="0.6"
-                    />
-                    <circle
-                      cx={x}
-                      cy={175}
-                      r="5"
-                      fill="#60a5fa"
-                    />
-                  </>
-                )}
-                
-                {showImpressions && styleConfig.impressions.pointRadius > 0 && (
-                  <circle
-                    cx={x}
-                    cy={impressionsY}
-                    r={isHoveredPoint ? styleConfig.impressions.pointRadiusHover : styleConfig.impressions.pointRadius}
-                    fill={styleConfig.impressions.color}
-                    stroke={styleConfig.impressions.color}
-                    strokeWidth={isHoveredPoint ? "2.5" : "1.5"}
-                    className="transition-all duration-200"
-                    style={{ cursor: 'pointer', filter: isHoveredPoint ? `drop-shadow(0 0 6px ${styleConfig.impressions.color}90)` : `drop-shadow(0 0 2px ${styleConfig.impressions.color}50)` }}
+                  <line
+                    x1={x}
+                    y1={chartTop}
+                    x2={x}
+                    y2={chartBottom}
+                    stroke="#60a5fa"
+                    strokeWidth="2"
+                    opacity="0.6"
                   />
-                )}
-                {showClicks && styleConfig.clicks.pointRadius > 0 && (
-                  <circle
-                    cx={x}
-                    cy={clicksY}
-                    r={isHoveredPoint ? styleConfig.clicks.pointRadiusHover : styleConfig.clicks.pointRadius}
-                    fill={styleConfig.clicks.color}
-                    stroke={styleConfig.clicks.color}
-                    strokeWidth={isHoveredPoint ? "2.5" : "1.5"}
-                    className="transition-all duration-200"
-                    style={{ cursor: 'pointer', filter: isHoveredPoint ? `drop-shadow(0 0 6px ${styleConfig.clicks.color}90)` : `drop-shadow(0 0 2px ${styleConfig.clicks.color}50)` }}
-                  />
-                )}
-                {showPositions && styleConfig.positions.pointRadius > 0 && (
-                  <circle
-                    cx={x}
-                    cy={positionY}
-                    r={isHoveredPoint ? styleConfig.positions.pointRadiusHover : styleConfig.positions.pointRadius}
-                    fill={styleConfig.positions.color}
-                    stroke={styleConfig.positions.color}
-                    strokeWidth={isHoveredPoint ? "2.5" : "1.5"}
-                    className="transition-all duration-200"
-                    style={{ cursor: 'pointer', filter: isHoveredPoint ? `drop-shadow(0 0 6px ${styleConfig.positions.color}90)` : `drop-shadow(0 0 2px ${styleConfig.positions.color}50)` }}
-                  />
-                )}
-                {chartStyle === 'smooth' && isHoveredPoint && (
-                  <>
-                    {showImpressions && (
-                      <circle
-                        cx={x}
-                        cy={impressionsY}
-                        r={styleConfig.impressions.pointRadiusHover}
-                        fill={styleConfig.impressions.color}
-                        stroke="white"
-                        strokeWidth="2"
-                        className="transition-all duration-200"
-                        style={{ cursor: 'pointer', filter: `drop-shadow(0 0 6px ${styleConfig.impressions.color}90)` }}
-                      />
-                    )}
-                    {showClicks && (
-                      <circle
-                        cx={x}
-                        cy={clicksY}
-                        r={styleConfig.clicks.pointRadiusHover}
-                        fill={styleConfig.clicks.color}
-                        stroke="white"
-                        strokeWidth="2"
-                        className="transition-all duration-200"
-                        style={{ cursor: 'pointer', filter: `drop-shadow(0 0 6px ${styleConfig.clicks.color}90)` }}
-                      />
-                    )}
-                    {showPositions && (
-                      <circle
-                        cx={x}
-                        cy={positionY}
-                        r={styleConfig.positions.pointRadiusHover}
-                        fill={styleConfig.positions.color}
-                        stroke="white"
-                        strokeWidth="2"
-                        className="transition-all duration-200"
-                        style={{ cursor: 'pointer', filter: `drop-shadow(0 0 6px ${styleConfig.positions.color}90)` }}
-                      />
-                    )}
-                  </>
                 )}
               </g>
             );
@@ -716,7 +671,7 @@ const SiteCard = memo(({
 
       {/* График */}
       {isLoading ? (
-        <div className="h-64 flex items-center justify-center text-gray-600 dark:text-gray-400 text-sm">
+        <div className="flex items-center justify-center text-gray-600 dark:text-gray-400 text-sm" style={{ height: '180px' }}>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 border-2 border-blue-600 dark:border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             <span>{t('dashboardGc.loadingData')}</span>
@@ -736,7 +691,7 @@ const SiteCard = memo(({
           language={language}
         />
       ) : (
-        <div className="h-64 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
+        <div className="flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm" style={{ height: '180px' }}>
           <div className="text-center">
             <div className="text-gray-600 dark:text-gray-400 mb-1">{t('dashboardGc.noData')}</div>
             <div className="text-xs text-gray-400 dark:text-gray-500">{t('dashboardGc.noDataPeriod')}</div>
@@ -815,7 +770,7 @@ const LazySiteCard = memo(({
   if (!isVisible) {
     return (
       <div ref={cardRef} className="relative" style={{ minHeight: '300px' }}>
-        <div className="h-64 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
+        <div className="flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm" style={{ height: '180px' }}>
           <div className="text-center">
             <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
             <div className="text-xs text-gray-400 dark:text-gray-500">{t('dashboardGc.loading')}</div>
