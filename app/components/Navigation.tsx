@@ -145,6 +145,12 @@ export default function Navigation() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={(e) => {
+                      if (!user && !loading) {
+                        e.preventDefault();
+                        window.location.href = '/login';
+                      }
+                    }}
                     className={`inline-flex items-center px-2 pt-1 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${
                       isActive
                         ? 'border-blue-500 text-blue-600 dark:text-blue-400'
@@ -159,7 +165,13 @@ export default function Navigation() {
               {/* Tools dropdown - fixed alignment */}
               <div className="relative" ref={toolsDropdownRef}>
                 <button
-                  onClick={() => setShowToolsDropdown(!showToolsDropdown)}
+                  onClick={() => {
+                    if (!user && !loading) {
+                      window.location.href = '/login';
+                      return;
+                    }
+                    setShowToolsDropdown(!showToolsDropdown);
+                  }}
                   className={`inline-flex items-center px-2 pt-1 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${
                     pathname === '/indexing'
                       ? 'border-blue-500 text-blue-600 dark:text-blue-400'
@@ -181,7 +193,14 @@ export default function Navigation() {
                   <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
                     <Link
                       href="/indexing"
-                      onClick={() => setShowToolsDropdown(false)}
+                      onClick={(e) => {
+                        if (!user && !loading) {
+                          e.preventDefault();
+                          window.location.href = '/login';
+                          return;
+                        }
+                        setShowToolsDropdown(false);
+                      }}
                       className={`block px-4 py-2 text-sm transition-colors ${
                         pathname === '/indexing'
                           ? 'bg-gray-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400'
@@ -293,6 +312,12 @@ export default function Navigation() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={(e) => {
+                  if (!user && !loading) {
+                    e.preventDefault();
+                    window.location.href = '/login';
+                  }
+                }}
                 className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium transition-colors ${
                   isActive
                     ? 'bg-gray-100 dark:bg-gray-900 border-blue-500 text-blue-600 dark:text-blue-400'
@@ -311,6 +336,12 @@ export default function Navigation() {
             </div>
             <Link
               href="/indexing"
+              onClick={(e) => {
+                if (!user && !loading) {
+                  e.preventDefault();
+                  window.location.href = '/login';
+                }
+              }}
               className={`block pl-6 pr-4 py-2 border-l-4 text-sm font-medium transition-colors ${
                 pathname === '/indexing'
                   ? 'bg-gray-100 dark:bg-gray-900 border-blue-500 text-blue-600 dark:text-blue-400'
