@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getSupabaseAuthUserId, getGSCIntegration, deleteGSCIntegration } from '@/lib/gsc-integrations';
+import { getSupabaseAuthUserId, getGSCIntegration, deleteGSCIntegration, getGSCSites } from '@/lib/gsc-integrations';
 import { requireAuth } from '@/lib/middleware-auth';
-import { getAllGoogleAccounts, deleteGoogleAccount } from '@/lib/db-adapter';
+import { getAllGoogleAccounts, deleteGoogleAccount, getAllSites } from '@/lib/db-adapter';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -29,7 +29,36 @@ export async function GET(request: NextRequest) {
       updated_at: string;
       source: 'supabase' | 'jwt';
       accountId?: number; // For JWT accounts, the numeric ID
+      hasSites?: boolean; // Whether this account has sites in the database
+      sitesCount?: number; // Number of sites associated with this account
+      gscSitesCount?: number; // Number of sites in GSC for this integration
+      gscSitesMatchedCount?: number; // Number of GSC sites that match user's sites
     }> = [];
+
+    // Get user's sites (sites in the database)
+    let userSites: any[] = [];
+    try {
+      userSites = await getAllSites(authResult.user.id);
+    } catch (sitesError: any) {
+      console.debug('[GSC Integration] Error fetching user sites:', sitesError?.message);
+    }
+    const userSitesCount = userSites.length;
+
+    // Helper function to normalize domain
+    const normalizeDomain = (domain: string): string => {
+      return domain.toLowerCase().trim().replace(/^www\./, '').replace(/^https?:\/\//, '').split('/')[0];
+    };
+
+    // Helper function to check if GSC site URL matches user site domain
+    const matchesUserSite = (gscSiteUrl: string): boolean => {
+      const gscDomain = normalizeDomain(gscSiteUrl.replace(/^sc-domain:/, ''));
+      return userSites.some(site => {
+        const siteDomain = normalizeDomain(site.domain);
+        return siteDomain === gscDomain || 
+               siteDomain === `www.${gscDomain}` || 
+               `www.${siteDomain}` === gscDomain;
+      });
+    };
 
     // Get Supabase Auth user ID
     const supabaseAuthUserId = await getSupabaseAuthUserId(request);
@@ -39,6 +68,24 @@ export async function GET(request: NextRequest) {
       const integration = await getGSCIntegration(supabaseAuthUserId);
       
       if (integration) {
+        // Check GSC sites for this integration
+        let gscSitesCount = 0;
+        let gscSitesMatchedCount = 0;
+        try {
+          const gscSites = await getGSCSites(integration.id);
+          gscSitesCount = gscSites.length;
+          // Count how many GSC sites match user's sites
+          gscSitesMatchedCount = gscSites.filter(site => matchesUserSite(site.site_url)).length;
+        } catch (gscSitesError: any) {
+          console.debug('[GSC Integration] Error fetching GSC sites:', gscSitesError?.message);
+        }
+
+        // Account has sites if:
+        // 1. User has sites in database (sites were submitted to the database)
+        // 2. OR has GSC sites that match user's sites (connection exists)
+        // 3. OR has any GSC sites (at least some connection)
+        const hasSites = userSitesCount > 0 || gscSitesMatchedCount > 0 || gscSitesCount > 0;
+
         allAccounts.push({
           id: integration.id,
           google_email: integration.google_email,
@@ -46,6 +93,11 @@ export async function GET(request: NextRequest) {
           created_at: integration.created_at,
           updated_at: integration.updated_at,
           source: 'supabase',
+          hasSites,
+          sitesCount: userSitesCount,
+          gscSitesCount,
+          // Also include matched count for better info
+          gscSitesMatchedCount: gscSitesMatchedCount,
         });
       }
     }
@@ -66,6 +118,9 @@ export async function GET(request: NextRequest) {
           updated_at: acc.updatedAt,
           source: 'jwt' as const,
           accountId: acc.id, // Store the numeric ID for deletion
+          hasSites: userSitesCount > 0, // JWT accounts have sites if user has sites
+          sitesCount: userSitesCount,
+          gscSitesCount: 0, // JWT accounts don't have gsc_sites table
         }));
       
       allAccounts.push(...connectedAccounts);
@@ -74,11 +129,17 @@ export async function GET(request: NextRequest) {
       console.debug('[GSC Integration] Fallback to google_accounts failed:', fallbackError?.message);
     }
 
+    // Filter accounts that have sites (if user wants to see only accounts with sites)
+    // For now, we'll return all accounts but mark which ones have sites
+    // The frontend can filter if needed
+    const accountsWithSites = allAccounts.filter(acc => acc.hasSites);
+
     // Return all accounts
     return NextResponse.json({
       success: true,
       connected: allAccounts.length > 0,
       accounts: allAccounts,
+      accountsWithSites: accountsWithSites, // Accounts that have sites
       // For backward compatibility, also return the first account as "integration"
       integration: allAccounts.length > 0 ? allAccounts[0] : null,
     });

@@ -22,17 +22,23 @@ interface GSCAccount {
   updated_at: string;
   source: 'supabase' | 'jwt';
   accountId?: number;
+  hasSites?: boolean;
+  sitesCount?: number;
+  gscSitesCount?: number;
+  gscSitesMatchedCount?: number;
 }
 
 export default function IntegrationsPage() {
   const { t } = useI18n();
   const [gscIntegration, setGscIntegration] = useState<GSCIntegration | null>(null);
   const [gscAccounts, setGscAccounts] = useState<GSCAccount[]>([]);
+  const [gscAccountsWithSites, setGscAccountsWithSites] = useState<GSCAccount[]>([]);
   const [gscLoading, setGscLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
   const [showDebug, setShowDebug] = useState(false);
   const [userId, setUserId] = useState<string | number | null>(null);
+  const [showOnlyWithSites, setShowOnlyWithSites] = useState(true); // По умолчанию показываем только аккаунты с сайтами
 
   const addDebugInfo = (info: DebugInfo) => {
     setDebugInfo(prev => [...prev.slice(-49), info]); // Keep last 50 entries
@@ -111,6 +117,18 @@ export default function IntegrationsPage() {
           setGscAccounts([]);
         }
 
+        // Set accounts with sites
+        if (data.accountsWithSites && Array.isArray(data.accountsWithSites)) {
+          setGscAccountsWithSites(data.accountsWithSites);
+          addDebugInfo({
+            timestamp: new Date().toISOString(),
+            type: 'info',
+            message: `Found ${data.accountsWithSites.length} GSC account(s) with sites: ${data.accountsWithSites.map((a: GSCAccount) => `${a.google_email} (${a.sitesCount || 0} sites)`).join(', ')}`,
+          });
+        } else {
+          setGscAccountsWithSites([]);
+        }
+
         // Set integration for backward compatibility (first account)
         if (data.connected && data.integration) {
           setGscIntegration(data.integration);
@@ -134,6 +152,7 @@ export default function IntegrationsPage() {
         });
         setGscIntegration(null);
         setGscAccounts([]);
+        setGscAccountsWithSites([]);
       }
     } catch (err: any) {
       console.error('Error loading GSC integration:', err);
@@ -145,6 +164,8 @@ export default function IntegrationsPage() {
         message: 'Exception while loading GSC integration',
       });
       setGscIntegration(null);
+      setGscAccounts([]);
+      setGscAccountsWithSites([]);
     } finally {
       setGscLoading(false);
     }
@@ -452,6 +473,9 @@ export default function IntegrationsPage() {
                 <div className="text-blue-400">
                   <strong>GSC Integration:</strong> {gscAccounts.length > 0 ? `✅ ${gscAccounts.length} connected` : '❌ Not connected'}
                 </div>
+                <div className="text-green-400">
+                  <strong>Accounts with Sites:</strong> {gscAccountsWithSites.length > 0 ? `✅ ${gscAccountsWithSites.length}` : '❌ None'}
+                </div>
               </div>
               {gscAccounts.length > 0 && (
                 <div className="text-purple-400 mb-2 p-2 bg-purple-900/20 rounded border border-purple-700">
@@ -462,6 +486,12 @@ export default function IntegrationsPage() {
                         <div>Email: {account.google_email}</div>
                         <div>Source: {account.source}</div>
                         <div>Created: {new Date(account.created_at).toLocaleString()}</div>
+                        {account.hasSites && (
+                          <div className="text-green-400">
+                            ✅ Has Sites: {account.sitesCount || 0} sites
+                            {account.gscSitesCount !== undefined && account.gscSitesCount > 0 && `, ${account.gscSitesCount} GSC sites`}
+                          </div>
+                        )}
                         {idx === 0 && <div className="text-green-400">⭐ Active (Primary)</div>}
                       </div>
                     ))}
@@ -556,27 +586,45 @@ export default function IntegrationsPage() {
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
                 <span>{t('integrations.gscLoading')}</span>
               </div>
-            ) : gscAccounts.length > 0 ? (
+            ) : (showOnlyWithSites ? gscAccountsWithSites : gscAccounts).length > 0 ? (
               <div className="space-y-4">
-                {/* Reset All and Clear All Sites Buttons */}
-                <div className="flex justify-end gap-3 mb-4">
-                  <button
-                    onClick={handleClearAllSites}
-                    className="px-6 py-3 bg-orange-600 hover:bg-orange-700 rounded-lg text-base font-medium transition-all duration-200 text-white shadow-md hover:shadow-lg transform hover:scale-105"
-                    title="Очистить все сайты"
-                  >
-                    Очистить все сайты
-                  </button>
-                  <button
-                    onClick={handleResetAllIntegrations}
-                    className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg text-base font-medium transition-all duration-200 text-white shadow-md hover:shadow-lg transform hover:scale-105"
-                    title={t('integrations.resetAll')}
-                  >
-                    {t('integrations.resetAll')}
-                  </button>
+                {/* Filter Toggle and Action Buttons */}
+                <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={showOnlyWithSites}
+                        onChange={(e) => setShowOnlyWithSites(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Показать только аккаунты с сайтами
+                      </span>
+                    </label>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      ({showOnlyWithSites ? gscAccountsWithSites.length : gscAccounts.length} из {gscAccounts.length})
+                    </span>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleClearAllSites}
+                      className="px-6 py-3 bg-orange-600 hover:bg-orange-700 rounded-lg text-base font-medium transition-all duration-200 text-white shadow-md hover:shadow-lg transform hover:scale-105"
+                      title="Очистить все сайты"
+                    >
+                      Очистить все сайты
+                    </button>
+                    <button
+                      onClick={handleResetAllIntegrations}
+                      className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg text-base font-medium transition-all duration-200 text-white shadow-md hover:shadow-lg transform hover:scale-105"
+                      title={t('integrations.resetAll')}
+                    >
+                      {t('integrations.resetAll')}
+                    </button>
+                  </div>
                 </div>
                 {/* Connected Accounts List */}
-                {gscAccounts.map((account, index) => (
+                {(showOnlyWithSites ? gscAccountsWithSites : gscAccounts).map((account, index) => (
                   <div
                     key={account.id}
                     className={`bg-white dark:bg-gray-700 rounded-xl p-6 border-2 ${
@@ -605,6 +653,24 @@ export default function IntegrationsPage() {
                           <div className="text-sm text-gray-600 dark:text-gray-400">
                             Connected: {new Date(account.created_at).toLocaleString()}
                           </div>
+                          {/* Show sites count if available */}
+                          {(account.sitesCount !== undefined || account.gscSitesCount !== undefined) && (
+                            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              {account.sitesCount !== undefined && account.sitesCount > 0 && (
+                                <span className="inline-block mr-3">
+                                  📊 Сайтов в базе: <strong className="text-blue-600 dark:text-blue-400">{account.sitesCount}</strong>
+                                </span>
+                              )}
+                              {account.gscSitesCount !== undefined && account.gscSitesCount > 0 && (
+                                <span className="inline-block">
+                                  🔍 Сайтов в GSC: <strong className="text-green-600 dark:text-green-400">{account.gscSitesCount}</strong>
+                                  {account.gscSitesMatchedCount !== undefined && account.gscSitesMatchedCount > 0 && (
+                                    <span className="ml-1 text-xs">({account.gscSitesMatchedCount} совпадают)</span>
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <button
@@ -617,6 +683,14 @@ export default function IntegrationsPage() {
                     </div>
                   </div>
                 ))}
+                {/* Show message if filtering and no accounts match */}
+                {showOnlyWithSites && gscAccountsWithSites.length === 0 && gscAccounts.length > 0 && (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-center">
+                    <div className="text-sm text-gray-700 dark:text-gray-300">
+                      Нет аккаунтов с сайтами. Отключите фильтр, чтобы увидеть все подключенные аккаунты.
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
