@@ -1798,7 +1798,7 @@ export default function SiteDetailPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('sites.description')}
+                    {t('sites.descriptionLabel')}
                   </label>
                   <textarea
                     value={taskForm.description}
@@ -1897,7 +1897,7 @@ export default function SiteDetailPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('sites.tags')}
+                    {t('sites.tagsLabel')}
                   </label>
                   <input
                     type="text"
