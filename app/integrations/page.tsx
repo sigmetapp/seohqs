@@ -14,9 +14,20 @@ interface DebugInfo {
   message?: string;
 }
 
+interface GSCAccount {
+  id: string;
+  google_email: string;
+  google_user_id: string;
+  created_at: string;
+  updated_at: string;
+  source: 'supabase' | 'jwt';
+  accountId?: number;
+}
+
 export default function IntegrationsPage() {
   const { t } = useI18n();
   const [gscIntegration, setGscIntegration] = useState<GSCIntegration | null>(null);
+  const [gscAccounts, setGscAccounts] = useState<GSCAccount[]>([]);
   const [gscLoading, setGscLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
@@ -81,26 +92,37 @@ export default function IntegrationsPage() {
           success: data.success,
           connected: data.connected,
           hasIntegration: !!data.integration,
+          accountsCount: data.accounts?.length || 0,
           integrationEmail: data.integration?.google_email,
           error: data.error,
         },
       });
 
       if (data.success) {
-        if (data.connected && data.integration) {
-          setGscIntegration(data.integration);
+        // Set accounts array (all connected accounts)
+        if (data.accounts && Array.isArray(data.accounts)) {
+          setGscAccounts(data.accounts);
           addDebugInfo({
             timestamp: new Date().toISOString(),
             type: 'info',
-            message: `GSC integration connected: ${data.integration.google_email}`,
+            message: `Found ${data.accounts.length} GSC account(s): ${data.accounts.map((a: GSCAccount) => a.google_email).join(', ')}`,
           });
         } else {
+          setGscAccounts([]);
+        }
+
+        // Set integration for backward compatibility (first account)
+        if (data.connected && data.integration) {
+          setGscIntegration(data.integration);
+        } else {
           setGscIntegration(null);
-          addDebugInfo({
-            timestamp: new Date().toISOString(),
-            type: 'info',
-            message: 'GSC integration not connected',
-          });
+          if (data.accounts && data.accounts.length === 0) {
+            addDebugInfo({
+              timestamp: new Date().toISOString(),
+              type: 'info',
+              message: 'GSC integration not connected',
+            });
+          }
         }
       } else {
         addDebugInfo({
@@ -111,6 +133,7 @@ export default function IntegrationsPage() {
           message: 'Failed to load GSC integration',
         });
         setGscIntegration(null);
+        setGscAccounts([]);
       }
     } catch (err: any) {
       console.error('Error loading GSC integration:', err);
@@ -181,26 +204,38 @@ export default function IntegrationsPage() {
     loadUserId();
   }, []);
 
-  const handleDisconnectGSC = async () => {
-    if (!confirm(t('integrations.gscDisconnectConfirm'))) {
+  const handleDisconnectGSC = async (account?: GSCAccount) => {
+    const accountEmail = account?.google_email || 'this account';
+    if (!confirm(`Are you sure you want to disconnect ${accountEmail}?`)) {
       return;
     }
 
     try {
-      const response = await fetch('/api/gsc-integration', {
+      let url = '/api/gsc-integration';
+      if (account) {
+        // Delete specific account
+        if (account.source === 'jwt' && account.accountId) {
+          url += `?accountId=${account.accountId}`;
+        } else if (account.source === 'supabase') {
+          url += `?accountUuid=${account.id}`;
+        }
+      }
+
+      const response = await fetch(url, {
         method: 'DELETE',
       });
       const data = await response.json();
       if (data.success) {
-        setMessage({ type: 'success', text: t('integrations.gscDisconnectedSuccess') });
+        setMessage({ type: 'success', text: `Account ${accountEmail} disconnected successfully` });
         setTimeout(() => setMessage(null), 3000);
-        setGscIntegration(null);
+        // Reload accounts
+        loadGSCIntegration();
       } else {
-        setMessage({ type: 'error', text: data.error || t('integrations.gscDisconnectError') });
+        setMessage({ type: 'error', text: data.error || 'Failed to disconnect account' });
       }
     } catch (err) {
       console.error('Error disconnecting GSC:', err);
-      setMessage({ type: 'error', text: t('integrations.gscDisconnectError') });
+      setMessage({ type: 'error', text: 'Failed to disconnect account' });
     }
   };
 
@@ -310,16 +345,21 @@ export default function IntegrationsPage() {
                   <strong>Loading:</strong> {gscLoading ? 'Yes' : 'No'}
                 </div>
                 <div className="text-blue-400">
-                  <strong>GSC Integration:</strong> {gscIntegration ? `✅ Connected` : '❌ Not connected'}
+                  <strong>GSC Integration:</strong> {gscAccounts.length > 0 ? `✅ ${gscAccounts.length} connected` : '❌ Not connected'}
                 </div>
               </div>
-              {gscIntegration && (
+              {gscAccounts.length > 0 && (
                 <div className="text-purple-400 mb-2 p-2 bg-purple-900/20 rounded border border-purple-700">
-                  <strong>GSC Details:</strong>
-                  <div className="mt-1 text-xs">
-                    <div>Email: {gscIntegration.google_email}</div>
-                    <div>User ID: {gscIntegration.google_user_id}</div>
-                    <div>Created: {new Date(gscIntegration.created_at).toLocaleString()}</div>
+                  <strong>GSC Accounts ({gscAccounts.length}):</strong>
+                  <div className="mt-1 text-xs space-y-1">
+                    {gscAccounts.map((account, idx) => (
+                      <div key={account.id} className="border-l-2 border-purple-600 pl-2">
+                        <div>Email: {account.google_email}</div>
+                        <div>Source: {account.source}</div>
+                        <div>Created: {new Date(account.created_at).toLocaleString()}</div>
+                        {idx === 0 && <div className="text-green-400">⭐ Active (Primary)</div>}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -411,31 +451,50 @@ export default function IntegrationsPage() {
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
                 <span>{t('integrations.gscLoading')}</span>
               </div>
-            ) : gscIntegration ? (
+            ) : gscAccounts.length > 0 ? (
               <div className="space-y-4">
-                {/* Connected State */}
-                <div className="bg-white dark:bg-gray-700 rounded-xl p-6 border-2 border-green-200 dark:border-green-800 shadow-md">
-                  <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="text-3xl">✅</div>
-                      <div>
-                        <div className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                          {t('integrations.gscConnectedAccount')}: {gscIntegration.google_email}
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          {t('integrations.gscConnectedAt')}: {new Date(gscIntegration.created_at).toLocaleString()}
+                {/* Connected Accounts List */}
+                {gscAccounts.map((account, index) => (
+                  <div
+                    key={account.id}
+                    className={`bg-white dark:bg-gray-700 rounded-xl p-6 border-2 ${
+                      index === 0
+                        ? 'border-green-200 dark:border-green-800'
+                        : 'border-blue-200 dark:border-blue-800'
+                    } shadow-md`}
+                  >
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="text-3xl">{index === 0 ? '✅' : '🔗'}</div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                              {account.google_email}
+                            </div>
+                            {index === 0 && (
+                              <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs font-medium rounded">
+                                Active
+                              </span>
+                            )}
+                            <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium rounded">
+                              {account.source === 'supabase' ? 'Supabase Auth' : 'JWT Auth'}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">
+                            Connected: {new Date(account.created_at).toLocaleString()}
+                          </div>
                         </div>
                       </div>
+                      <button
+                        onClick={() => handleDisconnectGSC(account)}
+                        className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg text-base font-medium transition-all duration-200 text-white shadow-md hover:shadow-lg transform hover:scale-105"
+                        title={`Disconnect ${account.google_email}`}
+                      >
+                        {t('integrations.gscDisconnect')}
+                      </button>
                     </div>
-                    <button
-                      onClick={handleDisconnectGSC}
-                      className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg text-base font-medium transition-all duration-200 text-white shadow-md hover:shadow-lg transform hover:scale-105"
-                      title={t('integrations.gscDisconnectTitle')}
-                    >
-                      {t('integrations.gscDisconnect')}
-                    </button>
                   </div>
-                </div>
+                ))}
               </div>
             ) : (
               <div className="space-y-4">
