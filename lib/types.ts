@@ -143,6 +143,29 @@ export interface GoogleAccount {
   updatedAt: string;
 }
 
+// Типы для Google Search Console интеграций (Supabase Auth)
+export interface GSCIntegration {
+  id: string; // UUID
+  user_id: string; // UUID from auth.users
+  google_email: string;
+  google_user_id: string;
+  access_token: string | null;
+  refresh_token: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Типы для Google Search Console сайтов
+export interface GSCSite {
+  id: string; // UUID
+  integration_id: string; // UUID from gsc_integrations
+  site_url: string;
+  permission: string | null;
+  fetched_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Типы для задач сайтов
 export interface SiteTask {
   id: number;
