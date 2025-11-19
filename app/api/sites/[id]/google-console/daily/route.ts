@@ -144,9 +144,9 @@ export async function GET(
     const endDateNormalized = new Date(endDate);
     endDateNormalized.setHours(23, 59, 59, 999);
 
-    // Всегда загружаем данные напрямую из БД за 180 дней (максимальный период)
+    // Всегда загружаем данные напрямую из БД за 360 дней (максимальный период)
     // Затем фильтруем по запрошенному периоду
-    const baseDays = 180; // Всегда загружаем 180 дней из БД
+    const baseDays = 360; // Всегда загружаем 360 дней из БД
     const baseEndDate = new Date();
     baseEndDate.setHours(23, 59, 59, 999);
     const baseStartDate = new Date();
@@ -154,7 +154,7 @@ export async function GET(
     baseStartDate.setHours(0, 0, 0, 0);
 
     // Загружаем данные напрямую из БД с фильтрацией по дате
-    const limit = Math.max(baseDays * 3, 2000); // Минимум 2000 записей для 180 дней
+    const limit = Math.max(baseDays * 3, 4000); // Минимум 4000 записей для 360 дней
     
     console.log(`[Google Console Daily] Loading data from DB for site ${siteId}, date range: ${baseStartDate.toISOString().split('T')[0]} - ${baseEndDate.toISOString().split('T')[0]}, limit: ${limit}`);
     const allData = await loadGoogleConsoleDataFromDB(siteId, baseStartDate, baseEndDate, limit);

@@ -29,13 +29,13 @@ export async function POST(request: NextRequest) {
     
     for (const site of sites) {
       // Очищаем кеш daily данных для всех периодов
-      for (const days of [7, 30, 90, 180]) {
+      for (const days of [180, 360]) {
         cache.delete(`google-console-daily-${site.id}-${days}`);
       }
     }
     
     // Очищаем кеш агрегированных данных для всех периодов и аккаунтов
-    for (const days of [7, 30, 90, 180]) {
+    for (const days of [180, 360]) {
       // Очищаем для default (без accountId)
       cache.delete(`google-console-aggregated-${user.id}-default-${days}`);
       // Очищаем для всех аккаунтов пользователя
