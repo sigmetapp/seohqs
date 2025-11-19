@@ -346,8 +346,8 @@ const Chart = memo(({
   };
 
   return (
-    <div className="relative w-full">
-      <div className="relative w-full" style={{ height: '180px' }}>
+    <div className="relative w-full flex justify-center">
+      <div className="relative" style={{ width: '97%', height: '180px' }}>
         <svg width="100%" height="100%" viewBox="0 0 800 150" preserveAspectRatio="none" className="overflow-visible">
           <defs>
             <linearGradient id={`impressionsGradient-${siteId}`} x1="0%" y1="0%" x2="0%" y2="100%">
@@ -631,12 +631,12 @@ const SiteCard = memo(({
 
   return (
     <div
-      className="relative bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700"
+      className="relative bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-700"
       onMouseEnter={onHover}
       onMouseLeave={onHoverLeave}
     >
       {/* Заголовок с доменом */}
-      <div className="px-2 pt-2 pb-1 mb-2">
+      <div className="px-1.5 pt-1.5 pb-1 mb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <p className={`text-sm truncate transition-all duration-200 ${
@@ -1067,6 +1067,44 @@ export default function DashboardGCPage() {
   const [blurMode, setBlurMode] = useState<boolean>(false);
   const [chartStyle, setChartStyle] = useState<ChartStyle>('default');
   
+  // Загрузка сохраненных фильтров из localStorage при монтировании
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const savedPeriod = localStorage.getItem('dashboardGc_period');
+      const savedShowImpressions = localStorage.getItem('dashboardGc_showImpressions');
+      const savedShowClicks = localStorage.getItem('dashboardGc_showClicks');
+      const savedShowPositions = localStorage.getItem('dashboardGc_showPositions');
+      const savedChartStyle = localStorage.getItem('dashboardGc_chartStyle');
+      
+      if (savedPeriod) {
+        const period = parseInt(savedPeriod, 10);
+        if (!isNaN(period) && [7, 14, 30, 60, 90].includes(period)) {
+          setSelectedPeriod(period);
+        }
+      }
+      
+      if (savedShowImpressions !== null) {
+        setShowImpressions(savedShowImpressions === 'true');
+      }
+      
+      if (savedShowClicks !== null) {
+        setShowClicks(savedShowClicks === 'true');
+      }
+      
+      if (savedShowPositions !== null) {
+        setShowPositions(savedShowPositions === 'true');
+      }
+      
+      if (savedChartStyle && ['default', 'google-console', 'bold', 'minimal', 'smooth'].includes(savedChartStyle)) {
+        setChartStyle(savedChartStyle as ChartStyle);
+      }
+    } catch (e) {
+      console.error('Error loading filters from localStorage:', e);
+    }
+  }, []);
+  
   // Состояние графиков
   const [hoveredSiteId, setHoveredSiteId] = useState<number | null>(null);
   const [hoveredDateIndex, setHoveredDateIndex] = useState<{ siteId: number; index: number } | null>(null);
@@ -1158,6 +1196,57 @@ export default function DashboardGCPage() {
     
     loadAggregatedData();
   }, [selectedPeriod, selectedAccountId, selectedTagIds, selectedStatusIds, t]);
+
+  // Сохранение фильтров в localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('dashboardGc_period', selectedPeriod.toString());
+      } catch (e) {
+        console.error('Error saving period to localStorage:', e);
+      }
+    }
+  }, [selectedPeriod]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('dashboardGc_showImpressions', showImpressions.toString());
+      } catch (e) {
+        console.error('Error saving showImpressions to localStorage:', e);
+      }
+    }
+  }, [showImpressions]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('dashboardGc_showClicks', showClicks.toString());
+      } catch (e) {
+        console.error('Error saving showClicks to localStorage:', e);
+      }
+    }
+  }, [showClicks]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('dashboardGc_showPositions', showPositions.toString());
+      } catch (e) {
+        console.error('Error saving showPositions to localStorage:', e);
+      }
+    }
+  }, [showPositions]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('dashboardGc_chartStyle', chartStyle);
+      } catch (e) {
+        console.error('Error saving chartStyle to localStorage:', e);
+      }
+    }
+  }, [chartStyle]);
 
   // Очистка данных при изменении периода
   useEffect(() => {
@@ -1314,7 +1403,7 @@ export default function DashboardGCPage() {
                 </p>
               </div>
             ) : (
-              <div className={`grid gap-6 ${
+              <div className={`grid gap-0 ${
                 columnsPerRow === 1 ? 'grid-cols-1' :
                 columnsPerRow === 2 ? 'grid-cols-1 md:grid-cols-2' :
                 columnsPerRow === 3 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
