@@ -348,77 +348,77 @@ export default function SitesPage() {
   };
 
   // Фильтрация и сортировка сайтов
-    const filteredAndSortedSites = useMemo(() => {
-      let result = sites;
+  const filteredAndSortedSites = useMemo(() => {
+    let result = sites;
 
-      if (selectedTagIds.length > 0) {
-        result = result.filter(site => {
-          const siteTagIds = (site.tags || []).map(t => t.id);
-          return selectedTagIds.some(tagId => siteTagIds.includes(tagId));
-        });
-      }
+    if (selectedTagIds.length > 0) {
+      result = result.filter(site => {
+        const siteTagIds = (site.tags || []).map(t => t.id);
+        return selectedTagIds.some(tagId => siteTagIds.includes(tagId));
+      });
+    }
 
-      if (selectedStatusIds.length > 0) {
-        result = result.filter(site => 
-          site.status && selectedStatusIds.includes(site.status.id)
-        );
-      }
+    if (selectedStatusIds.length > 0) {
+      result = result.filter(site => 
+        site.status && selectedStatusIds.includes(site.status.id)
+      );
+    }
 
-      const normalizedSearch = siteSearchTerm.trim().toLowerCase();
-      if (normalizedSearch) {
-        result = result.filter(site => {
-          const domain = site.domain?.toLowerCase() || '';
-          const name = site.name?.toLowerCase() || '';
-          return domain.includes(normalizedSearch) || name.includes(normalizedSearch);
-        });
-      }
+    const normalizedSearch = siteSearchTerm.trim().toLowerCase();
+    if (normalizedSearch) {
+      result = result.filter(site => {
+        const domain = site.domain?.toLowerCase() || '';
+        const name = site.name?.toLowerCase() || '';
+        return domain.includes(normalizedSearch) || name.includes(normalizedSearch);
+      });
+    }
 
-      // Сортировка
-      if (sortColumn) {
-        result = [...result].sort((a, b) => {
-          let aValue: number | string = 0;
-          let bValue: number | string = 0;
+    // Сортировка
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        let aValue: number | string = 0;
+        let bValue: number | string = 0;
 
-          switch (sortColumn) {
-            case 'tasks':
-              aValue = sitesStats[a.id]?.tasks?.total || 0;
-              bValue = sitesStats[b.id]?.tasks?.total || 0;
-              break;
-            case 'links':
-              aValue = sitesStats[a.id]?.links || 0;
-              bValue = sitesStats[b.id]?.links || 0;
-              break;
-            case 'impressions':
-              const aData = googleConsoleAggregatedData.find(s => s.id === a.id);
-              const bData = googleConsoleAggregatedData.find(s => s.id === b.id);
-              aValue = aData?.totalImpressions || 0;
-              bValue = bData?.totalImpressions || 0;
-              break;
-            case 'clicks':
-              const aDataClicks = googleConsoleAggregatedData.find(s => s.id === a.id);
-              const bDataClicks = googleConsoleAggregatedData.find(s => s.id === b.id);
-              aValue = aDataClicks?.totalClicks || 0;
-              bValue = bDataClicks?.totalClicks || 0;
-              break;
-            case 'postbacks':
-              const aDataPostbacks = googleConsoleAggregatedData.find(s => s.id === a.id);
-              const bDataPostbacks = googleConsoleAggregatedData.find(s => s.id === b.id);
-              aValue = aDataPostbacks?.totalPostbacks || 0;
-              bValue = bDataPostbacks?.totalPostbacks || 0;
-              break;
-            default:
-              return 0;
-          }
+        switch (sortColumn) {
+          case 'tasks':
+            aValue = sitesStats[a.id]?.tasks?.total || 0;
+            bValue = sitesStats[b.id]?.tasks?.total || 0;
+            break;
+          case 'links':
+            aValue = sitesStats[a.id]?.links || 0;
+            bValue = sitesStats[b.id]?.links || 0;
+            break;
+          case 'impressions':
+            const aData = googleConsoleAggregatedData.find(s => s.id === a.id);
+            const bData = googleConsoleAggregatedData.find(s => s.id === b.id);
+            aValue = aData?.totalImpressions || 0;
+            bValue = bData?.totalImpressions || 0;
+            break;
+          case 'clicks':
+            const aDataClicks = googleConsoleAggregatedData.find(s => s.id === a.id);
+            const bDataClicks = googleConsoleAggregatedData.find(s => s.id === b.id);
+            aValue = aDataClicks?.totalClicks || 0;
+            bValue = bDataClicks?.totalClicks || 0;
+            break;
+          case 'postbacks':
+            const aDataPostbacks = googleConsoleAggregatedData.find(s => s.id === a.id);
+            const bDataPostbacks = googleConsoleAggregatedData.find(s => s.id === b.id);
+            aValue = aDataPostbacks?.totalPostbacks || 0;
+            bValue = bDataPostbacks?.totalPostbacks || 0;
+            break;
+          default:
+            return 0;
+        }
 
-          if (typeof aValue === 'number' && typeof bValue === 'number') {
-            return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-          }
-          return 0;
-        });
-      }
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+        }
+        return 0;
+      });
+    }
 
-      return result;
-    }, [sites, selectedTagIds, selectedStatusIds, siteSearchTerm, sortColumn, sortDirection, sitesStats, googleConsoleAggregatedData]);
+    return result;
+  }, [sites, selectedTagIds, selectedStatusIds, siteSearchTerm, sortColumn, sortDirection, sitesStats, googleConsoleAggregatedData]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -460,15 +460,6 @@ export default function SitesPage() {
     );
   }
 
-  // Функция для нормализации домена из Google Console URL
-  const normalizeGoogleConsoleDomain = (siteUrl: string): string => {
-    let domain = siteUrl.replace(/^sc-domain:/, '');
-    domain = domain.replace(/^https?:\/\//, '');
-    domain = domain.replace(/^www\./, '');
-    domain = domain.split('/')[0];
-    return domain.toLowerCase().trim();
-  };
-
   return (
     <main className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white p-8">
       <div className="max-w-7xl mx-auto">
@@ -484,7 +475,6 @@ export default function SitesPage() {
             {t('sites.addSite')}
           </button>
         </div>
-
 
         {
           sites.length === 0 ? (
@@ -893,12 +883,40 @@ export default function SitesPage() {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <Link
-                              href={`/sites/${site.id}`}
-                              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline text-sm"
-                            >
-                              {t('sites.openSite')}
-                            </Link>
+                            <div className="flex items-center gap-2">
+                              <Link
+                                href={`/sites/${site.id}`}
+                                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline text-sm"
+                              >
+                                {t('sites.openSite')}
+                              </Link>
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(t('sites.deleteSiteConfirm') || `Вы уверены, что хотите удалить сайт ${site.domain}?`))) {
+                                    return;
+                                  }
+                                  try {
+                                    const response = await fetch(`/api/sites/${site.id}`, {
+                                      method: 'DELETE',
+                                    });
+                                    const data = await response.json();
+                                    if (data.success) {
+                                      loadSites();
+                                      loadAggregatedData();
+                                    } else {
+                                      alert(data.error || t('sites.deleteSiteError') || 'Ошибка удаления сайта');
+                                    }
+                                  } catch (err) {
+                                    console.error('Error deleting site:', err);
+                                    alert(t('sites.deleteSiteError') || 'Ошибка удаления сайта');
+                                  }
+                                }}
+                                className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:underline text-sm"
+                                title={t('sites.deleteSite') || 'Удалить сайт'}
+                              >
+                                {t('sites.delete') || 'Удалить'}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );

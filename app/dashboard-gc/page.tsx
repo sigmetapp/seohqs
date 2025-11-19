@@ -1290,11 +1290,12 @@ export default function DashboardGCPage() {
     const currentPeriod = selectedPeriodRef.current;
     
     // Всегда загружаем данные заново при загрузке сайта, чтобы гарантировать актуальность
-    if (!loadingDailyDataRef.current[siteId]) {
+    // Проверяем, не загружаются ли уже данные для этого сайта
+    if (!loadingDailyDataRef.current[siteId] && !loadingDailyData[siteId]) {
       console.log(`[Dashboard GC] Loading data for site ${siteId}, period: ${currentPeriod} days`);
       loadDailyDataForSite(siteId, true); // Всегда принудительно обновляем
     }
-  }, [loadDailyDataForSite]);
+  }, [loadDailyDataForSite, loadingDailyData]);
 
   // Видимые сайты для рендеринга - фильтруем по тегам, статусам и поиску
   const visibleSites = useMemo(() => {
