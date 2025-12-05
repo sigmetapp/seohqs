@@ -32,6 +32,7 @@ export default function ContentGeneratorPage() {
   const [step, setStep] = useState<'idle' | 'outline' | 'sections' | 'seo' | 'done'>('idle');
   const [currentSection, setCurrentSection] = useState<number>(0);
   const [totalSections, setTotalSections] = useState<number>(0);
+  const [failedSections, setFailedSections] = useState<Array<{ index: number; title: string; error: string }>>([]);
 
   useEffect(() => {
     checkAuth();
@@ -74,6 +75,7 @@ export default function ContentGeneratorPage() {
     setError(null);
     setFinalResult(null);
     setOutline(null);
+    setFailedSections([]);
     setStep('outline');
     setProgress('Генерация структуры статьи...');
 
@@ -134,70 +136,133 @@ export default function ContentGeneratorPage() {
       setOutline(outline);
       setStep('article');
 
-      // ШАГ 2: Генерация секций по очереди
+      // ШАГ 2: Генерация секций по очереди с retry и пропуском ошибок
       const sectionsHtml: string[] = [];
       const totalSections = outline.sections.length;
+      const failed: Array<{ index: number; title: string; error: string }> = [];
       setTotalSections(totalSections);
       setStep('sections');
+      setFailedSections([]);
 
       for (let i = 0; i < totalSections; i++) {
         const section = outline.sections[i];
         setCurrentSection(i + 1);
-        setProgress(`Генерация секции ${i + 1} из ${totalSections}: ${section.title}...`);
-
-        const sectionController = new AbortController();
-        const sectionTimeout = setTimeout(() => sectionController.abort(), 35000); // 35 секунд на клиенте (запас)
         
-        let sectionRes;
-        try {
-          sectionRes = await fetch('/api/content/section', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              topic: mainQuery,
-              language,
-              audience: targetAudience,
-              goal: contentGoal,
-              tone: toneOfVoice,
-              sectionTitle: section.title,
-              sectionDescription: section.description,
-              sectionIndex: i,
-            }),
-            signal: sectionController.signal,
-          });
-          clearTimeout(sectionTimeout);
-        } catch (fetchError: any) {
-          clearTimeout(sectionTimeout);
-          if (fetchError.name === 'AbortError') {
-            throw new Error(`Превышено время ожидания генерации секции ${i + 1}: "${section.title}". Попробуйте еще раз.`);
+        let sectionHtml = null;
+        let lastError = '';
+        const maxRetries = 2; // Максимум 2 попытки (всего 3 попытки)
+
+        // Пытаемся сгенерировать секцию с retry
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+          try {
+            if (attempt > 0) {
+              setProgress(`Повторная попытка (${attempt + 1}/${maxRetries + 1}) генерации секции ${i + 1} из ${totalSections}: ${section.title}...`);
+              // Небольшая задержка перед повтором
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            } else {
+              setProgress(`Генерация секции ${i + 1} из ${totalSections}: ${section.title}...`);
+            }
+
+            const sectionController = new AbortController();
+            const sectionTimeout = setTimeout(() => sectionController.abort(), 35000); // 35 секунд на клиенте (запас)
+            
+            let sectionRes;
+            try {
+              sectionRes = await fetch('/api/content/section', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  topic: mainQuery,
+                  language,
+                  audience: targetAudience,
+                  goal: contentGoal,
+                  tone: toneOfVoice,
+                  sectionTitle: section.title,
+                  sectionDescription: section.description,
+                  sectionIndex: i,
+                }),
+                signal: sectionController.signal,
+              });
+              clearTimeout(sectionTimeout);
+            } catch (fetchError: any) {
+              clearTimeout(sectionTimeout);
+              if (fetchError.name === 'AbortError') {
+                lastError = `Превышено время ожидания генерации секции ${i + 1}: "${section.title}"`;
+                if (attempt < maxRetries) {
+                  continue; // Пробуем еще раз
+                }
+                throw new Error(lastError);
+              }
+              throw fetchError;
+            }
+
+            const sectionText = await sectionRes.text();
+            
+            // Проверяем, что ответ не пустой и не слишком большой перед парсингом
+            if (!sectionText || sectionText.length > 50000) {
+              lastError = `Сервер вернул неожиданный ответ при генерации секции ${i + 1}`;
+              if (attempt < maxRetries) {
+                continue; // Пробуем еще раз
+              }
+              throw new Error(lastError);
+            }
+            
+            let sectionData;
+            try {
+              sectionData = JSON.parse(sectionText);
+            } catch (jsonError) {
+              // Не пытаемся парсить большой JSON после ошибки
+              const preview = sectionText.length > 200 ? sectionText.substring(0, 200) + '...' : sectionText;
+              lastError = `Ошибка: сервер вернул не-JSON ответ при генерации секции ${i + 1}. Ответ: ${preview}`;
+              if (attempt < maxRetries) {
+                continue; // Пробуем еще раз
+              }
+              throw new Error(lastError);
+            }
+
+            if (!sectionRes.ok || !sectionData.success) {
+              lastError = sectionData.error || `Ошибка генерации секции ${i + 1}: ${section.title}`;
+              if (attempt < maxRetries) {
+                continue; // Пробуем еще раз
+              }
+              throw new Error(lastError);
+            }
+
+            // Успешно получили секцию
+            sectionHtml = sectionData.sectionHtml;
+            break; // Выходим из цикла retry
+          } catch (error: any) {
+            lastError = error.message || `Ошибка генерации секции ${i + 1}: ${section.title}`;
+            
+            // Если это последняя попытка, записываем ошибку и продолжаем
+            if (attempt >= maxRetries) {
+              console.error(`Не удалось сгенерировать секцию ${i + 1} после ${maxRetries + 1} попыток:`, lastError);
+              failed.push({
+                index: i + 1,
+                title: section.title,
+                error: lastError,
+              });
+              // Добавляем placeholder вместо секции
+              sectionHtml = `<h2>${section.title}</h2><p><em>Не удалось сгенерировать содержимое этой секции после нескольких попыток. ${lastError}</em></p>`;
+              break;
+            }
+            // Иначе продолжаем попытки
           }
-          throw fetchError;
         }
 
-        const sectionText = await sectionRes.text();
-        
-        // Проверяем, что ответ не пустой и не слишком большой перед парсингом
-        if (!sectionText || sectionText.length > 50000) {
-          throw new Error(`Сервер вернул неожиданный ответ при генерации секции ${i + 1}`);
+        // Добавляем секцию (либо успешно сгенерированную, либо placeholder)
+        if (sectionHtml) {
+          sectionsHtml.push(sectionHtml);
+        } else {
+          // Если даже placeholder не получился, добавляем минимальный
+          sectionsHtml.push(`<h2>${section.title}</h2><p><em>Не удалось сгенерировать содержимое этой секции.</em></p>`);
         }
-        
-        let sectionData;
-        try {
-          sectionData = JSON.parse(sectionText);
-        } catch (jsonError) {
-          // Не пытаемся парсить большой JSON после ошибки
-          const preview = sectionText.length > 200 ? sectionText.substring(0, 200) + '...' : sectionText;
-          throw new Error(`Ошибка: сервер вернул не-JSON ответ при генерации секции ${i + 1}. Ответ: ${preview}`);
-        }
-
-        if (!sectionRes.ok || !sectionData.success) {
-          throw new Error(sectionData.error || `Ошибка генерации секции ${i + 1}: ${section.title}`);
-        }
-
-        sectionsHtml.push(sectionData.sectionHtml);
       }
+
+      // Обновляем список неудачных секций
+      setFailedSections(failed);
 
       // Склеиваем секции в одну статью
       const articleHtml = `<h1>${outline.title}</h1>\n${sectionsHtml.join('\n')}`;
@@ -256,13 +321,20 @@ export default function ContentGeneratorPage() {
       }
 
       setStep('done');
-      setProgress('Статья готова!');
+      
+      // Формируем сообщение о результате
+      let summaryMessage = `Статья "${outline.title}" состоит из ${totalSections} секций.`;
+      if (failed.length > 0) {
+        summaryMessage += ` ${failed.length} секций не удалось сгенерировать после нескольких попыток.`;
+      }
+      
+      setProgress(failed.length > 0 ? `Статья готова! (${failed.length} секций пропущено)` : 'Статья готова!');
       setFinalResult({
         html: articleHtml,
         metaTitle: seo.metaTitle,
         metaDescription: seo.metaDescription,
         faqQuestions: seo.faqQuestions,
-        summary: `Статья "${outline.title}" состоит из ${totalSections} секций.`,
+        summary: summaryMessage,
       });
       setCurrentSection(0);
       setTotalSections(0);
@@ -280,6 +352,7 @@ export default function ContentGeneratorPage() {
       setStep('idle');
       setCurrentSection(0);
       setTotalSections(0);
+      setFailedSections([]);
     } finally {
       setGenerating(false);
       // Не очищаем прогресс если была ошибка, чтобы пользователь видел что произошло
@@ -536,6 +609,28 @@ export default function ContentGeneratorPage() {
                     Summary
                   </label>
                   <p className="text-gray-900 dark:text-white">{finalResult.summary}</p>
+                </div>
+              )}
+
+              {failedSections.length > 0 && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                  <h3 className="font-semibold text-yellow-900 dark:text-yellow-200 mb-2">
+                    ⚠️ Секции, которые не удалось сгенерировать ({failedSections.length}):
+                  </h3>
+                  <ul className="list-disc list-inside space-y-2 text-sm text-yellow-800 dark:text-yellow-300">
+                    {failedSections.map((failed, idx) => (
+                      <li key={idx}>
+                        <strong>Секция {failed.index}: {failed.title}</strong>
+                        <br />
+                        <span className="text-xs text-gray-600 dark:text-gray-400">
+                          {failed.error}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-sm text-yellow-800 dark:text-yellow-300">
+                    Эти секции были пропущены, но процесс генерации статьи продолжен. Вы можете попробовать сгенерировать статью еще раз или отредактировать эти секции вручную.
+                  </p>
                 </div>
               )}
             </div>
