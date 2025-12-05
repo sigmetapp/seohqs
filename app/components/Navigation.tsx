@@ -27,10 +27,6 @@ export default function Navigation() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
-  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
-  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
 
   const fetchUser = () => {
     setLoading(true);
@@ -126,39 +122,6 @@ export default function Navigation() {
     }
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError(null);
-    setForgotPasswordLoading(true);
-
-    try {
-      const response = await fetch('/api/auth/user/forgot-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: forgotPasswordEmail }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setForgotPasswordSuccess(true);
-        setTimeout(() => {
-          setShowForgotPassword(false);
-          setForgotPasswordEmail('');
-          setForgotPasswordSuccess(false);
-        }, 3000);
-      } else {
-        setLoginError(data.error || t('login.resetPasswordError'));
-      }
-    } catch (err: any) {
-      setLoginError(t('login.resetPasswordError'));
-      console.error(err);
-    } finally {
-      setForgotPasswordLoading(false);
-    }
-  };
 
   const handleLogout = async () => {
     try {
@@ -432,15 +395,6 @@ export default function Navigation() {
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     {t('auth.password')}
                   </label>
-                  {!isRegistering && (
-                    <button
-                      type="button"
-                      onClick={() => setShowForgotPassword(true)}
-                      className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                    >
-                      {t('login.forgotPassword')}
-                    </button>
-                  )}
                 </div>
                 <input
                   type="password"
@@ -488,89 +442,6 @@ export default function Navigation() {
         </div>
       )}
 
-      {/* Forgot Password Modal */}
-      {showForgotPassword && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700 max-w-md w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('login.resetPasswordTitle')}</h3>
-              <button
-                onClick={() => {
-                  setShowForgotPassword(false);
-                  setForgotPasswordEmail('');
-                  setForgotPasswordSuccess(false);
-                  setLoginError(null);
-                }}
-                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {forgotPasswordSuccess ? (
-              <div className="text-center py-4">
-                <div className="mb-4">
-                  <svg className="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <p className="text-gray-700 dark:text-gray-300 mb-2">{t('login.resetPasswordSuccess')}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('login.resetPasswordCheckEmail')}</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
-                  {t('login.resetPasswordDesc')}
-                </p>
-                <form onSubmit={handleForgotPassword} className="space-y-4">
-                  {loginError && (
-                    <div className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-4 py-3 rounded">
-                      {loginError}
-                    </div>
-                  )}
-                  <div>
-                    <label htmlFor="forgotPasswordEmail" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      id="forgotPasswordEmail"
-                      value={forgotPasswordEmail}
-                      onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                      required
-                      autoComplete="email"
-                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="your@email.com"
-                    />
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowForgotPassword(false);
-                        setForgotPasswordEmail('');
-                        setLoginError(null);
-                      }}
-                      className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                    >
-                      {t('login.cancel')}
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={forgotPasswordLoading}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {forgotPasswordLoading ? t('login.sending') : t('login.send')}
-                    </button>
-                  </div>
-                </form>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </nav>
   );
 }
