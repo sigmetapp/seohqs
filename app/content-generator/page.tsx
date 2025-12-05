@@ -120,6 +120,20 @@ export default function ContentGeneratorPage() {
       return;
     }
 
+    // Проверка на большой размер контента
+    const desiredLengthNum = parseInt(desiredLength) || 2000;
+    const estimatedChars = desiredLengthNum * 12; // Примерно 12 символов на слово
+    
+    if (estimatedChars > 30000) {
+      const confirmed = window.confirm(
+        `Запрошенный размер статьи (${desiredLength} слов, ~${Math.round(estimatedChars / 1000)}k символов) превышает рекомендуемый лимит. ` +
+        `Статья будет сжата до разумного размера (максимум 3500 слов, ~40000 символов). Продолжить?`
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
     setGenerating(true);
     setError(null);
     setFinalResult(null);
@@ -280,6 +294,18 @@ export default function ContentGeneratorPage() {
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="1000, 2000, 3000..."
                 />
+                {(() => {
+                  const lengthNum = parseInt(desiredLength) || 0;
+                  const estimatedChars = lengthNum * 12;
+                  if (estimatedChars > 30000) {
+                    return (
+                      <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+                        ⚠️ Запрошенный размер ({lengthNum} слов, ~{Math.round(estimatedChars / 1000)}k символов) превышает рекомендуемый лимит. Статья будет сжата до разумного размера (максимум 3500 слов, ~40000 символов).
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             </div>
 
