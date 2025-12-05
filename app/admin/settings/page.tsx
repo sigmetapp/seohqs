@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-const ADMIN_EMAIL = 'admin@buylin.pro';
+const ADMIN_EMAIL = 'admin@buylink.pro';
 
 export default function AdminSettingsPage() {
   const router = useRouter();

@@ -188,7 +188,7 @@ export default function Navigation() {
                 <span className="text-gray-700 dark:text-gray-300 text-sm">
                   {user.name || user.email}
                 </span>
-                {user.email === 'admin@buylin.pro' && (
+                {user.email === 'admin@buylink.pro' && (
                   <Link
                     href="/admin/settings"
                     className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm font-medium"

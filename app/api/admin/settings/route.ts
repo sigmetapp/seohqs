@@ -5,7 +5,7 @@ import { getSetting, setSetting } from '@/lib/db-settings';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const ADMIN_EMAIL = 'admin@buylin.pro';
+const ADMIN_EMAIL = 'admin@buylink.pro';
 
 async function isAdmin(): Promise<boolean> {
   const user = await getCurrentUser();
