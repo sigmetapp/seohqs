@@ -202,6 +202,10 @@ export default function ContentGeneratorPage() {
         // Инициализируем статус секции
         let sectionStatus: SectionStatus = 'skipped';
         let sectionHtml: string | null = null;
+        let rawHtmlSection: string | null = null;
+        let cleanHtmlSection: string | null = null;
+        let cleaned = false;
+        let cleanupTime: number | undefined = undefined;
         let complexityLevel: 'medium' | 'low' | 'high' = 'medium';
         let retryCount = 0;
         let errorMessage: string | undefined = undefined;
@@ -281,11 +285,11 @@ export default function ContentGeneratorPage() {
 
           // Проверяем успешность и наличие HTML
           if (sectionData.success && sectionData.sectionHtml && typeof sectionData.sectionHtml === 'string') {
-            sectionHtml = sectionData.sectionHtml.trim();
-            technicalLogs.push(`[${new Date().toISOString()}] HTML получен, длина: ${sectionHtml.length} символов`);
+            rawHtmlSection = sectionData.sectionHtml.trim();
+            technicalLogs.push(`[${new Date().toISOString()}] HTML получен, длина: ${rawHtmlSection.length} символов`);
             
             // Проверяем, что HTML не пустой
-            if (sectionHtml.length === 0) {
+            if (rawHtmlSection.length === 0) {
               const error = `Ассистент вернул пустой HTML для секции ${i + 1}: ${section.title}`;
               technicalLogs.push(`[${new Date().toISOString()}] Ошибка: ${error}`);
               sectionStatus = 'backend_error';
@@ -302,8 +306,86 @@ export default function ContentGeneratorPage() {
               sectionStatus = 'success';
             }
             
-            sectionsHtml.push(sectionHtml);
-            technicalLogs.push(`[${new Date().toISOString()}] Секция успешно сгенерирована, статус: ${sectionStatus}`);
+            // ШАГ 2.5: Cleanup - очистка секции через Cleanup Assistant
+            const cleanupStartTime = Date.now();
+            
+            try {
+              setProgress(`Очистка секции ${i + 1} из ${totalSections}: ${section.title}...`);
+              technicalLogs.push(`[${new Date().toISOString()}] Начало очистки секции через Cleanup Assistant`);
+              
+              const cleanupController = new AbortController();
+              const cleanupTimeout = setTimeout(() => cleanupController.abort(), 30000); // 30 секунд на клиенте (запас для серверных 25 секунд)
+              
+              let cleanupRes;
+              try {
+                cleanupRes = await fetch('/api/content/cleanup', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    htmlSection: rawHtmlSection,
+                    language,
+                    authorPersona,
+                    angle,
+                    editIntensity: 'medium',
+                  }),
+                  signal: cleanupController.signal,
+                });
+                clearTimeout(cleanupTimeout);
+                technicalLogs.push(`[${new Date().toISOString()}] Ответ от cleanup получен, статус: ${cleanupRes.status}`);
+              } catch (fetchError: any) {
+                clearTimeout(cleanupTimeout);
+                if (fetchError.name === 'AbortError') {
+                  technicalLogs.push(`[${new Date().toISOString()}] Таймаут cleanup: превышено время ожидания`);
+                  throw new Error('Превышено время ожидания очистки секции');
+                }
+                throw fetchError;
+              }
+
+              const cleanupText = await cleanupRes.text();
+              technicalLogs.push(`[${new Date().toISOString()}] Размер ответа cleanup: ${cleanupText.length} символов`);
+              
+              if (!cleanupText || cleanupText.length > 50000) {
+                technicalLogs.push(`[${new Date().toISOString()}] Ошибка: неожиданный размер ответа cleanup`);
+                throw new Error('Сервер вернул неожиданный ответ при очистке секции');
+              }
+              
+              let cleanupData;
+              try {
+                cleanupData = JSON.parse(cleanupText);
+                technicalLogs.push(`[${new Date().toISOString()}] JSON cleanup распарсен, success: ${cleanupData.success}`);
+              } catch (jsonError) {
+                const preview = cleanupText.length > 200 ? cleanupText.substring(0, 200) + '...' : cleanupText;
+                technicalLogs.push(`[${new Date().toISOString()}] Ошибка парсинга JSON cleanup: ${preview}`);
+                throw new Error(`Ошибка: сервер вернул не-JSON ответ при очистке секции. Ответ: ${preview}`);
+              }
+
+              if (cleanupRes.ok && cleanupData.success && cleanupData.cleanHtmlSection) {
+                cleanHtmlSection = cleanupData.cleanHtmlSection.trim();
+                cleaned = true;
+                cleanupTime = Math.floor((Date.now() - cleanupStartTime) / 1000);
+                technicalLogs.push(`[${new Date().toISOString()}] Секция успешно очищена за ${cleanupTime}с, длина: ${cleanHtmlSection.length} символов`);
+                
+                // Используем очищенный HTML
+                sectionHtml = cleanHtmlSection;
+                sectionsHtml.push(sectionHtml);
+              } else {
+                // Cleanup не удался, используем raw как fallback
+                const cleanupError = cleanupData.error || 'Ошибка очистки секции';
+                technicalLogs.push(`[${new Date().toISOString()}] Cleanup не удался: ${cleanupError}. Используем raw HTML как fallback`);
+                sectionHtml = rawHtmlSection;
+                sectionsHtml.push(sectionHtml);
+              }
+            } catch (cleanupError: any) {
+              // При ошибке cleanup используем raw HTML как fallback
+              const cleanupErrorMsg = cleanupError.message || 'Ошибка очистки секции';
+              technicalLogs.push(`[${new Date().toISOString()}] Ошибка cleanup: ${cleanupErrorMsg}. Используем raw HTML как fallback`);
+              sectionHtml = rawHtmlSection;
+              sectionsHtml.push(sectionHtml);
+            }
+            
+            technicalLogs.push(`[${new Date().toISOString()}] Секция успешно сгенерирована, статус: ${sectionStatus}, очищена: ${cleaned}`);
           } else {
             // Если success=true, но HTML отсутствует или невалиден
             const error = `Не получен валидный HTML для секции ${i + 1}: ${section.title}`;
@@ -337,7 +419,7 @@ export default function ContentGeneratorPage() {
         } finally {
           const generationTime = Math.floor((Date.now() - sectionStartTime) / 1000);
           
-          // Подсчет слов (приблизительно)
+          // Подсчет слов (приблизительно) - используем финальный HTML (clean или raw)
           const wordCount = sectionHtml 
             ? sectionHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(w => w.length > 0).length
             : undefined;
@@ -346,7 +428,11 @@ export default function ContentGeneratorPage() {
             index: i + 1,
             title: section.title,
             status: sectionStatus,
-            sectionHtml: sectionHtml || undefined,
+            sectionHtml: sectionHtml || undefined, // финальный HTML (clean если есть, иначе raw)
+            rawHtmlSection: rawHtmlSection || undefined,
+            cleanHtmlSection: cleanHtmlSection || undefined,
+            cleaned: cleaned,
+            cleanupTime: cleanupTime,
             generationTime,
             wordCount,
             complexityLevel,
@@ -539,6 +625,10 @@ export default function ContentGeneratorPage() {
     const technicalLogs: string[] = [];
     let sectionStatus: SectionStatus = 'skipped';
     let sectionHtml: string | null = null;
+    let rawHtmlSection: string | null = null;
+    let cleanHtmlSection: string | null = null;
+    let cleaned = false;
+    let cleanupTime: number | undefined = undefined;
     let complexityLevel: 'medium' | 'low' | 'high' = complexity;
     let retryCount = (section.retryCount || 0) + 1;
     let errorMessage: string | undefined = undefined;
@@ -616,10 +706,10 @@ export default function ContentGeneratorPage() {
       }
 
       if (sectionData.success && sectionData.sectionHtml && typeof sectionData.sectionHtml === 'string') {
-        sectionHtml = sectionData.sectionHtml.trim();
-        technicalLogs.push(`[${new Date().toISOString()}] HTML получен, длина: ${sectionHtml.length} символов`);
+        rawHtmlSection = sectionData.sectionHtml.trim();
+        technicalLogs.push(`[${new Date().toISOString()}] HTML получен, длина: ${rawHtmlSection.length} символов`);
         
-        if (sectionHtml.length === 0) {
+        if (rawHtmlSection.length === 0) {
           throw new Error(`Ассистент вернул пустой HTML для секции ${index}`);
         }
         
@@ -630,7 +720,67 @@ export default function ContentGeneratorPage() {
           sectionStatus = 'success';
         }
         
-        technicalLogs.push(`[${new Date().toISOString()}] Секция успешно перегенерирована, статус: ${sectionStatus}`);
+        // Cleanup после перегенерации
+        const cleanupStartTime = Date.now();
+        try {
+          technicalLogs.push(`[${new Date().toISOString()}] Начало очистки перегенерированной секции через Cleanup Assistant`);
+          
+          const cleanupController = new AbortController();
+          const cleanupTimeout = setTimeout(() => cleanupController.abort(), 30000);
+          
+          let cleanupRes;
+          try {
+            cleanupRes = await fetch('/api/content/cleanup', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                htmlSection: rawHtmlSection,
+                language,
+                authorPersona,
+                angle,
+                editIntensity: 'medium',
+              }),
+              signal: cleanupController.signal,
+            });
+            clearTimeout(cleanupTimeout);
+          } catch (fetchError: any) {
+            clearTimeout(cleanupTimeout);
+            if (fetchError.name === 'AbortError') {
+              technicalLogs.push(`[${new Date().toISOString()}] Таймаут cleanup при перегенерации`);
+              throw new Error('Превышено время ожидания очистки секции');
+            }
+            throw fetchError;
+          }
+
+          const cleanupText = await cleanupRes.text();
+          if (cleanupText && cleanupText.length <= 50000) {
+            let cleanupData;
+            try {
+              cleanupData = JSON.parse(cleanupText);
+              if (cleanupRes.ok && cleanupData.success && cleanupData.cleanHtmlSection) {
+                cleanHtmlSection = cleanupData.cleanHtmlSection.trim();
+                cleaned = true;
+                cleanupTime = Math.floor((Date.now() - cleanupStartTime) / 1000);
+                technicalLogs.push(`[${new Date().toISOString()}] Секция успешно очищена за ${cleanupTime}с`);
+                sectionHtml = cleanHtmlSection;
+              } else {
+                technicalLogs.push(`[${new Date().toISOString()}] Cleanup не удался, используем raw HTML`);
+                sectionHtml = rawHtmlSection;
+              }
+            } catch {
+              sectionHtml = rawHtmlSection;
+            }
+          } else {
+            sectionHtml = rawHtmlSection;
+          }
+        } catch (cleanupError: any) {
+          technicalLogs.push(`[${new Date().toISOString()}] Ошибка cleanup при перегенерации: ${cleanupError.message}. Используем raw HTML`);
+          sectionHtml = rawHtmlSection;
+        }
+        
+        technicalLogs.push(`[${new Date().toISOString()}] Секция успешно перегенерирована, статус: ${sectionStatus}, очищена: ${cleaned}`);
       } else {
         const error = `Не получен валидный HTML для секции ${index}`;
         sectionStatus = 'backend_error';
@@ -666,6 +816,10 @@ export default function ContentGeneratorPage() {
               ...s,
               status: sectionStatus,
               sectionHtml: sectionHtml || undefined,
+              rawHtmlSection: rawHtmlSection || undefined,
+              cleanHtmlSection: cleanHtmlSection || undefined,
+              cleaned: cleaned,
+              cleanupTime: cleanupTime,
               generationTime,
               wordCount,
               complexityLevel,
