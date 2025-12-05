@@ -82,7 +82,7 @@ export default function ContentGeneratorPage() {
       setProgress('Генерация структуры статьи...');
       
       const outlineController = new AbortController();
-      const outlineTimeout = setTimeout(() => outlineController.abort(), 15000); // 15 секунд на клиенте
+      const outlineTimeout = setTimeout(() => outlineController.abort(), 30000); // 30 секунд на клиенте
       
       let outlineRes;
       try {

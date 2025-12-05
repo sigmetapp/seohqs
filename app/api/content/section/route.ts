@@ -100,6 +100,7 @@ export async function POST(request: Request) {
         },
         {
           signal: controller.signal,
+          timeout: 45000, // Таймаут на уровне OpenAI клиента
         }
       );
 

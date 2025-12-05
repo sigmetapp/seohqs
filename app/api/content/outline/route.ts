@@ -33,34 +33,34 @@ export async function POST(request: Request) {
 
     const openai = await getOpenAIClient();
 
-    const prompt = `Создай структуру (outline) статьи:
+    const prompt = `Создай структуру статьи:
 
 Тема: ${topic}
 Язык: ${language || 'RU'}
-Целевая аудитория: ${audience || 'general'}
-Цель контента: ${goal || 'SEO article'}
-Желаемый размер: ${desiredLength || '2000'} слов
+Аудитория: ${audience || 'general'}
+Цель: ${goal || 'SEO article'}
+Размер: ${desiredLength || '2000'} слов
 Тон: ${tone || 'neutral'}
 
-Создай логичную структуру из 5-12 секций. Каждая секция должна иметь заголовок и краткое описание (1-2 предложения).
+Создай структуру из 5-12 секций. Каждая секция: заголовок и краткое описание (1-2 предложения).
 
-Верни ТОЛЬКО валидный JSON:
+Верни ТОЛЬКО JSON:
 {
-  "title": "Заголовок статьи (H1)",
+  "title": "Заголовок статьи",
   "sections": [
     {
       "id": "section-1",
       "title": "Заголовок секции",
-      "description": "Краткое описание содержания секции"
+      "description": "Описание секции"
     }
   ]
 }`;
 
-    // Таймаут 15 секунд для outline (запас для Vercel)
+    // Таймаут 25 секунд для outline (запас для Vercel)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
-    }, 15000);
+    }, 25000);
 
     try {
       const completion = await openai.chat.completions.create(
@@ -69,16 +69,17 @@ export async function POST(request: Request) {
           messages: [
             {
               role: 'system',
-              content: 'Ты помощник для создания структуры статей. Создавай логичную структуру с секциями. Верни ТОЛЬКО валидный JSON без дополнительного текста.',
+              content: 'Ты помощник для создания структуры статей. Создавай логичную структуру с 5-12 секциями. Верни ТОЛЬКО валидный JSON без дополнительного текста.',
             },
             { role: 'user', content: prompt },
           ],
           temperature: 0.7,
-          max_tokens: 2000,
+          max_tokens: 1500, // Уменьшено для ускорения
           response_format: { type: 'json_object' },
         },
         {
           signal: controller.signal,
+          timeout: 20000, // Таймаут на уровне OpenAI клиента
         }
       );
 
@@ -112,8 +113,8 @@ export async function POST(request: Request) {
       });
     } catch (abortError: any) {
       clearTimeout(timeoutId);
-      if (abortError.name === 'AbortError' || abortError.message?.includes('aborted')) {
-        throw new Error('Превышено время ожидания генерации структуры (15 секунд)');
+      if (abortError.name === 'AbortError' || abortError.message?.includes('aborted') || abortError.message?.includes('timeout')) {
+        throw new Error('Превышено время ожидания генерации структуры (25 секунд). Попробуйте еще раз.');
       }
       throw abortError;
     }
