@@ -128,15 +128,27 @@ function LoginForm() {
       }
 
       if (data.success) {
-        setForgotPasswordSuccess(true);
-        // Не скрываем дебаг панель сразу, чтобы пользователь мог увидеть все этапы
-        setTimeout(() => {
-          setShowForgotPassword(false);
-          setForgotPasswordEmail('');
-          setForgotPasswordSuccess(false);
-          setDebugSteps([]);
-          setShowDebug(false);
-        }, 8000); // Увеличиваем время до 8 секунд, чтобы пользователь успел увидеть дебаг информацию
+        // Проверяем, был ли email реально отправлен по дебаг информации
+        const emailStep = data.debug?.find((step: any) => step.step === '6');
+        const emailWasActuallySent = emailStep?.status === 'success' && 
+                                     !emailStep?.message?.includes('НЕ был отправлен') &&
+                                     !emailStep?.details?.warning;
+        
+        if (emailWasActuallySent) {
+          setForgotPasswordSuccess(true);
+          // Не скрываем дебаг панель сразу, чтобы пользователь мог увидеть все этапы
+          setTimeout(() => {
+            setShowForgotPassword(false);
+            setForgotPasswordEmail('');
+            setForgotPasswordSuccess(false);
+            setDebugSteps([]);
+            setShowDebug(false);
+          }, 8000); // Увеличиваем время до 8 секунд, чтобы пользователь успел увидеть дебаг информацию
+        } else {
+          // Email не был отправлен, показываем ошибку
+          setError(data.error || 'Email не был отправлен. Проверьте настройки SMTP.');
+          setShowDebug(true);
+        }
       } else {
         setError(data.error || t('login.resetPasswordError'));
         // При ошибке тоже показываем дебаг панель, если она есть

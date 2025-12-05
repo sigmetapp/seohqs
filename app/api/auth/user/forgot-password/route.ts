@@ -143,12 +143,42 @@ export async function POST(request: Request) {
     
     try {
       const emailResult = await sendPasswordResetEmail(dbUser.email, resetUrl, debugSteps);
-      emailSent = true;
       emailProvider = emailResult.provider || 'Unknown';
-      debugSteps[5].status = 'success';
-      debugSteps[5].message = `Email успешно отправлен через ${emailProvider}`;
-      debugSteps[5].details = emailResult.details || {};
-      console.log(`✅ Email для сброса пароля успешно отправлен на ${dbUser.email}`);
+      
+      // Проверяем, был ли email реально отправлен
+      const isEmailActuallySent = emailProvider !== 'None (Development Mode)' && 
+                                   !emailProvider.includes('None') &&
+                                   emailResult.details?.messageId;
+      
+      if (isEmailActuallySent) {
+        emailSent = true;
+        debugSteps[5].status = 'success';
+        debugSteps[5].message = `Email успешно отправлен через ${emailProvider}`;
+        debugSteps[5].details = emailResult.details || {};
+        console.log(`✅ Email для сброса пароля успешно отправлен на ${dbUser.email}`);
+      } else {
+        // Email не был отправлен (нет настроек SMTP)
+        emailSent = false;
+        debugSteps[5].status = 'error';
+        debugSteps[5].message = `❌ Email НЕ был отправлен: ${emailResult.details?.message || 'SMTP не настроен'}`;
+        debugSteps[5].details = {
+          provider: emailProvider,
+          ...emailResult.details,
+          warning: 'Email не был реально отправлен. Настройте SMTP для отправки писем.',
+          instructions: {
+            supabase: 'Настройте переменные окружения: SUPABASE_SMTP_HOST, SUPABASE_SMTP_PORT, SUPABASE_SMTP_USER, SUPABASE_SMTP_PASSWORD',
+            regular: 'Или настройте обычный SMTP: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD',
+          },
+          currentConfig: {
+            supabaseConfigured: !!(process.env.SUPABASE_SMTP_HOST && process.env.SUPABASE_SMTP_PORT && process.env.SUPABASE_SMTP_USER && process.env.SUPABASE_SMTP_PASSWORD),
+            regularConfigured: !!(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASSWORD),
+            nodeEnv: process.env.NODE_ENV || 'development',
+          },
+        };
+        
+        // Выбрасываем ошибку, чтобы она была обработана в catch блоке
+        throw new Error(`Email не был отправлен. ${emailResult.details?.message || 'SMTP не настроен'}`);
+      }
     } catch (err: any) {
       emailError = err;
       debugSteps[5].status = 'error';
@@ -210,28 +240,38 @@ export async function POST(request: Request) {
           { status: 500 }
         );
       } else {
-        // В режиме разработки выводим предупреждение, но продолжаем
+        // В режиме разработки выводим предупреждение
         console.warn('⚠️ Email не отправлен (режим разработки). Проверьте настройки email.');
         console.warn('💡 Для диагностики используйте: GET /api/admin/email-diagnostics');
         console.warn('💡 Для теста отправки используйте: POST /api/admin/email-diagnostics с { "email": "ваш@email.com" }');
-        // В development режиме не выбрасываем ошибку, чтобы можно было протестировать UI
+        
+        // В development режиме возвращаем ошибку, чтобы пользователь видел проблему
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Email не был отправлен. Настройте SMTP (Supabase SMTP или обычный SMTP) для отправки писем.',
+            debug: debugMode ? debugSteps : undefined,
+          },
+          { status: 500 }
+        );
       }
     }
 
-    // Возвращаем успех только если email был отправлен или мы в development режиме
-    if (!emailSent && process.env.NODE_ENV === 'production') {
+    // Возвращаем успех только если email был реально отправлен
+    if (!emailSent) {
       // Это не должно произойти, так как мы уже вернули ошибку выше, но на всякий случай
-      console.error('🔴 КРИТИЧЕСКАЯ ОШИБКА: emailSent=false в production режиме');
+      console.error('🔴 КРИТИЧЕСКАЯ ОШИБКА: emailSent=false');
       return NextResponse.json(
         {
           success: false,
-          error: 'Ошибка отправки email. Пожалуйста, попробуйте позже или свяжитесь с поддержкой.',
+          error: 'Email не был отправлен. Проверьте настройки SMTP или свяжитесь с поддержкой.',
           debug: debugMode ? debugSteps : undefined,
         },
         { status: 500 }
       );
     }
 
+    // Email был успешно отправлен
     return NextResponse.json({
       success: true,
       message: 'Если пользователь с таким email существует, инструкции по восстановлению пароля отправлены на почту',
