@@ -139,7 +139,14 @@ export default function ContentGeneratorPage() {
         }),
       });
 
-      const outlineData = await outlineRes.json();
+      const outlineText = await outlineRes.text();
+      let outlineData;
+      try {
+        outlineData = JSON.parse(outlineText);
+      } catch (jsonError) {
+        throw new Error(outlineText.substring(0, 500) || 'Ошибка: сервер вернул не-JSON ответ для outline');
+      }
+
       if (!outlineRes.ok || !outlineData.success) {
         throw new Error(outlineData.error || 'Ошибка генерации outline');
       }
@@ -177,7 +184,14 @@ export default function ContentGeneratorPage() {
           }),
         });
 
-        const sectionData = await sectionRes.json();
+        const sectionText = await sectionRes.text();
+        let sectionData;
+        try {
+          sectionData = JSON.parse(sectionText);
+        } catch (jsonError) {
+          throw new Error(sectionText.substring(0, 500) || `Ошибка: сервер вернул не-JSON ответ для секции ${i + 1}`);
+        }
+
         if (!sectionRes.ok || !sectionData.success) {
           throw new Error(sectionData.error || `Ошибка генерации секции ${i + 1}`);
         }
@@ -207,7 +221,14 @@ export default function ContentGeneratorPage() {
         }),
       });
 
-      const seoData = await seoRes.json();
+      const seoText = await seoRes.text();
+      let seoData;
+      try {
+        seoData = JSON.parse(seoText);
+      } catch (jsonError) {
+        throw new Error(seoText.substring(0, 500) || 'Ошибка: сервер вернул не-JSON ответ для SEO метаданных');
+      }
+
       if (!seoRes.ok || !seoData.success) {
         throw new Error(seoData.error || 'Ошибка генерации SEO метаданных');
       }
@@ -228,8 +249,10 @@ export default function ContentGeneratorPage() {
         summary: `Статья "${outline.title}" состоит из ${outline.sections.length} секций. Целевая аудитория: ${targetAudience}.`,
       });
     } catch (err: any) {
-      setError(err.message || 'Ошибка генерации контента');
-      setSteps(prev => prev.map(s => ({ ...s, status: 'error', error: err.message })));
+      const errorMessage = err.message || 'Ошибка генерации контента';
+      console.error('Ошибка генерации контента:', err);
+      setError(errorMessage);
+      setSteps(prev => prev.map(s => ({ ...s, status: 'error', error: errorMessage })));
       setCurrentSection(null);
     } finally {
       setGenerating(false);
