@@ -88,7 +88,9 @@ export default function Navigation() {
     }
   };
 
-  const navItems: Array<{ href: string; labelKey: string }> = [];
+  const navItems: Array<{ href: string; labelKey: string }> = [
+    { href: '/content-generator', labelKey: 'Content Generator' },
+  ];
 
   return (
     <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
@@ -123,7 +125,7 @@ export default function Navigation() {
                         : 'border-transparent text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-300'
                     }`}
                   >
-                    {t(item.labelKey)}
+                    {item.labelKey === 'Content Generator' ? 'Content Generator' : t(item.labelKey)}
                   </Link>
                 );
               })}
@@ -186,6 +188,14 @@ export default function Navigation() {
                 <span className="text-gray-700 dark:text-gray-300 text-sm">
                   {user.name || user.email}
                 </span>
+                {user.email === 'admin@buylin.pro' && (
+                  <Link
+                    href="/admin/settings"
+                    className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm font-medium"
+                  >
+                    Настройки
+                  </Link>
+                )}
                 <button
                   onClick={handleLogout}
                   className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
