@@ -16,11 +16,15 @@ interface ContentGenerationRequest {
   additionalConstraints?: string;
 }
 
-interface StepResult {
-  step: string;
-  status: 'pending' | 'in_progress' | 'done' | 'error';
-  result?: string;
-  error?: string;
+interface OutlineSection {
+  id: string;
+  title: string;
+  description: string;
+}
+
+interface Outline {
+  title: string;
+  sections: OutlineSection[];
 }
 
 async function getOpenAIClient(): Promise<OpenAI> {
@@ -34,66 +38,232 @@ async function getOpenAIClient(): Promise<OpenAI> {
   return new OpenAI({ apiKey });
 }
 
-async function getAssistantId(): Promise<string> {
-  const assistantIdSetting = await getSetting('openai_assistant_id');
-  return assistantIdSetting?.value || '';
-}
-
-async function createOrGetAssistant(openai: OpenAI): Promise<string> {
-  const existingId = await getAssistantId();
-  
-  if (existingId) {
-    try {
-      await openai.beta.assistants.retrieve(existingId);
-      return existingId;
-    } catch (error) {
-      console.warn('Ассистент не найден, создаем нового');
-    }
+// ШАГ 1: Генерация структуры/содержания
+async function generateOutline(
+  openai: OpenAI,
+  params: {
+    mainQuery: string;
+    language: string;
+    targetAudience: string;
+    contentGoal: string;
+    desiredLength: string;
+    toneOfVoice: string;
+    additionalConstraints?: string;
   }
+): Promise<Outline> {
+  const startTime = Date.now();
+  console.log(`[OUTLINE] Начало генерации структуры в ${new Date().toISOString()}`);
+  
+  const outlinePrompt = `Создай структуру (содержание) статьи:
 
-  const assistant = await openai.beta.assistants.create({
-    name: 'Multi-Step Content Generator',
-    instructions: `Ты опытный SEO-копирайтер, редактор и контент-стратег. Твоя задача - создавать высококачественный контент через многоступенчатый процесс.
+Тема: ${params.mainQuery}
+Язык: ${params.language}
+Аудитория: ${params.targetAudience}
+Цель: ${params.contentGoal}
+Размер: ${params.desiredLength} слов
+Тон: ${params.toneOfVoice}
+${params.additionalConstraints ? `Ограничения: ${params.additionalConstraints}` : ''}
 
-Ты должен строго следовать этапам обработки:
+Создай логичную структуру из 5-10 секций. Каждая секция должна иметь заголовок и краткое описание (1-2 предложения).
 
-1. DRAFT GENERATION - создай развернутый черновик на основе входных параметров (topic, language, audience, goal, length, tone). Полностью раскрой тему, дай логичную структуру, пиши как опытный эксперт.
-
-2. SEO STRUCTURING - проанализируй draft, улучшь структуру под SEO (H2/H3, логика блоков, покрытие подзапросов), добавь недостающие разделы, учти поисковый интент, но не превращай в "ключепих".
-
-3. HUMANIZATION - перепиши текст так, чтобы он выглядел как работа живого эксперта: вариативная длина предложений, естественные связки, микросюжеты, отсутствие AI-штампов, учитывай дополнительные ограничения.
-
-4. UNIQUENESS - измени формулировки, порядок объяснений, переходы для стилистической уникальности, снижения вероятности детектирования как AI-контент, сохраняя смысл и SEO-пользу.
-
-5. QUALITY CHECK - проверь текст на повторы мыслей, логические разрывы, ненужную воду, противоречия. Убери повторы, сократи лишнее, выровняй тон и структуру.
-
-6. HTML PACKAGING - оформи финальный текст в HTML-подобном формате (h1, h2, h3, p, списки, таблицы), сгенерируй Meta title (55-60 символов), Meta description (155-160 символов), FAQ-вопросы (4-8 штук).
-
-ВАЖНО: Всегда возвращай финальный результат в формате JSON с полями:
+Верни ТОЛЬКО JSON:
 {
-  "html": "финальный HTML контент с тегами h1, h2, h3, p и т.д.",
-  "metaTitle": "Meta title до 60 символов",
-  "metaDescription": "Meta description до 160 символов",
-  "faqQuestions": ["Вопрос 1", "Вопрос 2", "Вопрос 3", ...],
-  "summary": "Краткий summary для автора/редактора с ключевой идеей, целевой аудиторией и основным интентом"
+  "title": "Заголовок статьи (H1)",
+  "sections": [
+    {
+      "id": "section-1",
+      "title": "Заголовок секции",
+      "description": "Краткое описание содержания секции"
+    }
+  ]
+}`;
+
+  // Таймаут 30 секунд (оставляем запас для шага 2)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    console.log(`[OUTLINE] ТАЙМАУТ: Превышено время ожидания структуры`);
+    controller.abort();
+  }, 30000);
+
+  try {
+    console.log(`[OUTLINE] Отправка запроса к OpenAI, max_tokens: 10000`);
+    const requestStartTime = Date.now();
+    
+    const completion = await openai.chat.completions.create(
+      {
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'Ты помощник для создания структуры статей. Создавай логичную структуру с секциями.',
+          },
+          { role: 'user', content: outlinePrompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 10000, // Для Pro плана можно больше
+        response_format: { type: 'json_object' },
+      },
+      {
+        signal: controller.signal,
+      }
+    );
+
+    const requestDuration = Date.now() - requestStartTime;
+    console.log(`[OUTLINE] Ответ получен за ${requestDuration}ms`);
+    clearTimeout(timeoutId);
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('Ответ от OpenAI не получен для структуры');
+    }
+
+    const parseStartTime = Date.now();
+    const result = JSON.parse(content.trim());
+    console.log(`[OUTLINE] JSON распарсен за ${Date.now() - parseStartTime}ms`);
+    console.log(`[OUTLINE] Всего времени: ${Date.now() - startTime}ms`);
+    
+    return {
+      title: result.title || params.mainQuery,
+      sections: result.sections || [],
+    };
+  } catch (abortError: any) {
+    clearTimeout(timeoutId);
+    const errorDuration = Date.now() - startTime;
+    console.error(`[OUTLINE] ОШИБКА через ${errorDuration}ms:`, abortError.message);
+    if (abortError.name === 'AbortError') {
+      throw new Error(`Превышено время ожидания генерации структуры (${errorDuration}ms).`);
+    }
+    throw abortError;
+  }
 }
 
-Всегда возвращай только валидный JSON без дополнительных комментариев.`,
-    model: 'gpt-4o',
-    tools: [{ type: 'code_interpreter' }],
-  });
+// ШАГ 2: Генерация статьи на основе структуры
+async function generateArticle(
+  openai: OpenAI,
+  outline: Outline,
+  params: {
+    mainQuery: string;
+    language: string;
+    targetAudience: string;
+    contentGoal: string;
+    desiredLength: string;
+    toneOfVoice: string;
+    additionalConstraints?: string;
+  },
+  totalStartTime: number // Общее время начала всего процесса
+): Promise<{ html: string; metaTitle: string; metaDescription: string; faqQuestions: string[] }> {
+  const startTime = Date.now();
+  console.log(`[ARTICLE] Начало генерации статьи в ${new Date().toISOString()}, секций: ${outline.sections.length}`);
+  
+  const sectionsText = outline.sections
+    .map((s, i) => `${i + 1}. ${s.title}: ${s.description}`)
+    .join('\n');
 
-  // Сохраняем ID ассистента
-  const { setSetting } = await import('@/lib/db-settings');
-  await setSetting('openai_assistant_id', assistant.id, 'ID ассистента OpenAI');
+  const articlePrompt = `Создай статью на основе следующей структуры:
 
-  return assistant.id;
+ОБЩАЯ ИНФОРМАЦИЯ:
+Тема: ${params.mainQuery}
+Язык: ${params.language}
+Аудитория: ${params.targetAudience}
+Цель: ${params.contentGoal}
+Размер: ${params.desiredLength} слов
+Тон: ${params.toneOfVoice}
+${params.additionalConstraints ? `Ограничения: ${params.additionalConstraints}` : ''}
+
+СТРУКТУРА СТАТЬИ:
+${sectionsText}
+
+Создай полную статью, следуя этой структуре. Каждая секция должна быть раскрыта полностью.
+
+Верни ТОЛЬКО JSON:
+{
+  "html": "HTML с h1, h2, h3, p (макс 200000 символов)",
+  "metaTitle": "55-60 символов",
+  "metaDescription": "155-160 символов",
+  "faqQuestions": ["Вопрос 1", "Вопрос 2", "Вопрос 3", "Вопрос 4"]
+}`;
+
+  // Таймаут адаптивный: оставляем запас для Vercel (лимит 60 секунд из vercel.json)
+  const elapsedTime = Date.now() - totalStartTime;
+  const remainingTime = Math.max(5000, 58000 - elapsedTime); // Минимум 5 секунд, максимум что осталось до 58 секунд
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    console.log(`[ARTICLE] ТАЙМАУТ: Превышено время ожидания статьи (лимит: ${remainingTime}ms)`);
+    controller.abort();
+  }, remainingTime);
+
+  try {
+    // Вычисляем доступное время: если уже потратили много времени на структуру, уменьшаем max_tokens
+    const elapsedTime = Date.now() - totalStartTime;
+    const remainingTimeForCalculation = 58000 - elapsedTime; // Оставляем запас 2 секунды до лимита 60 секунд
+    
+    // Адаптивно уменьшаем max_tokens в зависимости от оставшегося времени
+    // Примерно 100-150 токенов в секунду для gpt-4o-mini
+    const tokensPerSecond = 120; // Средняя скорость генерации
+    const estimatedMaxTokens = Math.floor((remainingTimeForCalculation / 1000) * tokensPerSecond);
+    const maxTokens = Math.min(30000, Math.max(5000, estimatedMaxTokens)); // Минимум 5000 токенов для Pro
+    
+    console.log(`[ARTICLE] Отправка запроса к OpenAI, max_tokens: ${maxTokens} (осталось времени: ~${remainingTimeForCalculation}ms, прошло: ${elapsedTime}ms)`);
+    const requestStartTime = Date.now();
+    
+    const completion = await openai.chat.completions.create(
+      {
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'Ты SEO-копирайтер. Создавай качественные статьи с естественным стилем без AI-штампов.',
+          },
+          { role: 'user', content: articlePrompt },
+        ],
+        temperature: 0.7,
+        max_tokens: maxTokens,
+        response_format: { type: 'json_object' },
+      },
+      {
+        signal: controller.signal,
+      }
+    );
+
+    const requestDuration = Date.now() - requestStartTime;
+    console.log(`[ARTICLE] Ответ получен за ${requestDuration}ms`);
+    clearTimeout(timeoutId);
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('Ответ от OpenAI не получен для статьи');
+    }
+
+    const parseStartTime = Date.now();
+    const result = JSON.parse(content.trim());
+    console.log(`[ARTICLE] JSON распарсен за ${Date.now() - parseStartTime}ms`);
+
+    // Ограничиваем размер HTML
+    if (result.html && result.html.length > 200000) {
+      console.log(`[ARTICLE] HTML превышает лимит: ${result.html.length} символов, обрезаем`);
+      result.html = result.html.substring(0, 200000) + '...';
+    }
+
+    console.log(`[ARTICLE] Всего времени: ${Date.now() - startTime}ms, размер HTML: ${result.html?.length || 0} символов`);
+
+    return {
+      html: result.html || '',
+      metaTitle: result.metaTitle || '',
+      metaDescription: result.metaDescription || '',
+      faqQuestions: result.faqQuestions || [],
+    };
+  } catch (abortError: any) {
+    clearTimeout(timeoutId);
+    const errorDuration = Date.now() - startTime;
+    console.error(`[ARTICLE] ОШИБКА через ${errorDuration}ms:`, abortError.message);
+    if (abortError.name === 'AbortError') {
+      throw new Error(`Превышено время ожидания генерации статьи (${errorDuration}ms). Попробуйте уменьшить желаемый размер.`);
+    }
+    throw abortError;
+  }
 }
 
-/**
- * POST /api/content-generator
- * Генерирует контент через многоступенчатый pipeline
- */
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
@@ -104,7 +274,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const body: ContentGenerationRequest = await request.json();
+    let body: ContentGenerationRequest;
+    try {
+      body = await request.json();
+    } catch (error) {
+      return NextResponse.json(
+        { success: false, error: 'Неверный формат запроса' },
+        { status: 400 }
+      );
+    }
+
     const {
       mainQuery,
       language,
@@ -123,103 +302,51 @@ export async function POST(request: Request) {
     }
 
     const openai = await getOpenAIClient();
-    const assistantId = await createOrGetAssistant(openai);
+    const totalStartTime = Date.now();
+    console.log(`[TOTAL] Начало генерации контента в ${new Date().toISOString()}`);
 
-    // Создаем thread
-    const thread = await openai.beta.threads.create();
-
-    // Формируем промпт для ассистента
-    const prompt = `Создай контент по следующему запросу:
-
-Основной запрос/тема: ${mainQuery}
-Язык: ${language}
-Целевая аудитория: ${targetAudience}
-Цель контента: ${contentGoal}
-Желаемый размер: ${desiredLength} слов
-Тон: ${toneOfVoice}
-${additionalConstraints ? `Дополнительные ограничения: ${additionalConstraints}` : ''}
-
-Выполни все 6 этапов обработки и верни результат в формате JSON для каждого этапа.`;
-
-    // Отправляем сообщение в thread
-    await openai.beta.threads.messages.create(thread.id, {
-      role: 'user',
-      content: prompt,
+    // ШАГ 1: Генерация структуры
+    console.log(`[TOTAL] ШАГ 1: Генерация структуры`);
+    const outline = await generateOutline(openai, {
+      mainQuery,
+      language,
+      targetAudience,
+      contentGoal,
+      desiredLength,
+      toneOfVoice,
+      additionalConstraints,
     });
 
-    // Запускаем run
-    const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: assistantId,
-    });
+    // ШАГ 2: Генерация статьи на основе структуры
+    console.log(`[TOTAL] ШАГ 2: Генерация статьи`);
+    const article = await generateArticle(openai, outline, {
+      mainQuery,
+      language,
+      targetAudience,
+      contentGoal,
+      desiredLength,
+      toneOfVoice,
+      additionalConstraints,
+    }, totalStartTime);
 
-    // Ждем завершения
-    let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-    let attempts = 0;
-    const maxAttempts = 60; // максимум 60 попыток (5 минут)
-
-    while (runStatus.status === 'queued' || runStatus.status === 'in_progress') {
-      if (attempts >= maxAttempts) {
-        throw new Error('Превышено время ожидания ответа от ассистента');
-      }
-      await new Promise((resolve) => setTimeout(resolve, 5000)); // ждем 5 секунд
-      runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-      attempts++;
-    }
-
-    if (runStatus.status === 'failed') {
-      throw new Error(runStatus.last_error?.message || 'Ошибка выполнения ассистента');
-    }
-
-    // Получаем сообщения
-    const messages = await openai.beta.threads.messages.list(thread.id, {
-      limit: 1,
-      order: 'desc',
-    });
-
-    const assistantMessage = messages.data[0];
-    if (!assistantMessage || assistantMessage.role !== 'assistant') {
-      throw new Error('Ответ от ассистента не получен');
-    }
-
-    const content = assistantMessage.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Неожиданный формат ответа от ассистента');
-    }
-
-    // Парсим ответ
-    let result: any;
-    const responseText = content.text.value.trim();
-    
-    // Пытаемся найти JSON в ответе
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        result = JSON.parse(jsonMatch[0]);
-      } catch (error) {
-        console.error('Ошибка парсинга JSON:', error);
-        // Если не удалось распарсить, возвращаем как есть
-        result = {
-          html: responseText,
-          metaTitle: '',
-          metaDescription: '',
-          faqQuestions: [],
-          summary: '',
-        };
-      }
-    } else {
-      // Если JSON не найден, возвращаем весь текст как HTML
-      result = {
-        html: responseText,
-        metaTitle: '',
-        metaDescription: '',
-        faqQuestions: [],
-        summary: '',
-      };
-    }
+    const totalDuration = Date.now() - totalStartTime;
+    console.log(`[TOTAL] Генерация завершена успешно за ${totalDuration}ms`);
 
     return NextResponse.json({
       success: true,
-      result,
+      result: {
+        html: article.html,
+        metaTitle: article.metaTitle,
+        metaDescription: article.metaDescription,
+        faqQuestions: article.faqQuestions,
+        summary: `Статья "${outline.title}" состоит из ${outline.sections.length} секций.`,
+        outline: outline,
+      },
+      debug: {
+        totalTime: totalDuration,
+        outlineSections: outline.sections.length,
+        htmlLength: article.html.length,
+      },
     });
   } catch (error: any) {
     console.error('Ошибка генерации контента:', error);

@@ -3,15 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-interface Step {
-  id: number;
-  name: string;
-  description: string;
-  status: 'pending' | 'in_progress' | 'done' | 'error';
-  result?: string;
-  error?: string;
-}
-
 interface FinalResult {
   html?: string;
   metaTitle?: string;
@@ -19,39 +10,6 @@ interface FinalResult {
   faqQuestions?: string[];
   summary?: string;
 }
-
-const STEPS: Omit<Step, 'status' | 'result' | 'error'>[] = [
-  {
-    id: 1,
-    name: 'Draft generation',
-    description: 'Создание развернутого черновика статьи на основе входных параметров',
-  },
-  {
-    id: 2,
-    name: 'SEO structuring',
-    description: 'Улучшение структуры под SEO: H2/H3, логика блоков, покрытие подзапросов',
-  },
-  {
-    id: 3,
-    name: 'Humanization / Natural style',
-    description: 'Переписывание текста для естественного, человеческого стиля без AI-штампов',
-  },
-  {
-    id: 4,
-    name: 'Uniqueness & variation',
-    description: 'Изменение формулировок и переходов для стилистической уникальности',
-  },
-  {
-    id: 5,
-    name: 'Quality & coherence check',
-    description: 'Проверка на повторы, логические разрывы, вода и противоречия',
-  },
-  {
-    id: 6,
-    name: 'Final HTML + SEO meta',
-    description: 'Оформление в HTML-формате и генерация SEO-метаданных',
-  },
-];
 
 export default function ContentGeneratorPage() {
   const router = useRouter();
@@ -66,11 +24,12 @@ export default function ContentGeneratorPage() {
   const [toneOfVoice, setToneOfVoice] = useState('neutral');
   const [additionalConstraints, setAdditionalConstraints] = useState('');
 
-  const [steps, setSteps] = useState<Step[]>(STEPS.map(s => ({ ...s, status: 'pending' })));
-  const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
   const [generating, setGenerating] = useState(false);
   const [finalResult, setFinalResult] = useState<FinalResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState('');
+  const [outline, setOutline] = useState<{ title: string; sections: Array<{ id: string; title: string; description: string }> } | null>(null);
+  const [step, setStep] = useState<'idle' | 'outline' | 'article'>('idle');
 
   useEffect(() => {
     checkAuth();
@@ -81,7 +40,6 @@ export default function ContentGeneratorPage() {
       const res = await fetch('/api/auth/user/me');
       
       if (res.status === 401) {
-        // Пользователь не авторизован - это нормально
         router.push('/login');
         return;
       }
@@ -102,16 +60,6 @@ export default function ContentGeneratorPage() {
     }
   };
 
-  const toggleStep = (stepId: number) => {
-    const newExpanded = new Set(expandedSteps);
-    if (newExpanded.has(stepId)) {
-      newExpanded.delete(stepId);
-    } else {
-      newExpanded.add(stepId);
-    }
-    setExpandedSteps(newExpanded);
-  };
-
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -123,20 +71,13 @@ export default function ContentGeneratorPage() {
     setGenerating(true);
     setError(null);
     setFinalResult(null);
-    setSteps(STEPS.map(s => ({ ...s, status: 'pending' })));
+    setOutline(null);
+    setStep('outline');
+    setProgress('Генерация структуры статьи...');
 
-    let progressInterval: NodeJS.Timeout | null = null;
-    
     try {
-      // Запускаем первый шаг
-      setSteps(prev => {
-        const newSteps = [...prev];
-        newSteps[0] = { ...newSteps[0], status: 'in_progress' };
-        return newSteps;
-      });
-
-      // Запускаем запрос асинхронно
-      const fetchPromise = fetch('/api/content-generator', {
+      // ШАГ 1: Генерация структуры
+      const res = await fetch('/api/content-generator', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -152,52 +93,39 @@ export default function ContentGeneratorPage() {
         }),
       });
 
-      // Симулируем прогресс по шагам во время ожидания ответа
-      let currentStep = 0;
-      progressInterval = setInterval(() => {
-        if (currentStep < steps.length - 1) {
-          setSteps(prev => {
-            const newSteps = [...prev];
-            if (currentStep >= 0) {
-              newSteps[currentStep] = { ...newSteps[currentStep], status: 'done' };
-            }
-            currentStep++;
-            if (currentStep < newSteps.length) {
-              newSteps[currentStep] = { ...newSteps[currentStep], status: 'in_progress' };
-            }
-            return newSteps;
-          });
-        }
-      }, 8000); // Каждые 8 секунд переходим к следующему шагу
-
-      const res = await fetchPromise;
-      if (progressInterval) clearInterval(progressInterval);
-
-      const data = await res.json();
+      const responseText = await res.text();
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonError) {
+        throw new Error(responseText.substring(0, 500) || 'Ошибка: сервер вернул не-JSON ответ');
+      }
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Ошибка генерации контента');
       }
 
-      // Обновляем все шаги как завершенные
-      setSteps(prev => prev.map(s => ({ ...s, status: 'done' })));
-
-      // Устанавливаем финальный результат
-      if (data.result) {
-        setFinalResult({
-          html: data.result.html || data.result.content,
-          metaTitle: data.result.metaTitle,
-          metaDescription: data.result.metaDescription,
-          faqQuestions: data.result.faqQuestions || [],
-          summary: data.result.summary,
-        });
+      // Сохраняем структуру
+      if (data.result.outline) {
+        setOutline(data.result.outline);
+        setStep('article');
+        setProgress('Генерация статьи на основе структуры...');
       }
+
+      setProgress('Статья готова!');
+      setFinalResult(data.result);
+      setStep('idle');
     } catch (err: any) {
-      if (progressInterval) clearInterval(progressInterval);
-      setError(err.message || 'Ошибка генерации контента');
-      setSteps(prev => prev.map(s => ({ ...s, status: 'error', error: err.message })));
+      const errorMessage = err.message || 'Ошибка генерации контента';
+      console.error('Ошибка генерации контента:', err);
+      setError(errorMessage);
+      setStep('idle');
     } finally {
       setGenerating(false);
+      if (!error) {
+        setProgress('');
+      }
     }
   };
 
@@ -222,7 +150,7 @@ export default function ContentGeneratorPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-8">
-          Multi-Step Content Generator
+          Content Generator
         </h1>
 
         {/* Форма параметров */}
@@ -340,87 +268,49 @@ export default function ContentGeneratorPage() {
               </div>
             )}
 
+            {progress && (
+              <div className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-4 py-3 rounded">
+                {progress}
+                {step === 'outline' && ' (Шаг 1/2)'}
+                {step === 'article' && ' (Шаг 2/2)'}
+              </div>
+            )}
+
+            {outline && (
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <h3 className="font-semibold text-green-900 dark:text-green-200 mb-2">
+                  Структура статьи: {outline.title}
+                </h3>
+                <ol className="list-decimal list-inside space-y-2 text-sm text-green-800 dark:text-green-300">
+                  {outline.sections.map((section, index) => (
+                    <li key={section.id}>
+                      <strong>{section.title}</strong>
+                      {section.description && (
+                        <span className="ml-2 text-gray-600 dark:text-gray-400">
+                          - {section.description}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={generating}
               className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {generating ? 'Генерация...' : 'Generate multi-step content'}
+              {generating ? 'Генерация...' : 'Generate article'}
             </button>
           </form>
-        </div>
-
-        {/* Визуализация этапов */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-8">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
-            Этапы обработки
-          </h2>
-
-          <div className="space-y-4">
-            {steps.map((step, index) => (
-              <div
-                key={step.id}
-                className={`border rounded-lg p-4 ${
-                  step.status === 'done'
-                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                    : step.status === 'in_progress'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : step.status === 'error'
-                    ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
-                    : 'border-gray-300 dark:border-gray-600'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4 flex-1">
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${
-                        step.status === 'done'
-                          ? 'bg-green-500 text-white'
-                          : step.status === 'in_progress'
-                          ? 'bg-blue-500 text-white'
-                          : step.status === 'error'
-                          ? 'bg-red-500 text-white'
-                          : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
-                      }`}
-                    >
-                      {step.status === 'done' ? '✓' : step.status === 'error' ? '✗' : step.id}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 dark:text-white">
-                        {step.name}
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {step.description}
-                      </p>
-                    </div>
-                  </div>
-                  {step.status === 'done' && (
-                    <button
-                      onClick={() => toggleStep(step.id)}
-                      className="px-4 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded transition-colors"
-                    >
-                      {expandedSteps.has(step.id) ? 'Скрыть' : 'Показать результат'}
-                    </button>
-                  )}
-                </div>
-
-                {expandedSteps.has(step.id) && step.result && (
-                  <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                    <pre className="whitespace-pre-wrap text-sm text-gray-900 dark:text-white">
-                      {step.result}
-                    </pre>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Финальный результат */}
         {finalResult && (
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
-              Final Output
+              Результат
             </h2>
 
             {/* SEO данные */}
