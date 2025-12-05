@@ -39,12 +39,16 @@ export async function GET(request: Request) {
     // Если ключ не указан, возвращаем все настройки OpenAI
     const openaiApiKey = await getSetting('openai_api_key');
     const openaiAssistantId = await getSetting('openai_assistant_id');
+    const outlineAssistantId = await getSetting('openai_outline_assistant_id');
+    const sectionAssistantId = await getSetting('openai_section_assistant_id');
 
     return NextResponse.json({
       success: true,
       settings: {
         openaiApiKey: openaiApiKey?.value || null,
         openaiAssistantId: openaiAssistantId?.value || null,
+        outlineAssistantId: outlineAssistantId?.value || null,
+        sectionAssistantId: sectionAssistantId?.value || null,
       },
     });
   } catch (error: any) {
@@ -73,7 +77,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { openaiApiKey, openaiAssistantId } = body;
+    const { openaiApiKey, openaiAssistantId, outlineAssistantId, sectionAssistantId } = body;
 
     const settings: any = {};
 
@@ -90,9 +94,27 @@ export async function POST(request: Request) {
       await setSetting(
         'openai_assistant_id',
         openaiAssistantId || '',
-        'ID ассистента OpenAI для генерации контента'
+        'ID ассистента OpenAI для генерации контента (устаревшее)'
       );
       settings.openaiAssistantId = openaiAssistantId;
+    }
+
+    if (outlineAssistantId !== undefined) {
+      await setSetting(
+        'openai_outline_assistant_id',
+        outlineAssistantId || '',
+        'ID ассистента OpenAI для генерации структуры статей (Outline Assistant)'
+      );
+      settings.outlineAssistantId = outlineAssistantId;
+    }
+
+    if (sectionAssistantId !== undefined) {
+      await setSetting(
+        'openai_section_assistant_id',
+        sectionAssistantId || '',
+        'ID ассистента OpenAI для генерации секций статей (Content Section Writer)'
+      );
+      settings.sectionAssistantId = sectionAssistantId;
     }
 
     return NextResponse.json({

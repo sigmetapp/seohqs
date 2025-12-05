@@ -15,6 +15,23 @@ async function getOpenAIClient(): Promise<OpenAI> {
   return new OpenAI({ apiKey });
 }
 
+async function getOutlineAssistantId(openai: OpenAI): Promise<string> {
+  const assistantIdSetting = await getSetting('openai_outline_assistant_id');
+  const assistantId = assistantIdSetting?.value;
+  
+  if (!assistantId) {
+    throw new Error('Outline Assistant ID не настроен. Укажите его в настройках администратора.');
+  }
+  
+  // Проверяем, что ассистент существует
+  try {
+    await openai.beta.assistants.retrieve(assistantId);
+    return assistantId;
+  } catch (error) {
+    throw new Error(`Outline Assistant с ID ${assistantId} не найден. Проверьте настройки.`);
+  }
+}
+
 export async function POST(request: Request) {
   const startTime = Date.now();
   
@@ -32,6 +49,7 @@ export async function POST(request: Request) {
     }
 
     const openai = await getOpenAIClient();
+    const assistantId = await getOutlineAssistantId(openai);
 
     const prompt = `Создай структуру статьи:
 
@@ -63,34 +81,65 @@ export async function POST(request: Request) {
     }, 10000);
 
     try {
-      const completion = await openai.chat.completions.create(
-        {
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'Ты помощник для создания структуры статей. Создавай логичную структуру с 5-12 секциями. Верни ТОЛЬКО валидный JSON без дополнительного текста.',
-            },
-            { role: 'user', content: prompt },
-          ],
-          temperature: 0.7,
-          max_tokens: 1200, // Ограничено для быстрой генерации
-          response_format: { type: 'json_object' },
-        },
-        {
-          signal: controller.signal,
-          timeout: 8000, // Таймаут на уровне OpenAI клиента (8 сек)
+      // Используем Assistants API
+      const thread = await openai.beta.threads.create();
+      await openai.beta.threads.messages.create(thread.id, {
+        role: 'user',
+        content: prompt,
+      });
+
+      const run = await openai.beta.threads.runs.create(thread.id, {
+        assistant_id: assistantId,
+      });
+
+      // Ждем завершения с таймаутом
+      let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+      let attempts = 0;
+      const maxAttempts = 10; // 10 секунд максимум (1 сек * 10 попыток)
+
+      while ((runStatus.status === 'queued' || runStatus.status === 'in_progress') && attempts < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+        attempts++;
+        
+        // Проверяем таймаут
+        if (Date.now() - startTime > 10000) {
+          throw new Error('Превышено время ожидания генерации структуры (10 секунд)');
         }
-      );
-
-      clearTimeout(timeoutId);
-
-      const content = completion.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error('Ответ от OpenAI не получен');
       }
 
-      const outline = JSON.parse(content.trim());
+      if (runStatus.status === 'failed') {
+        throw new Error(runStatus.last_error?.message || 'Ошибка генерации структуры');
+      }
+
+      if (runStatus.status !== 'completed') {
+        throw new Error(`Генерация структуры не завершена. Статус: ${runStatus.status}`);
+      }
+
+      const messages = await openai.beta.threads.messages.list(thread.id, {
+        limit: 1,
+        order: 'desc',
+      });
+
+      const assistantMessage = messages.data[0];
+      if (!assistantMessage || assistantMessage.role !== 'assistant') {
+        throw new Error('Ответ от ассистента не получен');
+      }
+
+      const content = assistantMessage.content[0];
+      if (content.type !== 'text') {
+        throw new Error('Неожиданный формат ответа');
+      }
+
+      const responseText = content.text.value.trim();
+      
+      // Извлекаем JSON из ответа
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('JSON не найден в ответе ассистента');
+      }
+
+      const outline = JSON.parse(jsonMatch[0]);
       
       // Валидация структуры
       if (!outline.title || !Array.isArray(outline.sections)) {
