@@ -10,6 +10,9 @@ const nextConfig = {
   generateEtags: false, // Отключаем ETags для ускорения
   compress: true, // Включаем сжатие
   
+  // Используем standalone output для меньшего размера билда
+  output: 'standalone',
+  
   webpack: (config, { isServer }) => {
     // Исключаем better-sqlite3 из серверного бандла
     if (isServer) {
@@ -20,12 +23,18 @@ const nextConfig = {
         config.externals = [config.externals, 'better-sqlite3'];
       }
     }
+    
+    // Исключаем неиспользуемые файлы из сборки
+    config.resolve.alias = {
+      ...config.resolve.alias,
+    };
+    
     return config;
   },
   
   experimental: {
     serverComponentsExternalPackages: ['better-sqlite3'],
-    optimizePackageImports: ['@supabase/supabase-js', 'googleapis'], // Оптимизация импортов
+    optimizePackageImports: ['@supabase/supabase-js'], // Оптимизация импортов (убрали googleapis, т.к. используется только в API)
   },
   
   // Отключаем проверки при сборке для ускорения деплоя
@@ -34,6 +43,16 @@ const nextConfig = {
   },
   eslint: {
     ignoreDuringBuilds: true, // Отключаем ESLint при сборке для ускорения
+  },
+  
+  // Исключаем большие файлы из трассировки
+  outputFileTracingExcludes: {
+    '*': [
+      'node_modules/@swc/core*/**/*',
+      'node_modules/webpack/**/*',
+      'migrations/**/*',
+      'public/data/**/*',
+    ],
   },
 }
 

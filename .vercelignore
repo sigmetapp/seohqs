@@ -24,10 +24,33 @@ documentation/
 .env.example
 
 # Игнорируем большие файлы данных
+public/data/*.csv
 public/*.csv
 data/
+core/
 
 # Игнорируем временные файлы
 *.log
 *.tmp
 .cache/
+.next/
+
+# Игнорируем неиспользуемые файлы из lib
+lib/cache.ts
+lib/db-adapter.ts
+lib/db-postgres-accounts.ts
+lib/db-postgres.ts
+lib/db-supabase.ts
+lib/db.ts
+lib/google-gsc-accounts.ts
+lib/google-indexing.ts
+lib/google-search-console.ts
+lib/gsc-integrations.ts
+lib/load-google-console-sites.ts
+lib/middleware-auth.ts
+lib/migrations-postgres.ts
+lib/migrations.ts
+lib/oauth-utils.ts
+lib/postgres-client.ts
+lib/storage.ts
+lib/types.ts
