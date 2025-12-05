@@ -42,6 +42,7 @@ export async function GET(request: Request) {
     const outlineAssistantId = await getSetting('openai_outline_assistant_id');
     const sectionAssistantId = await getSetting('openai_section_assistant_id');
     const seoAssistantId = await getSetting('openai_seo_assistant_id');
+    const cleanupAssistantId = await getSetting('openai_cleanup_assistant_id');
 
     return NextResponse.json({
       success: true,
@@ -51,6 +52,7 @@ export async function GET(request: Request) {
         outlineAssistantId: outlineAssistantId?.value || null,
         sectionAssistantId: sectionAssistantId?.value || null,
         seoAssistantId: seoAssistantId?.value || null,
+        cleanupAssistantId: cleanupAssistantId?.value || null,
       },
     });
   } catch (error: any) {
@@ -79,7 +81,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { openaiApiKey, openaiAssistantId, outlineAssistantId, sectionAssistantId, seoAssistantId } = body;
+    const { openaiApiKey, openaiAssistantId, outlineAssistantId, sectionAssistantId, seoAssistantId, cleanupAssistantId } = body;
 
     const settings: any = {};
 
@@ -126,6 +128,15 @@ export async function POST(request: Request) {
         'ID ассистента OpenAI для генерации SEO метаданных (SEO Packaging Assistant)'
       );
       settings.seoAssistantId = seoAssistantId;
+    }
+
+    if (cleanupAssistantId !== undefined) {
+      await setSetting(
+        'openai_cleanup_assistant_id',
+        cleanupAssistantId || '',
+        'ID ассистента OpenAI для очистки и "очеловечивания" HTML секций (Cleanup Assistant v1.0)'
+      );
+      settings.cleanupAssistantId = cleanupAssistantId;
     }
 
     return NextResponse.json({

@@ -14,6 +14,7 @@ export default function AdminSettingsPage() {
   const [outlineAssistantId, setOutlineAssistantId] = useState('');
   const [sectionAssistantId, setSectionAssistantId] = useState('');
   const [seoAssistantId, setSeoAssistantId] = useState('');
+  const [cleanupAssistantId, setCleanupAssistantId] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -64,6 +65,7 @@ export default function AdminSettingsPage() {
         setOutlineAssistantId(data.settings.outlineAssistantId || '');
         setSectionAssistantId(data.settings.sectionAssistantId || '');
         setSeoAssistantId(data.settings.seoAssistantId || '');
+        setCleanupAssistantId(data.settings.cleanupAssistantId || '');
       }
     } catch (error) {
       console.error('Ошибка загрузки настроек:', error);
@@ -87,6 +89,7 @@ export default function AdminSettingsPage() {
           outlineAssistantId,
           sectionAssistantId,
           seoAssistantId,
+          cleanupAssistantId,
         }),
       });
 
@@ -231,6 +234,26 @@ export default function AdminSettingsPage() {
               />
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 ID ассистента для генерации SEO метаданных (SEO Packaging Assistant)
+              </p>
+            </div>
+
+            <div>
+              <label
+                htmlFor="cleanupAssistantId"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                Cleanup Assistant ID *
+              </label>
+              <input
+                type="text"
+                id="cleanupAssistantId"
+                value={cleanupAssistantId}
+                onChange={(e) => setCleanupAssistantId(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="asst_kwQQhhnsoG21VkggWIfHRGTt"
+              />
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                ID ассистента для очистки и "очеловечивания" HTML секций (Cleanup Assistant v1.0)
               </p>
             </div>
 

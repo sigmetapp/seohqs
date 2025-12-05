@@ -14,7 +14,11 @@ export interface SectionStatusData {
   index: number;
   title: string;
   status: SectionStatus;
-  sectionHtml?: string;
+  sectionHtml?: string; // очищенный HTML (cleanHtmlSection), если есть, иначе rawHtmlSection
+  rawHtmlSection?: string; // сырой HTML от Section Writer
+  cleanHtmlSection?: string; // очищенный HTML от Cleanup Assistant
+  cleaned?: boolean; // флаг, была ли выполнена очистка
+  cleanupTime?: number; // время очистки в секундах
   generationTime?: number; // в секундах
   wordCount?: number;
   complexityLevel?: 'medium' | 'low' | 'high';
@@ -103,6 +107,11 @@ export default function SectionStatusCard({ section, onRegenerate }: SectionStat
             <span className="font-medium">Время:</span> {section.generationTime}с
           </div>
         )}
+        {section.cleanupTime !== undefined && (
+          <div>
+            <span className="font-medium">Cleanup:</span> {section.cleanupTime}с
+          </div>
+        )}
         {section.status === 'success' || section.status === 'success_light' ? (
           <div>
             <span className="font-medium">Длина:</span> {wordCount} слов
@@ -116,6 +125,11 @@ export default function SectionStatusCard({ section, onRegenerate }: SectionStat
         {section.retryCount !== undefined && (
           <div>
             <span className="font-medium">Повторов:</span> {section.retryCount}
+          </div>
+        )}
+        {section.cleaned && (
+          <div className="text-green-600 dark:text-green-400">
+            <span className="font-medium">✓ Очищено</span>
           </div>
         )}
       </div>
@@ -183,6 +197,16 @@ export default function SectionStatusCard({ section, onRegenerate }: SectionStat
       {/* Показ HTML */}
       {showHtml && section.sectionHtml && typeof section.sectionHtml === 'string' && section.sectionHtml.trim().length > 0 && (
         <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+          {section.cleaned && section.cleanHtmlSection && (
+            <div className="mb-2 text-xs text-green-600 dark:text-green-400">
+              ✓ Отображается очищенная версия (Cleanup Assistant)
+            </div>
+          )}
+          {!section.cleaned && section.rawHtmlSection && (
+            <div className="mb-2 text-xs text-yellow-600 dark:text-yellow-400">
+              ⚠️ Отображается сырая версия (cleanup не выполнен)
+            </div>
+          )}
           <div
             className="prose dark:prose-invert max-w-none text-sm"
             dangerouslySetInnerHTML={{ __html: section.sectionHtml }}
