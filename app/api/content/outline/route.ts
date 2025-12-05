@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { topic, language, audience, goal, desiredLength, tone } = body;
+    const { topic, language, audience, goal, length, tone } = body;
 
     if (!topic) {
       return NextResponse.json({ success: false, error: 'Тема обязательна' }, { status: 400 });
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 Язык: ${language || 'RU'}
 Аудитория: ${audience || 'general'}
 Цель: ${goal || 'SEO article'}
-Размер: ${desiredLength || '2000'} слов
+Размер: ${length || '2000'} слов
 Тон: ${tone || 'neutral'}
 
 Создай структуру из 5-12 секций. Каждая секция: заголовок и краткое описание (1-2 предложения).
@@ -56,11 +56,11 @@ export async function POST(request: Request) {
   ]
 }`;
 
-    // Таймаут 25 секунд для outline (запас для Vercel)
+    // Таймаут 10 секунд для outline (быстрый запрос)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
-    }, 25000);
+    }, 10000);
 
     try {
       const completion = await openai.chat.completions.create(
@@ -74,12 +74,12 @@ export async function POST(request: Request) {
             { role: 'user', content: prompt },
           ],
           temperature: 0.7,
-          max_tokens: 1500, // Уменьшено для ускорения
+          max_tokens: 1200, // Ограничено для быстрой генерации
           response_format: { type: 'json_object' },
         },
         {
           signal: controller.signal,
-          timeout: 20000, // Таймаут на уровне OpenAI клиента
+          timeout: 8000, // Таймаут на уровне OpenAI клиента (8 сек)
         }
       );
 
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
     } catch (abortError: any) {
       clearTimeout(timeoutId);
       if (abortError.name === 'AbortError' || abortError.message?.includes('aborted') || abortError.message?.includes('timeout')) {
-        throw new Error('Превышено время ожидания генерации структуры (25 секунд). Попробуйте еще раз.');
+        throw new Error('Превышено время ожидания генерации структуры (10 секунд)');
       }
       throw abortError;
     }

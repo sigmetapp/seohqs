@@ -82,7 +82,7 @@ export default function ContentGeneratorPage() {
       setProgress('Генерация структуры статьи...');
       
       const outlineController = new AbortController();
-      const outlineTimeout = setTimeout(() => outlineController.abort(), 30000); // 30 секунд на клиенте
+      const outlineTimeout = setTimeout(() => outlineController.abort(), 12000); // 12 секунд на клиенте (запас)
       
       let outlineRes;
       try {
@@ -96,7 +96,7 @@ export default function ContentGeneratorPage() {
             language,
             audience: targetAudience,
             goal: contentGoal,
-            desiredLength,
+            length: desiredLength,
             tone: toneOfVoice,
           }),
           signal: outlineController.signal,
@@ -111,11 +111,19 @@ export default function ContentGeneratorPage() {
       }
 
       const outlineText = await outlineRes.text();
+      
+      // Проверяем, что ответ не пустой и не слишком большой перед парсингом
+      if (!outlineText || outlineText.length > 10000) {
+        throw new Error('Сервер вернул неожиданный ответ при генерации структуры');
+      }
+      
       let outlineData;
       try {
         outlineData = JSON.parse(outlineText);
       } catch (jsonError) {
-        throw new Error(outlineText.substring(0, 500) || 'Ошибка: сервер вернул не-JSON ответ при генерации структуры');
+        // Не пытаемся парсить большой JSON после ошибки
+        const preview = outlineText.length > 200 ? outlineText.substring(0, 200) + '...' : outlineText;
+        throw new Error(`Ошибка: сервер вернул не-JSON ответ при генерации структуры. Ответ: ${preview}`);
       }
 
       if (!outlineRes.ok || !outlineData.success) {
@@ -138,7 +146,7 @@ export default function ContentGeneratorPage() {
         setProgress(`Генерация секции ${i + 1} из ${totalSections}: ${section.title}...`);
 
         const sectionController = new AbortController();
-        const sectionTimeout = setTimeout(() => sectionController.abort(), 40000); // 40 секунд на клиенте
+        const sectionTimeout = setTimeout(() => sectionController.abort(), 35000); // 35 секунд на клиенте (запас)
         
         let sectionRes;
         try {
@@ -169,11 +177,19 @@ export default function ContentGeneratorPage() {
         }
 
         const sectionText = await sectionRes.text();
+        
+        // Проверяем, что ответ не пустой и не слишком большой перед парсингом
+        if (!sectionText || sectionText.length > 50000) {
+          throw new Error(`Сервер вернул неожиданный ответ при генерации секции ${i + 1}`);
+        }
+        
         let sectionData;
         try {
           sectionData = JSON.parse(sectionText);
         } catch (jsonError) {
-          throw new Error(`Ошибка: сервер вернул не-JSON ответ при генерации секции ${i + 1}. Ответ: ${sectionText.substring(0, 200)}`);
+          // Не пытаемся парсить большой JSON после ошибки
+          const preview = sectionText.length > 200 ? sectionText.substring(0, 200) + '...' : sectionText;
+          throw new Error(`Ошибка: сервер вернул не-JSON ответ при генерации секции ${i + 1}. Ответ: ${preview}`);
         }
 
         if (!sectionRes.ok || !sectionData.success) {
@@ -191,7 +207,7 @@ export default function ContentGeneratorPage() {
       setProgress('Генерация SEO метаданных...');
       
       const seoController = new AbortController();
-      const seoTimeout = setTimeout(() => seoController.abort(), 15000); // 15 секунд на клиенте
+      const seoTimeout = setTimeout(() => seoController.abort(), 12000); // 12 секунд на клиенте (запас)
       
       let seoRes;
       try {
