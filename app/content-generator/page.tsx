@@ -1128,9 +1128,30 @@ export default function ContentGeneratorPage() {
                 </div>
               </div>
               <div
-                className="p-4 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 prose dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: finalResult.html || '' }}
-              />
+                className="p-6 bg-white dark:bg-gray-900 rounded-lg border-2 border-gray-200 dark:border-gray-700 shadow-sm"
+                style={{
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                }}
+              >
+                <div
+                  className="prose prose-lg dark:prose-invert max-w-none
+                    prose-headings:font-bold prose-headings:text-gray-900 dark:prose-headings:text-white
+                    prose-h1:text-4xl prose-h1:mt-8 prose-h1:mb-4 prose-h1:border-b-2 prose-h1:border-gray-300 dark:prose-h1:border-gray-600 prose-h1:pb-3
+                    prose-h2:text-3xl prose-h2:mt-6 prose-h2:mb-3 prose-h2:text-gray-800 dark:prose-h2:text-gray-100
+                    prose-h3:text-2xl prose-h3:mt-5 prose-h3:mb-2 prose-h3:text-gray-700 dark:prose-h3:text-gray-200
+                    prose-h4:text-xl prose-h4:mt-4 prose-h4:mb-2 prose-h4:text-gray-700 dark:prose-h4:text-gray-200
+                    prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-p:leading-relaxed prose-p:mb-4
+                    prose-ul:list-disc prose-ul:pl-6 prose-ul:mb-4 prose-ul:text-gray-700 dark:prose-ul:text-gray-300
+                    prose-ol:list-decimal prose-ol:pl-6 prose-ol:mb-4 prose-ol:text-gray-700 dark:prose-ol:text-gray-300
+                    prose-li:mb-2 prose-li:leading-relaxed
+                    prose-strong:text-gray-900 dark:prose-strong:text-white prose-strong:font-semibold
+                    prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:underline
+                    prose-blockquote:border-l-4 prose-blockquote:border-gray-300 dark:prose-blockquote:border-gray-600 prose-blockquote:pl-4 prose-blockquote:italic
+                    prose-code:text-sm prose-code:bg-gray-100 dark:prose-code:bg-gray-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded
+                    prose-pre:bg-gray-100 dark:prose-pre:bg-gray-800 prose-pre:p-4 prose-pre:rounded-lg prose-pre:overflow-x-auto"
+                  dangerouslySetInnerHTML={{ __html: finalResult.html || '' }}
+                />
+              </div>
             </div>
           </div>
         )}
