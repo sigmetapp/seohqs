@@ -75,19 +75,48 @@ ${params.additionalConstraints ? `Ограничения: ${params.additionalCon
   ]
 }`;
 
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 минут (20x от 30 секунд)
+
+  try {
+    const completion = await openai.chat.completions.create(
       {
-        role: 'system',
-        content: 'Ты помощник для создания структуры статей. Создавай логичную структуру с секциями.',
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'Ты помощник для создания структуры статей. Создавай логичную структуру с секциями.',
+          },
+          { role: 'user', content: outlinePrompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 10000, // Увеличено в 10 раз
+        response_format: { type: 'json_object' },
       },
-      { role: 'user', content: outlinePrompt },
-    ],
-    temperature: 0.7,
-    max_tokens: 1000, // Короткий ответ для структуры
-    response_format: { type: 'json_object' },
-  });
+      {
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('Ответ от OpenAI не получен для структуры');
+    }
+
+    const result = JSON.parse(content.trim());
+    return {
+      title: result.title || params.mainQuery,
+      sections: result.sections || [],
+    };
+  } catch (abortError: any) {
+    clearTimeout(timeoutId);
+    if (abortError.name === 'AbortError') {
+      throw new Error('Превышено время ожидания генерации структуры.');
+    }
+    throw abortError;
+  }
 
   const content = completion.choices[0]?.message?.content;
   if (!content) {
@@ -137,14 +166,14 @@ ${sectionsText}
 
 Верни ТОЛЬКО JSON:
 {
-  "html": "HTML с h1, h2, h3, p (макс 20000 символов)",
+  "html": "HTML с h1, h2, h3, p (макс 200000 символов)",
   "metaTitle": "55-60 символов",
   "metaDescription": "155-160 символов",
   "faqQuestions": ["Вопрос 1", "Вопрос 2", "Вопрос 3", "Вопрос 4"]
 }`;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45000);
+  const timeoutId = setTimeout(() => controller.abort(), 900000); // 15 минут (20x от 45 секунд)
 
   try {
     const completion = await openai.chat.completions.create(
@@ -158,7 +187,7 @@ ${sectionsText}
           { role: 'user', content: articlePrompt },
         ],
         temperature: 0.7,
-        max_tokens: 3000, // Больше токенов для полной статьи
+        max_tokens: 30000, // Увеличено в 10 раз
         response_format: { type: 'json_object' },
       },
       {
@@ -176,8 +205,8 @@ ${sectionsText}
     const result = JSON.parse(content.trim());
 
     // Ограничиваем размер HTML
-    if (result.html && result.html.length > 20000) {
-      result.html = result.html.substring(0, 20000) + '...';
+    if (result.html && result.html.length > 200000) {
+      result.html = result.html.substring(0, 200000) + '...';
     }
 
     return {
