@@ -87,7 +87,7 @@ export default function ContentGeneratorPage() {
       setProgress('Generating outline…');
       
       const outlineController = new AbortController();
-      const outlineTimeout = setTimeout(() => outlineController.abort(), 12000);
+      const outlineTimeout = setTimeout(() => outlineController.abort(), 35000); // 35 секунд на клиенте (запас для серверных 30 секунд)
       
       let outlineRes;
       try {
@@ -112,7 +112,7 @@ export default function ContentGeneratorPage() {
       } catch (fetchError: any) {
         clearTimeout(outlineTimeout);
         if (fetchError.name === 'AbortError') {
-          throw new Error('Превышено время ожидания генерации структуры. Попробуйте еще раз.');
+          throw new Error('Превышено время ожидания генерации структуры (35 секунд). Попробуйте еще раз.');
         }
         throw fetchError;
       }

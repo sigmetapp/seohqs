@@ -82,11 +82,12 @@ ${constraints ? `Дополнительные ограничения: ${constrai
   ]
 }`;
 
-    // Таймаут 10 секунд для outline (быстрый запрос)
+    // Таймаут 30 секунд для outline (Assistants API может работать медленнее)
     const controller = new AbortController();
+    const timeoutMs = 30000; // 30 секунд
     const timeoutId = setTimeout(() => {
       controller.abort();
-    }, 10000);
+    }, timeoutMs);
 
     try {
       // Используем Assistants API
@@ -103,16 +104,18 @@ ${constraints ? `Дополнительные ограничения: ${constrai
       // Ждем завершения с таймаутом
       let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
       let attempts = 0;
-      const maxAttempts = 10; // 10 секунд максимум (1 сек * 10 попыток)
+      const maxAttempts = 60; // 30 секунд максимум (0.5 сек * 60 попыток)
+      const pollInterval = 500; // Проверяем каждые 500мс для более быстрой реакции
 
       while ((runStatus.status === 'queued' || runStatus.status === 'in_progress') && attempts < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
         runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
         attempts++;
         
         // Проверяем таймаут
-        if (Date.now() - startTime > 10000) {
-          throw new Error('Превышено время ожидания генерации структуры (10 секунд)');
+        const elapsed = Date.now() - startTime;
+        if (elapsed > timeoutMs) {
+          throw new Error(`Превышено время ожидания генерации структуры (${Math.round(elapsed / 1000)} секунд)`);
         }
       }
 
@@ -168,8 +171,9 @@ ${constraints ? `Дополнительные ограничения: ${constrai
       });
     } catch (abortError: any) {
       clearTimeout(timeoutId);
+      const elapsed = Date.now() - startTime;
       if (abortError.name === 'AbortError' || abortError.message?.includes('aborted') || abortError.message?.includes('timeout')) {
-        throw new Error('Превышено время ожидания генерации структуры (10 секунд)');
+        throw new Error(`Превышено время ожидания генерации структуры (${Math.round(elapsed / 1000)} секунд)`);
       }
       throw abortError;
     }
