@@ -35,7 +35,13 @@ export default function Navigation() {
   const fetchUser = () => {
     setLoading(true);
     fetch('/api/auth/user/me')
-      .then(res => res.json())
+      .then(res => {
+        if (res.status === 401) {
+          // Пользователь не авторизован - это нормально
+          return { success: false };
+        }
+        return res.json();
+      })
       .then(data => {
         if (data.success && data.user) {
           setUser(data.user);
@@ -415,6 +421,7 @@ export default function Navigation() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  autoComplete="email"
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="your@email.com"
                 />
@@ -441,6 +448,7 @@ export default function Navigation() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  autoComplete={isRegistering ? "new-password" : "current-password"}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="••••••••"
                 />
@@ -532,6 +540,7 @@ export default function Navigation() {
                       value={forgotPasswordEmail}
                       onChange={(e) => setForgotPasswordEmail(e.target.value)}
                       required
+                      autoComplete="email"
                       className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="your@email.com"
                     />
