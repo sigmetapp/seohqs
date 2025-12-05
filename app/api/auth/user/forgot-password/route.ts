@@ -45,12 +45,29 @@ export async function POST(request: Request) {
     await saveResetToken(dbUser.id, resetToken, resetTokenExpiry);
 
     // Отправляем email с токеном
-    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+    let baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!baseUrl && process.env.VERCEL_URL) {
+      // VERCEL_URL не включает протокол, добавляем https для production
+      baseUrl = `https://${process.env.VERCEL_URL}`;
+    }
+    if (!baseUrl) {
+      baseUrl = 'http://localhost:3000';
+    }
+    const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
+    console.log(`🔗 Сформированный URL для сброса пароля: ${resetUrl}`);
     
     try {
       await sendPasswordResetEmail(dbUser.email, resetUrl);
-    } catch (emailError) {
-      console.error('Ошибка отправки email:', emailError);
+      console.log(`✅ Email для сброса пароля отправлен на ${dbUser.email}`);
+    } catch (emailError: any) {
+      console.error('❌ Ошибка отправки email:', emailError);
+      console.error('Детали ошибки:', {
+        message: emailError?.message,
+        stack: emailError?.stack,
+        email: dbUser.email,
+        resetUrl: resetUrl.substring(0, 50) + '...',
+      });
+      
       // В режиме разработки можем продолжить без email
       if (process.env.NODE_ENV === 'production') {
         return NextResponse.json(
@@ -60,6 +77,9 @@ export async function POST(request: Request) {
           },
           { status: 500 }
         );
+      } else {
+        // В режиме разработки выводим предупреждение, но продолжаем
+        console.warn('⚠️ Email не отправлен (режим разработки). Проверьте настройки email.');
       }
     }
 
@@ -158,16 +178,21 @@ async function saveResetToken(userId: number, token: string, expiry: Date): Prom
 
 // Отправка email с инструкциями по восстановлению пароля
 async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<void> {
+  console.log(`📧 Попытка отправить email на ${email}`);
+  console.log(`🔗 Reset URL: ${resetUrl.substring(0, 80)}...`);
+  
   // Приоритет 1: Resend API (рекомендуется для Supabase)
   const resendApiKey = process.env.RESEND_API_KEY;
   if (resendApiKey) {
+    console.log('📤 Используется Resend API для отправки email');
     try {
       const { Resend } = require('resend');
       const resend = new Resend(resendApiKey);
       
       const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+      console.log(`📨 Отправка с адреса: ${fromEmail}`);
       
-      await resend.emails.send({
+      const result = await resend.emails.send({
         from: fromEmail,
         to: email,
         subject: 'Восстановление пароля',
@@ -189,9 +214,16 @@ async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<
           </div>
         `,
       });
+      
+      console.log('✅ Email успешно отправлен через Resend:', result);
       return;
-    } catch (error) {
-      console.error('Ошибка отправки через Resend:', error);
+    } catch (error: any) {
+      console.error('❌ Ошибка отправки через Resend:', error);
+      console.error('Детали ошибки Resend:', {
+        message: error?.message,
+        name: error?.name,
+        statusCode: error?.statusCode,
+      });
       // Продолжаем к следующему методу
     }
   }
@@ -203,6 +235,8 @@ async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<
   const supabaseSmtpPassword = process.env.SUPABASE_SMTP_PASSWORD;
   
   if (supabaseSmtpHost && supabaseSmtpPort && supabaseSmtpUser && supabaseSmtpPassword) {
+    console.log('📤 Используется Supabase SMTP для отправки email');
+    console.log(`📨 SMTP Host: ${supabaseSmtpHost}:${supabaseSmtpPort}`);
     try {
       const nodemailer = require('nodemailer');
       
@@ -216,7 +250,7 @@ async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<
         },
       });
 
-      await transporter.sendMail({
+      const info = await transporter.sendMail({
         from: process.env.SUPABASE_SMTP_FROM || supabaseSmtpUser,
         to: email,
         subject: 'Восстановление пароля',
@@ -248,9 +282,16 @@ ${resetUrl}
 Ссылка действительна в течение 1 часа. Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.
         `,
       });
+      
+      console.log('✅ Email успешно отправлен через Supabase SMTP:', info.messageId);
       return;
-    } catch (error) {
-      console.error('Ошибка отправки через Supabase SMTP:', error);
+    } catch (error: any) {
+      console.error('❌ Ошибка отправки через Supabase SMTP:', error);
+      console.error('Детали ошибки SMTP:', {
+        message: error?.message,
+        code: error?.code,
+        command: error?.command,
+      });
       // Продолжаем к следующему методу
     }
   }
@@ -262,6 +303,8 @@ ${resetUrl}
   const smtpPassword = process.env.SMTP_PASSWORD;
   
   if (smtpHost && smtpPort && smtpUser && smtpPassword) {
+    console.log('📤 Используется обычный SMTP для отправки email');
+    console.log(`📨 SMTP Host: ${smtpHost}:${smtpPort}`);
     try {
       const nodemailer = require('nodemailer');
       
@@ -275,7 +318,7 @@ ${resetUrl}
         },
       });
 
-      await transporter.sendMail({
+      const info = await transporter.sendMail({
         from: process.env.SMTP_FROM || smtpUser || 'noreply@seohqs.com',
         to: email,
         subject: 'Восстановление пароля',
@@ -307,9 +350,16 @@ ${resetUrl}
 Ссылка действительна в течение 1 часа. Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.
         `,
       });
+      
+      console.log('✅ Email успешно отправлен через SMTP:', info.messageId);
       return;
-    } catch (error) {
-      console.error('Ошибка отправки через SMTP:', error);
+    } catch (error: any) {
+      console.error('❌ Ошибка отправки через SMTP:', error);
+      console.error('Детали ошибки SMTP:', {
+        message: error?.message,
+        code: error?.code,
+        command: error?.command,
+      });
     }
   }
 
@@ -324,8 +374,15 @@ ${resetUrl}
   console.log('2. Supabase SMTP: SUPABASE_SMTP_HOST, SUPABASE_SMTP_PORT, SUPABASE_SMTP_USER, SUPABASE_SMTP_PASSWORD');
   console.log('3. Обычный SMTP: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD');
   console.log('===========================');
+  console.log('Проверка переменных окружения:');
+  console.log(`- RESEND_API_KEY: ${process.env.RESEND_API_KEY ? '✅ установлен' : '❌ не установлен'}`);
+  console.log(`- SUPABASE_SMTP_HOST: ${process.env.SUPABASE_SMTP_HOST ? '✅ установлен' : '❌ не установлен'}`);
+  console.log(`- SMTP_HOST: ${process.env.SMTP_HOST ? '✅ установлен' : '❌ не установлен'}`);
+  console.log('===========================');
   
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('Email не настроен. Настройте Resend API, Supabase SMTP или обычный SMTP.');
+    const error = new Error('Email не настроен. Настройте Resend API, Supabase SMTP или обычный SMTP.');
+    console.error('❌ КРИТИЧЕСКАЯ ОШИБКА:', error.message);
+    throw error;
   }
 }
