@@ -29,7 +29,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
    ```bash
    curl -X POST http://localhost:3000/api/admin/create-user \
      -H "Content-Type: application/json" \
-     -d '{"email":"admin@buylink.pro","password":"Sasha1991","name":"Admin"}'
+     -d '{"email":"admin@buylink.pro","password":"Sasha1991!","name":"Admin"}'
+   ```
+   
+   Или используйте готовый скрипт:
+   ```bash
+   node scripts/create-admin-user-now.js
    ```
 
 ## Способ 2: Напрямую через Supabase скрипт
@@ -43,8 +48,10 @@ node scripts/create-admin-user-supabase.js
 ## Учетные данные
 
 - **Email**: admin@buylink.pro
-- **Пароль**: Sasha1991
+- **Пароль**: Sasha1991!
 - **Имя**: Admin
+
+⚠️ **Важно**: Пароль содержит восклицательный знак в конце!
 
 ## Как это работает
 

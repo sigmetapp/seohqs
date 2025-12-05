@@ -35,7 +35,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Для этого аккаунта не установлен пароль. Запросите сброс пароля.',
+            error: 'Для этого аккаунта не установлен пароль. Обратитесь к администратору.',
           },
           { status: 401 }
         );
