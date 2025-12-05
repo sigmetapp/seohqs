@@ -79,6 +79,13 @@ export default function ContentGeneratorPage() {
   const checkAuth = async () => {
     try {
       const res = await fetch('/api/auth/user/me');
+      
+      if (res.status === 401) {
+        // Пользователь не авторизован - это нормально
+        router.push('/login');
+        return;
+      }
+      
       const data = await res.json();
       
       if (!data.success || !data.user) {
@@ -166,7 +173,9 @@ export default function ContentGeneratorPage() {
       const res = await fetchPromise;
       if (progressInterval) clearInterval(progressInterval);
 
-      if (!data.success) {
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
         throw new Error(data.error || 'Ошибка генерации контента');
       }
 

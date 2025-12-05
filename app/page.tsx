@@ -14,7 +14,13 @@ export default function Home() {
   useEffect(() => {
     // Проверяем, авторизован ли пользователь
     fetch('/api/auth/user/me')
-      .then(res => res.json())
+      .then(res => {
+        if (res.status === 401) {
+          // Пользователь не авторизован - это нормально
+          return { success: false };
+        }
+        return res.json();
+      })
       .then(data => {
         if (data.success && data.user) {
           setUser(data.user);

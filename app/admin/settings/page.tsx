@@ -21,6 +21,13 @@ export default function AdminSettingsPage() {
   const checkAuthAndLoadSettings = async () => {
     try {
       const res = await fetch('/api/auth/user/me');
+      
+      if (res.status === 401) {
+        // Пользователь не авторизован - это нормально
+        router.push('/login');
+        return;
+      }
+      
       const data = await res.json();
       
       if (!data.success || !data.user) {
@@ -129,6 +136,7 @@ export default function AdminSettingsPage() {
                 id="openaiApiKey"
                 value={openaiApiKey}
                 onChange={(e) => setOpenaiApiKey(e.target.value)}
+                autoComplete="off"
                 className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="sk-..."
               />
