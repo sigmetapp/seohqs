@@ -1,17 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false, // Отключаем для ускорения сборки
-  swcMinify: true, // Используем SWC минификацию (быстрее)
-  compiler: {
-    removeConsole: process.env.NODE_ENV === 'production', // Убираем console.log в продакшене
-  },
-  // Оптимизация для быстрого деплоя
-  poweredByHeader: false, // Убираем заголовок X-Powered-By
-  generateEtags: false, // Отключаем ETags для ускорения
-  compress: true, // Включаем сжатие
-  
-  // Используем standalone output для меньшего размера билда
-  output: 'standalone',
+  reactStrictMode: false,
+  swcMinify: true,
+  poweredByHeader: false,
+  compress: true,
   
   webpack: (config, { isServer }) => {
     // Исключаем better-sqlite3 из серверного бандла
@@ -23,36 +15,19 @@ const nextConfig = {
         config.externals = [config.externals, 'better-sqlite3'];
       }
     }
-    
-    // Исключаем неиспользуемые файлы из сборки
-    config.resolve.alias = {
-      ...config.resolve.alias,
-    };
-    
     return config;
   },
   
   experimental: {
     serverComponentsExternalPackages: ['better-sqlite3'],
-    optimizePackageImports: ['@supabase/supabase-js'], // Оптимизация импортов (убрали googleapis, т.к. используется только в API)
+    optimizePackageImports: ['@supabase/supabase-js'],
   },
   
-  // Отключаем проверки при сборке для ускорения деплоя
   typescript: {
-    ignoreBuildErrors: true, // Отключаем проверку типов для скорости деплоя
+    ignoreBuildErrors: true,
   },
   eslint: {
-    ignoreDuringBuilds: true, // Отключаем ESLint при сборке для ускорения
-  },
-  
-  // Исключаем большие файлы из трассировки
-  outputFileTracingExcludes: {
-    '*': [
-      'node_modules/@swc/core*/**/*',
-      'node_modules/webpack/**/*',
-      'migrations/**/*',
-      'public/data/**/*',
-    ],
+    ignoreDuringBuilds: true,
   },
 }
 
