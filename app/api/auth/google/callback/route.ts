@@ -68,13 +68,13 @@ export async function GET(request: Request) {
       }
       
       return NextResponse.redirect(
-        `${baseUrl}/integrations?error=${encodeURIComponent(errorMessage)}`
+        `${baseUrl}/?error=${encodeURIComponent(errorMessage)}`
       );
     }
 
     if (!code) {
       return NextResponse.redirect(
-        `${baseUrl}/integrations?error=${encodeURIComponent('Код авторизации не получен')}`
+        `${baseUrl}/?error=${encodeURIComponent('Код авторизации не получен')}`
       );
     }
 
@@ -83,7 +83,7 @@ export async function GET(request: Request) {
 
     if (!clientId || !clientSecret) {
       return NextResponse.redirect(
-        `${baseUrl}/integrations?error=${encodeURIComponent('OAuth не настроен')}`
+        `${baseUrl}/?error=${encodeURIComponent('OAuth не настроен')}`
       );
     }
 
@@ -119,7 +119,7 @@ export async function GET(request: Request) {
 
     if (!tokens.access_token || !tokens.refresh_token) {
       return NextResponse.redirect(
-        `${baseUrl}/integrations?error=${encodeURIComponent('Не удалось получить токены')}`
+        `${baseUrl}/?error=${encodeURIComponent('Не удалось получить токены')}`
       );
     }
 
@@ -176,7 +176,7 @@ export async function GET(request: Request) {
     const currentUser = await getCurrentUser();
     if (!currentUser) {
       return NextResponse.redirect(
-        `${baseUrl}/integrations?error=${encodeURIComponent('Требуется авторизация пользователя')}`
+        `${baseUrl}/?error=${encodeURIComponent('Требуется авторизация пользователя')}`
       );
     }
 
@@ -319,7 +319,7 @@ export async function GET(request: Request) {
 
     // Перенаправляем на страницу интеграций с успешным сообщением
     return NextResponse.redirect(
-      `${baseUrl}/integrations?success=${encodeURIComponent('Google авторизация успешна! Сайты загружены из Google Search Console.')}`
+      `${baseUrl}/?success=${encodeURIComponent('Google авторизация успешна! Сайты загружены из Google Search Console.')}`
     );
   } catch (error: any) {
     console.error('[Google OAuth Callback] Ошибка обработки OAuth callback:', error);
@@ -335,7 +335,7 @@ export async function GET(request: Request) {
     }
     
     return NextResponse.redirect(
-      `${baseUrl}/integrations?error=${encodeURIComponent(userMessage)}`
+      `${baseUrl}/?error=${encodeURIComponent(userMessage)}`
     );
   }
 }

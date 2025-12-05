@@ -27,11 +27,7 @@ export default function Home() {
   }, []);
 
   const handleGetStarted = () => {
-    if (user) {
-      router.push('/summary');
-    } else {
-      router.push('/login');
-    }
+    router.push('/login');
   };
 
   // Демо данные для презентации

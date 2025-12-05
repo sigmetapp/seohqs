@@ -83,7 +83,7 @@ export async function GET(request: Request) {
     // Приоритет: GOOGLE_OAUTH_REDIRECT_URI > state > динамический
     let redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI || 
       `${baseOrigin}/api/auth/user/google/callback`;
-    let redirectPath = '/summary';
+    let redirectPath = '/';
     if (state) {
       try {
         const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
@@ -193,7 +193,7 @@ export async function GET(request: Request) {
     const token = await createSession(user);
     await setSessionCookie(token);
 
-    // Используем redirect путь из state или /summary по умолчанию
+    // Используем redirect путь из state или / по умолчанию
     return NextResponse.redirect(`${baseUrl}${redirectPath}`);
   } catch (error: any) {
     console.error('[Google OAuth Callback] Ошибка обработки OAuth callback:', error);
