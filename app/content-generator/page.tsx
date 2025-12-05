@@ -1046,9 +1046,17 @@ export default function ContentGeneratorPage() {
                     FAQ
                   </label>
                   <ul className="list-disc list-inside space-y-1 text-gray-900 dark:text-white">
-                    {finalResult.faq.map((q: string, i: number) => (
-                      <li key={i}>{q}</li>
-                    ))}
+                    {finalResult.faq.map((item: any, i: number) => {
+                      // Handle both string and object formats {q: "...", a: "..."}
+                      const question = typeof item === 'string' ? item : (item?.q || item?.question || '');
+                      const answer = typeof item === 'object' ? (item?.a || item?.answer || '') : '';
+                      return (
+                        <li key={i}>
+                          {question}
+                          {answer && <span className="text-gray-600 dark:text-gray-400"> - {answer}</span>}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}
@@ -1059,14 +1067,18 @@ export default function ContentGeneratorPage() {
                     Semantic Topics
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {finalResult.semantic_topics.map((topic: string, i: number) => (
-                      <span
-                        key={i}
-                        className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm"
-                      >
-                        {topic}
-                      </span>
-                    ))}
+                    {finalResult.semantic_topics.map((item: any, i: number) => {
+                      // Handle both string and object formats
+                      const topic = typeof item === 'string' ? item : (item?.topic || item?.name || String(item));
+                      return (
+                        <span
+                          key={i}
+                          className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm"
+                        >
+                          {topic}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}
