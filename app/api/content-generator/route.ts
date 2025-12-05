@@ -78,12 +78,12 @@ ${params.additionalConstraints ? `Ограничения: ${params.additionalCon
   ]
 }`;
 
-  // Таймаут 25 секунд для Pro плана (оставляем запас для шага 2)
+  // Таймаут 30 секунд (оставляем запас для шага 2)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     console.log(`[OUTLINE] ТАЙМАУТ: Превышено время ожидания структуры`);
     controller.abort();
-  }, 25000);
+  }, 30000);
 
   try {
     console.log(`[OUTLINE] Отправка запроса к OpenAI, max_tokens: 10000`);
@@ -183,9 +183,9 @@ ${sectionsText}
   "faqQuestions": ["Вопрос 1", "Вопрос 2", "Вопрос 3", "Вопрос 4"]
 }`;
 
-  // Таймаут адаптивный: оставляем запас для Vercel Pro (лимит 60 секунд)
+  // Таймаут адаптивный: оставляем запас для Vercel (лимит 60 секунд из vercel.json)
   const elapsedTime = Date.now() - totalStartTime;
-  const remainingTime = Math.max(5000, 55000 - elapsedTime); // Минимум 5 секунд, максимум что осталось до 55 секунд
+  const remainingTime = Math.max(5000, 58000 - elapsedTime); // Минимум 5 секунд, максимум что осталось до 58 секунд
   
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
@@ -196,7 +196,7 @@ ${sectionsText}
   try {
     // Вычисляем доступное время: если уже потратили много времени на структуру, уменьшаем max_tokens
     const elapsedTime = Date.now() - totalStartTime;
-    const remainingTimeForCalculation = 55000 - elapsedTime; // Оставляем запас 5 секунд до лимита 60 секунд
+    const remainingTimeForCalculation = 58000 - elapsedTime; // Оставляем запас 2 секунды до лимита 60 секунд
     
     // Адаптивно уменьшаем max_tokens в зависимости от оставшегося времени
     // Примерно 100-150 токенов в секунду для gpt-4o-mini
