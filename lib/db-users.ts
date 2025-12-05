@@ -50,17 +50,32 @@ function createOrUpdateUserSQLite(user: Omit<DbUser, 'id' | 'createdAt' | 'updat
   
   if (existingUser) {
     // Обновляем существующего пользователя
-    db.prepare(`
-      UPDATE users 
-      SET email = ?, name = ?, picture = ?, google_id = ?, updated_at = datetime('now')
-      WHERE id = ?
-    `).run(
-      user.email,
-      user.name || null,
-      user.picture || null,
-      user.googleId || null,
-      existingUser.id
-    );
+    if (user.passwordHash) {
+      db.prepare(`
+        UPDATE users 
+        SET email = ?, name = ?, picture = ?, google_id = ?, password_hash = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(
+        user.email,
+        user.name || null,
+        user.picture || null,
+        user.googleId || null,
+        user.passwordHash,
+        existingUser.id
+      );
+    } else {
+      db.prepare(`
+        UPDATE users 
+        SET email = ?, name = ?, picture = ?, google_id = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(
+        user.email,
+        user.name || null,
+        user.picture || null,
+        user.googleId || null,
+        existingUser.id
+      );
+    }
     
     const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(existingUser.id);
     return {
@@ -75,29 +90,56 @@ function createOrUpdateUserSQLite(user: Omit<DbUser, 'id' | 'createdAt' | 'updat
     };
   } else {
     // Создаем нового пользователя
-    const result = db.prepare(`
-      INSERT INTO users (email, name, picture, google_id, owner_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-    `).run(
-      user.email,
-      user.name || null,
-      user.picture || null,
-      user.googleId || null,
-      user.ownerId || null
-    );
-    
-    const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(result.lastInsertRowid));
-    return {
-      id: newUser.id,
-      email: newUser.email,
-      name: newUser.name,
-      picture: newUser.picture,
-      googleId: newUser.google_id,
-      passwordHash: newUser.password_hash,
-      ownerId: newUser.owner_id,
-      createdAt: newUser.created_at,
-      updatedAt: newUser.updated_at,
-    };
+    if (user.passwordHash) {
+      const result = db.prepare(`
+        INSERT INTO users (email, name, picture, google_id, owner_id, password_hash, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      `).run(
+        user.email,
+        user.name || null,
+        user.picture || null,
+        user.googleId || null,
+        user.ownerId || null,
+        user.passwordHash
+      );
+      
+      const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(result.lastInsertRowid));
+      return {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        picture: newUser.picture,
+        googleId: newUser.google_id,
+        passwordHash: newUser.password_hash,
+        ownerId: newUser.owner_id,
+        createdAt: newUser.created_at,
+        updatedAt: newUser.updated_at,
+      };
+    } else {
+      const result = db.prepare(`
+        INSERT INTO users (email, name, picture, google_id, owner_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      `).run(
+        user.email,
+        user.name || null,
+        user.picture || null,
+        user.googleId || null,
+        user.ownerId || null
+      );
+      
+      const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(result.lastInsertRowid));
+      return {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        picture: newUser.picture,
+        googleId: newUser.google_id,
+        passwordHash: newUser.password_hash,
+        ownerId: newUser.owner_id,
+        createdAt: newUser.created_at,
+        updatedAt: newUser.updated_at,
+      };
+    }
   }
 }
 
@@ -196,12 +238,24 @@ async function createOrUpdateUserPostgres(user: Omit<DbUser, 'id' | 'createdAt' 
     
     if (existingUser) {
       // Обновляем существующего пользователя
+      const updateFields = ['email', 'name', 'picture', 'google_id'];
+      const updateValues = [user.email, user.name || null, user.picture || null, user.googleId || null];
+      
+      if (user.passwordHash) {
+        updateFields.push('password_hash');
+        updateValues.push(user.passwordHash);
+      }
+      
+      updateValues.push(existingUser.id);
+      
+      const setClause = updateFields.map((field, index) => `${field} = $${index + 1}`).join(', ');
+      
       const result = await pool.query(`
         UPDATE users 
-        SET email = $1, name = $2, picture = $3, google_id = $4, updated_at = CURRENT_TIMESTAMP
-        WHERE id = $5
+        SET ${setClause}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $${updateValues.length}
         RETURNING *
-      `, [user.email, user.name || null, user.picture || null, user.googleId || null, existingUser.id]);
+      `, updateValues);
       
       const updated = result.rows[0];
       return {
@@ -216,11 +270,21 @@ async function createOrUpdateUserPostgres(user: Omit<DbUser, 'id' | 'createdAt' 
       };
     } else {
       // Создаем нового пользователя
+      const insertFields = ['email', 'name', 'picture', 'google_id', 'owner_id'];
+      const insertValues = [user.email, user.name || null, user.picture || null, user.googleId || null, user.ownerId || null];
+      
+      if (user.passwordHash) {
+        insertFields.push('password_hash');
+        insertValues.push(user.passwordHash);
+      }
+      
+      const placeholders = insertFields.map((_, index) => `$${index + 1}`).join(', ');
+      
       const result = await pool.query(`
-        INSERT INTO users (email, name, picture, google_id, owner_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO users (${insertFields.join(', ')}, created_at, updated_at)
+        VALUES (${placeholders}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING *
-      `, [user.email, user.name || null, user.picture || null, user.googleId || null, user.ownerId || null]);
+      `, insertValues);
       
       const newUser = result.rows[0];
       return {
@@ -330,15 +394,22 @@ async function createOrUpdateUserSupabase(user: Omit<DbUser, 'id' | 'createdAt' 
   
   if (existingUser) {
     // Обновляем существующего пользователя
+    const updateData: any = {
+      email: user.email,
+      name: user.name || null,
+      picture: user.picture || null,
+      google_id: user.googleId || null,
+      updated_at: new Date().toISOString(),
+    };
+    
+    // Обновляем пароль только если он передан
+    if (user.passwordHash) {
+      updateData.password_hash = user.passwordHash;
+    }
+    
     const { data, error } = await supabase
       .from('users')
-      .update({
-        email: user.email,
-        name: user.name || null,
-        picture: user.picture || null,
-        google_id: user.googleId || null,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', existingUser.id)
       .select()
       .single();
@@ -357,15 +428,22 @@ async function createOrUpdateUserSupabase(user: Omit<DbUser, 'id' | 'createdAt' 
     };
   } else {
     // Создаем нового пользователя
+    const insertData: any = {
+      email: user.email,
+      name: user.name || null,
+      picture: user.picture || null,
+      google_id: user.googleId || null,
+      owner_id: user.ownerId || null,
+    };
+    
+    // Добавляем пароль если он передан
+    if (user.passwordHash) {
+      insertData.password_hash = user.passwordHash;
+    }
+    
     const { data, error } = await supabase
       .from('users')
-      .insert({
-        email: user.email,
-        name: user.name || null,
-        picture: user.picture || null,
-        google_id: user.googleId || null,
-        owner_id: user.ownerId || null,
-      })
+      .insert(insertData)
       .select()
       .single();
     
