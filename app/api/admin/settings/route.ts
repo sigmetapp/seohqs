@@ -41,6 +41,7 @@ export async function GET(request: Request) {
     const openaiAssistantId = await getSetting('openai_assistant_id');
     const outlineAssistantId = await getSetting('openai_outline_assistant_id');
     const sectionAssistantId = await getSetting('openai_section_assistant_id');
+    const seoAssistantId = await getSetting('openai_seo_assistant_id');
 
     return NextResponse.json({
       success: true,
@@ -49,6 +50,7 @@ export async function GET(request: Request) {
         openaiAssistantId: openaiAssistantId?.value || null,
         outlineAssistantId: outlineAssistantId?.value || null,
         sectionAssistantId: sectionAssistantId?.value || null,
+        seoAssistantId: seoAssistantId?.value || null,
       },
     });
   } catch (error: any) {
@@ -77,7 +79,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { openaiApiKey, openaiAssistantId, outlineAssistantId, sectionAssistantId } = body;
+    const { openaiApiKey, openaiAssistantId, outlineAssistantId, sectionAssistantId, seoAssistantId } = body;
 
     const settings: any = {};
 
@@ -115,6 +117,15 @@ export async function POST(request: Request) {
         'ID ассистента OpenAI для генерации секций статей (Content Section Writer)'
       );
       settings.sectionAssistantId = sectionAssistantId;
+    }
+
+    if (seoAssistantId !== undefined) {
+      await setSetting(
+        'openai_seo_assistant_id',
+        seoAssistantId || '',
+        'ID ассистента OpenAI для генерации SEO метаданных (SEO Packaging Assistant)'
+      );
+      settings.seoAssistantId = seoAssistantId;
     }
 
     return NextResponse.json({

@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 
 interface FinalResult {
   html?: string;
-  metaTitle?: string;
-  metaDescription?: string;
-  faqQuestions?: string[];
+  meta_title?: string;
+  meta_description?: string;
+  h1?: string;
+  faq?: string[];
+  semantic_topics?: string[];
   summary?: string;
 }
 
@@ -16,19 +18,20 @@ export default function ContentGeneratorPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
-  const [mainQuery, setMainQuery] = useState('');
+  const [topic, setTopic] = useState('');
   const [language, setLanguage] = useState('RU');
-  const [targetAudience, setTargetAudience] = useState('');
+  const [audience, setAudience] = useState('');
+  const [authorPersona, setAuthorPersona] = useState('эксперт');
+  const [angle, setAngle] = useState('информативный');
   const [contentGoal, setContentGoal] = useState('SEO article');
   const [desiredLength, setDesiredLength] = useState('2000');
-  const [toneOfVoice, setToneOfVoice] = useState('neutral');
-  const [additionalConstraints, setAdditionalConstraints] = useState('');
+  const [constraints, setConstraints] = useState('');
 
   const [generating, setGenerating] = useState(false);
   const [finalResult, setFinalResult] = useState<FinalResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState('');
-  const [outline, setOutline] = useState<{ title: string; sections: Array<{ id: string; title: string; description: string }> } | null>(null);
+  const [outlineSections, setOutlineSections] = useState<Array<{ id: string; title: string; description: string }>>([]);
   const [step, setStep] = useState<'idle' | 'outline' | 'sections' | 'seo' | 'done'>('idle');
   const [currentSection, setCurrentSection] = useState<number>(0);
   const [totalSections, setTotalSections] = useState<number>(0);
@@ -66,25 +69,25 @@ export default function ContentGeneratorPage() {
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!mainQuery.trim()) {
-      setError('Основной запрос обязателен');
+    if (!topic.trim()) {
+      setError('Тема обязательна');
       return;
     }
 
     setGenerating(true);
     setError(null);
     setFinalResult(null);
-    setOutline(null);
+    setOutlineSections([]);
     setFailedSections([]);
     setStep('outline');
-    setProgress('Генерация структуры статьи...');
+    setProgress('Generating outline…');
 
     try {
-      // ШАГ 1: Генерация структуры
-      setProgress('Генерация структуры статьи...');
+      // ШАГ 1: Outline
+      setProgress('Generating outline…');
       
       const outlineController = new AbortController();
-      const outlineTimeout = setTimeout(() => outlineController.abort(), 12000); // 12 секунд на клиенте (запас)
+      const outlineTimeout = setTimeout(() => outlineController.abort(), 12000);
       
       let outlineRes;
       try {
@@ -94,12 +97,14 @@ export default function ContentGeneratorPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            topic: mainQuery,
+            topic,
             language,
-            audience: targetAudience,
-            goal: contentGoal,
-            length: desiredLength,
-            tone: toneOfVoice,
+            audience,
+            authorPersona,
+            angle,
+            contentGoal,
+            desiredLength,
+            constraints: constraints || undefined,
           }),
           signal: outlineController.signal,
         });
@@ -114,7 +119,6 @@ export default function ContentGeneratorPage() {
 
       const outlineText = await outlineRes.text();
       
-      // Проверяем, что ответ не пустой и не слишком большой перед парсингом
       if (!outlineText || outlineText.length > 10000) {
         throw new Error('Сервер вернул неожиданный ответ при генерации структуры');
       }
@@ -123,7 +127,6 @@ export default function ContentGeneratorPage() {
       try {
         outlineData = JSON.parse(outlineText);
       } catch (jsonError) {
-        // Не пытаемся парсить большой JSON после ошибки
         const preview = outlineText.length > 200 ? outlineText.substring(0, 200) + '...' : outlineText;
         throw new Error(`Ошибка: сервер вернул не-JSON ответ при генерации структуры. Ответ: ${preview}`);
       }
@@ -132,20 +135,19 @@ export default function ContentGeneratorPage() {
         throw new Error(outlineData.error || 'Ошибка генерации структуры');
       }
 
-      const outline = outlineData.outline;
-      setOutline(outline);
-      setStep('article');
+      const sections = outlineData.sections || [];
+      setOutlineSections(sections);
 
-      // ШАГ 2: Генерация секций по очереди с retry и пропуском ошибок
+      // ШАГ 2: Sections - последовательная генерация
       const sectionsHtml: string[] = [];
-      const totalSections = outline.sections.length;
+      const totalSections = sections.length;
       const failed: Array<{ index: number; title: string; error: string }> = [];
       setTotalSections(totalSections);
       setStep('sections');
       setFailedSections([]);
 
       for (let i = 0; i < totalSections; i++) {
-        const section = outline.sections[i];
+        const section = sections[i];
         setCurrentSection(i + 1);
         
         let sectionHtml = null;
@@ -174,16 +176,15 @@ export default function ContentGeneratorPage() {
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                  topic: mainQuery,
+                  topic,
                   language,
-                  audience: targetAudience,
-                  goal: contentGoal,
-                  tone: toneOfVoice,
+                  audience,
+                  authorPersona,
+                  angle,
+                  contentGoal,
                   sectionTitle: section.title,
                   sectionDescription: section.description,
                   sectionIndex: i,
-                  totalSections: totalSections,
-                  desiredArticleLength: parseInt(desiredLength) || 2000,
                 }),
                 signal: sectionController.signal,
               });
@@ -266,12 +267,12 @@ export default function ContentGeneratorPage() {
       // Обновляем список неудачных секций
       setFailedSections(failed);
 
-      // Склеиваем секции в одну статью
-      const articleHtml = `<h1>${outline.title}</h1>\n${sectionsHtml.join('\n')}`;
+      // ШАГ 3: Assembling - склеиваем секции на фронте
+      const assembledHtml = sectionsHtml.join('\n');
 
-      // ШАГ 3: Генерация SEO метаданных
+      // ШАГ 4: SEO Packaging
       setStep('seo');
-      setProgress('Генерация SEO метаданных...');
+      setProgress('Creating SEO metadata…');
       
       const seoController = new AbortController();
       const seoTimeout = setTimeout(() => seoController.abort(), 12000); // 12 секунд на клиенте (запас)
@@ -284,9 +285,11 @@ export default function ContentGeneratorPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            articleHtml,
-            topic: mainQuery,
+            fullArticleHtml: assembledHtml,
+            topic,
             language,
+            authorPersona,
+            angle,
           }),
           signal: seoController.signal,
         });
@@ -302,40 +305,48 @@ export default function ContentGeneratorPage() {
         }
       }
 
-      let seo = {
-        metaTitle: '',
-        metaDescription: '',
-        faqQuestions: [],
+      let seoData: any = {
+        meta_title: '',
+        meta_description: '',
+        h1: '',
+        faq: [],
+        semantic_topics: [],
       };
 
       if (seoRes) {
         const seoText = await seoRes.text();
-        let seoData;
         try {
-          seoData = JSON.parse(seoText);
-          if (seoData.success && seoData.seo) {
-            seo = seoData.seo;
+          const parsed = JSON.parse(seoText);
+          if (parsed.success) {
+            seoData = {
+              meta_title: parsed.meta_title || '',
+              meta_description: parsed.meta_description || '',
+              h1: parsed.h1 || '',
+              faq: parsed.faq || [],
+              semantic_topics: parsed.semantic_topics || [],
+            };
           }
         } catch (jsonError) {
-          // SEO не критично, продолжаем без него
           console.warn('Не удалось распарсить SEO ответ:', seoText.substring(0, 200));
         }
       }
 
+      // ШАГ 5: Показ результата
       setStep('done');
       
-      // Формируем сообщение о результате
-      let summaryMessage = `Статья "${outline.title}" состоит из ${totalSections} секций.`;
+      let summaryMessage = `Статья состоит из ${totalSections} секций.`;
       if (failed.length > 0) {
         summaryMessage += ` ${failed.length} секций не удалось сгенерировать после нескольких попыток.`;
       }
       
       setProgress(failed.length > 0 ? `Статья готова! (${failed.length} секций пропущено)` : 'Статья готова!');
       setFinalResult({
-        html: articleHtml,
-        metaTitle: seo.metaTitle,
-        metaDescription: seo.metaDescription,
-        faqQuestions: seo.faqQuestions,
+        html: assembledHtml,
+        meta_title: seoData.meta_title,
+        meta_description: seoData.meta_description,
+        h1: seoData.h1,
+        faq: seoData.faq,
+        semantic_topics: seoData.semantic_topics,
         summary: summaryMessage,
       });
       setCurrentSection(0);
@@ -397,15 +408,15 @@ export default function ContentGeneratorPage() {
           <form onSubmit={handleGenerate} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Main query / Topic *
+                Topic *
               </label>
               <input
                 type="text"
-                value={mainQuery}
-                onChange={(e) => setMainQuery(e.target.value)}
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
                 required
                 className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Основной запрос или тема статьи"
+                placeholder="Тема статьи"
               />
             </div>
 
@@ -439,12 +450,12 @@ export default function ContentGeneratorPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Target audience
+                Audience
               </label>
               <input
                 type="text"
-                value={targetAudience}
-                onChange={(e) => setTargetAudience(e.target.value)}
+                value={audience}
+                onChange={(e) => setAudience(e.target.value)}
                 className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="beginner, advanced, marketers, developers..."
               />
@@ -452,7 +463,33 @@ export default function ContentGeneratorPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Content goal
+                Author Persona
+              </label>
+              <input
+                type="text"
+                value={authorPersona}
+                onChange={(e) => setAuthorPersona(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="эксперт, новичок, практик..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Angle
+              </label>
+              <input
+                type="text"
+                value={angle}
+                onChange={(e) => setAngle(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="информативный, практический, аналитический..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Content Goal
               </label>
               <select
                 value={contentGoal}
@@ -470,27 +507,24 @@ export default function ContentGeneratorPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Tone of voice
+                Desired Length (words)
               </label>
-              <select
-                value={toneOfVoice}
-                onChange={(e) => setToneOfVoice(e.target.value)}
+              <input
+                type="text"
+                value={desiredLength}
+                onChange={(e) => setDesiredLength(e.target.value)}
                 className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option>neutral</option>
-                <option>expert</option>
-                <option>friendly</option>
-                <option>casual</option>
-              </select>
+                placeholder="500, 1000, 2000..."
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Additional constraints
+                Additional Constraints
               </label>
               <textarea
-                value={additionalConstraints}
-                onChange={(e) => setAdditionalConstraints(e.target.value)}
+                value={constraints}
+                onChange={(e) => setConstraints(e.target.value)}
                 rows={3}
                 className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Без длинных тире, без воды, добавлять примеры..."
@@ -513,13 +547,13 @@ export default function ContentGeneratorPage() {
               </div>
             )}
 
-            {outline && (
+            {outlineSections.length > 0 && (
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                 <h3 className="font-semibold text-green-900 dark:text-green-200 mb-2">
-                  Структура статьи: {outline.title}
+                  Структура статьи ({outlineSections.length} секций)
                 </h3>
                 <ol className="list-decimal list-inside space-y-2 text-sm text-green-800 dark:text-green-300">
-                  {outline.sections.map((section, index) => (
+                  {outlineSections.map((section, index) => (
                     <li key={section.id}>
                       <strong>{section.title}</strong>
                       {section.description && (
@@ -552,6 +586,28 @@ export default function ContentGeneratorPage() {
 
             {/* SEO данные */}
             <div className="mb-6 space-y-4">
+              {finalResult.h1 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    H1
+                  </label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      value={finalResult.h1}
+                      readOnly
+                      className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"
+                    />
+                    <button
+                      onClick={() => copyToClipboard(finalResult.h1 || '', 'H1')}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Meta Title
@@ -559,12 +615,12 @@ export default function ContentGeneratorPage() {
                 <div className="flex space-x-2">
                   <input
                     type="text"
-                    value={finalResult.metaTitle || ''}
+                    value={finalResult.meta_title || ''}
                     readOnly
                     className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"
                   />
                   <button
-                    onClick={() => copyToClipboard(finalResult.metaTitle || '', 'Meta Title')}
+                    onClick={() => copyToClipboard(finalResult.meta_title || '', 'Meta Title')}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
                   >
                     Copy
@@ -578,13 +634,13 @@ export default function ContentGeneratorPage() {
                 </label>
                 <div className="flex space-x-2">
                   <textarea
-                    value={finalResult.metaDescription || ''}
+                    value={finalResult.meta_description || ''}
                     readOnly
                     rows={3}
                     className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"
                   />
                   <button
-                    onClick={() => copyToClipboard(finalResult.metaDescription || '', 'Meta Description')}
+                    onClick={() => copyToClipboard(finalResult.meta_description || '', 'Meta Description')}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
                   >
                     Copy
@@ -592,16 +648,34 @@ export default function ContentGeneratorPage() {
                 </div>
               </div>
 
-              {finalResult.faqQuestions && finalResult.faqQuestions.length > 0 && (
+              {finalResult.faq && finalResult.faq.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    FAQ Questions
+                    FAQ
                   </label>
                   <ul className="list-disc list-inside space-y-1 text-gray-900 dark:text-white">
-                    {finalResult.faqQuestions.map((q, i) => (
+                    {finalResult.faq.map((q: string, i: number) => (
                       <li key={i}>{q}</li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {finalResult.semantic_topics && finalResult.semantic_topics.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Semantic Topics
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {finalResult.semantic_topics.map((topic: string, i: number) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm"
+                      >
+                        {topic}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
 

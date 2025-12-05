@@ -46,13 +46,12 @@ export async function POST(request: Request) {
       topic,
       language,
       audience,
-      goal,
-      tone,
+      authorPersona,
+      angle,
+      contentGoal,
       sectionTitle,
       sectionDescription,
       sectionIndex,
-      totalSections,
-      desiredArticleLength,
     } = body;
 
     if (!topic || !sectionTitle) {
@@ -65,39 +64,28 @@ export async function POST(request: Request) {
     const openai = await getOpenAIClient();
     const assistantId = await getSectionAssistantId(openai);
 
-    // Вычисляем желаемый размер одной секции на основе общего размера статьи
-    const totalSectionsCount = totalSections || 5;
-    const articleLength = desiredArticleLength || 2000;
-    const wordsPerSection = Math.floor(articleLength / totalSectionsCount);
-    
-    // Ограничиваем минимальный и максимальный размер секции
-    const minWords = Math.max(100, Math.floor(wordsPerSection * 0.7)); // Минимум 70% от среднего
-    const maxWords = Math.min(2000, Math.floor(wordsPerSection * 1.3)); // Максимум 130% от среднего, но не более 2000
-
     const prompt = `Напиши секцию для большой статьи.
 
-ОБЩАЯ ИНФОРМАЦИЯ О СТАТЬЕ:
+КОНТЕКСТ СТАТЬИ:
 Тема статьи: ${topic}
 Язык: ${language || 'RU'}
 Целевая аудитория: ${audience || 'general'}
-Цель контента: ${goal || 'SEO article'}
-Тон: ${tone || 'neutral'}
-Общий размер статьи: ${articleLength} слов
-Всего секций: ${totalSectionsCount}
-Это секция ${(sectionIndex || 0) + 1} из ${totalSectionsCount}
+Авторская персона: ${authorPersona || 'эксперт'}
+Угол подачи: ${angle || 'информативный'}
+Цель контента: ${contentGoal || 'SEO article'}
 
 СЕКЦИЯ, КОТОРУЮ НУЖНО НАПИСАТЬ:
 Заголовок секции: ${sectionTitle}
 Описание: ${sectionDescription || ''}
+Индекс секции: ${sectionIndex !== undefined ? sectionIndex : 0}
 
 ВАЖНО:
 - Это часть большой статьи, не повторяй общую информацию
 - Сфокусируйся на теме этой секции
-- ЖЕСТКИЙ ЛИМИТ: ${minWords}-${maxWords} слов для этой секции (статья должна быть ${articleLength} слов всего)
+- ЛИМИТ: 800-1500 слов для этой секции
 - Используй естественный стиль без AI-штампов
 - Структурируй текст с подзаголовками H3 где нужно
 - Начни с H2 заголовка секции
-- Строго соблюдай лимит слов: ${minWords}-${maxWords} слов
 
 Верни ТОЛЬКО HTML контент секции (без оберток, без JSON, только HTML):
 <h2>Заголовок секции</h2>

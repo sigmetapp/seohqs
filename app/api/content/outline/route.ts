@@ -42,7 +42,16 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { topic, language, audience, goal, length, tone } = body;
+    const { 
+      topic, 
+      language, 
+      audience, 
+      authorPersona,
+      angle,
+      contentGoal, 
+      desiredLength,
+      constraints
+    } = body;
 
     if (!topic) {
       return NextResponse.json({ success: false, error: 'Тема обязательна' }, { status: 400 });
@@ -51,39 +60,19 @@ export async function POST(request: Request) {
     const openai = await getOpenAIClient();
     const assistantId = await getOutlineAssistantId(openai);
 
-    const articleLength = parseInt(length) || 2000;
-    
-    // Адаптируем количество секций в зависимости от размера статьи
-    let sectionsCount = 5;
-    if (articleLength <= 500) {
-      sectionsCount = 3; // Для коротких статей - меньше секций
-    } else if (articleLength <= 1000) {
-      sectionsCount = 4;
-    } else if (articleLength <= 2000) {
-      sectionsCount = 5;
-    } else if (articleLength <= 3000) {
-      sectionsCount = 6;
-    } else {
-      sectionsCount = Math.min(12, Math.floor(articleLength / 500)); // Примерно 1 секция на 500 слов
-    }
-
     const prompt = `Создай структуру статьи:
 
 Тема: ${topic}
 Язык: ${language || 'RU'}
 Аудитория: ${audience || 'general'}
-Цель: ${goal || 'SEO article'}
-Размер: ${articleLength} слов (ВАЖНО: статья должна быть именно ${articleLength} слов, не больше!)
-Тон: ${tone || 'neutral'}
+Авторская персона: ${authorPersona || 'эксперт'}
+Угол подачи: ${angle || 'информативный'}
+Цель контента: ${contentGoal || 'SEO article'}
+Желаемый размер: ${desiredLength || '2000'} слов
+${constraints ? `Дополнительные ограничения: ${constraints}` : ''}
 
-Создай структуру из ${sectionsCount} секций. Каждая секция должна быть примерно ${Math.floor(articleLength / sectionsCount)} слов.
-Каждая секция: заголовок и краткое описание (1-2 предложения).
-
-ВАЖНО: Структура должна быть такой, чтобы общий размер статьи был примерно ${articleLength} слов.
-
-Верни ТОЛЬКО JSON:
+Верни ТОЛЬКО JSON без дополнительного текста:
 {
-  "title": "Заголовок статьи",
   "sections": [
     {
       "id": "section-1",
@@ -161,23 +150,21 @@ export async function POST(request: Request) {
       const outline = JSON.parse(jsonMatch[0]);
       
       // Валидация структуры
-      if (!outline.title || !Array.isArray(outline.sections)) {
-        throw new Error('Неверный формат ответа от OpenAI');
+      if (!Array.isArray(outline.sections)) {
+        throw new Error('Неверный формат ответа от OpenAI: отсутствует массив sections');
       }
 
       const duration = Date.now() - startTime;
-      console.log(`[OUTLINE] Генерация завершена за ${duration}ms`);
+      console.log(`[OUTLINE] Генерация завершена за ${duration}ms, секций: ${outline.sections.length}`);
 
+      // Возвращаем без модификаций, как требует спецификация
       return NextResponse.json({
         success: true,
-        outline: {
-          title: outline.title,
-          sections: outline.sections.map((s: any, i: number) => ({
-            id: s.id || `section-${i + 1}`,
-            title: s.title,
-            description: s.description || '',
-          })),
-        },
+        sections: outline.sections.map((s: any, i: number) => ({
+          id: s.id || `section-${i + 1}`,
+          title: s.title || '',
+          description: s.description || '',
+        })),
       });
     } catch (abortError: any) {
       clearTimeout(timeoutId);

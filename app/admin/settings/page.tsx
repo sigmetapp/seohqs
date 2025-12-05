@@ -13,6 +13,7 @@ export default function AdminSettingsPage() {
   const [openaiAssistantId, setOpenaiAssistantId] = useState('');
   const [outlineAssistantId, setOutlineAssistantId] = useState('');
   const [sectionAssistantId, setSectionAssistantId] = useState('');
+  const [seoAssistantId, setSeoAssistantId] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -62,6 +63,7 @@ export default function AdminSettingsPage() {
         setOpenaiAssistantId(data.settings.openaiAssistantId || '');
         setOutlineAssistantId(data.settings.outlineAssistantId || '');
         setSectionAssistantId(data.settings.sectionAssistantId || '');
+        setSeoAssistantId(data.settings.seoAssistantId || '');
       }
     } catch (error) {
       console.error('Ошибка загрузки настроек:', error);
@@ -84,6 +86,7 @@ export default function AdminSettingsPage() {
           openaiAssistantId,
           outlineAssistantId,
           sectionAssistantId,
+          seoAssistantId,
         }),
       });
 
@@ -208,6 +211,26 @@ export default function AdminSettingsPage() {
               />
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 ID ассистента для генерации секций статей (Content Section Writer)
+              </p>
+            </div>
+
+            <div>
+              <label
+                htmlFor="seoAssistantId"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                SEO Packaging Assistant ID *
+              </label>
+              <input
+                type="text"
+                id="seoAssistantId"
+                value={seoAssistantId}
+                onChange={(e) => setSeoAssistantId(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="asst_3EUKN4Ch098Fc8CumZVfKUdG"
+              />
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                ID ассистента для генерации SEO метаданных (SEO Packaging Assistant)
               </p>
             </div>
 
