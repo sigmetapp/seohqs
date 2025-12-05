@@ -35,7 +35,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Для этого аккаунта не установлен пароль. Используйте вход через Google.',
+            error: 'Для этого аккаунта не установлен пароль. Запросите сброс пароля.',
           },
           { status: 401 }
         );
@@ -60,7 +60,6 @@ export async function POST(request: Request) {
         email: dbUser.email,
         name: dbUser.name,
         picture: dbUser.picture,
-        googleId: dbUser.googleId,
       };
 
       const token = await createSession(user);

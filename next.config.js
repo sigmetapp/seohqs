@@ -1,14 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false, // Отключаем для ускорения сборки
-  swcMinify: true, // Используем SWC минификацию (быстрее)
-  compiler: {
-    removeConsole: process.env.NODE_ENV === 'production', // Убираем console.log в продакшене
-  },
-  // Оптимизация для быстрого деплоя
-  poweredByHeader: false, // Убираем заголовок X-Powered-By
-  generateEtags: false, // Отключаем ETags для ускорения
-  compress: true, // Включаем сжатие
+  reactStrictMode: false,
+  swcMinify: true,
+  poweredByHeader: false,
+  compress: true,
   
   webpack: (config, { isServer }) => {
     // Исключаем better-sqlite3 из серверного бандла
@@ -25,15 +20,14 @@ const nextConfig = {
   
   experimental: {
     serverComponentsExternalPackages: ['better-sqlite3'],
-    optimizePackageImports: ['@supabase/supabase-js', 'googleapis'], // Оптимизация импортов
+    optimizePackageImports: ['@supabase/supabase-js'],
   },
   
-  // Отключаем проверки при сборке для ускорения деплоя
   typescript: {
-    ignoreBuildErrors: true, // Отключаем проверку типов для скорости деплоя
+    ignoreBuildErrors: true,
   },
   eslint: {
-    ignoreDuringBuilds: true, // Отключаем ESLint при сборке для ускорения
+    ignoreDuringBuilds: true,
   },
 }
 
