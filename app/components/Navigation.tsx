@@ -253,7 +253,6 @@ export default function Navigation() {
                 onClick={() => {
                   setShowLoginModal(true);
                   setIsRegistering(false);
-                  setShowForgotPassword(false);
                   setEmail('');
                   setPassword('');
                   setName('');
@@ -300,7 +299,7 @@ export default function Navigation() {
       </div>
 
       {/* Login Modal */}
-      {showLoginModal && !showForgotPassword && (
+      {showLoginModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
