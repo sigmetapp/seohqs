@@ -29,7 +29,9 @@ export default function ContentGeneratorPage() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState('');
   const [outline, setOutline] = useState<{ title: string; sections: Array<{ id: string; title: string; description: string }> } | null>(null);
-  const [step, setStep] = useState<'idle' | 'outline' | 'article'>('idle');
+  const [step, setStep] = useState<'idle' | 'outline' | 'sections' | 'seo' | 'done'>('idle');
+  const [currentSection, setCurrentSection] = useState<number>(0);
+  const [totalSections, setTotalSections] = useState<number>(0);
 
   useEffect(() => {
     checkAuth();
@@ -77,50 +79,133 @@ export default function ContentGeneratorPage() {
 
     try {
       // ШАГ 1: Генерация структуры
-      const res = await fetch('/api/content-generator', {
+      setProgress('Генерация структуры статьи...');
+      const outlineRes = await fetch('/api/content/outline', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          mainQuery,
+          topic: mainQuery,
           language,
-          targetAudience,
-          contentGoal,
+          audience: targetAudience,
+          goal: contentGoal,
           desiredLength,
-          toneOfVoice,
-          additionalConstraints: additionalConstraints || undefined,
+          tone: toneOfVoice,
         }),
       });
 
-      const responseText = await res.text();
-      
-      let data;
+      const outlineText = await outlineRes.text();
+      let outlineData;
       try {
-        data = JSON.parse(responseText);
+        outlineData = JSON.parse(outlineText);
       } catch (jsonError) {
-        throw new Error(responseText.substring(0, 500) || 'Ошибка: сервер вернул не-JSON ответ');
+        throw new Error(outlineText.substring(0, 500) || 'Ошибка: сервер вернул не-JSON ответ при генерации структуры');
       }
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Ошибка генерации контента');
+      if (!outlineRes.ok || !outlineData.success) {
+        throw new Error(outlineData.error || 'Ошибка генерации структуры');
       }
 
-      // Сохраняем структуру
-      if (data.result.outline) {
-        setOutline(data.result.outline);
-        setStep('article');
-        setProgress('Генерация статьи на основе структуры...');
+      const outline = outlineData.outline;
+      setOutline(outline);
+      setStep('article');
+
+      // ШАГ 2: Генерация секций по очереди
+      const sectionsHtml: string[] = [];
+      const totalSections = outline.sections.length;
+      setTotalSections(totalSections);
+      setStep('sections');
+
+      for (let i = 0; i < totalSections; i++) {
+        const section = outline.sections[i];
+        setCurrentSection(i + 1);
+        setProgress(`Генерация секции ${i + 1} из ${totalSections}: ${section.title}...`);
+
+        const sectionRes = await fetch('/api/content/section', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            topic: mainQuery,
+            language,
+            audience: targetAudience,
+            goal: contentGoal,
+            tone: toneOfVoice,
+            sectionTitle: section.title,
+            sectionDescription: section.description,
+            sectionIndex: i,
+          }),
+        });
+
+        const sectionText = await sectionRes.text();
+        let sectionData;
+        try {
+          sectionData = JSON.parse(sectionText);
+        } catch (jsonError) {
+          throw new Error(`Ошибка: сервер вернул не-JSON ответ при генерации секции ${i + 1}. Ответ: ${sectionText.substring(0, 200)}`);
+        }
+
+        if (!sectionRes.ok || !sectionData.success) {
+          throw new Error(sectionData.error || `Ошибка генерации секции ${i + 1}: ${section.title}`);
+        }
+
+        sectionsHtml.push(sectionData.sectionHtml);
       }
 
+      // Склеиваем секции в одну статью
+      const articleHtml = `<h1>${outline.title}</h1>\n${sectionsHtml.join('\n')}`;
+
+      // ШАГ 3: Генерация SEO метаданных
+      setStep('seo');
+      setProgress('Генерация SEO метаданных...');
+      const seoRes = await fetch('/api/content/seo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          articleHtml,
+          topic: mainQuery,
+          language,
+        }),
+      });
+
+      const seoText = await seoRes.text();
+      let seoData;
+      try {
+        seoData = JSON.parse(seoText);
+      } catch (jsonError) {
+        // SEO не критично, продолжаем без него
+        console.warn('Не удалось распарсить SEO ответ:', seoText.substring(0, 200));
+        seoData = { success: false };
+      }
+
+      const seo = seoData.success ? seoData.seo : {
+        metaTitle: '',
+        metaDescription: '',
+        faqQuestions: [],
+      };
+
+      setStep('done');
       setProgress('Статья готова!');
-      setFinalResult(data.result);
-      setStep('idle');
+      setFinalResult({
+        html: articleHtml,
+        metaTitle: seo.metaTitle,
+        metaDescription: seo.metaDescription,
+        faqQuestions: seo.faqQuestions,
+        summary: `Статья "${outline.title}" состоит из ${totalSections} секций.`,
+      });
+      setCurrentSection(0);
+      setTotalSections(0);
     } catch (err: any) {
       const errorMessage = err.message || 'Ошибка генерации контента';
       console.error('Ошибка генерации контента:', err);
       setError(errorMessage);
       setStep('idle');
+      setCurrentSection(0);
+      setTotalSections(0);
     } finally {
       setGenerating(false);
       if (!error) {
@@ -271,8 +356,10 @@ export default function ContentGeneratorPage() {
             {progress && (
               <div className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-4 py-3 rounded">
                 {progress}
-                {step === 'outline' && ' (Шаг 1/2)'}
-                {step === 'article' && ' (Шаг 2/2)'}
+                {step === 'outline' && ' (Шаг 1/3)'}
+                {step === 'sections' && totalSections > 0 && ` (Шаг 2/3: ${currentSection}/${totalSections})`}
+                {step === 'seo' && ' (Шаг 3/3)'}
+                {step === 'done' && ' ✓'}
               </div>
             )}
 
