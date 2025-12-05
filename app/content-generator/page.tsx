@@ -507,19 +507,6 @@ export default function ContentGeneratorPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Desired Length (words)
-              </label>
-              <input
-                type="text"
-                value={desiredLength}
-                onChange={(e) => setDesiredLength(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="500, 1000, 2000..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Additional Constraints
               </label>
               <textarea
