@@ -29,11 +29,17 @@ public/*.csv
 data/
 core/
 
-# Игнорируем временные файлы
+# Игнорируем временные файлы и системные директории
 *.log
 *.tmp
 .cache/
 .next/
+.git/
+node_modules/
+.DS_Store
+*.swp
+*.swo
+*~
 
 # Игнорируем неиспользуемые файлы из lib
 lib/cache.ts
