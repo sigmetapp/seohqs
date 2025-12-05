@@ -68,9 +68,7 @@ ${fullArticleHtml}
 {
   "meta_title": "...",
   "meta_description": "...",
-  "h1": "...",
-  "faq": [...],
-  "semantic_topics": [...]
+  "h1": "..."
 }`;
 
     // Таймаут 30 секунд для SEO
@@ -149,8 +147,6 @@ ${fullArticleHtml}
         meta_title: result.meta_title || '',
         meta_description: result.meta_description || '',
         h1: result.h1 || '',
-        faq: result.faq || [],
-        semantic_topics: result.semantic_topics || [],
       });
     } catch (abortError: any) {
       clearTimeout(timeoutId);

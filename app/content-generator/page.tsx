@@ -9,8 +9,6 @@ interface FinalResult {
   meta_title?: string;
   meta_description?: string;
   h1?: string;
-  faq?: string[];
-  semantic_topics?: string[];
   summary?: string;
 }
 
@@ -515,8 +513,6 @@ export default function ContentGeneratorPage() {
         meta_title: '',
         meta_description: '',
         h1: '',
-        faq: [],
-        semantic_topics: [],
       };
       let seoError: string | null = null;
 
@@ -529,8 +525,6 @@ export default function ContentGeneratorPage() {
               meta_title: parsed.meta_title || '',
               meta_description: parsed.meta_description || '',
               h1: parsed.h1 || '',
-              faq: parsed.faq || [],
-              semantic_topics: parsed.semantic_topics || [],
             };
           } else {
             // SEO ассистент вернул ошибку
@@ -567,8 +561,6 @@ export default function ContentGeneratorPage() {
         meta_title: seoData.meta_title,
         meta_description: seoData.meta_description,
         h1: seoData.h1,
-        faq: seoData.faq,
-        semantic_topics: seoData.semantic_topics,
         summary: finalSummaryMessage,
       });
 
@@ -1187,49 +1179,6 @@ export default function ContentGeneratorPage() {
                   </button>
                 </div>
               </div>
-
-              {finalResult.faq && finalResult.faq.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    FAQ
-                  </label>
-                  <ul className="list-disc list-inside space-y-1 text-gray-900 dark:text-white">
-                    {finalResult.faq.map((item: any, i: number) => {
-                      // Handle both string and object formats {q: "...", a: "..."}
-                      const question = typeof item === 'string' ? item : (item?.q || item?.question || '');
-                      const answer = typeof item === 'object' ? (item?.a || item?.answer || '') : '';
-                      return (
-                        <li key={i}>
-                          {question}
-                          {answer && <span className="text-gray-600 dark:text-gray-400"> - {answer}</span>}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-
-              {finalResult.semantic_topics && finalResult.semantic_topics.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Semantic Topics
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {finalResult.semantic_topics.map((item: any, i: number) => {
-                      // Handle both string and object formats
-                      const topic = typeof item === 'string' ? item : (item?.topic || item?.name || String(item));
-                      return (
-                        <span
-                          key={i}
-                          className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm"
-                        >
-                          {topic}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
               {finalResult.summary && (
                 <div>
