@@ -51,6 +51,9 @@ async function generateOutline(
     additionalConstraints?: string;
   }
 ): Promise<Outline> {
+  const startTime = Date.now();
+  console.log(`[OUTLINE] Начало генерации структуры в ${new Date().toISOString()}`);
+  
   const outlinePrompt = `Создай структуру (содержание) статьи:
 
 Тема: ${params.mainQuery}
@@ -75,10 +78,17 @@ ${params.additionalConstraints ? `Ограничения: ${params.additionalCon
   ]
 }`;
 
+  // Таймаут 50 секунд (меньше лимита Vercel 60 секунд)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 минут (20x от 30 секунд)
+  const timeoutId = setTimeout(() => {
+    console.log(`[OUTLINE] ТАЙМАУТ: Превышено время ожидания структуры`);
+    controller.abort();
+  }, 50000);
 
   try {
+    console.log(`[OUTLINE] Отправка запроса к OpenAI, max_tokens: 10000`);
+    const requestStartTime = Date.now();
+    
     const completion = await openai.chat.completions.create(
       {
         model: 'gpt-4o-mini',
@@ -90,7 +100,7 @@ ${params.additionalConstraints ? `Ограничения: ${params.additionalCon
           { role: 'user', content: outlinePrompt },
         ],
         temperature: 0.7,
-        max_tokens: 10000, // Увеличено в 10 раз
+        max_tokens: 10000,
         response_format: { type: 'json_object' },
       },
       {
@@ -98,6 +108,8 @@ ${params.additionalConstraints ? `Ограничения: ${params.additionalCon
       }
     );
 
+    const requestDuration = Date.now() - requestStartTime;
+    console.log(`[OUTLINE] Ответ получен за ${requestDuration}ms`);
     clearTimeout(timeoutId);
 
     const content = completion.choices[0]?.message?.content;
@@ -105,15 +117,21 @@ ${params.additionalConstraints ? `Ограничения: ${params.additionalCon
       throw new Error('Ответ от OpenAI не получен для структуры');
     }
 
+    const parseStartTime = Date.now();
     const result = JSON.parse(content.trim());
+    console.log(`[OUTLINE] JSON распарсен за ${Date.now() - parseStartTime}ms`);
+    console.log(`[OUTLINE] Всего времени: ${Date.now() - startTime}ms`);
+    
     return {
       title: result.title || params.mainQuery,
       sections: result.sections || [],
     };
   } catch (abortError: any) {
     clearTimeout(timeoutId);
+    const errorDuration = Date.now() - startTime;
+    console.error(`[OUTLINE] ОШИБКА через ${errorDuration}ms:`, abortError.message);
     if (abortError.name === 'AbortError') {
-      throw new Error('Превышено время ожидания генерации структуры.');
+      throw new Error(`Превышено время ожидания генерации структуры (${errorDuration}ms).`);
     }
     throw abortError;
   }
@@ -144,6 +162,9 @@ async function generateArticle(
     additionalConstraints?: string;
   }
 ): Promise<{ html: string; metaTitle: string; metaDescription: string; faqQuestions: string[] }> {
+  const startTime = Date.now();
+  console.log(`[ARTICLE] Начало генерации статьи в ${new Date().toISOString()}, секций: ${outline.sections.length}`);
+  
   const sectionsText = outline.sections
     .map((s, i) => `${i + 1}. ${s.title}: ${s.description}`)
     .join('\n');
@@ -172,10 +193,17 @@ ${sectionsText}
   "faqQuestions": ["Вопрос 1", "Вопрос 2", "Вопрос 3", "Вопрос 4"]
 }`;
 
+  // Таймаут 50 секунд (меньше лимита Vercel 60 секунд)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 900000); // 15 минут (20x от 45 секунд)
+  const timeoutId = setTimeout(() => {
+    console.log(`[ARTICLE] ТАЙМАУТ: Превышено время ожидания статьи`);
+    controller.abort();
+  }, 50000);
 
   try {
+    console.log(`[ARTICLE] Отправка запроса к OpenAI, max_tokens: 30000`);
+    const requestStartTime = Date.now();
+    
     const completion = await openai.chat.completions.create(
       {
         model: 'gpt-4o-mini',
@@ -187,7 +215,7 @@ ${sectionsText}
           { role: 'user', content: articlePrompt },
         ],
         temperature: 0.7,
-        max_tokens: 30000, // Увеличено в 10 раз
+        max_tokens: 30000,
         response_format: { type: 'json_object' },
       },
       {
@@ -195,6 +223,8 @@ ${sectionsText}
       }
     );
 
+    const requestDuration = Date.now() - requestStartTime;
+    console.log(`[ARTICLE] Ответ получен за ${requestDuration}ms`);
     clearTimeout(timeoutId);
 
     const content = completion.choices[0]?.message?.content;
@@ -202,12 +232,17 @@ ${sectionsText}
       throw new Error('Ответ от OpenAI не получен для статьи');
     }
 
+    const parseStartTime = Date.now();
     const result = JSON.parse(content.trim());
+    console.log(`[ARTICLE] JSON распарсен за ${Date.now() - parseStartTime}ms`);
 
     // Ограничиваем размер HTML
     if (result.html && result.html.length > 200000) {
+      console.log(`[ARTICLE] HTML превышает лимит: ${result.html.length} символов, обрезаем`);
       result.html = result.html.substring(0, 200000) + '...';
     }
+
+    console.log(`[ARTICLE] Всего времени: ${Date.now() - startTime}ms, размер HTML: ${result.html?.length || 0} символов`);
 
     return {
       html: result.html || '',
@@ -217,8 +252,10 @@ ${sectionsText}
     };
   } catch (abortError: any) {
     clearTimeout(timeoutId);
+    const errorDuration = Date.now() - startTime;
+    console.error(`[ARTICLE] ОШИБКА через ${errorDuration}ms:`, abortError.message);
     if (abortError.name === 'AbortError') {
-      throw new Error('Превышено время ожидания генерации статьи. Попробуйте уменьшить желаемый размер.');
+      throw new Error(`Превышено время ожидания генерации статьи (${errorDuration}ms). Попробуйте уменьшить желаемый размер.`);
     }
     throw abortError;
   }
@@ -262,8 +299,11 @@ export async function POST(request: Request) {
     }
 
     const openai = await getOpenAIClient();
+    const totalStartTime = Date.now();
+    console.log(`[TOTAL] Начало генерации контента в ${new Date().toISOString()}`);
 
     // ШАГ 1: Генерация структуры
+    console.log(`[TOTAL] ШАГ 1: Генерация структуры`);
     const outline = await generateOutline(openai, {
       mainQuery,
       language,
@@ -275,6 +315,7 @@ export async function POST(request: Request) {
     });
 
     // ШАГ 2: Генерация статьи на основе структуры
+    console.log(`[TOTAL] ШАГ 2: Генерация статьи`);
     const article = await generateArticle(openai, outline, {
       mainQuery,
       language,
@@ -285,6 +326,9 @@ export async function POST(request: Request) {
       additionalConstraints,
     });
 
+    const totalDuration = Date.now() - totalStartTime;
+    console.log(`[TOTAL] Генерация завершена успешно за ${totalDuration}ms`);
+
     return NextResponse.json({
       success: true,
       result: {
@@ -293,7 +337,12 @@ export async function POST(request: Request) {
         metaDescription: article.metaDescription,
         faqQuestions: article.faqQuestions,
         summary: `Статья "${outline.title}" состоит из ${outline.sections.length} секций.`,
-        outline: outline, // Возвращаем структуру для отображения
+        outline: outline,
+      },
+      debug: {
+        totalTime: totalDuration,
+        outlineSections: outline.sections.length,
+        htmlLength: article.html.length,
       },
     });
   } catch (error: any) {
