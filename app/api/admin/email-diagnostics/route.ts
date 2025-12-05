@@ -20,6 +20,9 @@ export async function GET() {
         apiKey: process.env.RESEND_API_KEY ? '✅ установлен' : '❌ не установлен',
         fromEmail: process.env.RESEND_FROM_EMAIL || 'не установлен (будет использован onboarding@resend.dev)',
         status: process.env.RESEND_API_KEY ? 'настроен' : 'не настроен',
+        domainNote: process.env.RESEND_FROM_EMAIL && process.env.RESEND_FROM_EMAIL !== 'onboarding@resend.dev' 
+          ? '⚠️ Убедитесь, что домен верифицирован в Resend Dashboard' 
+          : undefined,
       },
       
       // Проверка Supabase SMTP
@@ -105,6 +108,13 @@ export async function GET() {
     if (diagnostics.resend.enabled && diagnostics.resend.fromEmail === 'не установлен (будет использован onboarding@resend.dev)') {
       diagnostics.recommendations.push(
         '💡 Рекомендуется установить RESEND_FROM_EMAIL для использования вашего домена'
+      );
+    }
+    
+    if (diagnostics.resend.enabled && diagnostics.resend.fromEmail && diagnostics.resend.fromEmail !== 'не установлен (будет использован onboarding@resend.dev)') {
+      diagnostics.recommendations.push(
+        '⚠️ ВАЖНО: Если письма не приходят, проверьте верификацию домена в Resend Dashboard',
+        '   Если домен не верифицирован, временно используйте onboarding@resend.dev'
       );
     }
     
