@@ -70,11 +70,11 @@ export async function POST(request: Request) {
 <h2>Заголовок секции</h2>
 <p>Текст секции...</p>`;
 
-    // Таймаут 30 секунд для секции
+    // Таймаут 50 секунд для секции (запас для Vercel, но в пределах 60 сек)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
-    }, 30000);
+    }, 50000);
 
     try {
       const completion = await openai.chat.completions.create(
@@ -134,8 +134,8 @@ export async function POST(request: Request) {
       });
     } catch (abortError: any) {
       clearTimeout(timeoutId);
-      if (abortError.name === 'AbortError') {
-        throw new Error(`Превышено время ожидания генерации секции "${sectionTitle}" (30 секунд)`);
+      if (abortError.name === 'AbortError' || abortError.message?.includes('aborted')) {
+        throw new Error(`Превышено время ожидания генерации секции "${sectionTitle}" (50 секунд)`);
       }
       throw abortError;
     }

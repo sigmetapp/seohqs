@@ -80,20 +80,35 @@ export default function ContentGeneratorPage() {
     try {
       // ШАГ 1: Генерация структуры
       setProgress('Генерация структуры статьи...');
-      const outlineRes = await fetch('/api/content/outline', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          topic: mainQuery,
-          language,
-          audience: targetAudience,
-          goal: contentGoal,
-          desiredLength,
-          tone: toneOfVoice,
-        }),
-      });
+      
+      const outlineController = new AbortController();
+      const outlineTimeout = setTimeout(() => outlineController.abort(), 15000); // 15 секунд на клиенте
+      
+      let outlineRes;
+      try {
+        outlineRes = await fetch('/api/content/outline', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            topic: mainQuery,
+            language,
+            audience: targetAudience,
+            goal: contentGoal,
+            desiredLength,
+            tone: toneOfVoice,
+          }),
+          signal: outlineController.signal,
+        });
+        clearTimeout(outlineTimeout);
+      } catch (fetchError: any) {
+        clearTimeout(outlineTimeout);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Превышено время ожидания генерации структуры. Попробуйте еще раз.');
+        }
+        throw fetchError;
+      }
 
       const outlineText = await outlineRes.text();
       let outlineData;
@@ -122,22 +137,36 @@ export default function ContentGeneratorPage() {
         setCurrentSection(i + 1);
         setProgress(`Генерация секции ${i + 1} из ${totalSections}: ${section.title}...`);
 
-        const sectionRes = await fetch('/api/content/section', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            topic: mainQuery,
-            language,
-            audience: targetAudience,
-            goal: contentGoal,
-            tone: toneOfVoice,
-            sectionTitle: section.title,
-            sectionDescription: section.description,
-            sectionIndex: i,
-          }),
-        });
+        const sectionController = new AbortController();
+        const sectionTimeout = setTimeout(() => sectionController.abort(), 40000); // 40 секунд на клиенте
+        
+        let sectionRes;
+        try {
+          sectionRes = await fetch('/api/content/section', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              topic: mainQuery,
+              language,
+              audience: targetAudience,
+              goal: contentGoal,
+              tone: toneOfVoice,
+              sectionTitle: section.title,
+              sectionDescription: section.description,
+              sectionIndex: i,
+            }),
+            signal: sectionController.signal,
+          });
+          clearTimeout(sectionTimeout);
+        } catch (fetchError: any) {
+          clearTimeout(sectionTimeout);
+          if (fetchError.name === 'AbortError') {
+            throw new Error(`Превышено время ожидания генерации секции ${i + 1}: "${section.title}". Попробуйте еще раз.`);
+          }
+          throw fetchError;
+        }
 
         const sectionText = await sectionRes.text();
         let sectionData;
@@ -160,33 +189,55 @@ export default function ContentGeneratorPage() {
       // ШАГ 3: Генерация SEO метаданных
       setStep('seo');
       setProgress('Генерация SEO метаданных...');
-      const seoRes = await fetch('/api/content/seo', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          articleHtml,
-          topic: mainQuery,
-          language,
-        }),
-      });
-
-      const seoText = await seoRes.text();
-      let seoData;
+      
+      const seoController = new AbortController();
+      const seoTimeout = setTimeout(() => seoController.abort(), 15000); // 15 секунд на клиенте
+      
+      let seoRes;
       try {
-        seoData = JSON.parse(seoText);
-      } catch (jsonError) {
-        // SEO не критично, продолжаем без него
-        console.warn('Не удалось распарсить SEO ответ:', seoText.substring(0, 200));
-        seoData = { success: false };
+        seoRes = await fetch('/api/content/seo', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            articleHtml,
+            topic: mainQuery,
+            language,
+          }),
+          signal: seoController.signal,
+        });
+        clearTimeout(seoTimeout);
+      } catch (fetchError: any) {
+        clearTimeout(seoTimeout);
+        if (fetchError.name === 'AbortError') {
+          // SEO не критично, продолжаем без него
+          console.warn('Таймаут генерации SEO, продолжаем без SEO метаданных');
+          seoRes = null;
+        } else {
+          throw fetchError;
+        }
       }
 
-      const seo = seoData.success ? seoData.seo : {
+      let seo = {
         metaTitle: '',
         metaDescription: '',
         faqQuestions: [],
       };
+
+      if (seoRes) {
+        const seoText = await seoRes.text();
+        let seoData;
+        try {
+          seoData = JSON.parse(seoText);
+          if (seoData.success && seoData.seo) {
+            seo = seoData.seo;
+          }
+        } catch (jsonError) {
+          // SEO не критично, продолжаем без него
+          console.warn('Не удалось распарсить SEO ответ:', seoText.substring(0, 200));
+        }
+      }
 
       setStep('done');
       setProgress('Статья готова!');
@@ -200,7 +251,14 @@ export default function ContentGeneratorPage() {
       setCurrentSection(0);
       setTotalSections(0);
     } catch (err: any) {
-      const errorMessage = err.message || 'Ошибка генерации контента';
+      let errorMessage = 'Ошибка генерации контента';
+      
+      if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
+        errorMessage = 'Запрос был прерван. Возможно, превышено время ожидания. Попробуйте еще раз или уменьшите размер статьи.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       console.error('Ошибка генерации контента:', err);
       setError(errorMessage);
       setStep('idle');
@@ -208,8 +266,9 @@ export default function ContentGeneratorPage() {
       setTotalSections(0);
     } finally {
       setGenerating(false);
+      // Не очищаем прогресс если была ошибка, чтобы пользователь видел что произошло
       if (!error) {
-        setProgress('');
+        setTimeout(() => setProgress(''), 2000);
       }
     }
   };

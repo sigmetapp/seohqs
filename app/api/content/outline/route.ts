@@ -56,11 +56,11 @@ export async function POST(request: Request) {
   ]
 }`;
 
-    // Таймаут 10 секунд для outline
+    // Таймаут 15 секунд для outline (запас для Vercel)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
-    }, 10000);
+    }, 15000);
 
     try {
       const completion = await openai.chat.completions.create(
@@ -112,8 +112,8 @@ export async function POST(request: Request) {
       });
     } catch (abortError: any) {
       clearTimeout(timeoutId);
-      if (abortError.name === 'AbortError') {
-        throw new Error('Превышено время ожидания генерации структуры (10 секунд)');
+      if (abortError.name === 'AbortError' || abortError.message?.includes('aborted')) {
+        throw new Error('Превышено время ожидания генерации структуры (15 секунд)');
       }
       throw abortError;
     }
