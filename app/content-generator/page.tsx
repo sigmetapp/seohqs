@@ -42,6 +42,7 @@ export default function ContentGeneratorPage() {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [sectionStatuses, setSectionStatuses] = useState<SectionStatusData[]>([]);
+  const [currentTargetSectionWords, setCurrentTargetSectionWords] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     checkAuth();
@@ -169,6 +170,18 @@ export default function ContentGeneratorPage() {
       const sections = outlineData.sections || [];
       setOutlineSections(sections);
 
+      // Вычисляем целевую длину секции на основе желаемой длины статьи
+      const desiredLengthNum = parseInt(String(desiredLength || '2000'), 10);
+      const sectionsCount = sections.length;
+      const targetSectionWords = sectionsCount > 0 
+        ? Math.round(desiredLengthNum / sectionsCount)
+        : undefined;
+
+      // Сохраняем targetSectionWords в состояние для использования при перегенерации
+      setCurrentTargetSectionWords(targetSectionWords);
+
+      console.log(`[FRONTEND] Желаемая длина: ${desiredLengthNum} слов, секций: ${sectionsCount}, целевая длина секции: ${targetSectionWords} слов`);
+
       // ШАГ 2: Sections - последовательная генерация
       const sectionsHtml: string[] = [];
       const totalSections = sections.length;
@@ -217,6 +230,7 @@ export default function ContentGeneratorPage() {
                 sectionTitle: section.title,
                 sectionDescription: section.description,
                 sectionIndex: i,
+                targetSectionWords: targetSectionWords,
               }),
               signal: sectionController.signal,
             });
@@ -421,6 +435,7 @@ export default function ContentGeneratorPage() {
         faq: [],
         semantic_topics: [],
       };
+      let seoError: string | null = null;
 
       if (seoRes) {
         const seoText = await seoRes.text();
@@ -434,10 +449,17 @@ export default function ContentGeneratorPage() {
               faq: parsed.faq || [],
               semantic_topics: parsed.semantic_topics || [],
             };
+          } else {
+            // SEO ассистент вернул ошибку
+            seoError = parsed.error || 'Ошибка генерации SEO метаданных';
+            console.error('[SEO] Ошибка от API:', seoError);
           }
         } catch (jsonError) {
-          console.warn('Не удалось распарсить SEO ответ:', seoText.substring(0, 200));
+          seoError = 'Не удалось обработать ответ SEO ассистента';
+          console.warn('[SEO] Не удалось распарсить SEO ответ:', seoText.substring(0, 200));
         }
+      } else {
+        seoError = 'Не удалось получить ответ от SEO ассистента (таймаут или ошибка сети)';
       }
 
       // ШАГ 5: Показ результата
@@ -451,6 +473,11 @@ export default function ContentGeneratorPage() {
         summaryMessage += ` ${failed.length} секций не удалось сгенерировать.`;
       }
       
+      let finalSummaryMessage = summaryMessage;
+      if (seoError) {
+        finalSummaryMessage += ` ⚠️ SEO метаданные не были сгенерированы: ${seoError}`;
+      }
+
       setProgress(failed.length > 0 ? `Статья готова! (${failed.length} секций пропущено)` : 'Статья готова!');
       setFinalResult({
         html: assembledHtml,
@@ -459,8 +486,13 @@ export default function ContentGeneratorPage() {
         h1: seoData.h1,
         faq: seoData.faq,
         semantic_topics: seoData.semantic_topics,
-        summary: summaryMessage,
+        summary: finalSummaryMessage,
       });
+
+      // Показываем ошибку SEO, если она есть
+      if (seoError) {
+        setError(`⚠️ SEO метаданные не были сгенерированы: ${seoError}. Статья сгенерирована, но поля Meta Title и Meta Description пустые.`);
+      }
       setCurrentSection(0);
       setTotalSections(0);
     } catch (err: any) {
@@ -544,6 +576,7 @@ export default function ContentGeneratorPage() {
             sectionTitle: section.title,
             sectionDescription: outlineSections.find(s => s.title === section.title)?.description || '',
             sectionIndex: index - 1,
+            targetSectionWords: currentTargetSectionWords,
           }),
           signal: sectionController.signal,
         });
@@ -957,16 +990,23 @@ export default function ContentGeneratorPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Meta Title
                 </label>
+                {!finalResult.meta_title && (
+                  <div className="mb-2 text-sm text-yellow-600 dark:text-yellow-400">
+                    ⚠️ Meta Title не был сгенерирован. SEO ассистент вернул ошибку или не был вызван.
+                  </div>
+                )}
                 <div className="flex space-x-2">
                   <input
                     type="text"
                     value={finalResult.meta_title || ''}
                     readOnly
+                    placeholder={finalResult.meta_title ? '' : 'Meta Title не был сгенерирован'}
                     className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"
                   />
                   <button
                     onClick={() => copyToClipboard(finalResult.meta_title || '', 'Meta Title')}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                    disabled={!finalResult.meta_title}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Copy
                   </button>
@@ -977,16 +1017,23 @@ export default function ContentGeneratorPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Meta Description
                 </label>
+                {!finalResult.meta_description && (
+                  <div className="mb-2 text-sm text-yellow-600 dark:text-yellow-400">
+                    ⚠️ Meta Description не был сгенерирован. SEO ассистент вернул ошибку или не был вызван.
+                  </div>
+                )}
                 <div className="flex space-x-2">
                   <textarea
                     value={finalResult.meta_description || ''}
                     readOnly
                     rows={3}
+                    placeholder={finalResult.meta_description ? '' : 'Meta Description не был сгенерирован'}
                     className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"
                   />
                   <button
                     onClick={() => copyToClipboard(finalResult.meta_description || '', 'Meta Description')}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                    disabled={!finalResult.meta_description}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Copy
                   </button>

@@ -46,7 +46,8 @@ async function generateSection(
   sectionIndex: number,
   complexityLevel: 'medium' | 'low',
   startTime: number,
-  timeoutMs: number
+  timeoutMs: number,
+  targetSectionWords?: number
 ): Promise<string> {
   // Определяем параметры стиля на основе complexityLevel
   let styleParams = '';
@@ -58,6 +59,14 @@ async function generateSection(
     // medium
     styleParams = 'Стиль: Medium (качественный блоговый контент). Пиши сбалансированно, с умеренной глубиной, включай примеры и полезные инсайты.';
     wordLimit = '800-1500';
+  }
+
+  // Если указан targetSectionWords, используем его для более точного контроля длины
+  if (targetSectionWords && targetSectionWords > 0) {
+    // Устанавливаем целевой диапазон на основе targetSectionWords (±20%)
+    const minWords = Math.max(1, Math.round(targetSectionWords * 0.8));
+    const maxWords = Math.round(targetSectionWords * 1.2);
+    wordLimit = `${minWords}-${maxWords}`;
   }
 
   // Промпт содержит только необходимые поля, без больших текстов статьи
@@ -77,11 +86,12 @@ ${styleParams}
 Описание: ${sectionDescription || ''}
 Индекс секции: ${sectionIndex !== undefined ? sectionIndex : 0}
 Уровень сложности: ${complexityLevel}
+${targetSectionWords ? `Целевая длина секции: ${targetSectionWords} слов (целься в этот таргет)` : ''}
 
 ВАЖНО:
 - Это часть большой статьи, не повторяй общую информацию
 - Сфокусируйся на теме этой секции
-- ЛИМИТ: ${wordLimit} слов для этой секции (примерно 900-1100 токенов на выходе)
+- ЛИМИТ: ${wordLimit} слов для этой секции${targetSectionWords ? ` (целевой таргет: ${targetSectionWords} слов)` : ''}
 - Используй естественный стиль без AI-штампов
 - Структурируй текст с подзаголовками H3 где нужно
 - Начни с H2 заголовка секции
@@ -193,6 +203,7 @@ export async function POST(request: Request) {
       sectionTitle,
       sectionDescription,
       sectionIndex,
+      targetSectionWords,
     } = body;
 
     if (!topic || !sectionTitle) {
@@ -211,6 +222,12 @@ export async function POST(request: Request) {
     // Объявляем переменную для HTML секции
     let sectionHtml: string | null = null;
 
+    // Парсим targetSectionWords если передан
+    const targetSectionWordsNum = targetSectionWords ? parseInt(String(targetSectionWords), 10) : undefined;
+    const validTargetWords = targetSectionWordsNum && !isNaN(targetSectionWordsNum) && targetSectionWordsNum > 0 
+      ? targetSectionWordsNum 
+      : undefined;
+
     // Первая попытка: всегда "medium"
     try {
       sectionHtml = await generateSection(
@@ -227,7 +244,8 @@ export async function POST(request: Request) {
         sectionIndex !== undefined ? sectionIndex : 0,
         'medium',
         startTime,
-        timeoutMs
+        timeoutMs,
+        validTargetWords
       );
 
       const duration = Date.now() - startTime;
@@ -272,7 +290,8 @@ export async function POST(request: Request) {
           sectionIndex !== undefined ? sectionIndex : 0,
           'low',
           startTime,
-          timeoutMs
+          timeoutMs,
+          validTargetWords
         );
 
         const duration = Date.now() - startTime;
