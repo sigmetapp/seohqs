@@ -15,6 +15,11 @@ CREATE INDEX IF NOT EXISTS idx_site_settings_key ON site_settings(key);
 -- Включаем Row Level Security для таблицы site_settings
 ALTER TABLE site_settings ENABLE ROW LEVEL SECURITY;
 
+-- Удаляем политики, если они существуют (для повторного запуска миграции)
+DROP POLICY IF EXISTS "Admin can view settings" ON site_settings;
+DROP POLICY IF EXISTS "Admin can update settings" ON site_settings;
+DROP POLICY IF EXISTS "Admin can insert settings" ON site_settings;
+
 -- Политика: только администраторы могут читать настройки (через API с проверкой email)
 CREATE POLICY "Admin can view settings" ON site_settings
   FOR SELECT USING (true);
