@@ -20,9 +20,9 @@ export default function ContentGeneratorPage() {
   
   const [topic, setTopic] = useState('');
   const [language, setLanguage] = useState('RU');
-  const [audience, setAudience] = useState('');
-  const [authorPersona, setAuthorPersona] = useState('эксперт');
-  const [angle, setAngle] = useState('информативный');
+  const [audience, setAudience] = useState('general');
+  const [authorPersona, setAuthorPersona] = useState('expert');
+  const [angle, setAngle] = useState('informative');
   const [contentGoal, setContentGoal] = useState('SEO article');
   const [desiredLength, setDesiredLength] = useState('2000');
   const [constraints, setConstraints] = useState('');
@@ -87,7 +87,7 @@ export default function ContentGeneratorPage() {
       setProgress('Generating outline…');
       
       const outlineController = new AbortController();
-      const outlineTimeout = setTimeout(() => outlineController.abort(), 12000);
+      const outlineTimeout = setTimeout(() => outlineController.abort(), 35000); // 35 секунд на клиенте (запас для серверных 30 секунд)
       
       let outlineRes;
       try {
@@ -112,7 +112,7 @@ export default function ContentGeneratorPage() {
       } catch (fetchError: any) {
         clearTimeout(outlineTimeout);
         if (fetchError.name === 'AbortError') {
-          throw new Error('Превышено время ожидания генерации структуры. Попробуйте еще раз.');
+          throw new Error('Превышено время ожидания генерации структуры (35 секунд). Попробуйте еще раз.');
         }
         throw fetchError;
       }
@@ -452,39 +452,64 @@ export default function ContentGeneratorPage() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Audience
               </label>
-              <input
-                type="text"
+              <select
                 value={audience}
                 onChange={(e) => setAudience(e.target.value)}
                 className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="beginner, advanced, marketers, developers..."
-              />
+              >
+                <option value="general">General</option>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+                <option value="professionals">Professionals</option>
+                <option value="marketers">Marketers</option>
+                <option value="developers">Developers</option>
+                <option value="business owners">Business Owners</option>
+                <option value="students">Students</option>
+                <option value="entrepreneurs">Entrepreneurs</option>
+              </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Author Persona
               </label>
-              <input
-                type="text"
+              <select
                 value={authorPersona}
                 onChange={(e) => setAuthorPersona(e.target.value)}
                 className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="эксперт, новичок, практик..."
-              />
+              >
+                <option value="expert">Expert</option>
+                <option value="beginner">Beginner</option>
+                <option value="practitioner">Practitioner</option>
+                <option value="researcher">Researcher</option>
+                <option value="industry insider">Industry Insider</option>
+                <option value="thought leader">Thought Leader</option>
+                <option value="educator">Educator</option>
+                <option value="consultant">Consultant</option>
+              </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Angle
               </label>
-              <input
-                type="text"
+              <select
                 value={angle}
                 onChange={(e) => setAngle(e.target.value)}
                 className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="информативный, практический, аналитический..."
-              />
+              >
+                <option value="informative">Informative</option>
+                <option value="practical">Practical</option>
+                <option value="analytical">Analytical</option>
+                <option value="educational">Educational</option>
+                <option value="comparative">Comparative</option>
+                <option value="case study">Case Study</option>
+                <option value="how-to">How-To Guide</option>
+                <option value="opinion">Opinion</option>
+                <option value="review">Review</option>
+                <option value="news">News</option>
+              </select>
             </div>
 
             <div>
@@ -503,19 +528,6 @@ export default function ContentGeneratorPage() {
                 <option>Guide</option>
                 <option>FAQ page</option>
               </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Desired Length (words)
-              </label>
-              <input
-                type="text"
-                value={desiredLength}
-                onChange={(e) => setDesiredLength(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="500, 1000, 2000..."
-              />
             </div>
 
             <div>
