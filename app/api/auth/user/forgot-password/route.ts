@@ -58,38 +58,48 @@ export async function POST(request: Request) {
     
     try {
       await sendPasswordResetEmail(dbUser.email, resetUrl);
-      console.log(`✅ Email для сброса пароля отправлен на ${dbUser.email}`);
+      console.log(`✅ Email для сброса пароля успешно отправлен на ${dbUser.email}`);
     } catch (emailError: any) {
-      console.error('❌ Ошибка отправки email:', emailError);
-      console.error('Детали ошибки:', {
-        message: emailError?.message,
-        stack: emailError?.stack,
-        email: dbUser.email,
-        resetUrl: resetUrl.substring(0, 50) + '...',
-        errorName: emailError?.name,
-        errorCode: emailError?.code,
-        statusCode: emailError?.statusCode,
-        command: emailError?.command,
-      });
+      // Детальное логирование ошибки для Vercel
+      const errorLog = {
+        timestamp: new Date().toISOString(),
+        error: {
+          message: emailError?.message || 'Unknown error',
+          name: emailError?.name || 'Unknown',
+          stack: emailError?.stack,
+          code: emailError?.code,
+          statusCode: emailError?.statusCode,
+          command: emailError?.command,
+        },
+        context: {
+          email: dbUser.email,
+          userId: dbUser.id,
+          resetUrlPrefix: resetUrl.substring(0, 50) + '...',
+        },
+        environment: {
+          NODE_ENV: process.env.NODE_ENV || 'development',
+          RESEND_API_KEY: process.env.RESEND_API_KEY ? '✅ установлен' : '❌ не установлен',
+          RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL || 'не установлен',
+          SUPABASE_SMTP_HOST: process.env.SUPABASE_SMTP_HOST || 'не установлен',
+          SMTP_HOST: process.env.SMTP_HOST || 'не установлен',
+          NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'не установлен',
+          VERCEL_URL: process.env.VERCEL_URL || 'не установлен',
+        },
+      };
       
-      // Логируем текущие настройки для диагностики
-      console.error('📋 Текущие настройки email:');
-      console.error(`  - RESEND_API_KEY: ${process.env.RESEND_API_KEY ? '✅ установлен' : '❌ не установлен'}`);
-      console.error(`  - SUPABASE_SMTP_HOST: ${process.env.SUPABASE_SMTP_HOST || 'не установлен'}`);
-      console.error(`  - SMTP_HOST: ${process.env.SMTP_HOST || 'не установлен'}`);
-      console.error(`  - NEXT_PUBLIC_APP_URL: ${process.env.NEXT_PUBLIC_APP_URL || 'не установлен'}`);
-      console.error(`  - NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+      console.error('❌ КРИТИЧЕСКАЯ ОШИБКА ОТПРАВКИ EMAIL:');
+      console.error(JSON.stringify(errorLog, null, 2));
       
-      // В режиме разработки можем продолжить без email
+      // В production всегда возвращаем ошибку
       if (process.env.NODE_ENV === 'production') {
+        // Логируем в Vercel для мониторинга
+        console.error('🔴 PRODUCTION ERROR: Email не был отправлен. Проверьте логи выше для деталей.');
+        
         return NextResponse.json(
           {
             success: false,
-            error: 'Ошибка отправки email. Попробуйте позже.',
-            details: process.env.NODE_ENV === 'development' ? {
-              message: emailError?.message,
-              method: emailError?.name || 'unknown',
-            } : undefined,
+            error: 'Ошибка отправки email. Пожалуйста, попробуйте позже или свяжитесь с поддержкой.',
+            // В production не возвращаем детали ошибки для безопасности
           },
           { status: 500 }
         );
@@ -97,6 +107,7 @@ export async function POST(request: Request) {
         // В режиме разработки выводим предупреждение, но продолжаем
         console.warn('⚠️ Email не отправлен (режим разработки). Проверьте настройки email.');
         console.warn('💡 Для диагностики используйте: GET /api/admin/email-diagnostics');
+        console.warn('💡 Для теста отправки используйте: POST /api/admin/email-diagnostics с { "email": "ваш@email.com" }');
       }
     }
 
@@ -202,11 +213,13 @@ async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<
   const resendApiKey = process.env.RESEND_API_KEY;
   if (resendApiKey) {
     console.log('📤 Используется Resend API для отправки email');
+    const configuredFromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    let fromEmail = configuredFromEmail;
+    
     try {
       const { Resend } = require('resend');
       const resend = new Resend(resendApiKey);
       
-      let fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
       console.log(`📨 Попытка отправки с адреса: ${fromEmail}`);
       
       const result = await resend.emails.send({
@@ -239,22 +252,35 @@ async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<
       });
       return;
     } catch (error: any) {
-      console.error('❌ Ошибка отправки через Resend:', error);
-      console.error('Детали ошибки Resend:', {
-        message: error?.message,
-        name: error?.name,
+      // Детальное логирование ошибки для Vercel
+      const errorDetails = {
+        message: error?.message || 'Unknown error',
+        name: error?.name || 'Unknown',
         statusCode: error?.statusCode,
+        code: error?.code,
         response: error?.response ? JSON.stringify(error.response, null, 2) : undefined,
-      });
+        stack: error?.stack,
+      };
+      
+      console.error('❌ ОШИБКА ОТПРАВКИ ЧЕРЕЗ RESEND API:');
+      console.error(JSON.stringify(errorDetails, null, 2));
+      console.error('📋 Контекст ошибки:');
+      console.error(`  - Email получателя: ${email}`);
+      console.error(`  - From email: ${fromEmail}`);
+      console.error(`  - RESEND_API_KEY: ${resendApiKey ? '✅ установлен (первые 10 символов: ' + resendApiKey.substring(0, 10) + '...)' : '❌ не установлен'}`);
+      console.error(`  - RESEND_FROM_EMAIL: ${process.env.RESEND_FROM_EMAIL || 'не установлен'}`);
+      console.error(`  - NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
       
       // Если ошибка связана с доменом, пробуем использовать onboarding@resend.dev
-      const fromEmail = process.env.RESEND_FROM_EMAIL;
-      if (fromEmail && fromEmail !== 'onboarding@resend.dev' && 
-          (error?.message?.includes('domain') || 
-           error?.message?.includes('verification') ||
-           error?.statusCode === 422 ||
-           error?.statusCode === 403)) {
-        console.log('⚠️ Похоже, проблема с доменом. Пробуем использовать onboarding@resend.dev');
+      const isDomainError = error?.message?.toLowerCase().includes('domain') || 
+                           error?.message?.toLowerCase().includes('verification') ||
+                           error?.message?.toLowerCase().includes('not verified') ||
+                           error?.statusCode === 422 ||
+                           error?.statusCode === 403 ||
+                           error?.statusCode === 400;
+      
+      if (configuredFromEmail && configuredFromEmail !== 'onboarding@resend.dev' && isDomainError) {
+        console.log('⚠️ Обнаружена ошибка домена. Пробуем использовать onboarding@resend.dev как fallback');
         try {
           const { Resend } = require('resend');
           const resend = new Resend(resendApiKey);
@@ -282,18 +308,33 @@ async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<
             `,
           });
           
-          console.log('✅ Email успешно отправлен через Resend (с onboarding@resend.dev):', {
+          console.log('✅ Email успешно отправлен через Resend (fallback с onboarding@resend.dev):', {
             id: result?.id || result?.data?.id,
             to: email,
           });
           console.warn('⚠️ ВНИМАНИЕ: Использован onboarding@resend.dev вместо вашего домена. Верифицируйте домен в Resend Dashboard.');
           return;
         } catch (fallbackError: any) {
-          console.error('❌ Ошибка отправки через Resend (fallback):', fallbackError);
-          // Продолжаем к следующему методу
+          console.error('❌ Ошибка отправки через Resend (fallback тоже не сработал):');
+          console.error(JSON.stringify({
+            message: fallbackError?.message,
+            name: fallbackError?.name,
+            statusCode: fallbackError?.statusCode,
+            response: fallbackError?.response ? JSON.stringify(fallbackError.response, null, 2) : undefined,
+          }, null, 2));
+          
+          // В production выбрасываем ошибку, если Resend не работает
+          if (process.env.NODE_ENV === 'production') {
+            throw new Error(`Не удалось отправить email через Resend API. Ошибка: ${error?.message || 'Unknown error'}. Fallback также не сработал: ${fallbackError?.message || 'Unknown error'}`);
+          }
+        }
+      } else {
+        // Если это не ошибка домена или fallback не применим, выбрасываем ошибку в production
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error(`Не удалось отправить email через Resend API. Ошибка: ${error?.message || 'Unknown error'}. Status: ${error?.statusCode || 'N/A'}`);
         }
       }
-      // Продолжаем к следующему методу
+      // В development режиме продолжаем к следующему методу
     }
   }
 

@@ -23,6 +23,17 @@ export async function GET() {
         domainNote: process.env.RESEND_FROM_EMAIL && process.env.RESEND_FROM_EMAIL !== 'onboarding@resend.dev' 
           ? '⚠️ Убедитесь, что домен верифицирован в Resend Dashboard' 
           : undefined,
+        domainCheck: (() => {
+          const fromEmail = process.env.RESEND_FROM_EMAIL;
+          if (!fromEmail || fromEmail === 'onboarding@resend.dev') {
+            return 'Используется onboarding@resend.dev (домен не настроен)';
+          }
+          const domain = fromEmail.split('@')[1];
+          if (domain === 'seohqs.com') {
+            return '✅ Домен seohqs.com настроен. Убедитесь, что он верифицирован в Resend Dashboard';
+          }
+          return `Домен ${domain} настроен. Убедитесь, что он верифицирован в Resend Dashboard`;
+        })(),
       },
       
       // Проверка Supabase SMTP
@@ -113,8 +124,18 @@ export async function GET() {
     
     if (diagnostics.resend.enabled && diagnostics.resend.fromEmail && diagnostics.resend.fromEmail !== 'не установлен (будет использован onboarding@resend.dev)') {
       diagnostics.recommendations.push(
-        '⚠️ ВАЖНО: Если письма не приходят, проверьте верификацию домена в Resend Dashboard',
-        '   Если домен не верифицирован, временно используйте onboarding@resend.dev'
+        '⚠️ ВАЖНО: Если письма не приходят, проверьте:',
+        '   1. Верификацию домена в Resend Dashboard (https://resend.com/domains)',
+        '   2. DNS записи для домена (SPF, DKIM, DMARC)',
+        '   3. Логи в Vercel Dashboard для детальных ошибок',
+        '   4. Если домен не верифицирован, временно используйте onboarding@resend.dev'
+      );
+    }
+    
+    if (diagnostics.resend.enabled && !process.env.RESEND_FROM_EMAIL) {
+      diagnostics.recommendations.push(
+        '💡 Рекомендуется установить RESEND_FROM_EMAIL для использования вашего домена',
+        '   Например: RESEND_FROM_EMAIL=noreply@seohqs.com'
       );
     }
     
@@ -212,14 +233,22 @@ export async function POST(request: Request) {
           testResults,
         });
       } catch (error: any) {
+        const errorDetails = {
+          message: error?.message || 'Unknown error',
+          name: error?.name || 'Unknown',
+          statusCode: error?.statusCode,
+          code: error?.code,
+          response: error?.response ? JSON.stringify(error.response, null, 2) : undefined,
+        };
+        
+        console.error('❌ ОШИБКА ТЕСТОВОЙ ОТПРАВКИ ЧЕРЕЗ RESEND:');
+        console.error(JSON.stringify(errorDetails, null, 2));
+        
         testResults.attempts.push({
           method: 'Resend API',
           success: false,
           error: error.message,
-          details: {
-            name: error?.name,
-            statusCode: error?.statusCode,
-          },
+          details: errorDetails,
         });
       }
     }
