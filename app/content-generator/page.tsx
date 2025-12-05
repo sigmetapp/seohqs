@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import SectionStatusCard, { SectionStatusData, SectionStatus } from '@/app/components/content-generator/SectionStatusCard';
 
 interface FinalResult {
   html?: string;
@@ -40,6 +41,7 @@ export default function ContentGeneratorPage() {
   const [lowComplexitySections, setLowComplexitySections] = useState<Set<number>>(new Set());
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const [sectionStatuses, setSectionStatuses] = useState<SectionStatusData[]>([]);
 
   useEffect(() => {
     checkAuth();
@@ -104,6 +106,7 @@ export default function ContentGeneratorPage() {
     setOutlineSections([]);
     setFailedSections([]);
     setLowComplexitySections(new Set());
+    setSectionStatuses([]);
     setStep('outline');
     setProgress('Generating outline…');
     setStartTime(Date.now());
@@ -171,6 +174,7 @@ export default function ContentGeneratorPage() {
       const totalSections = sections.length;
       const failed: Array<{ index: number; title: string; error: string }> = [];
       const lowComplexity: Set<number> = new Set();
+      const statuses: SectionStatusData[] = [];
       setTotalSections(totalSections);
       setStep('sections');
       setFailedSections([]);
@@ -178,8 +182,17 @@ export default function ContentGeneratorPage() {
 
       for (let i = 0; i < totalSections; i++) {
         const section = sections[i];
+        const sectionStartTime = Date.now();
         setCurrentSection(i + 1);
         setProgress(`Генерация секции ${i + 1} из ${totalSections}: ${section.title}...`);
+
+        // Инициализируем статус секции
+        let sectionStatus: SectionStatus = 'skipped';
+        let sectionHtml: string | null = null;
+        let complexityLevel: 'medium' | 'low' | 'high' = 'medium';
+        let retryCount = 0;
+        let errorMessage: string | undefined = undefined;
+        const technicalLogs: string[] = [];
 
         try {
           const sectionController = new AbortController();
@@ -188,6 +201,7 @@ export default function ContentGeneratorPage() {
           
           let sectionRes;
           try {
+            technicalLogs.push(`[${new Date().toISOString()}] Начало запроса к API для секции ${i + 1}`);
             sectionRes = await fetch('/api/content/section', {
               method: 'POST',
               headers: {
@@ -207,65 +221,131 @@ export default function ContentGeneratorPage() {
               signal: sectionController.signal,
             });
             clearTimeout(sectionTimeout);
+            technicalLogs.push(`[${new Date().toISOString()}] Ответ получен, статус: ${sectionRes.status}`);
           } catch (fetchError: any) {
             clearTimeout(sectionTimeout);
             if (fetchError.name === 'AbortError') {
-              throw new Error(`Превышено время ожидания генерации секции ${i + 1}: "${section.title}"`);
+              const timeoutError = `Превышено время ожидания генерации секции ${i + 1}: "${section.title}"`;
+              technicalLogs.push(`[${new Date().toISOString()}] Таймаут: ${timeoutError}`);
+              throw new Error(timeoutError);
             }
+            technicalLogs.push(`[${new Date().toISOString()}] Ошибка запроса: ${fetchError.message}`);
             throw fetchError;
           }
 
           const sectionText = await sectionRes.text();
+          technicalLogs.push(`[${new Date().toISOString()}] Размер ответа: ${sectionText.length} символов`);
           
           // Проверяем, что ответ не пустой и не слишком большой перед парсингом
           if (!sectionText || sectionText.length > 50000) {
-            throw new Error(`Сервер вернул неожиданный ответ при генерации секции ${i + 1}`);
+            const error = `Сервер вернул неожиданный ответ при генерации секции ${i + 1}`;
+            technicalLogs.push(`[${new Date().toISOString()}] Ошибка: ${error}`);
+            throw new Error(error);
           }
           
           let sectionData;
           try {
             sectionData = JSON.parse(sectionText);
+            technicalLogs.push(`[${new Date().toISOString()}] JSON распарсен успешно, success: ${sectionData.success}`);
           } catch (jsonError) {
             const preview = sectionText.length > 200 ? sectionText.substring(0, 200) + '...' : sectionText;
-            throw new Error(`Ошибка: сервер вернул не-JSON ответ при генерации секции ${i + 1}. Ответ: ${preview}`);
+            const error = `Ошибка: сервер вернул не-JSON ответ при генерации секции ${i + 1}. Ответ: ${preview}`;
+            technicalLogs.push(`[${new Date().toISOString()}] Ошибка парсинга JSON: ${error}`);
+            throw new Error(error);
           }
 
           if (!sectionRes.ok || !sectionData.success) {
-            throw new Error(sectionData.error || `Ошибка генерации секции ${i + 1}: ${section.title}`);
+            const error = sectionData.error || `Ошибка генерации секции ${i + 1}: ${section.title}`;
+            technicalLogs.push(`[${new Date().toISOString()}] Ошибка от API: ${error}`);
+            
+            // Определяем тип ошибки
+            if (error.includes('OpenAI') || error.includes('openai')) {
+              sectionStatus = 'openai_error';
+            } else {
+              sectionStatus = 'backend_error';
+            }
+            errorMessage = error;
+            throw new Error(error);
           }
 
-          // Инициализируем переменную для HTML секции
-          let sectionHtml: string | null = null;
-          
           // Проверяем успешность и наличие HTML
           if (sectionData.success && sectionData.sectionHtml && typeof sectionData.sectionHtml === 'string') {
             sectionHtml = sectionData.sectionHtml.trim();
+            technicalLogs.push(`[${new Date().toISOString()}] HTML получен, длина: ${sectionHtml.length} символов`);
             
             // Проверяем, что HTML не пустой
             if (sectionHtml.length === 0) {
-              throw new Error(`Ассистент вернул пустой HTML для секции ${i + 1}: ${section.title}`);
+              const error = `Ассистент вернул пустой HTML для секции ${i + 1}: ${section.title}`;
+              technicalLogs.push(`[${new Date().toISOString()}] Ошибка: ${error}`);
+              sectionStatus = 'backend_error';
+              errorMessage = error;
+              throw new Error(error);
             }
             
-            // Отслеживаем секции, сгенерированные в режиме "low"
-            if (sectionData.complexityLevel === 'low') {
+            // Определяем статус и complexityLevel
+            complexityLevel = sectionData.complexityLevel || 'medium';
+            if (complexityLevel === 'low') {
+              sectionStatus = 'success_light';
               lowComplexity.add(i);
+            } else {
+              sectionStatus = 'success';
             }
             
             sectionsHtml.push(sectionHtml);
+            technicalLogs.push(`[${new Date().toISOString()}] Секция успешно сгенерирована, статус: ${sectionStatus}`);
           } else {
             // Если success=true, но HTML отсутствует или невалиден
-            throw new Error(`Не получен валидный HTML для секции ${i + 1}: ${section.title}`);
+            const error = `Не получен валидный HTML для секции ${i + 1}: ${section.title}`;
+            technicalLogs.push(`[${new Date().toISOString()}] Ошибка: ${error}`);
+            sectionStatus = 'backend_error';
+            errorMessage = error;
+            throw new Error(error);
           }
         } catch (error: any) {
           const lastError = error.message || `Ошибка генерации секции ${i + 1}: ${section.title}`;
           console.error(`Не удалось сгенерировать секцию ${i + 1}:`, lastError);
+          
+          // Определяем статус ошибки
+          if (sectionStatus === 'skipped') {
+            if (lastError.includes('Превышено время') || lastError.includes('timeout') || lastError.includes('aborted')) {
+              sectionStatus = 'timeout';
+            } else if (lastError.includes('OpenAI') || lastError.includes('openai')) {
+              sectionStatus = 'openai_error';
+            } else {
+              sectionStatus = 'backend_error';
+            }
+          }
+          
+          errorMessage = lastError;
           failed.push({
             index: i + 1,
             title: section.title,
             error: lastError,
           });
-          // НЕ добавляем placeholder в sectionsHtml - секция будет пропущена
-          // Это предотвращает использование undefined sectionHtml в дальнейшем
+          technicalLogs.push(`[${new Date().toISOString()}] Финальная ошибка: ${lastError}`);
+        } finally {
+          const generationTime = Math.floor((Date.now() - sectionStartTime) / 1000);
+          
+          // Подсчет слов (приблизительно)
+          const wordCount = sectionHtml 
+            ? sectionHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(w => w.length > 0).length
+            : undefined;
+
+          statuses.push({
+            index: i + 1,
+            title: section.title,
+            status: sectionStatus,
+            sectionHtml: sectionHtml || undefined,
+            generationTime,
+            wordCount,
+            complexityLevel,
+            retryCount,
+            error: errorMessage,
+            technicalLogs: technicalLogs.length > 0 ? technicalLogs : undefined,
+          });
+
+          // Обновляем статусы в реальном времени
+          setSectionStatuses([...statuses]);
         }
       }
 
@@ -274,6 +354,9 @@ export default function ContentGeneratorPage() {
 
       // Обновляем список неудачных секций
       setFailedSections(failed);
+
+      // Финальное обновление статусов
+      setSectionStatuses(statuses);
 
       // ШАГ 3: Assembling - склеиваем секции на фронте с отметками для low complexity
       const assembledHtmlParts: string[] = [];
@@ -396,6 +479,7 @@ export default function ContentGeneratorPage() {
       setTotalSections(0);
       setFailedSections([]);
       setLowComplexitySections(new Set());
+      setSectionStatuses([]);
     } finally {
       setGenerating(false);
       setStartTime(null);
@@ -416,6 +500,171 @@ export default function ContentGeneratorPage() {
     } catch (error) {
       console.error('Ошибка копирования:', error);
     }
+  };
+
+  const handleRegenerateSection = async (index: number, complexity: 'medium' | 'low' | 'high') => {
+    const section = sectionStatuses.find(s => s.index === index);
+    if (!section) return;
+
+    const sectionStartTime = Date.now();
+    const technicalLogs: string[] = [];
+    let sectionStatus: SectionStatus = 'skipped';
+    let sectionHtml: string | null = null;
+    let complexityLevel: 'medium' | 'low' | 'high' = complexity;
+    let retryCount = (section.retryCount || 0) + 1;
+    let errorMessage: string | undefined = undefined;
+
+    // Обновляем статус на "в процессе"
+    setSectionStatuses(prev => prev.map(s => 
+      s.index === index 
+        ? { ...s, status: 'skipped' as SectionStatus } // Временно показываем как skipped
+        : s
+    ));
+
+    try {
+      technicalLogs.push(`[${new Date().toISOString()}] Начало перегенерации секции ${index} с уровнем ${complexity}`);
+      
+      const sectionController = new AbortController();
+      const sectionTimeout = setTimeout(() => sectionController.abort(), 60000);
+      
+      let sectionRes;
+      try {
+        sectionRes = await fetch('/api/content/section', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            topic,
+            language,
+            audience,
+            authorPersona,
+            angle,
+            contentGoal,
+            sectionTitle: section.title,
+            sectionDescription: outlineSections.find(s => s.title === section.title)?.description || '',
+            sectionIndex: index - 1,
+          }),
+          signal: sectionController.signal,
+        });
+        clearTimeout(sectionTimeout);
+        technicalLogs.push(`[${new Date().toISOString()}] Ответ получен, статус: ${sectionRes.status}`);
+      } catch (fetchError: any) {
+        clearTimeout(sectionTimeout);
+        if (fetchError.name === 'AbortError') {
+          const timeoutError = `Превышено время ожидания перегенерации секции ${index}`;
+          technicalLogs.push(`[${new Date().toISOString()}] Таймаут: ${timeoutError}`);
+          throw new Error(timeoutError);
+        }
+        throw fetchError;
+      }
+
+      const sectionText = await sectionRes.text();
+      technicalLogs.push(`[${new Date().toISOString()}] Размер ответа: ${sectionText.length} символов`);
+      
+      if (!sectionText || sectionText.length > 50000) {
+        throw new Error(`Сервер вернул неожиданный ответ при перегенерации секции ${index}`);
+      }
+      
+      let sectionData;
+      try {
+        sectionData = JSON.parse(sectionText);
+        technicalLogs.push(`[${new Date().toISOString()}] JSON распарсен успешно, success: ${sectionData.success}`);
+      } catch (jsonError) {
+        const preview = sectionText.length > 200 ? sectionText.substring(0, 200) + '...' : sectionText;
+        throw new Error(`Ошибка: сервер вернул не-JSON ответ. Ответ: ${preview}`);
+      }
+
+      if (!sectionRes.ok || !sectionData.success) {
+        const error = sectionData.error || `Ошибка перегенерации секции ${index}`;
+        technicalLogs.push(`[${new Date().toISOString()}] Ошибка от API: ${error}`);
+        
+        if (error.includes('OpenAI') || error.includes('openai')) {
+          sectionStatus = 'openai_error';
+        } else {
+          sectionStatus = 'backend_error';
+        }
+        errorMessage = error;
+        throw new Error(error);
+      }
+
+      if (sectionData.success && sectionData.sectionHtml && typeof sectionData.sectionHtml === 'string') {
+        sectionHtml = sectionData.sectionHtml.trim();
+        technicalLogs.push(`[${new Date().toISOString()}] HTML получен, длина: ${sectionHtml.length} символов`);
+        
+        if (sectionHtml.length === 0) {
+          throw new Error(`Ассистент вернул пустой HTML для секции ${index}`);
+        }
+        
+        complexityLevel = sectionData.complexityLevel || complexity;
+        if (complexityLevel === 'low') {
+          sectionStatus = 'success_light';
+        } else {
+          sectionStatus = 'success';
+        }
+        
+        technicalLogs.push(`[${new Date().toISOString()}] Секция успешно перегенерирована, статус: ${sectionStatus}`);
+      } else {
+        const error = `Не получен валидный HTML для секции ${index}`;
+        sectionStatus = 'backend_error';
+        errorMessage = error;
+        throw new Error(error);
+      }
+    } catch (error: any) {
+      const lastError = error.message || `Ошибка перегенерации секции ${index}`;
+      console.error(`Не удалось перегенерировать секцию ${index}:`, lastError);
+      
+      if (lastError.includes('Превышено время') || lastError.includes('timeout') || lastError.includes('aborted')) {
+        sectionStatus = 'timeout';
+      } else if (lastError.includes('OpenAI') || lastError.includes('openai')) {
+        sectionStatus = 'openai_error';
+      } else {
+        sectionStatus = 'backend_error';
+      }
+      
+      errorMessage = lastError;
+      technicalLogs.push(`[${new Date().toISOString()}] Финальная ошибка: ${lastError}`);
+    }
+
+    const generationTime = Math.floor((Date.now() - sectionStartTime) / 1000);
+    const wordCount = sectionHtml 
+      ? sectionHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(w => w.length > 0).length
+      : undefined;
+
+    // Обновляем статус секции и пересобираем финальный результат если нужно
+    setSectionStatuses(prev => {
+      const updated = prev.map(s => 
+        s.index === index 
+          ? {
+              ...s,
+              status: sectionStatus,
+              sectionHtml: sectionHtml || undefined,
+              generationTime,
+              wordCount,
+              complexityLevel,
+              retryCount,
+              error: errorMessage,
+              technicalLogs: technicalLogs.length > 0 ? technicalLogs : undefined,
+            }
+          : s
+      );
+      
+      // Если секция успешно перегенерирована, пересобираем финальный HTML
+      if (sectionHtml && finalResult) {
+        const successfulSections = updated
+          .filter(s => s.sectionHtml && (s.status === 'success' || s.status === 'success_light'))
+          .sort((a, b) => a.index - b.index)
+          .map(s => s.sectionHtml!);
+        
+        const assembledHtml = successfulSections.join('\n');
+        setFinalResult({
+          ...finalResult,
+          html: assembledHtml,
+        });
+      }
+      
+      return updated;
+    });
   };
 
   if (loading) {
@@ -654,6 +903,24 @@ export default function ContentGeneratorPage() {
             </button>
           </form>
         </div>
+
+        {/* Карточки статусов секций */}
+        {sectionStatuses.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
+              Статусы генерации секций
+            </h2>
+            <div className="space-y-3">
+              {sectionStatuses.map((section) => (
+                <SectionStatusCard
+                  key={section.index}
+                  section={section}
+                  onRegenerate={handleRegenerateSection}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Финальный результат */}
         {finalResult && (
