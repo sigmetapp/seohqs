@@ -27,20 +27,19 @@ async function getOpenAIClient(): Promise<OpenAI> {
   return new OpenAI({ apiKey });
 }
 
-const SYSTEM_PROMPT = `Ты опытный SEO-копирайтер и контент-стратег. Твоя задача - создавать высококачественные статьи.
+const SYSTEM_PROMPT = `Ты SEO-копирайтер. Создай качественную статью.
 
-Создай статью согласно требованиям:
-- Полностью раскрой тему
-- Используй естественный, человеческий стиль без AI-штампов
-- Структурируй текст с заголовками H2, H3
-- Пиши как опытный эксперт
-- Учитывай SEO требования
+Требования:
+- Раскрой тему полностью
+- Естественный стиль без AI-штампов
+- Структура: H1, H2, H3, параграфы
+- Максимум 1200 слов (15000 символов)
 
-Верни ТОЛЬКО валидный JSON:
+Верни ТОЛЬКО JSON:
 {
-  "html": "HTML контент статьи с тегами h1, h2, h3, p (максимум 30000 символов)",
-  "metaTitle": "Meta title 55-60 символов",
-  "metaDescription": "Meta description 155-160 символов",
+  "html": "HTML с h1, h2, h3, p (макс 15000 символов)",
+  "metaTitle": "55-60 символов",
+  "metaDescription": "155-160 символов",
   "faqQuestions": ["Вопрос 1", "Вопрос 2", "Вопрос 3", "Вопрос 4"]
 }`;
 
@@ -85,29 +84,30 @@ export async function POST(request: Request) {
 
     // Ограничиваем размер для избежания таймаутов
     const desiredLengthNum = parseInt(desiredLength) || 2000;
-    const maxWords = Math.min(desiredLengthNum, 2500); // Максимум 2500 слов
-    const maxTokens = Math.min(6000, Math.max(2000, Math.floor(maxWords * 1.5))); // До 6000 токенов
+    const maxWords = Math.min(desiredLengthNum, 1200); // Максимум 1200 слов для быстрой генерации
+    const maxTokens = 2000; // Фиксированный лимит 2000 токенов для гарантии быстрой генерации
 
-    const userPrompt = `Создай статью по следующему запросу:
+    const userPrompt = `Создай статью:
 
 Тема: ${mainQuery}
 Язык: ${language}
-Целевая аудитория: ${targetAudience}
-Цель контента: ${contentGoal}
-Желаемый размер: ${maxWords} слов
+Аудитория: ${targetAudience}
+Цель: ${contentGoal}
+Размер: ${maxWords} слов
 Тон: ${toneOfVoice}
-${additionalConstraints ? `Дополнительные ограничения: ${additionalConstraints}` : ''}
+${additionalConstraints ? `Ограничения: ${additionalConstraints}` : ''}
 
-Создай качественную статью и верни результат в формате JSON.`;
+Верни JSON с HTML статьей.`;
 
     // Используем Chat Completions API с таймаутом
+    // Используем gpt-4o-mini для более быстрой генерации
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 50000); // 50 секунд
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 секунд
 
     try {
       const completion = await openai.chat.completions.create(
         {
-          model: 'gpt-4o',
+          model: 'gpt-4o-mini', // Более быстрая модель
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: userPrompt },
@@ -143,8 +143,8 @@ ${additionalConstraints ? `Дополнительные ограничения: 
       }
 
       // Ограничиваем размер HTML
-      if (result.html && result.html.length > 30000) {
-        result.html = result.html.substring(0, 30000) + '...';
+      if (result.html && result.html.length > 15000) {
+        result.html = result.html.substring(0, 15000) + '...';
       }
 
       return NextResponse.json({
