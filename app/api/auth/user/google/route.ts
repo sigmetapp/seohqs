@@ -77,7 +77,7 @@ export async function GET(request: Request) {
     );
 
     // Получаем redirect путь из параметров запроса
-    const redirectPath = searchParams.get('redirect') || '/summary';
+    const redirectPath = searchParams.get('redirect') || '/';
 
     // Генерируем URL для авторизации
     const authUrl = oauth2Client.generateAuthUrl({

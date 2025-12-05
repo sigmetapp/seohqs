@@ -122,10 +122,10 @@ export default function ProjectDetailPage() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <button
-            onClick={() => router.push('/sites')}
+            onClick={() => router.push('/')}
             className="text-blue-400 hover:text-blue-300 mb-4"
           >
-            ← Назад к сайтам
+            ← Назад на главную
           </button>
           <h1 className="text-4xl font-bold mb-2">{project?.name || 'Проект'}</h1>
           <p className="text-gray-400">{project?.domain}</p>

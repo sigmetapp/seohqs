@@ -44,8 +44,8 @@ function LoginForm() {
       const data = await response.json();
 
       if (data.success && data.user) {
-        // Получаем redirect параметр или используем /summary по умолчанию
-        const redirect = searchParams.get('redirect') || '/summary';
+        // Получаем redirect параметр или используем / по умолчанию
+        const redirect = searchParams.get('redirect') || '/';
         router.push(redirect);
       } else {
         setError(data.error || t('auth.loginError'));
@@ -64,7 +64,7 @@ function LoginForm() {
 
     try {
       // Получаем redirect параметр для передачи в callback
-      const redirect = searchParams.get('redirect') || '/summary';
+      const redirect = searchParams.get('redirect') || '/';
       const redirectUri = encodeURIComponent(window.location.origin + '/api/auth/user/google/callback');
       const response = await fetch(`/api/auth/user/google?redirect_uri=${redirectUri}&redirect=${encodeURIComponent(redirect)}`);
       const data = await response.json();

@@ -1,0 +1,33 @@
+# Игнорируем миграции - они не нужны в деплое
+migrations/
+*.sql
+
+# Игнорируем документацию
+*.md
+!README.md
+
+# Игнорируем тесты
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+__tests__/
+tests/
+
+# Игнорируем примеры и документацию
+examples/
+docs/
+documentation/
+
+# Игнорируем конфиги разработки
+.env*.local
+.env.example
+
+# Игнорируем большие файлы данных
+public/*.csv
+data/
+
+# Игнорируем временные файлы
+*.log
+*.tmp
+.cache/

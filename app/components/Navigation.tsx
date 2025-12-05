@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useTheme } from '@/lib/theme-context';
 import { useI18n } from '@/lib/i18n-context';
 
@@ -25,8 +25,6 @@ export default function Navigation() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
-  const [showToolsDropdown, setShowToolsDropdown] = useState(false);
-  const toolsDropdownRef = useRef<HTMLDivElement>(null);
 
   const fetchUser = () => {
     setLoading(true);
@@ -46,22 +44,6 @@ export default function Navigation() {
   useEffect(() => {
     fetchUser();
   }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (toolsDropdownRef.current && !toolsDropdownRef.current.contains(event.target as Node)) {
-        setShowToolsDropdown(false);
-      }
-    };
-
-    if (showToolsDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showToolsDropdown]);
 
   const handleGoogleLogin = async () => {
     try {
@@ -117,12 +99,7 @@ export default function Navigation() {
     }
   };
 
-  const navItems = [
-    { href: '/summary', labelKey: 'nav.summary' },
-    { href: '/sites', labelKey: 'nav.sites' },
-    { href: '/dashboard-gc', labelKey: 'nav.dashboardGc' },
-    { href: '/integrations', labelKey: 'nav.integrations' },
-  ];
+  const navItems: Array<{ href: string; labelKey: string }> = [];
 
   return (
     <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
@@ -162,56 +139,6 @@ export default function Navigation() {
                 );
               })}
               
-              {/* Tools dropdown - fixed alignment */}
-              <div className="relative" ref={toolsDropdownRef}>
-                <button
-                  onClick={() => {
-                    if (!user && !loading) {
-                      window.location.href = '/login';
-                      return;
-                    }
-                    setShowToolsDropdown(!showToolsDropdown);
-                  }}
-                  className={`inline-flex items-center px-2 pt-1 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                    pathname === '/indexing'
-                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                      : 'border-transparent text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-300'
-                  }`}
-                >
-                  {t('nav.tools')}
-                  <svg
-                    className={`ml-1 w-4 h-4 transition-transform ${showToolsDropdown ? 'rotate-180' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                
-                {showToolsDropdown && (
-                  <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
-                    <Link
-                      href="/indexing"
-                      onClick={(e) => {
-                        if (!user && !loading) {
-                          e.preventDefault();
-                          window.location.href = '/login';
-                          return;
-                        }
-                        setShowToolsDropdown(false);
-                      }}
-                      className={`block px-4 py-2 text-sm transition-colors ${
-                        pathname === '/indexing'
-                          ? 'bg-gray-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
-                      }`}
-                    >
-                      {t('nav.linkIndexer')}
-                    </Link>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
           <div className="flex items-center space-x-2 md:space-x-3">
@@ -346,28 +273,6 @@ export default function Navigation() {
             );
           })}
           
-          {/* Tools for mobile */}
-          <div className="pl-3 pr-4 py-2">
-            <div className="text-base font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('nav.tools')}
-            </div>
-            <Link
-              href="/indexing"
-              onClick={(e) => {
-                if (!user && !loading) {
-                  e.preventDefault();
-                  window.location.href = '/login';
-                }
-              }}
-              className={`block pl-6 pr-4 py-2 border-l-4 text-sm font-medium transition-colors ${
-                pathname === '/indexing'
-                  ? 'bg-gray-100 dark:bg-gray-900 border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
-            >
-              {t('nav.linkIndexer')}
-            </Link>
-          </div>
         </div>
       </div>
 
