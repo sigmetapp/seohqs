@@ -23,33 +23,23 @@ interface FinalResult {
 const STEPS: Omit<Step, 'status' | 'result' | 'error'>[] = [
   {
     id: 1,
-    name: 'Draft generation',
-    description: 'Создание развернутого черновика статьи на основе входных параметров',
+    name: 'Generating outline',
+    description: 'Создание структуры статьи (5-12 секций)',
   },
   {
     id: 2,
-    name: 'SEO structuring',
-    description: 'Улучшение структуры под SEO: H2/H3, логика блоков, покрытие подзапросов',
+    name: 'Generating sections',
+    description: 'Генерация секций статьи последовательно',
   },
   {
     id: 3,
-    name: 'Humanization / Natural style',
-    description: 'Переписывание текста для естественного, человеческого стиля без AI-штампов',
+    name: 'Generating SEO metadata',
+    description: 'Создание SEO метаданных и FAQ',
   },
   {
     id: 4,
-    name: 'Uniqueness & variation',
-    description: 'Изменение формулировок и переходов для стилистической уникальности',
-  },
-  {
-    id: 5,
-    name: 'Quality & coherence check',
-    description: 'Проверка на повторы, логические разрывы, вода и противоречия',
-  },
-  {
-    id: 6,
-    name: 'Final HTML + SEO meta',
-    description: 'Оформление в HTML-формате и генерация SEO-метаданных',
+    name: 'Finalizing',
+    description: 'Объединение секций и финализация статьи',
   },
 ];
 
@@ -71,6 +61,7 @@ export default function ContentGeneratorPage() {
   const [generating, setGenerating] = useState(false);
   const [finalResult, setFinalResult] = useState<FinalResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [currentSection, setCurrentSection] = useState<{ current: number; total: number } | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -120,41 +111,23 @@ export default function ContentGeneratorPage() {
       return;
     }
 
-    // Проверка на большой размер контента
-    const desiredLengthNum = parseInt(desiredLength) || 2000;
-    const estimatedChars = desiredLengthNum * 12; // Примерно 12 символов на слово
-    
-    if (estimatedChars > 30000) {
-      const confirmed = window.confirm(
-        `Запрошенный размер статьи (${desiredLength} слов, ~${Math.round(estimatedChars / 1000)}k символов) превышает рекомендуемый лимит. ` +
-        `Статья будет сжата до разумного размера (максимум 3500 слов, ~40000 символов). Продолжить?`
-      );
-      if (!confirmed) {
-        return;
-      }
-    }
-
     setGenerating(true);
     setError(null);
     setFinalResult(null);
+    setCurrentSection(null);
     setSteps(STEPS.map(s => ({ ...s, status: 'pending' })));
 
-    let progressInterval: NodeJS.Timeout | null = null;
-    
     try {
-      // Запускаем первый этап визуально
+      // ШАГ 1: Генерация outline
       setSteps(prev => {
         const newSteps = [...prev];
         newSteps[0] = { ...newSteps[0], status: 'in_progress' };
         return newSteps;
       });
 
-      // Делаем ОДИН запрос к ассистенту - весь пайплайн выполняется внутри одного запроса
-      const fetchPromise = fetch('/api/content-generator', {
+      const outlineRes = await fetch('/api/content-generator/outline', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mainQuery,
           language,
@@ -166,95 +139,98 @@ export default function ContentGeneratorPage() {
         }),
       });
 
-      // Визуально симулируем прогресс по этапам во время ожидания ответа
-      // Это только визуальное состояние - реально все этапы выполняются в одном запросе
-      let currentStep = 0;
-      const stepDuration = 10000; // 10 секунд на этап для визуализации
-      
-      progressInterval = setInterval(() => {
-        setSteps(prev => {
-          const newSteps = [...prev];
-          // Помечаем текущий этап как завершенный
-          if (currentStep >= 0 && currentStep < newSteps.length) {
-            newSteps[currentStep] = { ...newSteps[currentStep], status: 'done' };
-          }
-          // Переходим к следующему этапу
-          currentStep++;
-          if (currentStep < newSteps.length) {
-            newSteps[currentStep] = { ...newSteps[currentStep], status: 'in_progress' };
-          } else {
-            // Если дошли до последнего этапа, останавливаем интервал
-            if (progressInterval) {
-              clearInterval(progressInterval);
-              progressInterval = null;
-            }
-          }
-          return newSteps;
+      const outlineData = await outlineRes.json();
+      if (!outlineRes.ok || !outlineData.success) {
+        throw new Error(outlineData.error || 'Ошибка генерации outline');
+      }
+
+      const outline = outlineData.outline;
+      setSteps(prev => {
+        const newSteps = [...prev];
+        newSteps[0] = { ...newSteps[0], status: 'done' };
+        newSteps[1] = { ...newSteps[1], status: 'in_progress' };
+        return newSteps;
+      });
+
+      // ШАГ 2: Генерация секций последовательно
+      const sections: string[] = [];
+      setCurrentSection({ current: 0, total: outline.sections.length });
+
+      for (let i = 0; i < outline.sections.length; i++) {
+        const section = outline.sections[i];
+        setCurrentSection({ current: i + 1, total: outline.sections.length });
+
+        const sectionRes = await fetch('/api/content-generator/section', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mainQuery,
+            language,
+            targetAudience,
+            contentGoal,
+            toneOfVoice,
+            additionalConstraints: additionalConstraints || undefined,
+            sectionTitle: section.title,
+            sectionDescription: section.description,
+            sectionNumber: i + 1,
+            totalSections: outline.sections.length,
+          }),
         });
-      }, stepDuration);
 
-      const res = await fetchPromise;
-      if (progressInterval) {
-        clearInterval(progressInterval);
-        progressInterval = null;
+        const sectionData = await sectionRes.json();
+        if (!sectionRes.ok || !sectionData.success) {
+          throw new Error(sectionData.error || `Ошибка генерации секции ${i + 1}`);
+        }
+
+        sections.push(sectionData.sectionHtml);
       }
 
-      // Получаем текст ответа для безопасного парсинга
-      const responseText = await res.text();
-      
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (jsonError) {
-        // Если не JSON, показываем текст ошибки
-        throw new Error(responseText.substring(0, 500) || 'Ошибка: сервер вернул не-JSON ответ');
+      setCurrentSection(null);
+      setSteps(prev => {
+        const newSteps = [...prev];
+        newSteps[1] = { ...newSteps[1], status: 'done' };
+        newSteps[2] = { ...newSteps[2], status: 'in_progress' };
+        return newSteps;
+      });
+
+      // ШАГ 3: Объединение секций
+      const mergedHtml = `<h1>${outline.title}</h1>\n\n${sections.join('\n\n')}`;
+
+      // ШАГ 4: Генерация SEO метаданных
+      const seoRes = await fetch('/api/content-generator/seo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mainQuery,
+          language,
+          html: mergedHtml,
+        }),
+      });
+
+      const seoData = await seoRes.json();
+      if (!seoRes.ok || !seoData.success) {
+        throw new Error(seoData.error || 'Ошибка генерации SEO метаданных');
       }
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Ошибка генерации контента');
-      }
-
-      // Симулируем завершение всех этапов с небольшой задержкой для плавной анимации
-      // Все этапы уже выполнены в одном запросе к ассистенту
-      const completeStepsWithAnimation = () => {
-        let stepIndex = 0;
-        const animateStep = () => {
-          if (stepIndex < STEPS.length) {
-            setSteps(prev => {
-              const newSteps = [...prev];
-              // Помечаем текущий и все предыдущие этапы как завершенные
-              for (let i = 0; i <= stepIndex; i++) {
-                if (i < newSteps.length) {
-                  newSteps[i] = { ...newSteps[i], status: 'done' };
-                }
-              }
-              return newSteps;
-            });
-            stepIndex++;
-            setTimeout(animateStep, 200); // Небольшая задержка между этапами для анимации
-          }
-        };
-        animateStep();
-      };
-      
-      completeStepsWithAnimation();
+      setSteps(prev => {
+        const newSteps = [...prev];
+        newSteps[2] = { ...newSteps[2], status: 'done' };
+        newSteps[3] = { ...newSteps[3], status: 'done' };
+        return newSteps;
+      });
 
       // Устанавливаем финальный результат
-      // Поддерживаем как новый формат (article_html, seo, editor_summary), так и старый
-      if (data.result) {
-        const result = data.result;
-        setFinalResult({
-          html: result.html || result.article_html || result.content || '',
-          metaTitle: result.metaTitle || result.seo?.metaTitle || '',
-          metaDescription: result.metaDescription || result.seo?.metaDescription || '',
-          faqQuestions: result.faqQuestions || result.seo?.faqQuestions || [],
-          summary: result.summary || result.editor_summary || '',
-        });
-      }
+      setFinalResult({
+        html: mergedHtml,
+        metaTitle: seoData.seo.metaTitle,
+        metaDescription: seoData.seo.metaDescription,
+        faqQuestions: seoData.seo.faqQuestions,
+        summary: `Статья "${outline.title}" состоит из ${outline.sections.length} секций. Целевая аудитория: ${targetAudience}.`,
+      });
     } catch (err: any) {
-      if (progressInterval) clearInterval(progressInterval);
       setError(err.message || 'Ошибка генерации контента');
       setSteps(prev => prev.map(s => ({ ...s, status: 'error', error: err.message })));
+      setCurrentSection(null);
     } finally {
       setGenerating(false);
     }
@@ -459,6 +435,11 @@ export default function ContentGeneratorPage() {
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900 dark:text-white">
                         {step.name}
+                        {step.id === 2 && currentSection && (
+                          <span className="ml-2 text-sm font-normal text-blue-600 dark:text-blue-400">
+                            (Section {currentSection.current} of {currentSection.total})
+                          </span>
+                        )}
                       </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
                         {step.description}
