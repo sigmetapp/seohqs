@@ -398,7 +398,7 @@ export default function ContentGeneratorPage() {
       setProgress('Creating SEO metadata…');
       
       const seoController = new AbortController();
-      const seoTimeout = setTimeout(() => seoController.abort(), 12000); // 12 секунд на клиенте (запас)
+      const seoTimeout = setTimeout(() => seoController.abort(), 35000); // 35 секунд на клиенте (запас для серверных 30 секунд)
       
       let seoRes;
       try {

@@ -52,11 +52,11 @@ export async function POST(request: Request) {
   "faqQuestions": ["Вопрос 1", "Вопрос 2", "Вопрос 3", "Вопрос 4"]
 }`;
 
-    // Таймаут 10 секунд для SEO
+    // Таймаут 30 секунд для SEO
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
-    }, 10000);
+    }, 30000);
 
     try {
       const completion = await openai.chat.completions.create(
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
     } catch (abortError: any) {
       clearTimeout(timeoutId);
       if (abortError.name === 'AbortError') {
-        throw new Error('Превышено время ожидания генерации SEO метаданных (10 секунд)');
+        throw new Error('Превышено время ожидания генерации SEO метаданных (30 секунд)');
       }
       throw abortError;
     }
