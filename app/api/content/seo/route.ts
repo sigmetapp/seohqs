@@ -73,11 +73,11 @@ ${fullArticleHtml}
   "semantic_topics": [...]
 }`;
 
-    // Таймаут 10 секунд для SEO (быстрый запрос)
+    // Таймаут 30 секунд для SEO
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
-    }, 10000);
+    }, 30000);
 
     try {
       // Используем Assistants API
@@ -94,7 +94,7 @@ ${fullArticleHtml}
       // Ждем завершения с таймаутом
       let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
       let attempts = 0;
-      const maxAttempts = 10; // 10 секунд максимум (1 сек * 10 попыток)
+      const maxAttempts = 30; // 30 секунд максимум (1 сек * 30 попыток)
 
       while ((runStatus.status === 'queued' || runStatus.status === 'in_progress') && attempts < maxAttempts) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -102,8 +102,8 @@ ${fullArticleHtml}
         attempts++;
         
         // Проверяем таймаут
-        if (Date.now() - startTime > 10000) {
-          throw new Error('Превышено время ожидания генерации SEO метаданных (10 секунд)');
+        if (Date.now() - startTime > 30000) {
+          throw new Error('Превышено время ожидания генерации SEO метаданных (30 секунд)');
         }
       }
 
@@ -155,7 +155,7 @@ ${fullArticleHtml}
     } catch (abortError: any) {
       clearTimeout(timeoutId);
       if (abortError.name === 'AbortError' || abortError.message?.includes('aborted') || abortError.message?.includes('timeout')) {
-        throw new Error('Превышено время ожидания генерации SEO метаданных (10 секунд)');
+        throw new Error('Превышено время ожидания генерации SEO метаданных (30 секунд)');
       }
       throw abortError;
     }
