@@ -28,6 +28,8 @@ export default function ContentGeneratorPage() {
   const [finalResult, setFinalResult] = useState<FinalResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState('');
+  const [outline, setOutline] = useState<{ title: string; sections: Array<{ id: string; title: string; description: string }> } | null>(null);
+  const [step, setStep] = useState<'idle' | 'outline' | 'article'>('idle');
 
   useEffect(() => {
     checkAuth();
@@ -69,9 +71,12 @@ export default function ContentGeneratorPage() {
     setGenerating(true);
     setError(null);
     setFinalResult(null);
-    setProgress('Генерация статьи...');
+    setOutline(null);
+    setStep('outline');
+    setProgress('Генерация структуры статьи...');
 
     try {
+      // ШАГ 1: Генерация структуры
       const res = await fetch('/api/content-generator', {
         method: 'POST',
         headers: {
@@ -101,15 +106,26 @@ export default function ContentGeneratorPage() {
         throw new Error(data.error || 'Ошибка генерации контента');
       }
 
+      // Сохраняем структуру
+      if (data.result.outline) {
+        setOutline(data.result.outline);
+        setStep('article');
+        setProgress('Генерация статьи на основе структуры...');
+      }
+
       setProgress('Статья готова!');
       setFinalResult(data.result);
+      setStep('idle');
     } catch (err: any) {
       const errorMessage = err.message || 'Ошибка генерации контента';
       console.error('Ошибка генерации контента:', err);
       setError(errorMessage);
+      setStep('idle');
     } finally {
       setGenerating(false);
-      setProgress('');
+      if (!error) {
+        setProgress('');
+      }
     }
   };
 
@@ -255,6 +271,28 @@ export default function ContentGeneratorPage() {
             {progress && (
               <div className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-4 py-3 rounded">
                 {progress}
+                {step === 'outline' && ' (Шаг 1/2)'}
+                {step === 'article' && ' (Шаг 2/2)'}
+              </div>
+            )}
+
+            {outline && (
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <h3 className="font-semibold text-green-900 dark:text-green-200 mb-2">
+                  Структура статьи: {outline.title}
+                </h3>
+                <ol className="list-decimal list-inside space-y-2 text-sm text-green-800 dark:text-green-300">
+                  {outline.sections.map((section, index) => (
+                    <li key={section.id}>
+                      <strong>{section.title}</strong>
+                      {section.description && (
+                        <span className="ml-2 text-gray-600 dark:text-gray-400">
+                          - {section.description}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ol>
               </div>
             )}
 

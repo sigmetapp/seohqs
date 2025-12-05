@@ -16,6 +16,17 @@ interface ContentGenerationRequest {
   additionalConstraints?: string;
 }
 
+interface OutlineSection {
+  id: string;
+  title: string;
+  description: string;
+}
+
+interface Outline {
+  title: string;
+  sections: OutlineSection[];
+}
+
 async function getOpenAIClient(): Promise<OpenAI> {
   const apiKeySetting = await getSetting('openai_api_key');
   const apiKey = apiKeySetting?.value || process.env.OPENAI_API_KEY;
@@ -27,21 +38,162 @@ async function getOpenAIClient(): Promise<OpenAI> {
   return new OpenAI({ apiKey });
 }
 
-const SYSTEM_PROMPT = `Ты SEO-копирайтер. Создай качественную статью.
+// ШАГ 1: Генерация структуры/содержания
+async function generateOutline(
+  openai: OpenAI,
+  params: {
+    mainQuery: string;
+    language: string;
+    targetAudience: string;
+    contentGoal: string;
+    desiredLength: string;
+    toneOfVoice: string;
+    additionalConstraints?: string;
+  }
+): Promise<Outline> {
+  const outlinePrompt = `Создай структуру (содержание) статьи:
 
-Требования:
-- Раскрой тему полностью
-- Естественный стиль без AI-штампов
-- Структура: H1, H2, H3, параграфы
-- Максимум 1200 слов (15000 символов)
+Тема: ${params.mainQuery}
+Язык: ${params.language}
+Аудитория: ${params.targetAudience}
+Цель: ${params.contentGoal}
+Размер: ${params.desiredLength} слов
+Тон: ${params.toneOfVoice}
+${params.additionalConstraints ? `Ограничения: ${params.additionalConstraints}` : ''}
+
+Создай логичную структуру из 5-10 секций. Каждая секция должна иметь заголовок и краткое описание (1-2 предложения).
 
 Верни ТОЛЬКО JSON:
 {
-  "html": "HTML с h1, h2, h3, p (макс 15000 символов)",
+  "title": "Заголовок статьи (H1)",
+  "sections": [
+    {
+      "id": "section-1",
+      "title": "Заголовок секции",
+      "description": "Краткое описание содержания секции"
+    }
+  ]
+}`;
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      {
+        role: 'system',
+        content: 'Ты помощник для создания структуры статей. Создавай логичную структуру с секциями.',
+      },
+      { role: 'user', content: outlinePrompt },
+    ],
+    temperature: 0.7,
+    max_tokens: 1000, // Короткий ответ для структуры
+    response_format: { type: 'json_object' },
+  });
+
+  const content = completion.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error('Ответ от OpenAI не получен для структуры');
+  }
+
+  const result = JSON.parse(content.trim());
+  return {
+    title: result.title || params.mainQuery,
+    sections: result.sections || [],
+  };
+}
+
+// ШАГ 2: Генерация статьи на основе структуры
+async function generateArticle(
+  openai: OpenAI,
+  outline: Outline,
+  params: {
+    mainQuery: string;
+    language: string;
+    targetAudience: string;
+    contentGoal: string;
+    desiredLength: string;
+    toneOfVoice: string;
+    additionalConstraints?: string;
+  }
+): Promise<{ html: string; metaTitle: string; metaDescription: string; faqQuestions: string[] }> {
+  const sectionsText = outline.sections
+    .map((s, i) => `${i + 1}. ${s.title}: ${s.description}`)
+    .join('\n');
+
+  const articlePrompt = `Создай статью на основе следующей структуры:
+
+ОБЩАЯ ИНФОРМАЦИЯ:
+Тема: ${params.mainQuery}
+Язык: ${params.language}
+Аудитория: ${params.targetAudience}
+Цель: ${params.contentGoal}
+Размер: ${params.desiredLength} слов
+Тон: ${params.toneOfVoice}
+${params.additionalConstraints ? `Ограничения: ${params.additionalConstraints}` : ''}
+
+СТРУКТУРА СТАТЬИ:
+${sectionsText}
+
+Создай полную статью, следуя этой структуре. Каждая секция должна быть раскрыта полностью.
+
+Верни ТОЛЬКО JSON:
+{
+  "html": "HTML с h1, h2, h3, p (макс 20000 символов)",
   "metaTitle": "55-60 символов",
   "metaDescription": "155-160 символов",
   "faqQuestions": ["Вопрос 1", "Вопрос 2", "Вопрос 3", "Вопрос 4"]
 }`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+  try {
+    const completion = await openai.chat.completions.create(
+      {
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'Ты SEO-копирайтер. Создавай качественные статьи с естественным стилем без AI-штампов.',
+          },
+          { role: 'user', content: articlePrompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 3000, // Больше токенов для полной статьи
+        response_format: { type: 'json_object' },
+      },
+      {
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('Ответ от OpenAI не получен для статьи');
+    }
+
+    const result = JSON.parse(content.trim());
+
+    // Ограничиваем размер HTML
+    if (result.html && result.html.length > 20000) {
+      result.html = result.html.substring(0, 20000) + '...';
+    }
+
+    return {
+      html: result.html || '',
+      metaTitle: result.metaTitle || '',
+      metaDescription: result.metaDescription || '',
+      faqQuestions: result.faqQuestions || [],
+    };
+  } catch (abortError: any) {
+    clearTimeout(timeoutId);
+    if (abortError.name === 'AbortError') {
+      throw new Error('Превышено время ожидания генерации статьи. Попробуйте уменьшить желаемый размер.');
+    }
+    throw abortError;
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -82,88 +234,39 @@ export async function POST(request: Request) {
 
     const openai = await getOpenAIClient();
 
-    // Ограничиваем размер для избежания таймаутов
-    const desiredLengthNum = parseInt(desiredLength) || 2000;
-    const maxWords = Math.min(desiredLengthNum, 1200); // Максимум 1200 слов для быстрой генерации
-    const maxTokens = 2000; // Фиксированный лимит 2000 токенов для гарантии быстрой генерации
+    // ШАГ 1: Генерация структуры
+    const outline = await generateOutline(openai, {
+      mainQuery,
+      language,
+      targetAudience,
+      contentGoal,
+      desiredLength,
+      toneOfVoice,
+      additionalConstraints,
+    });
 
-    const userPrompt = `Создай статью:
+    // ШАГ 2: Генерация статьи на основе структуры
+    const article = await generateArticle(openai, outline, {
+      mainQuery,
+      language,
+      targetAudience,
+      contentGoal,
+      desiredLength,
+      toneOfVoice,
+      additionalConstraints,
+    });
 
-Тема: ${mainQuery}
-Язык: ${language}
-Аудитория: ${targetAudience}
-Цель: ${contentGoal}
-Размер: ${maxWords} слов
-Тон: ${toneOfVoice}
-${additionalConstraints ? `Ограничения: ${additionalConstraints}` : ''}
-
-Верни JSON с HTML статьей.`;
-
-    // Используем Chat Completions API с таймаутом
-    // Используем gpt-4o-mini для более быстрой генерации
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 секунд
-
-    try {
-      const completion = await openai.chat.completions.create(
-        {
-          model: 'gpt-4o-mini', // Более быстрая модель
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: userPrompt },
-          ],
-          temperature: 0.7,
-          max_tokens: maxTokens,
-          response_format: { type: 'json_object' },
-        },
-        {
-          signal: controller.signal,
-        }
-      );
-
-      clearTimeout(timeoutId);
-
-      const assistantMessage = completion.choices[0]?.message?.content;
-      if (!assistantMessage) {
-        throw new Error('Ответ от OpenAI не получен');
-      }
-
-      // Парсим JSON ответ
-      let result: any;
-      try {
-        result = JSON.parse(assistantMessage.trim());
-      } catch (error) {
-        // Если не удалось распарсить, возвращаем весь текст как HTML
-        result = {
-          html: assistantMessage.trim(),
-          metaTitle: '',
-          metaDescription: '',
-          faqQuestions: [],
-        };
-      }
-
-      // Ограничиваем размер HTML
-      if (result.html && result.html.length > 15000) {
-        result.html = result.html.substring(0, 15000) + '...';
-      }
-
-      return NextResponse.json({
-        success: true,
-        result: {
-          html: result.html || '',
-          metaTitle: result.metaTitle || '',
-          metaDescription: result.metaDescription || '',
-          faqQuestions: result.faqQuestions || [],
-          summary: `Статья на тему "${mainQuery}" для аудитории: ${targetAudience}`,
-        },
-      });
-    } catch (abortError: any) {
-      clearTimeout(timeoutId);
-      if (abortError.name === 'AbortError') {
-        throw new Error('Превышено время ожидания ответа от OpenAI. Попробуйте уменьшить желаемый размер статьи.');
-      }
-      throw abortError;
-    }
+    return NextResponse.json({
+      success: true,
+      result: {
+        html: article.html,
+        metaTitle: article.metaTitle,
+        metaDescription: article.metaDescription,
+        faqQuestions: article.faqQuestions,
+        summary: `Статья "${outline.title}" состоит из ${outline.sections.length} секций.`,
+        outline: outline, // Возвращаем структуру для отображения
+      },
+    });
   } catch (error: any) {
     console.error('Ошибка генерации контента:', error);
     return NextResponse.json(
