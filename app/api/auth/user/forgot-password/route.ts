@@ -66,7 +66,19 @@ export async function POST(request: Request) {
         stack: emailError?.stack,
         email: dbUser.email,
         resetUrl: resetUrl.substring(0, 50) + '...',
+        errorName: emailError?.name,
+        errorCode: emailError?.code,
+        statusCode: emailError?.statusCode,
+        command: emailError?.command,
       });
+      
+      // Логируем текущие настройки для диагностики
+      console.error('📋 Текущие настройки email:');
+      console.error(`  - RESEND_API_KEY: ${process.env.RESEND_API_KEY ? '✅ установлен' : '❌ не установлен'}`);
+      console.error(`  - SUPABASE_SMTP_HOST: ${process.env.SUPABASE_SMTP_HOST || 'не установлен'}`);
+      console.error(`  - SMTP_HOST: ${process.env.SMTP_HOST || 'не установлен'}`);
+      console.error(`  - NEXT_PUBLIC_APP_URL: ${process.env.NEXT_PUBLIC_APP_URL || 'не установлен'}`);
+      console.error(`  - NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
       
       // В режиме разработки можем продолжить без email
       if (process.env.NODE_ENV === 'production') {
@@ -74,12 +86,17 @@ export async function POST(request: Request) {
           {
             success: false,
             error: 'Ошибка отправки email. Попробуйте позже.',
+            details: process.env.NODE_ENV === 'development' ? {
+              message: emailError?.message,
+              method: emailError?.name || 'unknown',
+            } : undefined,
           },
           { status: 500 }
         );
       } else {
         // В режиме разработки выводим предупреждение, но продолжаем
         console.warn('⚠️ Email не отправлен (режим разработки). Проверьте настройки email.');
+        console.warn('💡 Для диагностики используйте: GET /api/admin/email-diagnostics');
       }
     }
 
