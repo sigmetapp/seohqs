@@ -16,6 +16,8 @@ async function getOpenAIClient(): Promise<OpenAI> {
 }
 
 export async function POST(request: Request) {
+  const startTime = Date.now();
+  
   try {
     const user = await getCurrentUser();
     if (!user) {
@@ -23,15 +25,25 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { mainQuery, language, html } = body;
+    const { articleHtml, topic, language } = body;
+
+    if (!articleHtml) {
+      return NextResponse.json(
+        { success: false, error: 'HTML статьи обязателен' },
+        { status: 400 }
+      );
+    }
 
     const openai = await getOpenAIClient();
 
+    // Берем первые 5000 символов для анализа
+    const contentPreview = articleHtml.substring(0, 5000);
+
     const prompt = `На основе статьи создай SEO метаданные:
 
-Тема: ${mainQuery}
-Язык: ${language}
-Контент статьи (первые 5000 символов): ${html.substring(0, 5000)}
+Тема: ${topic || 'Статья'}
+Язык: ${language || 'RU'}
+Контент статьи (первые 5000 символов): ${contentPreview}
 
 Верни ТОЛЬКО валидный JSON:
 {
@@ -40,36 +52,63 @@ export async function POST(request: Request) {
   "faqQuestions": ["Вопрос 1", "Вопрос 2", "Вопрос 3", "Вопрос 4"]
 }`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
+    // Таймаут 10 секунд для SEO
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 10000);
+
+    try {
+      const completion = await openai.chat.completions.create(
         {
-          role: 'system',
-          content: 'Ты SEO-специалист. Создавай качественные метаданные для статей.',
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'Ты SEO-специалист. Создавай качественные метаданные для статей. Верни ТОЛЬКО валидный JSON без дополнительного текста.',
+            },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.7,
+          max_tokens: 500,
+          response_format: { type: 'json_object' },
         },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 500,
-      response_format: { type: 'json_object' },
-    });
+        {
+          signal: controller.signal,
+        }
+      );
 
-    const content = completion.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('Ответ от OpenAI не получен для SEO метаданных');
+      clearTimeout(timeoutId);
+
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('Ответ от OpenAI не получен');
+      }
+
+      const result = JSON.parse(content.trim());
+
+      const duration = Date.now() - startTime;
+      console.log(`[SEO] Генерация SEO метаданных завершена за ${duration}ms`);
+
+      return NextResponse.json({
+        success: true,
+        seo: {
+          metaTitle: result.metaTitle || '',
+          metaDescription: result.metaDescription || '',
+          faqQuestions: result.faqQuestions || [],
+        },
+      });
+    } catch (abortError: any) {
+      clearTimeout(timeoutId);
+      if (abortError.name === 'AbortError') {
+        throw new Error('Превышено время ожидания генерации SEO метаданных (10 секунд)');
+      }
+      throw abortError;
     }
-
-    const result = JSON.parse(content.trim());
-
-    return NextResponse.json({
-      success: true,
-      seo: {
-        metaTitle: result.metaTitle || '',
-        metaDescription: result.metaDescription || '',
-        faqQuestions: result.faqQuestions || [],
-      },
-    });
   } catch (error: any) {
+    const duration = Date.now() - startTime;
+    console.error(`[SEO] Ошибка через ${duration}ms:`, error.message);
+    
     return NextResponse.json(
       {
         success: false,

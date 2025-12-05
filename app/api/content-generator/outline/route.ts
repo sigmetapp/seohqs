@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth-utils';
-import { getSetting, setSetting } from '@/lib/db-settings';
+import { getSetting } from '@/lib/db-settings';
 import OpenAI from 'openai';
 
 export const dynamic = 'force-dynamic';
@@ -15,21 +15,34 @@ async function getOpenAIClient(): Promise<OpenAI> {
   return new OpenAI({ apiKey });
 }
 
-async function getOrCreateOutlineAssistant(openai: OpenAI): Promise<string> {
-  const existingId = await getSetting('openai_outline_assistant_id');
+export async function POST(request: Request) {
+  const startTime = Date.now();
   
-  if (existingId?.value) {
-    try {
-      await openai.beta.assistants.retrieve(existingId.value);
-      return existingId.value;
-    } catch (error) {
-      console.warn('Outline assistant не найден, создаем нового');
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Не авторизован' }, { status: 401 });
     }
-  }
 
-  const assistant = await openai.beta.assistants.create({
-    name: 'Content Outline Generator',
-    instructions: `Ты помощник для создания структуры (outline) статей. Создай логичную структуру статьи с 5-12 секциями.
+    const body = await request.json();
+    const { topic, language, audience, goal, desiredLength, tone } = body;
+
+    if (!topic) {
+      return NextResponse.json({ success: false, error: 'Тема обязательна' }, { status: 400 });
+    }
+
+    const openai = await getOpenAIClient();
+
+    const prompt = `Создай структуру (outline) статьи:
+
+Тема: ${topic}
+Язык: ${language || 'RU'}
+Целевая аудитория: ${audience || 'general'}
+Цель контента: ${goal || 'SEO article'}
+Желаемый размер: ${desiredLength || '2000'} слов
+Тон: ${tone || 'neutral'}
+
+Создай логичную структуру из 5-12 секций. Каждая секция должна иметь заголовок и краткое описание (1-2 предложения).
 
 Верни ТОЛЬКО валидный JSON:
 {
@@ -41,95 +54,73 @@ async function getOrCreateOutlineAssistant(openai: OpenAI): Promise<string> {
       "description": "Краткое описание содержания секции"
     }
   ]
-}`,
-    model: 'gpt-4o',
-    tools: [],
-  });
+}`;
 
-  await setSetting('openai_outline_assistant_id', assistant.id, 'ID ассистента для outline');
-  return assistant.id;
-}
+    // Таймаут 10 секунд для outline
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 10000);
 
-export async function POST(request: Request) {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Не авторизован' }, { status: 401 });
-    }
+    try {
+      const completion = await openai.chat.completions.create(
+        {
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'Ты помощник для создания структуры статей. Создавай логичную структуру с секциями. Верни ТОЛЬКО валидный JSON без дополнительного текста.',
+            },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.7,
+          max_tokens: 2000,
+          response_format: { type: 'json_object' },
+        },
+        {
+          signal: controller.signal,
+        }
+      );
 
-    const body = await request.json();
-    const { mainQuery, language, targetAudience, contentGoal, desiredLength, toneOfVoice, additionalConstraints } = body;
+      clearTimeout(timeoutId);
 
-    const openai = await getOpenAIClient();
-    const assistantId = await getOrCreateOutlineAssistant(openai);
-
-    const prompt = `Создай структуру статьи:
-
-Тема: ${mainQuery}
-Язык: ${language}
-Целевая аудитория: ${targetAudience}
-Цель контента: ${contentGoal}
-Желаемый размер: ${desiredLength} слов
-Тон: ${toneOfVoice}
-${additionalConstraints ? `Дополнительные ограничения: ${additionalConstraints}` : ''}
-
-Создай логичную структуру из 5-12 секций. Верни ТОЛЬКО валидный JSON.`;
-
-    const thread = await openai.beta.threads.create();
-    await openai.beta.threads.messages.create(thread.id, {
-      role: 'user',
-      content: prompt,
-    });
-
-    const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: assistantId,
-    });
-
-    let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-    let attempts = 0;
-    const maxAttempts = 20;
-
-    while (runStatus.status === 'queued' || runStatus.status === 'in_progress') {
-      if (attempts >= maxAttempts) {
-        throw new Error('Превышено время ожидания генерации outline');
+      const content = completion.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('Ответ от OpenAI не получен');
       }
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-      attempts++;
+
+      const outline = JSON.parse(content.trim());
+      
+      // Валидация структуры
+      if (!outline.title || !Array.isArray(outline.sections)) {
+        throw new Error('Неверный формат ответа от OpenAI');
+      }
+
+      const duration = Date.now() - startTime;
+      console.log(`[OUTLINE] Генерация завершена за ${duration}ms`);
+
+      return NextResponse.json({
+        success: true,
+        outline: {
+          title: outline.title,
+          sections: outline.sections.map((s: any, i: number) => ({
+            id: s.id || `section-${i + 1}`,
+            title: s.title,
+            description: s.description || '',
+          })),
+        },
+      });
+    } catch (abortError: any) {
+      clearTimeout(timeoutId);
+      if (abortError.name === 'AbortError') {
+        throw new Error('Превышено время ожидания генерации структуры (10 секунд)');
+      }
+      throw abortError;
     }
-
-    if (runStatus.status === 'failed') {
-      throw new Error(runStatus.last_error?.message || 'Ошибка генерации outline');
-    }
-
-    const messages = await openai.beta.threads.messages.list(thread.id, {
-      limit: 1,
-      order: 'desc',
-    });
-
-    const assistantMessage = messages.data[0];
-    if (!assistantMessage || assistantMessage.role !== 'assistant') {
-      throw new Error('Ответ от ассистента не получен');
-    }
-
-    const content = assistantMessage.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Неожиданный формат ответа');
-    }
-
-    const responseText = content.text.value.trim();
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('JSON не найден в ответе');
-    }
-
-    const outline = JSON.parse(jsonMatch[0]);
-
-    return NextResponse.json({
-      success: true,
-      outline,
-    });
   } catch (error: any) {
+    const duration = Date.now() - startTime;
+    console.error(`[OUTLINE] Ошибка через ${duration}ms:`, error.message);
+    
     return NextResponse.json(
       {
         success: false,
