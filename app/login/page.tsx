@@ -19,6 +19,8 @@ function LoginForm() {
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
+  const [debugSteps, setDebugSteps] = useState<Array<{ step: string; status: 'pending' | 'success' | 'error'; message: string; details?: any }>>([]);
+  const [showDebug, setShowDebug] = useState(false);
 
   useEffect(() => {
     // Проверяем, есть ли ошибка в URL параметрах
@@ -107,6 +109,8 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setForgotPasswordLoading(true);
+    setDebugSteps([]);
+    setShowDebug(true);
 
     try {
       const response = await fetch('/api/auth/user/forgot-password', {
@@ -114,20 +118,31 @@ function LoginForm() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: forgotPasswordEmail }),
+        body: JSON.stringify({ email: forgotPasswordEmail, debug: true }),
       });
 
       const data = await response.json();
 
+      if (data.debug) {
+        setDebugSteps(data.debug);
+      }
+
       if (data.success) {
         setForgotPasswordSuccess(true);
+        // Не скрываем дебаг панель сразу, чтобы пользователь мог увидеть все этапы
         setTimeout(() => {
           setShowForgotPassword(false);
           setForgotPasswordEmail('');
           setForgotPasswordSuccess(false);
-        }, 3000);
+          setDebugSteps([]);
+          setShowDebug(false);
+        }, 8000); // Увеличиваем время до 8 секунд, чтобы пользователь успел увидеть дебаг информацию
       } else {
         setError(data.error || t('login.resetPasswordError'));
+        // При ошибке тоже показываем дебаг панель, если она есть
+        if (data.debug && data.debug.length > 0) {
+          setShowDebug(true);
+        }
       }
     } catch (err: any) {
       setError(t('login.resetPasswordError'));
@@ -251,6 +266,8 @@ function LoginForm() {
                   setForgotPasswordEmail('');
                   setForgotPasswordSuccess(false);
                   setError(null);
+                  setDebugSteps([]);
+                  setShowDebug(false);
                 }}
                 className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors"
               >
@@ -259,6 +276,73 @@ function LoginForm() {
                 </svg>
               </button>
             </div>
+
+            {/* Debug Panel */}
+            {showDebug && debugSteps.length > 0 && (
+              <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg max-h-96 overflow-y-auto">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    🔍 Отладочная информация ({debugSteps.length} этапов)
+                  </h4>
+                  <button
+                    onClick={() => setShowDebug(false)}
+                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white"
+                  >
+                    Скрыть
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {debugSteps.map((step, index) => (
+                    <div
+                      key={index}
+                      className={`p-2 rounded text-xs ${
+                        step.status === 'success'
+                          ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                          : step.status === 'error'
+                          ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                          : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="font-mono font-bold text-gray-600 dark:text-gray-400 shrink-0">
+                          {step.step}.
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className={`font-medium ${
+                            step.status === 'success'
+                              ? 'text-green-700 dark:text-green-300'
+                              : step.status === 'error'
+                              ? 'text-red-700 dark:text-red-300'
+                              : 'text-yellow-700 dark:text-yellow-300'
+                          }`}>
+                            {step.message}
+                          </div>
+                          {step.details && Object.keys(step.details).length > 0 && (
+                            <details className="mt-1">
+                              <summary className="cursor-pointer text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-xs">
+                                Показать детали
+                              </summary>
+                              <pre className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs overflow-x-auto">
+                                {JSON.stringify(step.details, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                        <span className={`text-xs shrink-0 ${
+                          step.status === 'success'
+                            ? 'text-green-600 dark:text-green-400'
+                            : step.status === 'error'
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-yellow-600 dark:text-yellow-400'
+                        }`}>
+                          {step.status === 'success' ? '✓' : step.status === 'error' ? '✗' : '…'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {forgotPasswordSuccess ? (
               <div className="text-center py-4">
@@ -298,6 +382,8 @@ function LoginForm() {
                         setShowForgotPassword(false);
                         setForgotPasswordEmail('');
                         setError(null);
+                        setDebugSteps([]);
+                        setShowDebug(false);
                       }}
                       className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white px-4 py-2 rounded-lg font-medium transition-colors"
                     >

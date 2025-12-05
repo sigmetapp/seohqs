@@ -10,41 +10,108 @@ export const runtime = 'nodejs';
  * Запрос на восстановление пароля
  */
 export async function POST(request: Request) {
+  const debugSteps: Array<{ step: string; status: 'pending' | 'success' | 'error'; message: string; details?: any }> = [];
+  let debugMode = false;
+  
   try {
     const body = await request.json();
-    const { email } = body;
+    const { email, debug = false } = body;
+    debugMode = debug;
+
+    // Этап 1: Валидация email
+    debugSteps.push({ 
+      step: '1', 
+      status: 'pending', 
+      message: 'Проверка email адреса...' 
+    });
 
     if (!email) {
+      debugSteps[0].status = 'error';
+      debugSteps[0].message = 'Email обязателен';
       return NextResponse.json(
         {
           success: false,
           error: 'Email обязателен',
+          debug: debugMode ? debugSteps : undefined,
         },
         { status: 400 }
       );
     }
 
-    // Проверяем, существует ли пользователь
+    debugSteps[0].status = 'success';
+    debugSteps[0].message = `Email валиден: ${email}`;
+
+    // Этап 2: Поиск пользователя в БД
+    debugSteps.push({ 
+      step: '2', 
+      status: 'pending', 
+      message: 'Поиск пользователя в базе данных...' 
+    });
+
     const dbUser = await getUserByEmail(email);
     
     // Для безопасности всегда возвращаем успех, даже если пользователь не найден
     // Это предотвращает перебор email адресов
     if (!dbUser || !dbUser.passwordHash) {
+      debugSteps[1].status = 'success';
+      debugSteps[1].message = 'Пользователь не найден (для безопасности возвращаем успех)';
+      debugSteps[1].details = { userFound: false };
+      
       return NextResponse.json({
         success: true,
         message: 'Если пользователь с таким email существует, инструкции по восстановлению пароля отправлены на почту',
+        debug: debugMode ? debugSteps : undefined,
       });
     }
 
-    // Генерируем токен восстановления
+    debugSteps[1].status = 'success';
+    debugSteps[1].message = `Пользователь найден: ID ${dbUser.id}`;
+    debugSteps[1].details = { userId: dbUser.id, email: dbUser.email };
+
+    // Этап 3: Генерация токена
+    debugSteps.push({ 
+      step: '3', 
+      status: 'pending', 
+      message: 'Генерация токена восстановления...' 
+    });
+
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetTokenExpiry = new Date();
     resetTokenExpiry.setHours(resetTokenExpiry.getHours() + 1); // Токен действителен 1 час
 
-    // Сохраняем токен в БД
-    await saveResetToken(dbUser.id, resetToken, resetTokenExpiry);
+    debugSteps[2].status = 'success';
+    debugSteps[2].message = 'Токен успешно сгенерирован';
+    debugSteps[2].details = { 
+      tokenLength: resetToken.length, 
+      expiresAt: resetTokenExpiry.toISOString() 
+    };
 
-    // Отправляем email с токеном
+    // Этап 4: Сохранение токена в БД
+    debugSteps.push({ 
+      step: '4', 
+      status: 'pending', 
+      message: 'Сохранение токена в базе данных...' 
+    });
+
+    try {
+      await saveResetToken(dbUser.id, resetToken, resetTokenExpiry);
+      debugSteps[3].status = 'success';
+      debugSteps[3].message = 'Токен успешно сохранен в БД';
+      debugSteps[3].details = { database: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Supabase' : (process.env.POSTGRES_URL || process.env.DATABASE_URL ? 'PostgreSQL' : 'SQLite') };
+    } catch (dbError: any) {
+      debugSteps[3].status = 'error';
+      debugSteps[3].message = `Ошибка сохранения токена: ${dbError?.message || 'Unknown error'}`;
+      debugSteps[3].details = { error: dbError?.message };
+      throw dbError;
+    }
+
+    // Этап 5: Формирование URL для сброса
+    debugSteps.push({ 
+      step: '5', 
+      status: 'pending', 
+      message: 'Формирование URL для сброса пароля...' 
+    });
+
     let baseUrl = process.env.NEXT_PUBLIC_APP_URL;
     if (!baseUrl && process.env.VERCEL_URL) {
       // VERCEL_URL не включает протокол, добавляем https для production
@@ -56,12 +123,46 @@ export async function POST(request: Request) {
     const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
     console.log(`🔗 Сформированный URL для сброса пароля: ${resetUrl}`);
     
+    debugSteps[4].status = 'success';
+    debugSteps[4].message = 'URL успешно сформирован';
+    debugSteps[4].details = { 
+      baseUrl, 
+      resetUrl: resetUrl.substring(0, 80) + '...' 
+    };
+
+    // Этап 6: Отправка email
+    debugSteps.push({ 
+      step: '6', 
+      status: 'pending', 
+      message: 'Отправка email...' 
+    });
+    
     let emailSent = false;
+    let emailProvider = '';
+    let emailError: any = null;
+    
     try {
-      await sendPasswordResetEmail(dbUser.email, resetUrl);
+      const emailResult = await sendPasswordResetEmail(dbUser.email, resetUrl, debugSteps);
       emailSent = true;
+      emailProvider = emailResult.provider || 'Unknown';
+      debugSteps[5].status = 'success';
+      debugSteps[5].message = `Email успешно отправлен через ${emailProvider}`;
+      debugSteps[5].details = emailResult.details || {};
       console.log(`✅ Email для сброса пароля успешно отправлен на ${dbUser.email}`);
-    } catch (emailError: any) {
+    } catch (err: any) {
+      emailError = err;
+      debugSteps[5].status = 'error';
+      debugSteps[5].message = `Ошибка отправки email: ${emailError?.message || 'Unknown error'}`;
+      debugSteps[5].details = {
+        error: emailError?.message || 'Unknown error',
+        code: emailError?.code,
+        name: emailError?.name,
+        smtpConfigured: {
+          supabase: !!(process.env.SUPABASE_SMTP_HOST && process.env.SUPABASE_SMTP_PORT && process.env.SUPABASE_SMTP_USER && process.env.SUPABASE_SMTP_PASSWORD),
+          regular: !!(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASSWORD),
+        },
+      };
+      
       // Детальное логирование ошибки для Vercel
       const errorLog = {
         timestamp: new Date().toISOString(),
@@ -103,6 +204,7 @@ export async function POST(request: Request) {
           {
             success: false,
             error: 'Ошибка отправки email. Пожалуйста, попробуйте позже или свяжитесь с поддержкой.',
+            debug: debugMode ? debugSteps : undefined,
             // В production не возвращаем детали ошибки для безопасности
           },
           { status: 500 }
@@ -124,6 +226,7 @@ export async function POST(request: Request) {
         {
           success: false,
           error: 'Ошибка отправки email. Пожалуйста, попробуйте позже или свяжитесь с поддержкой.',
+          debug: debugMode ? debugSteps : undefined,
         },
         { status: 500 }
       );
@@ -132,13 +235,22 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: 'Если пользователь с таким email существует, инструкции по восстановлению пароля отправлены на почту',
+      debug: debugMode ? debugSteps : undefined,
     });
   } catch (error: any) {
     console.error('Ошибка запроса восстановления пароля:', error);
+    debugSteps.push({
+      step: 'error',
+      status: 'error',
+      message: `Критическая ошибка: ${error?.message || 'Unknown error'}`,
+      details: { error: error?.message, stack: error?.stack },
+    });
+    
     return NextResponse.json(
       {
         success: false,
         error: error.message || 'Ошибка запроса восстановления пароля',
+        debug: debugMode ? debugSteps : undefined,
       },
       { status: 500 }
     );
@@ -223,7 +335,7 @@ async function saveResetToken(userId: number, token: string, expiry: Date): Prom
 }
 
 // Отправка email с инструкциями по восстановлению пароля
-async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<void> {
+async function sendPasswordResetEmail(email: string, resetUrl: string, debugSteps?: Array<{ step: string; status: 'pending' | 'success' | 'error'; message: string; details?: any }>): Promise<{ provider: string; details?: any }> {
   console.log(`📧 Попытка отправить email на ${email}`);
   console.log(`🔗 Reset URL: ${resetUrl.substring(0, 80)}...`);
   console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
@@ -284,7 +396,14 @@ ${resetUrl}
       });
       
       console.log('✅ Email успешно отправлен через Supabase SMTP:', info.messageId);
-      return;
+      return { 
+        provider: 'Supabase SMTP', 
+        details: { 
+          messageId: info.messageId, 
+          host: supabaseSmtpHost, 
+          port: supabaseSmtpPort 
+        } 
+      };
     } catch (error: any) {
       console.error('❌ Ошибка отправки через Supabase SMTP:', error);
       console.error('Детали ошибки SMTP:', {
@@ -357,7 +476,14 @@ ${resetUrl}
       });
       
       console.log('✅ Email успешно отправлен через SMTP:', info.messageId);
-      return;
+      return { 
+        provider: 'SMTP', 
+        details: { 
+          messageId: info.messageId, 
+          host: smtpHost, 
+          port: smtpPort 
+        } 
+      };
     } catch (error: any) {
       console.error('❌ Ошибка отправки через SMTP:', error);
       console.error('Детали ошибки SMTP:', {
@@ -397,4 +523,16 @@ ${resetUrl}
     console.error('❌ КРИТИЧЕСКАЯ ОШИБКА:', error.message);
     throw error;
   }
+  
+  // В development режиме возвращаем информацию о том, что email не был отправлен
+  return { 
+    provider: 'None (Development Mode)', 
+    details: { 
+      message: 'Email не настроен, выводится в консоль для разработки',
+      smtpConfigured: {
+        supabase: !!(process.env.SUPABASE_SMTP_HOST && process.env.SUPABASE_SMTP_PORT && process.env.SUPABASE_SMTP_USER && process.env.SUPABASE_SMTP_PASSWORD),
+        regular: !!(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASSWORD),
+      }
+    } 
+  };
 }
