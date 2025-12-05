@@ -51,16 +51,35 @@ export async function POST(request: Request) {
     const openai = await getOpenAIClient();
     const assistantId = await getOutlineAssistantId(openai);
 
+    const articleLength = parseInt(length) || 2000;
+    
+    // Адаптируем количество секций в зависимости от размера статьи
+    let sectionsCount = 5;
+    if (articleLength <= 500) {
+      sectionsCount = 3; // Для коротких статей - меньше секций
+    } else if (articleLength <= 1000) {
+      sectionsCount = 4;
+    } else if (articleLength <= 2000) {
+      sectionsCount = 5;
+    } else if (articleLength <= 3000) {
+      sectionsCount = 6;
+    } else {
+      sectionsCount = Math.min(12, Math.floor(articleLength / 500)); // Примерно 1 секция на 500 слов
+    }
+
     const prompt = `Создай структуру статьи:
 
 Тема: ${topic}
 Язык: ${language || 'RU'}
 Аудитория: ${audience || 'general'}
 Цель: ${goal || 'SEO article'}
-Размер: ${length || '2000'} слов
+Размер: ${articleLength} слов (ВАЖНО: статья должна быть именно ${articleLength} слов, не больше!)
 Тон: ${tone || 'neutral'}
 
-Создай структуру из 5-12 секций. Каждая секция: заголовок и краткое описание (1-2 предложения).
+Создай структуру из ${sectionsCount} секций. Каждая секция должна быть примерно ${Math.floor(articleLength / sectionsCount)} слов.
+Каждая секция: заголовок и краткое описание (1-2 предложения).
+
+ВАЖНО: Структура должна быть такой, чтобы общий размер статьи был примерно ${articleLength} слов.
 
 Верни ТОЛЬКО JSON:
 {

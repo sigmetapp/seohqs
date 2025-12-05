@@ -182,6 +182,8 @@ export default function ContentGeneratorPage() {
                   sectionTitle: section.title,
                   sectionDescription: section.description,
                   sectionIndex: i,
+                  totalSections: totalSections,
+                  desiredArticleLength: parseInt(desiredLength) || 2000,
                 }),
                 signal: sectionController.signal,
               });
