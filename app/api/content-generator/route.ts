@@ -34,32 +34,22 @@ async function getOpenAIClient(): Promise<OpenAI> {
   return new OpenAI({ apiKey });
 }
 
-const SYSTEM_PROMPT = `Ты опытный SEO-копирайтер, редактор и контент-стратег. Твоя задача - создавать высококачественный контент через многоступенчатый процесс.
+const SYSTEM_PROMPT = `Ты SEO-копирайтер. Создай качественный контент через 6 этапов:
+1. DRAFT - развернутый черновик с логичной структурой
+2. SEO STRUCTURING - улучши структуру (H2/H3, блоки, подзапросы)
+3. HUMANIZATION - естественный стиль, без AI-штампов
+4. UNIQUENESS - уникальные формулировки и переходы
+5. QUALITY CHECK - убери повторы, воду, противоречия
+6. HTML PACKAGING - HTML формат (h1, h2, h3, p), Meta title (55-60 символов), Meta description (155-160 символов), FAQ (4-8 вопросов)
 
-Ты должен строго следовать этапам обработки:
-
-1. DRAFT GENERATION - создай развернутый черновик на основе входных параметров (topic, language, audience, goal, length, tone). Полностью раскрой тему, дай логичную структуру, пиши как опытный эксперт.
-
-2. SEO STRUCTURING - проанализируй draft, улучшь структуру под SEO (H2/H3, логика блоков, покрытие подзапросов), добавь недостающие разделы, учти поисковый интент, но не превращай в "ключепих".
-
-3. HUMANIZATION - перепиши текст так, чтобы он выглядел как работа живого эксперта: вариативная длина предложений, естественные связки, микросюжеты, отсутствие AI-штампов, учитывай дополнительные ограничения.
-
-4. UNIQUENESS - измени формулировки, порядок объяснений, переходы для стилистической уникальности, снижения вероятности детектирования как AI-контент, сохраняя смысл и SEO-пользу.
-
-5. QUALITY CHECK - проверь текст на повторы мыслей, логические разрывы, ненужную воду, противоречия. Убери повторы, сократи лишнее, выровняй тон и структуру.
-
-6. HTML PACKAGING - оформи финальный текст в HTML-подобном формате (h1, h2, h3, p, списки, таблицы), сгенерируй Meta title (55-60 символов), Meta description (155-160 символов), FAQ-вопросы (4-8 штук).
-
-ВАЖНО: Всегда возвращай финальный результат в формате JSON с полями:
+Верни ТОЛЬКО валидный JSON:
 {
-  "html": "финальный HTML контент с тегами h1, h2, h3, p и т.д.",
+  "html": "HTML контент с тегами h1, h2, h3, p",
   "metaTitle": "Meta title до 60 символов",
   "metaDescription": "Meta description до 160 символов",
-  "faqQuestions": ["Вопрос 1", "Вопрос 2", "Вопрос 3", ...],
-  "summary": "Краткий summary для автора/редактора с ключевой идеей, целевой аудиторией и основным интентом"
-}
-
-Всегда возвращай только валидный JSON без дополнительных комментариев.`;
+  "faqQuestions": ["Вопрос 1", "Вопрос 2", ...],
+  "summary": "Краткий summary с ключевой идеей"
+}`;
 
 /**
  * POST /api/content-generator
@@ -102,6 +92,7 @@ export async function POST(request: Request) {
     }
 
     const openai = await getOpenAIClient();
+    const startTime = Date.now();
 
     // Формируем промпт для генерации контента
     const userPrompt = `Создай контент по следующему запросу:
@@ -116,61 +107,92 @@ ${additionalConstraints ? `Дополнительные ограничения: 
 
 Выполни все 6 этапов обработки и верни результат в формате JSON.`;
 
-    // Используем Chat Completions API вместо Assistants API для быстрой работы
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 8000, // Увеличиваем лимит для длинных статей
-      response_format: { type: 'json_object' }, // Принудительно JSON формат
-    });
-
-    const assistantMessage = completion.choices[0]?.message?.content;
-    if (!assistantMessage) {
-      throw new Error('Ответ от OpenAI не получен');
-    }
-
-    // Парсим JSON ответ (response_format гарантирует JSON формат)
-    let result: any;
+    // Используем Chat Completions API с оптимизированными параметрами для быстрой работы
+    // Используем gpt-4o-mini для более быстрой генерации
+    // Агрессивно уменьшаем max_tokens чтобы уложиться в лимиты Vercel (60 сек)
+    const model = 'gpt-4o-mini'; // Более быстрая модель
+    const desiredLengthNum = parseInt(desiredLength) || 2000;
+    // Ограничиваем max_tokens: для 2000 слов нужно примерно 2500-3000 токенов
+    const maxTokens = Math.min(3000, Math.max(2000, Math.floor(desiredLengthNum * 1.2)));
+    
+    // Создаем AbortController для контроля таймаута (50 сек для безопасности)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 50000);
+    
     try {
-      result = JSON.parse(assistantMessage.trim());
+      const completion = await openai.chat.completions.create(
+        {
+          model,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.7,
+          max_tokens: maxTokens,
+          response_format: { type: 'json_object' }, // Принудительно JSON формат
+          // Оптимизация для скорости
+          stream: false, // Явно отключаем streaming для простоты
+        },
+        {
+          signal: controller.signal,
+        }
+      );
       
-      // Проверяем наличие обязательных полей
-      if (!result.html && !result.content) {
-        // Если нет html или content, используем весь ответ как HTML
+      clearTimeout(timeoutId);
+
+      const assistantMessage = completion.choices[0]?.message?.content;
+      if (!assistantMessage) {
+        throw new Error('Ответ от OpenAI не получен');
+      }
+
+      // Парсим JSON ответ (response_format гарантирует JSON формат)
+      let result: any;
+      try {
+        result = JSON.parse(assistantMessage.trim());
+        
+        // Проверяем наличие обязательных полей
+        if (!result.html && !result.content) {
+          // Если нет html или content, используем весь ответ как HTML
+          result = {
+            html: assistantMessage.trim(),
+            metaTitle: result.metaTitle || '',
+            metaDescription: result.metaDescription || '',
+            faqQuestions: result.faqQuestions || [],
+            summary: result.summary || '',
+          };
+        }
+        
+        // Если есть content вместо html, переименовываем
+        if (result.content && !result.html) {
+          result.html = result.content;
+          delete result.content;
+        }
+      } catch (error) {
+        console.error('Ошибка парсинга JSON:', error);
+        // Fallback: возвращаем весь текст как HTML
         result = {
           html: assistantMessage.trim(),
-          metaTitle: result.metaTitle || '',
-          metaDescription: result.metaDescription || '',
-          faqQuestions: result.faqQuestions || [],
-          summary: result.summary || '',
+          metaTitle: '',
+          metaDescription: '',
+          faqQuestions: [],
+          summary: '',
         };
       }
-      
-      // Если есть content вместо html, переименовываем
-      if (result.content && !result.html) {
-        result.html = result.content;
-        delete result.content;
-      }
-    } catch (error) {
-      console.error('Ошибка парсинга JSON:', error);
-      // Fallback: возвращаем весь текст как HTML
-      result = {
-        html: assistantMessage.trim(),
-        metaTitle: '',
-        metaDescription: '',
-        faqQuestions: [],
-        summary: '',
-      };
-    }
 
-    return NextResponse.json({
-      success: true,
-      result,
-    });
+      const duration = Date.now() - startTime;
+      console.log(`Content generation completed in ${duration}ms, tokens: ${maxTokens}, model: ${model}`);
+
+      return NextResponse.json({
+        success: true,
+        result,
+      });
+    } catch (abortError: any) {
+      clearTimeout(timeoutId);
+      if (abortError.name === 'AbortError') {
+        throw new Error('Превышено время ожидания ответа от OpenAI. Попробуйте уменьшить желаемый размер статьи или упростить запрос.');
+      }
+      throw abortError;
+    }
   } catch (error: any) {
     console.error('Ошибка генерации контента:', error);
     return NextResponse.json(
