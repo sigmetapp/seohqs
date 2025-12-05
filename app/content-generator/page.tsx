@@ -38,10 +38,32 @@ export default function ContentGeneratorPage() {
   const [totalSections, setTotalSections] = useState<number>(0);
   const [failedSections, setFailedSections] = useState<Array<{ index: number; title: string; error: string }>>([]);
   const [lowComplexitySections, setLowComplexitySections] = useState<Set<number>>(new Set());
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
 
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // Timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (generating && startTime) {
+      interval = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
+      }, 1000);
+    } else if (!generating) {
+      setElapsedTime(0);
+      setStartTime(null);
+    }
+    
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [generating, startTime]);
 
   const checkAuth = async () => {
     try {
@@ -84,6 +106,8 @@ export default function ContentGeneratorPage() {
     setLowComplexitySections(new Set());
     setStep('outline');
     setProgress('Generating outline…');
+    setStartTime(Date.now());
+    setElapsedTime(0);
 
     try {
       // ШАГ 1: Outline
@@ -353,9 +377,13 @@ export default function ContentGeneratorPage() {
       setLowComplexitySections(new Set());
     } finally {
       setGenerating(false);
+      setStartTime(null);
       // Не очищаем прогресс если была ошибка, чтобы пользователь видел что произошло
       if (!error) {
-        setTimeout(() => setProgress(''), 2000);
+        setTimeout(() => {
+          setProgress('');
+          setElapsedTime(0);
+        }, 2000);
       }
     }
   };
@@ -385,14 +413,14 @@ export default function ContentGeneratorPage() {
         </h1>
 
         {/* Форма параметров */}
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-8">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
             Параметры генерации
           </h2>
 
-          <form onSubmit={handleGenerate} className="space-y-6">
+          <form onSubmit={handleGenerate} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Topic *
               </label>
               <input
@@ -400,148 +428,151 @@ export default function ContentGeneratorPage() {
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 required
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-2 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Тема статьи"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Language
                 </label>
                 <input
                   type="text"
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="EN, DE, RU, UA..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Desired length (words)
                 </label>
                 <input
                   type="text"
                   value={desiredLength}
                   onChange={(e) => setDesiredLength(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="1000, 2000, 3000..."
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Audience
-              </label>
-              <select
-                value={audience}
-                onChange={(e) => setAudience(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="general">General</option>
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-                <option value="professionals">Professionals</option>
-                <option value="marketers">Marketers</option>
-                <option value="developers">Developers</option>
-                <option value="business owners">Business Owners</option>
-                <option value="students">Students</option>
-                <option value="entrepreneurs">Entrepreneurs</option>
-              </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Audience
+                </label>
+                <select
+                  value={audience}
+                  onChange={(e) => setAudience(e.target.value)}
+                  className="w-full px-2 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="general">General</option>
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                  <option value="professionals">Professionals</option>
+                  <option value="marketers">Marketers</option>
+                  <option value="developers">Developers</option>
+                  <option value="business owners">Business Owners</option>
+                  <option value="students">Students</option>
+                  <option value="entrepreneurs">Entrepreneurs</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Author Persona
+                </label>
+                <select
+                  value={authorPersona}
+                  onChange={(e) => setAuthorPersona(e.target.value)}
+                  className="w-full px-2 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="expert">Expert</option>
+                  <option value="beginner">Beginner</option>
+                  <option value="practitioner">Practitioner</option>
+                  <option value="researcher">Researcher</option>
+                  <option value="industry insider">Industry Insider</option>
+                  <option value="thought leader">Thought Leader</option>
+                  <option value="educator">Educator</option>
+                  <option value="consultant">Consultant</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Angle
+                </label>
+                <select
+                  value={angle}
+                  onChange={(e) => setAngle(e.target.value)}
+                  className="w-full px-2 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="informative">Informative</option>
+                  <option value="practical">Practical</option>
+                  <option value="analytical">Analytical</option>
+                  <option value="educational">Educational</option>
+                  <option value="comparative">Comparative</option>
+                  <option value="case study">Case Study</option>
+                  <option value="how-to">How-To Guide</option>
+                  <option value="opinion">Opinion</option>
+                  <option value="review">Review</option>
+                  <option value="news">News</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Content Goal
+                </label>
+                <select
+                  value={contentGoal}
+                  onChange={(e) => setContentGoal(e.target.value)}
+                  className="w-full px-2 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option>SEO article</option>
+                  <option>Landing page</option>
+                  <option>Blog post</option>
+                  <option>Review</option>
+                  <option>Guide</option>
+                  <option>FAQ page</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Complexity
+                </label>
+                <select
+                  value={complexity}
+                  onChange={(e) => setComplexity(e.target.value)}
+                  className="w-full px-2 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="low">Low - быстрые короткие статьи</option>
+                  <option value="medium">Medium - качественный блоговый контент</option>
+                  <option value="high">High - экспертные лонгриды уровня редакторов</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
+              Алгоритм автоматически регулирует глубину, количество секций, насыщенность структуры, уровень противоречий и плотность инсайтов.
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Author Persona
-              </label>
-              <select
-                value={authorPersona}
-                onChange={(e) => setAuthorPersona(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="expert">Expert</option>
-                <option value="beginner">Beginner</option>
-                <option value="practitioner">Practitioner</option>
-                <option value="researcher">Researcher</option>
-                <option value="industry insider">Industry Insider</option>
-                <option value="thought leader">Thought Leader</option>
-                <option value="educator">Educator</option>
-                <option value="consultant">Consultant</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Angle
-              </label>
-              <select
-                value={angle}
-                onChange={(e) => setAngle(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="informative">Informative</option>
-                <option value="practical">Practical</option>
-                <option value="analytical">Analytical</option>
-                <option value="educational">Educational</option>
-                <option value="comparative">Comparative</option>
-                <option value="case study">Case Study</option>
-                <option value="how-to">How-To Guide</option>
-                <option value="opinion">Opinion</option>
-                <option value="review">Review</option>
-                <option value="news">News</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Content Goal
-              </label>
-              <select
-                value={contentGoal}
-                onChange={(e) => setContentGoal(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option>SEO article</option>
-                <option>Landing page</option>
-                <option>Blog post</option>
-                <option>Review</option>
-                <option>Guide</option>
-                <option>FAQ page</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Complexity (Стиль структуры)
-              </label>
-              <select
-                value={complexity}
-                onChange={(e) => setComplexity(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="low">Low - быстрые короткие статьи</option>
-                <option value="medium">Medium - качественный блоговый контент</option>
-                <option value="high">High - экспертные лонгриды уровня редакторов</option>
-              </select>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Алгоритм автоматически регулирует глубину, количество секций, насыщенность структуры, уровень противоречий и плотность инсайтов.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Additional Constraints
               </label>
               <textarea
                 value={constraints}
                 onChange={(e) => setConstraints(e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={2}
+                className="w-full px-2 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Без длинных тире, без воды, добавлять примеры..."
               />
             </div>
@@ -554,11 +585,22 @@ export default function ContentGeneratorPage() {
 
             {progress && (
               <div className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-4 py-3 rounded">
-                {progress}
-                {step === 'outline' && ' (Шаг 1/3)'}
-                {step === 'sections' && totalSections > 0 && ` (Шаг 2/3: ${currentSection}/${totalSections})`}
-                {step === 'seo' && ' (Шаг 3/3)'}
-                {step === 'done' && ' ✓'}
+                <div className="flex items-center justify-between">
+                  <div>
+                    {progress}
+                    {step === 'outline' && ' (Шаг 1/3)'}
+                    {step === 'sections' && totalSections > 0 && ` (Шаг 2/3: ${currentSection}/${totalSections})`}
+                    {step === 'seo' && ' (Шаг 3/3)'}
+                    {step === 'done' && ' ✓'}
+                  </div>
+                  {generating && elapsedTime > 0 && (
+                    <div className="text-sm font-mono ml-4">
+                      {Math.floor(elapsedTime / 60) > 0 
+                        ? `${Math.floor(elapsedTime / 60)}м ${elapsedTime % 60}с`
+                        : `${elapsedTime}с`}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -585,7 +627,7 @@ export default function ContentGeneratorPage() {
             <button
               type="submit"
               disabled={generating}
-              className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {generating ? 'Генерация...' : 'Generate article'}
             </button>
