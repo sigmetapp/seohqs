@@ -14,29 +14,7 @@ export async function GET() {
       environment: process.env.NODE_ENV || 'development',
       appUrl: process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || 'не установлен',
       
-      // Проверка Resend API
-      resend: {
-        enabled: !!process.env.RESEND_API_KEY,
-        apiKey: process.env.RESEND_API_KEY ? '✅ установлен' : '❌ не установлен',
-        fromEmail: process.env.RESEND_FROM_EMAIL || 'не установлен (будет использован onboarding@resend.dev)',
-        status: process.env.RESEND_API_KEY ? 'настроен' : 'не настроен',
-        domainNote: process.env.RESEND_FROM_EMAIL && process.env.RESEND_FROM_EMAIL !== 'onboarding@resend.dev' 
-          ? '⚠️ Убедитесь, что домен верифицирован в Resend Dashboard' 
-          : undefined,
-        domainCheck: (() => {
-          const fromEmail = process.env.RESEND_FROM_EMAIL;
-          if (!fromEmail || fromEmail === 'onboarding@resend.dev') {
-            return 'Используется onboarding@resend.dev (домен не настроен)';
-          }
-          const domain = fromEmail.split('@')[1];
-          if (domain === 'seohqs.com') {
-            return '✅ Домен seohqs.com настроен. Убедитесь, что он верифицирован в Resend Dashboard';
-          }
-          return `Домен ${domain} настроен. Убедитесь, что он верифицирован в Resend Dashboard`;
-        })(),
-      },
-      
-      // Проверка Supabase SMTP
+      // Проверка Supabase SMTP (приоритет 1)
       supabaseSmtp: {
         enabled: !!(
           process.env.SUPABASE_SMTP_HOST &&
@@ -80,7 +58,6 @@ export async function GET() {
       
       // Определение активного метода
       activeMethod: (() => {
-        if (process.env.RESEND_API_KEY) return 'Resend API';
         if (
           process.env.SUPABASE_SMTP_HOST &&
           process.env.SUPABASE_SMTP_PORT &&
@@ -101,12 +78,11 @@ export async function GET() {
     };
     
     // Добавляем рекомендации
-    if (!diagnostics.resend.enabled && !diagnostics.supabaseSmtp.enabled && !diagnostics.smtp.enabled) {
+    if (!diagnostics.supabaseSmtp.enabled && !diagnostics.smtp.enabled) {
       diagnostics.recommendations.push(
         '⚠️ Email не настроен! Настройте один из методов отправки:',
-        '1. Resend API (рекомендуется): установите RESEND_API_KEY и RESEND_FROM_EMAIL',
-        '2. Supabase SMTP: установите SUPABASE_SMTP_HOST, SUPABASE_SMTP_PORT, SUPABASE_SMTP_USER, SUPABASE_SMTP_PASSWORD',
-        '3. Обычный SMTP: установите SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD'
+        '1. Supabase SMTP (рекомендуется): установите SUPABASE_SMTP_HOST, SUPABASE_SMTP_PORT, SUPABASE_SMTP_USER, SUPABASE_SMTP_PASSWORD',
+        '2. Обычный SMTP: установите SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD'
       );
     }
     
@@ -116,26 +92,12 @@ export async function GET() {
       );
     }
     
-    if (diagnostics.resend.enabled && diagnostics.resend.fromEmail === 'не установлен (будет использован onboarding@resend.dev)') {
+    if (diagnostics.supabaseSmtp.enabled) {
       diagnostics.recommendations.push(
-        '💡 Рекомендуется установить RESEND_FROM_EMAIL для использования вашего домена'
-      );
-    }
-    
-    if (diagnostics.resend.enabled && diagnostics.resend.fromEmail && diagnostics.resend.fromEmail !== 'не установлен (будет использован onboarding@resend.dev)') {
-      diagnostics.recommendations.push(
-        '⚠️ ВАЖНО: Если письма не приходят, проверьте:',
-        '   1. Верификацию домена в Resend Dashboard (https://resend.com/domains)',
-        '   2. DNS записи для домена (SPF, DKIM, DMARC)',
-        '   3. Логи в Vercel Dashboard для детальных ошибок',
-        '   4. Если домен не верифицирован, временно используйте onboarding@resend.dev'
-      );
-    }
-    
-    if (diagnostics.resend.enabled && !process.env.RESEND_FROM_EMAIL) {
-      diagnostics.recommendations.push(
-        '💡 Рекомендуется установить RESEND_FROM_EMAIL для использования вашего домена',
-        '   Например: RESEND_FROM_EMAIL=noreply@seohqs.com'
+        '💡 Supabase SMTP настроен. Если письма не приходят, проверьте:',
+        '   1. Правильность SMTP настроек в Supabase Dashboard',
+        '   2. Логи в Vercel Dashboard для детальных ошибок',
+        '   3. Убедитесь, что SMTP сервер доступен и не блокируется файрволом'
       );
     }
     
@@ -184,23 +146,34 @@ export async function POST(request: Request) {
     // Используем функцию отправки из forgot-password route
     const testUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=test-token-123`;
     
-    // Импортируем функцию отправки (скопируем логику)
-    const resendApiKey = process.env.RESEND_API_KEY;
     const testResults: any = {
       email,
       testUrl,
       attempts: [] as any[],
     };
     
-    // Тест Resend
-    if (resendApiKey) {
+    // Тест Supabase SMTP (приоритет 1)
+    const supabaseSmtpHost = process.env.SUPABASE_SMTP_HOST;
+    const supabaseSmtpPort = process.env.SUPABASE_SMTP_PORT;
+    const supabaseSmtpUser = process.env.SUPABASE_SMTP_USER;
+    const supabaseSmtpPassword = process.env.SUPABASE_SMTP_PASSWORD;
+    
+    if (supabaseSmtpHost && supabaseSmtpPort && supabaseSmtpUser && supabaseSmtpPassword) {
       try {
-        const { Resend } = require('resend');
-        const resend = new Resend(resendApiKey);
-        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        const nodemailer = require('nodemailer');
         
-        const result = await resend.emails.send({
-          from: fromEmail,
+        const transporter = nodemailer.createTransport({
+          host: supabaseSmtpHost,
+          port: parseInt(supabaseSmtpPort),
+          secure: supabaseSmtpPort === '465',
+          auth: {
+            user: supabaseSmtpUser,
+            pass: supabaseSmtpPassword,
+          },
+        });
+        
+        const info = await transporter.sendMail({
+          from: process.env.SUPABASE_SMTP_FROM || supabaseSmtpUser,
           to: email,
           subject: 'Тест отправки email - Восстановление пароля',
           html: `
@@ -221,43 +194,35 @@ export async function POST(request: Request) {
         });
         
         testResults.attempts.push({
-          method: 'Resend API',
+          method: 'Supabase SMTP',
           success: true,
-          messageId: result.id || result.data?.id,
-          message: 'Email успешно отправлен через Resend',
+          messageId: info.messageId,
+          message: 'Email успешно отправлен через Supabase SMTP',
         });
         
         return NextResponse.json({
           success: true,
-          message: 'Тестовый email успешно отправлен через Resend API',
+          message: 'Тестовый email успешно отправлен через Supabase SMTP',
           testResults,
         });
       } catch (error: any) {
-        const errorDetails = {
-          message: error?.message || 'Unknown error',
-          name: error?.name || 'Unknown',
-          statusCode: error?.statusCode,
-          code: error?.code,
-          response: error?.response ? JSON.stringify(error.response, null, 2) : undefined,
-        };
-        
-        console.error('❌ ОШИБКА ТЕСТОВОЙ ОТПРАВКИ ЧЕРЕЗ RESEND:');
-        console.error(JSON.stringify(errorDetails, null, 2));
-        
         testResults.attempts.push({
-          method: 'Resend API',
+          method: 'Supabase SMTP',
           success: false,
           error: error.message,
-          details: errorDetails,
+          details: {
+            code: error?.code,
+            command: error?.command,
+          },
         });
       }
     }
     
-    // Тест SMTP
-    const smtpHost = process.env.SUPABASE_SMTP_HOST || process.env.SMTP_HOST;
-    const smtpPort = process.env.SUPABASE_SMTP_PORT || process.env.SMTP_PORT;
-    const smtpUser = process.env.SUPABASE_SMTP_USER || process.env.SMTP_USER;
-    const smtpPassword = process.env.SUPABASE_SMTP_PASSWORD || process.env.SMTP_PASSWORD;
+    // Тест обычного SMTP (приоритет 2)
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = process.env.SMTP_PORT;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPassword = process.env.SMTP_PASSWORD;
     
     if (smtpHost && smtpPort && smtpUser && smtpPassword) {
       try {
@@ -295,7 +260,7 @@ export async function POST(request: Request) {
         });
         
         testResults.attempts.push({
-          method: smtpHost === process.env.SUPABASE_SMTP_HOST ? 'Supabase SMTP' : 'Обычный SMTP',
+          method: 'Обычный SMTP',
           success: true,
           messageId: info.messageId,
           message: 'Email успешно отправлен через SMTP',
@@ -308,7 +273,7 @@ export async function POST(request: Request) {
         });
       } catch (error: any) {
         testResults.attempts.push({
-          method: smtpHost === process.env.SUPABASE_SMTP_HOST ? 'Supabase SMTP' : 'Обычный SMTP',
+          method: 'Обычный SMTP',
           success: false,
           error: error.message,
           details: {
