@@ -34,26 +34,7 @@ async function getOpenAIClient(): Promise<OpenAI> {
   return new OpenAI({ apiKey });
 }
 
-async function getAssistantId(): Promise<string> {
-  const assistantIdSetting = await getSetting('openai_assistant_id');
-  return assistantIdSetting?.value || '';
-}
-
-async function createOrGetAssistant(openai: OpenAI): Promise<string> {
-  const existingId = await getAssistantId();
-  
-  if (existingId) {
-    try {
-      await openai.beta.assistants.retrieve(existingId);
-      return existingId;
-    } catch (error) {
-      console.warn('Ассистент не найден, создаем нового');
-    }
-  }
-
-  const assistant = await openai.beta.assistants.create({
-    name: 'Multi-Step Content Generator',
-    instructions: `Ты опытный SEO-копирайтер, редактор и контент-стратег. Твоя задача - создавать высококачественный контент через многоступенчатый процесс.
+const SYSTEM_PROMPT = `Ты опытный SEO-копирайтер, редактор и контент-стратег. Твоя задача - создавать высококачественный контент через многоступенчатый процесс.
 
 Ты должен строго следовать этапам обработки:
 
@@ -78,17 +59,7 @@ async function createOrGetAssistant(openai: OpenAI): Promise<string> {
   "summary": "Краткий summary для автора/редактора с ключевой идеей, целевой аудиторией и основным интентом"
 }
 
-Всегда возвращай только валидный JSON без дополнительных комментариев.`,
-    model: 'gpt-4o',
-    tools: [{ type: 'code_interpreter' }],
-  });
-
-  // Сохраняем ID ассистента
-  const { setSetting } = await import('@/lib/db-settings');
-  await setSetting('openai_assistant_id', assistant.id, 'ID ассистента OpenAI');
-
-  return assistant.id;
-}
+Всегда возвращай только валидный JSON без дополнительных комментариев.`;
 
 /**
  * POST /api/content-generator
@@ -131,13 +102,9 @@ export async function POST(request: Request) {
     }
 
     const openai = await getOpenAIClient();
-    const assistantId = await createOrGetAssistant(openai);
 
-    // Создаем thread
-    const thread = await openai.beta.threads.create();
-
-    // Формируем промпт для ассистента
-    const prompt = `Создай контент по следующему запросу:
+    // Формируем промпт для генерации контента
+    const userPrompt = `Создай контент по следующему запросу:
 
 Основной запрос/тема: ${mainQuery}
 Язык: ${language}
@@ -147,77 +114,52 @@ export async function POST(request: Request) {
 Тон: ${toneOfVoice}
 ${additionalConstraints ? `Дополнительные ограничения: ${additionalConstraints}` : ''}
 
-Выполни все 6 этапов обработки и верни результат в формате JSON для каждого этапа.`;
+Выполни все 6 этапов обработки и верни результат в формате JSON.`;
 
-    // Отправляем сообщение в thread
-    await openai.beta.threads.messages.create(thread.id, {
-      role: 'user',
-      content: prompt,
+    // Используем Chat Completions API вместо Assistants API для быстрой работы
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 8000, // Увеличиваем лимит для длинных статей
+      response_format: { type: 'json_object' }, // Принудительно JSON формат
     });
 
-    // Запускаем run
-    const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: assistantId,
-    });
-
-    // Ждем завершения
-    let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-    let attempts = 0;
-    const maxAttempts = 60; // максимум 60 попыток (5 минут)
-
-    while (runStatus.status === 'queued' || runStatus.status === 'in_progress') {
-      if (attempts >= maxAttempts) {
-        throw new Error('Превышено время ожидания ответа от ассистента');
-      }
-      await new Promise((resolve) => setTimeout(resolve, 5000)); // ждем 5 секунд
-      runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-      attempts++;
+    const assistantMessage = completion.choices[0]?.message?.content;
+    if (!assistantMessage) {
+      throw new Error('Ответ от OpenAI не получен');
     }
 
-    if (runStatus.status === 'failed') {
-      throw new Error(runStatus.last_error?.message || 'Ошибка выполнения ассистента');
-    }
-
-    // Получаем сообщения
-    const messages = await openai.beta.threads.messages.list(thread.id, {
-      limit: 1,
-      order: 'desc',
-    });
-
-    const assistantMessage = messages.data[0];
-    if (!assistantMessage || assistantMessage.role !== 'assistant') {
-      throw new Error('Ответ от ассистента не получен');
-    }
-
-    const content = assistantMessage.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Неожиданный формат ответа от ассистента');
-    }
-
-    // Парсим ответ
+    // Парсим JSON ответ (response_format гарантирует JSON формат)
     let result: any;
-    const responseText = content.text.value.trim();
-    
-    // Пытаемся найти JSON в ответе
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        result = JSON.parse(jsonMatch[0]);
-      } catch (error) {
-        console.error('Ошибка парсинга JSON:', error);
-        // Если не удалось распарсить, возвращаем как есть
+    try {
+      result = JSON.parse(assistantMessage.trim());
+      
+      // Проверяем наличие обязательных полей
+      if (!result.html && !result.content) {
+        // Если нет html или content, используем весь ответ как HTML
         result = {
-          html: responseText,
-          metaTitle: '',
-          metaDescription: '',
-          faqQuestions: [],
-          summary: '',
+          html: assistantMessage.trim(),
+          metaTitle: result.metaTitle || '',
+          metaDescription: result.metaDescription || '',
+          faqQuestions: result.faqQuestions || [],
+          summary: result.summary || '',
         };
       }
-    } else {
-      // Если JSON не найден, возвращаем весь текст как HTML
+      
+      // Если есть content вместо html, переименовываем
+      if (result.content && !result.html) {
+        result.html = result.content;
+        delete result.content;
+      }
+    } catch (error) {
+      console.error('Ошибка парсинга JSON:', error);
+      // Fallback: возвращаем весь текст как HTML
       result = {
-        html: responseText,
+        html: assistantMessage.trim(),
         metaTitle: '',
         metaDescription: '',
         faqQuestions: [],
