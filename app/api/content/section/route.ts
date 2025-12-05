@@ -35,16 +35,12 @@ async function getSectionAssistantId(openai: OpenAI): Promise<string> {
 async function generateSection(
   openai: OpenAI,
   assistantId: string,
-  topic: string,
-  language: string,
-  audience: string,
+  sectionTitle: string,
+  sectionDescription: string,
+  complexityLevel: 'medium' | 'low',
   authorPersona: string,
   angle: string,
   contentGoal: string,
-  sectionTitle: string,
-  sectionDescription: string,
-  sectionIndex: number,
-  complexityLevel: 'medium' | 'low',
   startTime: number,
   timeoutMs: number,
   targetSectionWords?: number
@@ -69,23 +65,17 @@ async function generateSection(
     wordLimit = `${minWords}-${maxWords}`;
   }
 
-  // Промпт содержит только необходимые поля, без больших текстов статьи
+  // Промпт содержит ТОЛЬКО необходимые поля
   const prompt = `Напиши секцию для большой статьи.
-
-КОНТЕКСТ СТАТЬИ:
-Тема статьи: ${topic}
-Язык: ${language || 'RU'}
-Целевая аудитория: ${audience || 'general'}
-Авторская персона: ${authorPersona || 'эксперт'}
-Угол подачи: ${angle || 'информативный'}
-Цель контента: ${contentGoal || 'SEO article'}
-${styleParams}
 
 СЕКЦИЯ, КОТОРУЮ НУЖНО НАПИСАТЬ:
 Заголовок секции: ${sectionTitle}
 Описание: ${sectionDescription || ''}
-Индекс секции: ${sectionIndex !== undefined ? sectionIndex : 0}
 Уровень сложности: ${complexityLevel}
+Авторская персона: ${authorPersona || 'эксперт'}
+Угол подачи: ${angle || 'информативный'}
+Цель контента: ${contentGoal || 'SEO article'}
+${styleParams}
 ${targetSectionWords ? `Целевая длина секции: ${targetSectionWords} слов (целься в этот таргет)` : ''}
 
 ВАЖНО:
@@ -194,21 +184,18 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const {
-      topic,
-      language,
-      audience,
+      sectionTitle,
+      sectionDescription,
+      targetSectionWords,
+      complexityLevel,
       authorPersona,
       angle,
       contentGoal,
-      sectionTitle,
-      sectionDescription,
-      sectionIndex,
-      targetSectionWords,
     } = body;
 
-    if (!topic || !sectionTitle) {
+    if (!sectionTitle) {
       return NextResponse.json(
-        { success: false, error: 'Тема и заголовок секции обязательны' },
+        { success: false, error: 'Заголовок секции обязателен' },
         { status: 400 }
       );
     }
@@ -228,28 +215,27 @@ export async function POST(request: Request) {
       ? targetSectionWordsNum 
       : undefined;
 
-    // Первая попытка: всегда "medium"
+    // Определяем complexityLevel из запроса или используем 'medium' по умолчанию
+    const requestedComplexity = complexityLevel === 'low' ? 'low' : 'medium';
+    
+    // Первая попытка: используем запрошенный уровень или 'medium'
     try {
       sectionHtml = await generateSection(
         openai,
         assistantId,
-        topic,
-        language || 'RU',
-        audience || 'general',
+        sectionTitle,
+        sectionDescription || '',
+        requestedComplexity,
         authorPersona || 'эксперт',
         angle || 'информативный',
         contentGoal || 'SEO article',
-        sectionTitle,
-        sectionDescription || '',
-        sectionIndex !== undefined ? sectionIndex : 0,
-        'medium',
         startTime,
         timeoutMs,
         validTargetWords
       );
 
       const duration = Date.now() - startTime;
-      console.log(`[SECTION] Генерация секции "${sectionTitle}" завершена за ${duration}ms (medium)`);
+      console.log(`[SECTION] Генерация секции "${sectionTitle}" завершена за ${duration}ms (${requestedComplexity})`);
 
       // Проверяем, что получили валидный HTML
       if (!sectionHtml || typeof sectionHtml !== 'string' || sectionHtml.trim().length === 0) {
@@ -259,7 +245,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         sectionHtml,
-        complexityLevel: 'medium',
+        complexityLevel: requestedComplexity,
       });
     } catch (error: any) {
       // Проверяем, является ли ошибка таймаутом
@@ -272,47 +258,48 @@ export async function POST(request: Request) {
         throw error;
       }
 
-      // Если это таймаут, делаем одну повторную попытку с "low" (максимум 1 ретрай)
-      console.log(`[SECTION] Таймаут при генерации секции "${sectionTitle}" в режиме medium, повторяем с low`);
-      
-      try {
-        sectionHtml = await generateSection(
-          openai,
-          assistantId,
-          topic,
-          language || 'RU',
-          audience || 'general',
-          authorPersona || 'эксперт',
-          angle || 'информативный',
-          contentGoal || 'SEO article',
-          sectionTitle,
-          sectionDescription || '',
-          sectionIndex !== undefined ? sectionIndex : 0,
-          'low',
-          startTime,
-          timeoutMs,
-          validTargetWords
-        );
-
-        const duration = Date.now() - startTime;
-        console.log(`[SECTION] Генерация секции "${sectionTitle}" завершена за ${duration}ms (low, после таймаута medium)`);
-
-        // Проверяем, что получили валидный HTML
-        if (!sectionHtml || typeof sectionHtml !== 'string' || sectionHtml.trim().length === 0) {
-          throw new Error(`Ассистент вернул пустой HTML для секции "${sectionTitle}" (low режим)`);
-        }
-
-        return NextResponse.json({
-          success: true,
-          sectionHtml,
-          complexityLevel: 'low',
-        });
-      } catch (retryError: any) {
-        // Если и "low" не успел, возвращаем понятную ошибку
-        const duration = Date.now() - startTime;
-        console.error(`[SECTION] Ошибка генерации секции "${sectionTitle}" через ${duration}ms (medium -> low):`, retryError.message);
+      // Если это таймаут и мы еще не в режиме 'low', делаем одну повторную попытку с "low" (максимум 1 ретрай)
+      if (requestedComplexity !== 'low') {
+        console.log(`[SECTION] Таймаут при генерации секции "${sectionTitle}" в режиме ${requestedComplexity}, повторяем с low`);
         
-        throw new Error(`Не удалось сгенерировать секцию "${sectionTitle}" в отведенное время. Попробуйте уменьшить сложность или перегенерировать секцию позже.`);
+        try {
+          sectionHtml = await generateSection(
+            openai,
+            assistantId,
+            sectionTitle,
+            sectionDescription || '',
+            'low',
+            authorPersona || 'эксперт',
+            angle || 'информативный',
+            contentGoal || 'SEO article',
+            startTime,
+            timeoutMs,
+            validTargetWords
+          );
+
+          const duration = Date.now() - startTime;
+          console.log(`[SECTION] Генерация секции "${sectionTitle}" завершена за ${duration}ms (low, после таймаута ${requestedComplexity})`);
+
+          // Проверяем, что получили валидный HTML
+          if (!sectionHtml || typeof sectionHtml !== 'string' || sectionHtml.trim().length === 0) {
+            throw new Error(`Ассистент вернул пустой HTML для секции "${sectionTitle}" (low режим)`);
+          }
+
+          return NextResponse.json({
+            success: true,
+            sectionHtml,
+            complexityLevel: 'low',
+          });
+        } catch (retryError: any) {
+          // Если и "low" не успел, возвращаем понятную ошибку
+          const duration = Date.now() - startTime;
+          console.error(`[SECTION] Ошибка генерации секции "${sectionTitle}" через ${duration}ms (${requestedComplexity} -> low):`, retryError.message);
+          
+          throw new Error(`Не удалось сгенерировать секцию "${sectionTitle}" в отведенное время. Попробуйте уменьшить сложность или перегенерировать секцию позже.`);
+        }
+      } else {
+        // Уже был 'low', просто пробрасываем ошибку
+        throw error;
       }
     }
   } catch (error: any) {
