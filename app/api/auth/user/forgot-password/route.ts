@@ -66,7 +66,19 @@ export async function POST(request: Request) {
         stack: emailError?.stack,
         email: dbUser.email,
         resetUrl: resetUrl.substring(0, 50) + '...',
+        errorName: emailError?.name,
+        errorCode: emailError?.code,
+        statusCode: emailError?.statusCode,
+        command: emailError?.command,
       });
+      
+      // Логируем текущие настройки для диагностики
+      console.error('📋 Текущие настройки email:');
+      console.error(`  - RESEND_API_KEY: ${process.env.RESEND_API_KEY ? '✅ установлен' : '❌ не установлен'}`);
+      console.error(`  - SUPABASE_SMTP_HOST: ${process.env.SUPABASE_SMTP_HOST || 'не установлен'}`);
+      console.error(`  - SMTP_HOST: ${process.env.SMTP_HOST || 'не установлен'}`);
+      console.error(`  - NEXT_PUBLIC_APP_URL: ${process.env.NEXT_PUBLIC_APP_URL || 'не установлен'}`);
+      console.error(`  - NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
       
       // В режиме разработки можем продолжить без email
       if (process.env.NODE_ENV === 'production') {
@@ -74,12 +86,17 @@ export async function POST(request: Request) {
           {
             success: false,
             error: 'Ошибка отправки email. Попробуйте позже.',
+            details: process.env.NODE_ENV === 'development' ? {
+              message: emailError?.message,
+              method: emailError?.name || 'unknown',
+            } : undefined,
           },
           { status: 500 }
         );
       } else {
         // В режиме разработки выводим предупреждение, но продолжаем
         console.warn('⚠️ Email не отправлен (режим разработки). Проверьте настройки email.');
+        console.warn('💡 Для диагностики используйте: GET /api/admin/email-diagnostics');
       }
     }
 
@@ -189,8 +206,8 @@ async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<
       const { Resend } = require('resend');
       const resend = new Resend(resendApiKey);
       
-      const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-      console.log(`📨 Отправка с адреса: ${fromEmail}`);
+      let fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+      console.log(`📨 Попытка отправки с адреса: ${fromEmail}`);
       
       const result = await resend.emails.send({
         from: fromEmail,
@@ -215,7 +232,11 @@ async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<
         `,
       });
       
-      console.log('✅ Email успешно отправлен через Resend:', result);
+      console.log('✅ Email успешно отправлен через Resend:', {
+        id: result?.id || result?.data?.id,
+        to: email,
+        from: fromEmail,
+      });
       return;
     } catch (error: any) {
       console.error('❌ Ошибка отправки через Resend:', error);
@@ -223,7 +244,55 @@ async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<
         message: error?.message,
         name: error?.name,
         statusCode: error?.statusCode,
+        response: error?.response ? JSON.stringify(error.response, null, 2) : undefined,
       });
+      
+      // Если ошибка связана с доменом, пробуем использовать onboarding@resend.dev
+      const fromEmail = process.env.RESEND_FROM_EMAIL;
+      if (fromEmail && fromEmail !== 'onboarding@resend.dev' && 
+          (error?.message?.includes('domain') || 
+           error?.message?.includes('verification') ||
+           error?.statusCode === 422 ||
+           error?.statusCode === 403)) {
+        console.log('⚠️ Похоже, проблема с доменом. Пробуем использовать onboarding@resend.dev');
+        try {
+          const { Resend } = require('resend');
+          const resend = new Resend(resendApiKey);
+          
+          const result = await resend.emails.send({
+            from: 'onboarding@resend.dev',
+            to: email,
+            subject: 'Восстановление пароля',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #333;">Восстановление пароля</h2>
+                <p>Вы запросили восстановление пароля для вашего аккаунта.</p>
+                <p>Для сброса пароля перейдите по ссылке ниже:</p>
+                <p style="margin: 20px 0;">
+                  <a href="${resetUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                    Восстановить пароль
+                  </a>
+                </p>
+                <p>Или скопируйте эту ссылку в браузер:</p>
+                <p style="word-break: break-all; color: #666;">${resetUrl}</p>
+                <p style="color: #999; font-size: 12px; margin-top: 30px;">
+                  Ссылка действительна в течение 1 часа. Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.
+                </p>
+              </div>
+            `,
+          });
+          
+          console.log('✅ Email успешно отправлен через Resend (с onboarding@resend.dev):', {
+            id: result?.id || result?.data?.id,
+            to: email,
+          });
+          console.warn('⚠️ ВНИМАНИЕ: Использован onboarding@resend.dev вместо вашего домена. Верифицируйте домен в Resend Dashboard.');
+          return;
+        } catch (fallbackError: any) {
+          console.error('❌ Ошибка отправки через Resend (fallback):', fallbackError);
+          // Продолжаем к следующему методу
+        }
+      }
       // Продолжаем к следующему методу
     }
   }
