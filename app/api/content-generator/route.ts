@@ -78,12 +78,12 @@ ${params.additionalConstraints ? `Ограничения: ${params.additionalCon
   ]
 }`;
 
-  // Таймаут 8 секунд (оставляем запас для шага 2)
+  // Таймаут 25 секунд для Pro плана (оставляем запас для шага 2)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     console.log(`[OUTLINE] ТАЙМАУТ: Превышено время ожидания структуры`);
     controller.abort();
-  }, 8000);
+  }, 25000);
 
   try {
     console.log(`[OUTLINE] Отправка запроса к OpenAI, max_tokens: 10000`);
@@ -100,7 +100,7 @@ ${params.additionalConstraints ? `Ограничения: ${params.additionalCon
           { role: 'user', content: outlinePrompt },
         ],
         temperature: 0.7,
-        max_tokens: 2000, // Уменьшено для быстрой генерации структуры
+        max_tokens: 10000, // Для Pro плана можно больше
         response_format: { type: 'json_object' },
       },
       {
@@ -183,9 +183,9 @@ ${sectionsText}
   "faqQuestions": ["Вопрос 1", "Вопрос 2", "Вопрос 3", "Вопрос 4"]
 }`;
 
-  // Таймаут адаптивный: оставляем запас для Vercel (лимит 10 секунд на Hobby)
+  // Таймаут адаптивный: оставляем запас для Vercel Pro (лимит 60 секунд)
   const elapsedTime = Date.now() - totalStartTime;
-  const remainingTime = Math.max(1000, 9500 - elapsedTime); // Минимум 1 секунда, максимум что осталось
+  const remainingTime = Math.max(5000, 55000 - elapsedTime); // Минимум 5 секунд, максимум что осталось до 55 секунд
   
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
@@ -196,12 +196,13 @@ ${sectionsText}
   try {
     // Вычисляем доступное время: если уже потратили много времени на структуру, уменьшаем max_tokens
     const elapsedTime = Date.now() - totalStartTime;
-    const remainingTimeForCalculation = 9500 - elapsedTime; // Оставляем запас 500ms
+    const remainingTimeForCalculation = 55000 - elapsedTime; // Оставляем запас 5 секунд до лимита 60 секунд
     
     // Адаптивно уменьшаем max_tokens в зависимости от оставшегося времени
-    // Примерно 100 токенов в секунду для gpt-4o-mini
-    const estimatedMaxTokens = Math.floor((remainingTimeForCalculation / 1000) * 100);
-    const maxTokens = Math.min(30000, Math.max(2000, estimatedMaxTokens));
+    // Примерно 100-150 токенов в секунду для gpt-4o-mini
+    const tokensPerSecond = 120; // Средняя скорость генерации
+    const estimatedMaxTokens = Math.floor((remainingTimeForCalculation / 1000) * tokensPerSecond);
+    const maxTokens = Math.min(30000, Math.max(5000, estimatedMaxTokens)); // Минимум 5000 токенов для Pro
     
     console.log(`[ARTICLE] Отправка запроса к OpenAI, max_tokens: ${maxTokens} (осталось времени: ~${remainingTimeForCalculation}ms, прошло: ${elapsedTime}ms)`);
     const requestStartTime = Date.now();
