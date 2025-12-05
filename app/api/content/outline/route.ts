@@ -50,6 +50,7 @@ export async function POST(request: Request) {
       angle,
       contentGoal, 
       desiredLength,
+      complexity,
       constraints
     } = body;
 
@@ -60,6 +61,16 @@ export async function POST(request: Request) {
     const openai = await getOpenAIClient();
     const assistantId = await getOutlineAssistantId(openai);
 
+    // Определяем параметры структуры на основе complexity
+    let structureParams = '';
+    if (complexity === 'low') {
+      structureParams = 'Стиль структуры: Low (быстрые короткие статьи). Создай простую структуру с минимальным количеством секций (5-7), поверхностной глубиной, без сложных противоречий и минимальными инсайтами.';
+    } else if (complexity === 'high') {
+      structureParams = 'Стиль структуры: High (экспертные лонгриды уровня редакторов). Создай глубокую структуру с большим количеством секций (8-12), глубокой проработкой тем, включая противоречивые точки зрения и плотные инсайты.';
+    } else {
+      structureParams = 'Стиль структуры: Medium (качественный блоговый контент). Создай сбалансированную структуру с умеренным количеством секций (6-10), средней глубиной проработки, некоторыми противоречиями и полезными инсайтами.';
+    }
+
     const prompt = `Создай структуру статьи:
 
 Тема: ${topic}
@@ -69,6 +80,7 @@ export async function POST(request: Request) {
 Угол подачи: ${angle || 'информативный'}
 Цель контента: ${contentGoal || 'SEO article'}
 Желаемый размер: ${desiredLength || '2000'} слов
+${structureParams}
 ${constraints ? `Дополнительные ограничения: ${constraints}` : ''}
 
 Верни ТОЛЬКО JSON без дополнительного текста:

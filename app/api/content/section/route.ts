@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       authorPersona,
       angle,
       contentGoal,
+      complexity,
       sectionTitle,
       sectionDescription,
       sectionIndex,
@@ -64,6 +65,20 @@ export async function POST(request: Request) {
     const openai = await getOpenAIClient();
     const assistantId = await getSectionAssistantId(openai);
 
+    // Определяем параметры стиля на основе complexity
+    let styleParams = '';
+    let wordLimit = '800-1500';
+    if (complexity === 'low') {
+      styleParams = 'Стиль: Low (быстрая короткая статья). Пиши кратко, поверхностно, без глубокого анализа. Минимум деталей и примеров.';
+      wordLimit = '400-800';
+    } else if (complexity === 'high') {
+      styleParams = 'Стиль: High (экспертный лонгрид уровня редакторов). Пиши глубоко, с детальным анализом, включай противоречивые точки зрения, много примеров, кейсов и инсайтов.';
+      wordLimit = '1200-2000';
+    } else {
+      styleParams = 'Стиль: Medium (качественный блоговый контент). Пиши сбалансированно, с умеренной глубиной, включай примеры и полезные инсайты.';
+      wordLimit = '800-1500';
+    }
+
     const prompt = `Напиши секцию для большой статьи.
 
 КОНТЕКСТ СТАТЬИ:
@@ -73,6 +88,7 @@ export async function POST(request: Request) {
 Авторская персона: ${authorPersona || 'эксперт'}
 Угол подачи: ${angle || 'информативный'}
 Цель контента: ${contentGoal || 'SEO article'}
+${styleParams}
 
 СЕКЦИЯ, КОТОРУЮ НУЖНО НАПИСАТЬ:
 Заголовок секции: ${sectionTitle}
@@ -82,7 +98,7 @@ export async function POST(request: Request) {
 ВАЖНО:
 - Это часть большой статьи, не повторяй общую информацию
 - Сфокусируйся на теме этой секции
-- ЛИМИТ: 800-1500 слов для этой секции
+- ЛИМИТ: ${wordLimit} слов для этой секции
 - Используй естественный стиль без AI-штампов
 - Структурируй текст с подзаголовками H3 где нужно
 - Начни с H2 заголовка секции

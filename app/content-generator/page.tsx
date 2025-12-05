@@ -25,6 +25,7 @@ export default function ContentGeneratorPage() {
   const [angle, setAngle] = useState('informative');
   const [contentGoal, setContentGoal] = useState('SEO article');
   const [desiredLength, setDesiredLength] = useState('2000');
+  const [complexity, setComplexity] = useState('medium');
   const [constraints, setConstraints] = useState('');
 
   const [generating, setGenerating] = useState(false);
@@ -104,6 +105,7 @@ export default function ContentGeneratorPage() {
             angle,
             contentGoal,
             desiredLength,
+            complexity,
             constraints: constraints || undefined,
           }),
           signal: outlineController.signal,
@@ -182,6 +184,7 @@ export default function ContentGeneratorPage() {
                   authorPersona,
                   angle,
                   contentGoal,
+                  complexity,
                   sectionTitle: section.title,
                   sectionDescription: section.description,
                   sectionIndex: i,
@@ -528,6 +531,24 @@ export default function ContentGeneratorPage() {
                 <option>Guide</option>
                 <option>FAQ page</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Complexity (Стиль структуры)
+              </label>
+              <select
+                value={complexity}
+                onChange={(e) => setComplexity(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="low">Low - быстрые короткие статьи</option>
+                <option value="medium">Medium - качественный блоговый контент</option>
+                <option value="high">High - экспертные лонгриды уровня редакторов</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Алгоритм автоматически регулирует глубину, количество секций, насыщенность структуры, уровень противоречий и плотность инсайтов.
+              </p>
             </div>
 
             <div>
