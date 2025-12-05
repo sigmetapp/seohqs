@@ -56,8 +56,10 @@ export async function POST(request: Request) {
     const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
     console.log(`🔗 Сформированный URL для сброса пароля: ${resetUrl}`);
     
+    let emailSent = false;
     try {
       await sendPasswordResetEmail(dbUser.email, resetUrl);
+      emailSent = true;
       console.log(`✅ Email для сброса пароля успешно отправлен на ${dbUser.email}`);
     } catch (emailError: any) {
       // Детальное логирование ошибки для Vercel
@@ -90,7 +92,7 @@ export async function POST(request: Request) {
       console.error('❌ КРИТИЧЕСКАЯ ОШИБКА ОТПРАВКИ EMAIL:');
       console.error(JSON.stringify(errorLog, null, 2));
       
-      // В production всегда возвращаем ошибку
+      // В production всегда возвращаем ошибку, если email не был отправлен
       if (process.env.NODE_ENV === 'production') {
         // Логируем в Vercel для мониторинга
         console.error('🔴 PRODUCTION ERROR: Email не был отправлен. Проверьте логи выше для деталей.');
@@ -108,7 +110,21 @@ export async function POST(request: Request) {
         console.warn('⚠️ Email не отправлен (режим разработки). Проверьте настройки email.');
         console.warn('💡 Для диагностики используйте: GET /api/admin/email-diagnostics');
         console.warn('💡 Для теста отправки используйте: POST /api/admin/email-diagnostics с { "email": "ваш@email.com" }');
+        // В development режиме не выбрасываем ошибку, чтобы можно было протестировать UI
       }
+    }
+
+    // Возвращаем успех только если email был отправлен или мы в development режиме
+    if (!emailSent && process.env.NODE_ENV === 'production') {
+      // Это не должно произойти, так как мы уже вернули ошибку выше, но на всякий случай
+      console.error('🔴 КРИТИЧЕСКАЯ ОШИБКА: emailSent=false в production режиме');
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Ошибка отправки email. Пожалуйста, попробуйте позже или свяжитесь с поддержкой.',
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
@@ -208,6 +224,9 @@ async function saveResetToken(userId: number, token: string, expiry: Date): Prom
 async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<void> {
   console.log(`📧 Попытка отправить email на ${email}`);
   console.log(`🔗 Reset URL: ${resetUrl.substring(0, 80)}...`);
+  console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔑 RESEND_API_KEY: ${process.env.RESEND_API_KEY ? '✅ установлен (первые 10 символов: ' + process.env.RESEND_API_KEY.substring(0, 10) + '...)' : '❌ не установлен'}`);
+  console.log(`📮 RESEND_FROM_EMAIL: ${process.env.RESEND_FROM_EMAIL || 'не установлен (будет использован onboarding@resend.dev)'}`);
   
   // Приоритет 1: Resend API (рекомендуется для Supabase)
   const resendApiKey = process.env.RESEND_API_KEY;
@@ -245,11 +264,32 @@ async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<
         `,
       });
       
+      // Проверяем результат более тщательно
+      const emailId = result?.id || result?.data?.id;
+      const hasError = result?.error || !emailId;
+      
+      if (hasError) {
+        const errorMessage = result?.error?.message || 'Неизвестная ошибка Resend API';
+        const errorCode = result?.error?.name || result?.error?.code;
+        console.error('❌ Resend API вернул ошибку в ответе:', {
+          error: result?.error,
+          message: errorMessage,
+          code: errorCode,
+          fullResult: JSON.stringify(result, null, 2),
+        });
+        throw new Error(`Resend API error: ${errorMessage} (${errorCode || 'N/A'})`);
+      }
+      
       console.log('✅ Email успешно отправлен через Resend:', {
-        id: result?.id || result?.data?.id,
+        id: emailId,
         to: email,
         from: fromEmail,
+        timestamp: new Date().toISOString(),
       });
+      
+      // Дополнительное логирование для отладки
+      console.log('📊 Полный ответ Resend API:', JSON.stringify(result, null, 2));
+      
       return;
     } catch (error: any) {
       // Детальное логирование ошибки для Vercel
@@ -285,7 +325,7 @@ async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<
           const { Resend } = require('resend');
           const resend = new Resend(resendApiKey);
           
-          const result = await resend.emails.send({
+          const fallbackResult = await resend.emails.send({
             from: 'onboarding@resend.dev',
             to: email,
             subject: 'Восстановление пароля',
@@ -308,11 +348,27 @@ async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<
             `,
           });
           
+          // Проверяем результат fallback отправки
+          const fallbackEmailId = fallbackResult?.id || fallbackResult?.data?.id;
+          const fallbackHasError = fallbackResult?.error || !fallbackEmailId;
+          
+          if (fallbackHasError) {
+            const fallbackErrorMessage = fallbackResult?.error?.message || 'Неизвестная ошибка Resend API';
+            console.error('❌ Resend API fallback вернул ошибку:', {
+              error: fallbackResult?.error,
+              message: fallbackErrorMessage,
+              fullResult: JSON.stringify(fallbackResult, null, 2),
+            });
+            throw new Error(`Resend API fallback error: ${fallbackErrorMessage}`);
+          }
+          
           console.log('✅ Email успешно отправлен через Resend (fallback с onboarding@resend.dev):', {
-            id: result?.id || result?.data?.id,
+            id: fallbackEmailId,
             to: email,
+            timestamp: new Date().toISOString(),
           });
           console.warn('⚠️ ВНИМАНИЕ: Использован onboarding@resend.dev вместо вашего домена. Верифицируйте домен в Resend Dashboard.');
+          console.log('📊 Полный ответ Resend API (fallback):', JSON.stringify(fallbackResult, null, 2));
           return;
         } catch (fallbackError: any) {
           console.error('❌ Ошибка отправки через Resend (fallback тоже не сработал):');
@@ -323,18 +379,22 @@ async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<
             response: fallbackError?.response ? JSON.stringify(fallbackError.response, null, 2) : undefined,
           }, null, 2));
           
-          // В production выбрасываем ошибку, если Resend не работает
-          if (process.env.NODE_ENV === 'production') {
-            throw new Error(`Не удалось отправить email через Resend API. Ошибка: ${error?.message || 'Unknown error'}. Fallback также не сработал: ${fallbackError?.message || 'Unknown error'}`);
-          }
+          // Всегда выбрасываем ошибку, если fallback не сработал
+          // В production всегда выбрасываем ошибку
+          // В development тоже выбрасываем, чтобы не возвращать успех без отправки email
+          const errorMessage = `Не удалось отправить email через Resend API. Ошибка: ${error?.message || 'Unknown error'}. Fallback также не сработал: ${fallbackError?.message || 'Unknown error'}`;
+          console.error(`❌ ${errorMessage}`);
+          throw new Error(errorMessage);
         }
       } else {
-        // Если это не ошибка домена или fallback не применим, выбрасываем ошибку в production
-        if (process.env.NODE_ENV === 'production') {
-          throw new Error(`Не удалось отправить email через Resend API. Ошибка: ${error?.message || 'Unknown error'}. Status: ${error?.statusCode || 'N/A'}`);
-        }
+        // Если это не ошибка домена или fallback не применим, выбрасываем ошибку
+        // В production всегда выбрасываем ошибку
+        // В development тоже выбрасываем, чтобы не возвращать успех без отправки email
+        const errorMessage = `Не удалось отправить email через Resend API. Ошибка: ${error?.message || 'Unknown error'}. Status: ${error?.statusCode || 'N/A'}`;
+        console.error(`❌ ${errorMessage}`);
+        throw new Error(errorMessage);
       }
-      // В development режиме продолжаем к следующему методу
+      // Этот код не должен выполняться, так как мы либо return, либо throw выше
     }
   }
 
@@ -402,7 +462,12 @@ ${resetUrl}
         code: error?.code,
         command: error?.command,
       });
-      // Продолжаем к следующему методу
+      // Если Supabase SMTP настроен, но не работает, выбрасываем ошибку
+      // В production всегда выбрасываем ошибку
+      // В development тоже выбрасываем, чтобы не возвращать успех без отправки email
+      const errorMessage = `Не удалось отправить email через Supabase SMTP. Ошибка: ${error?.message || 'Unknown error'}`;
+      console.error(`❌ ${errorMessage}`);
+      throw new Error(errorMessage);
     }
   }
 
@@ -470,6 +535,12 @@ ${resetUrl}
         code: error?.code,
         command: error?.command,
       });
+      // Если SMTP настроен, но не работает, выбрасываем ошибку
+      // В production всегда выбрасываем ошибку
+      // В development тоже выбрасываем, чтобы не возвращать успех без отправки email
+      const errorMessage = `Не удалось отправить email через SMTP. Ошибка: ${error?.message || 'Unknown error'}`;
+      console.error(`❌ ${errorMessage}`);
+      throw new Error(errorMessage);
     }
   }
 
