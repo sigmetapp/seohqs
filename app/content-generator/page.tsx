@@ -37,6 +37,7 @@ export default function ContentGeneratorPage() {
   const [currentSection, setCurrentSection] = useState<number>(0);
   const [totalSections, setTotalSections] = useState<number>(0);
   const [failedSections, setFailedSections] = useState<Array<{ index: number; title: string; error: string }>>([]);
+  const [lowComplexitySections, setLowComplexitySections] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     checkAuth();
@@ -80,6 +81,7 @@ export default function ContentGeneratorPage() {
     setFinalResult(null);
     setOutlineSections([]);
     setFailedSections([]);
+    setLowComplexitySections(new Set());
     setStep('outline');
     setProgress('Generating outline…');
 
@@ -144,134 +146,110 @@ export default function ContentGeneratorPage() {
       const sectionsHtml: string[] = [];
       const totalSections = sections.length;
       const failed: Array<{ index: number; title: string; error: string }> = [];
+      const lowComplexity: Set<number> = new Set();
       setTotalSections(totalSections);
       setStep('sections');
       setFailedSections([]);
+      setLowComplexitySections(new Set());
 
       for (let i = 0; i < totalSections; i++) {
         const section = sections[i];
         setCurrentSection(i + 1);
-        
-        let sectionHtml = null;
-        let lastError = '';
-        const maxRetries = 2; // Максимум 2 попытки (всего 3 попытки)
+        setProgress(`Генерация секции ${i + 1} из ${totalSections}: ${section.title}...`);
 
-        // Пытаемся сгенерировать секцию с retry
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const sectionController = new AbortController();
+          // Таймаут 60 секунд на клиенте (запас для серверных 55 секунд)
+          const sectionTimeout = setTimeout(() => sectionController.abort(), 60000);
+          
+          let sectionRes;
           try {
-            if (attempt > 0) {
-              setProgress(`Повторная попытка (${attempt + 1}/${maxRetries + 1}) генерации секции ${i + 1} из ${totalSections}: ${section.title}...`);
-              // Небольшая задержка перед повтором
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            } else {
-              setProgress(`Генерация секции ${i + 1} из ${totalSections}: ${section.title}...`);
+            sectionRes = await fetch('/api/content/section', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                topic,
+                language,
+                audience,
+                authorPersona,
+                angle,
+                contentGoal,
+                sectionTitle: section.title,
+                sectionDescription: section.description,
+                sectionIndex: i,
+              }),
+              signal: sectionController.signal,
+            });
+            clearTimeout(sectionTimeout);
+          } catch (fetchError: any) {
+            clearTimeout(sectionTimeout);
+            if (fetchError.name === 'AbortError') {
+              throw new Error(`Превышено время ожидания генерации секции ${i + 1}: "${section.title}"`);
             }
-
-            const sectionController = new AbortController();
-            const sectionTimeout = setTimeout(() => sectionController.abort(), 35000); // 35 секунд на клиенте (запас)
-            
-            let sectionRes;
-            try {
-              sectionRes = await fetch('/api/content/section', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  topic,
-                  language,
-                  audience,
-                  authorPersona,
-                  angle,
-                  contentGoal,
-                  complexity,
-                  sectionTitle: section.title,
-                  sectionDescription: section.description,
-                  sectionIndex: i,
-                }),
-                signal: sectionController.signal,
-              });
-              clearTimeout(sectionTimeout);
-            } catch (fetchError: any) {
-              clearTimeout(sectionTimeout);
-              if (fetchError.name === 'AbortError') {
-                lastError = `Превышено время ожидания генерации секции ${i + 1}: "${section.title}"`;
-                if (attempt < maxRetries) {
-                  continue; // Пробуем еще раз
-                }
-                throw new Error(lastError);
-              }
-              throw fetchError;
-            }
-
-            const sectionText = await sectionRes.text();
-            
-            // Проверяем, что ответ не пустой и не слишком большой перед парсингом
-            if (!sectionText || sectionText.length > 50000) {
-              lastError = `Сервер вернул неожиданный ответ при генерации секции ${i + 1}`;
-              if (attempt < maxRetries) {
-                continue; // Пробуем еще раз
-              }
-              throw new Error(lastError);
-            }
-            
-            let sectionData;
-            try {
-              sectionData = JSON.parse(sectionText);
-            } catch (jsonError) {
-              // Не пытаемся парсить большой JSON после ошибки
-              const preview = sectionText.length > 200 ? sectionText.substring(0, 200) + '...' : sectionText;
-              lastError = `Ошибка: сервер вернул не-JSON ответ при генерации секции ${i + 1}. Ответ: ${preview}`;
-              if (attempt < maxRetries) {
-                continue; // Пробуем еще раз
-              }
-              throw new Error(lastError);
-            }
-
-            if (!sectionRes.ok || !sectionData.success) {
-              lastError = sectionData.error || `Ошибка генерации секции ${i + 1}: ${section.title}`;
-              if (attempt < maxRetries) {
-                continue; // Пробуем еще раз
-              }
-              throw new Error(lastError);
-            }
-
-            // Успешно получили секцию
-            sectionHtml = sectionData.sectionHtml;
-            break; // Выходим из цикла retry
-          } catch (error: any) {
-            lastError = error.message || `Ошибка генерации секции ${i + 1}: ${section.title}`;
-            
-            // Если это последняя попытка, записываем ошибку и продолжаем
-            if (attempt >= maxRetries) {
-              console.error(`Не удалось сгенерировать секцию ${i + 1} после ${maxRetries + 1} попыток:`, lastError);
-              failed.push({
-                index: i + 1,
-                title: section.title,
-                error: lastError,
-              });
-              // Добавляем placeholder вместо секции
-              sectionHtml = `<h2>${section.title}</h2><p><em>Не удалось сгенерировать содержимое этой секции после нескольких попыток. ${lastError}</em></p>`;
-              break;
-            }
-            // Иначе продолжаем попытки
+            throw fetchError;
           }
-        }
 
-        // Добавляем секцию (либо успешно сгенерированную, либо placeholder)
-        if (sectionHtml) {
+          const sectionText = await sectionRes.text();
+          
+          // Проверяем, что ответ не пустой и не слишком большой перед парсингом
+          if (!sectionText || sectionText.length > 50000) {
+            throw new Error(`Сервер вернул неожиданный ответ при генерации секции ${i + 1}`);
+          }
+          
+          let sectionData;
+          try {
+            sectionData = JSON.parse(sectionText);
+          } catch (jsonError) {
+            const preview = sectionText.length > 200 ? sectionText.substring(0, 200) + '...' : sectionText;
+            throw new Error(`Ошибка: сервер вернул не-JSON ответ при генерации секции ${i + 1}. Ответ: ${preview}`);
+          }
+
+          if (!sectionRes.ok || !sectionData.success) {
+            throw new Error(sectionData.error || `Ошибка генерации секции ${i + 1}: ${section.title}`);
+          }
+
+          // Успешно получили секцию
+          const sectionHtml = sectionData.sectionHtml;
+          
+          // Отслеживаем секции, сгенерированные в режиме "low"
+          if (sectionData.complexityLevel === 'low') {
+            lowComplexity.add(i);
+          }
+          
           sectionsHtml.push(sectionHtml);
-        } else {
-          // Если даже placeholder не получился, добавляем минимальный
-          sectionsHtml.push(`<h2>${section.title}</h2><p><em>Не удалось сгенерировать содержимое этой секции.</em></p>`);
+        } catch (error: any) {
+          const lastError = error.message || `Ошибка генерации секции ${i + 1}: ${section.title}`;
+          console.error(`Не удалось сгенерировать секцию ${i + 1}:`, lastError);
+          failed.push({
+            index: i + 1,
+            title: section.title,
+            error: lastError,
+          });
+          // Добавляем placeholder вместо секции
+          sectionsHtml.push(`<h2>${section.title}</h2><p><em>Не удалось сгенерировать содержимое этой секции. ${lastError}</em></p>`);
         }
       }
+
+      // Сохраняем информацию о секциях с low complexity
+      setLowComplexitySections(lowComplexity);
 
       // Обновляем список неудачных секций
       setFailedSections(failed);
 
-      // ШАГ 3: Assembling - склеиваем секции на фронте
-      const assembledHtml = sectionsHtml.join('\n');
+      // ШАГ 3: Assembling - склеиваем секции на фронте с отметками для low complexity
+      const assembledHtmlParts: string[] = [];
+      for (let i = 0; i < sectionsHtml.length; i++) {
+        let sectionHtml = sectionsHtml[i];
+        // Добавляем визуальную отметку для секций в режиме "low"
+        if (lowComplexity.has(i)) {
+          const lowBadge = '<div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 8px 12px; margin-bottom: 16px; border-radius: 4px; font-size: 14px; color: #92400e;"><strong>⚠️ Упрощённый режим:</strong> Эта секция была сгенерирована в упрощённом режиме из-за таймаута. Вы можете доработать её вручную или перегенерировать позже.</div>';
+          sectionHtml = lowBadge + sectionHtml;
+        }
+        assembledHtmlParts.push(sectionHtml);
+      }
+      const assembledHtml = assembledHtmlParts.join('\n');
 
       // ШАГ 4: SEO Packaging
       setStep('seo');
@@ -338,8 +316,11 @@ export default function ContentGeneratorPage() {
       setStep('done');
       
       let summaryMessage = `Статья состоит из ${totalSections} секций.`;
+      if (lowComplexity.size > 0) {
+        summaryMessage += ` ${lowComplexity.size} секций сгенерировано в упрощённом режиме (из-за таймаута).`;
+      }
       if (failed.length > 0) {
-        summaryMessage += ` ${failed.length} секций не удалось сгенерировать после нескольких попыток.`;
+        summaryMessage += ` ${failed.length} секций не удалось сгенерировать.`;
       }
       
       setProgress(failed.length > 0 ? `Статья готова! (${failed.length} секций пропущено)` : 'Статья готова!');
@@ -369,6 +350,7 @@ export default function ContentGeneratorPage() {
       setCurrentSection(0);
       setTotalSections(0);
       setFailedSections([]);
+      setLowComplexitySections(new Set());
     } finally {
       setGenerating(false);
       // Не очищаем прогресс если была ошибка, чтобы пользователь видел что произошло
