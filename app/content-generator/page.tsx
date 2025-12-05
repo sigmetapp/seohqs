@@ -142,14 +142,14 @@ export default function ContentGeneratorPage() {
     let progressInterval: NodeJS.Timeout | null = null;
     
     try {
-      // Запускаем первый шаг
+      // Запускаем первый этап визуально
       setSteps(prev => {
         const newSteps = [...prev];
         newSteps[0] = { ...newSteps[0], status: 'in_progress' };
         return newSteps;
       });
 
-      // Запускаем запрос асинхронно
+      // Делаем ОДИН запрос к ассистенту - весь пайплайн выполняется внутри одного запроса
       const fetchPromise = fetch('/api/content-generator', {
         method: 'POST',
         headers: {
@@ -166,26 +166,38 @@ export default function ContentGeneratorPage() {
         }),
       });
 
-      // Симулируем прогресс по шагам во время ожидания ответа
+      // Визуально симулируем прогресс по этапам во время ожидания ответа
+      // Это только визуальное состояние - реально все этапы выполняются в одном запросе
       let currentStep = 0;
+      const stepDuration = 10000; // 10 секунд на этап для визуализации
+      
       progressInterval = setInterval(() => {
-        if (currentStep < steps.length - 1) {
-          setSteps(prev => {
-            const newSteps = [...prev];
-            if (currentStep >= 0) {
-              newSteps[currentStep] = { ...newSteps[currentStep], status: 'done' };
+        setSteps(prev => {
+          const newSteps = [...prev];
+          // Помечаем текущий этап как завершенный
+          if (currentStep >= 0 && currentStep < newSteps.length) {
+            newSteps[currentStep] = { ...newSteps[currentStep], status: 'done' };
+          }
+          // Переходим к следующему этапу
+          currentStep++;
+          if (currentStep < newSteps.length) {
+            newSteps[currentStep] = { ...newSteps[currentStep], status: 'in_progress' };
+          } else {
+            // Если дошли до последнего этапа, останавливаем интервал
+            if (progressInterval) {
+              clearInterval(progressInterval);
+              progressInterval = null;
             }
-            currentStep++;
-            if (currentStep < newSteps.length) {
-              newSteps[currentStep] = { ...newSteps[currentStep], status: 'in_progress' };
-            }
-            return newSteps;
-          });
-        }
-      }, 8000); // Каждые 8 секунд переходим к следующему шагу
+          }
+          return newSteps;
+        });
+      }, stepDuration);
 
       const res = await fetchPromise;
-      if (progressInterval) clearInterval(progressInterval);
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
 
       // Получаем текст ответа для безопасного парсинга
       const responseText = await res.text();
@@ -202,17 +214,41 @@ export default function ContentGeneratorPage() {
         throw new Error(data.error || 'Ошибка генерации контента');
       }
 
-      // Обновляем все шаги как завершенные
-      setSteps(prev => prev.map(s => ({ ...s, status: 'done' })));
+      // Симулируем завершение всех этапов с небольшой задержкой для плавной анимации
+      // Все этапы уже выполнены в одном запросе к ассистенту
+      const completeStepsWithAnimation = () => {
+        let stepIndex = 0;
+        const animateStep = () => {
+          if (stepIndex < STEPS.length) {
+            setSteps(prev => {
+              const newSteps = [...prev];
+              // Помечаем текущий и все предыдущие этапы как завершенные
+              for (let i = 0; i <= stepIndex; i++) {
+                if (i < newSteps.length) {
+                  newSteps[i] = { ...newSteps[i], status: 'done' };
+                }
+              }
+              return newSteps;
+            });
+            stepIndex++;
+            setTimeout(animateStep, 200); // Небольшая задержка между этапами для анимации
+          }
+        };
+        animateStep();
+      };
+      
+      completeStepsWithAnimation();
 
       // Устанавливаем финальный результат
+      // Поддерживаем как новый формат (article_html, seo, editor_summary), так и старый
       if (data.result) {
+        const result = data.result;
         setFinalResult({
-          html: data.result.html || data.result.content,
-          metaTitle: data.result.metaTitle,
-          metaDescription: data.result.metaDescription,
-          faqQuestions: data.result.faqQuestions || [],
-          summary: data.result.summary,
+          html: result.html || result.article_html || result.content || '',
+          metaTitle: result.metaTitle || result.seo?.metaTitle || '',
+          metaDescription: result.metaDescription || result.seo?.metaDescription || '',
+          faqQuestions: result.faqQuestions || result.seo?.faqQuestions || [],
+          summary: result.summary || result.editor_summary || '',
         });
       }
     } catch (err: any) {

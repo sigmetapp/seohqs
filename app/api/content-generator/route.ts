@@ -34,27 +34,60 @@ async function getOpenAIClient(): Promise<OpenAI> {
   return new OpenAI({ apiKey });
 }
 
-const SYSTEM_PROMPT = `Ты SEO-копирайтер. Создай качественный контент через 6 этапов:
-1. DRAFT - развернутый черновик с логичной структурой
-2. SEO STRUCTURING - улучши структуру (H2/H3, блоки, подзапросы)
-3. HUMANIZATION - естественный стиль, без AI-штампов
-4. UNIQUENESS - уникальные формулировки и переходы
-5. QUALITY CHECK - убери повторы, воду, противоречия
-6. HTML PACKAGING - HTML формат (h1, h2, h3, p), Meta title (55-60 символов), Meta description (155-160 символов), FAQ (4-8 вопросов)
+const SYSTEM_PROMPT = `Ты Multi-Stage Content Generator - ассистент для создания высококачественного SEO-контента.
 
-ВАЖНО - ПРАВИЛА CHUNKING:
-- Если запрошенный размер превышает 3000 слов, создавай контент размером примерно 3000-3500 слов (максимум 40000 символов в HTML)
-- Не генерируй экстремально длинные ответы - следуй указанному размеру или ограничению в 40000 символов
+ТВОЯ ЗАДАЧА: Выполнить весь пайплайн генерации контента в ОДНОМ ответе, последовательно проходя через 6 внутренних стадий:
+
+СТАДИЯ 1 - DRAFT GENERATION:
+- Создай развернутый черновик на основе входных параметров
+- Полностью раскрой тему, дай логичную структуру
+- Пиши как опытный эксперт в данной области
+
+СТАДИЯ 2 - SEO STRUCTURING:
+- Проанализируй созданный draft
+- Улучшь структуру под SEO: добавь H2/H3 заголовки, логичные блоки, покрытие подзапросов
+- Добавь недостающие разделы, учти поисковый интент
+- НЕ превращай в "ключепих" - сохраняй естественность
+
+СТАДИЯ 3 - HUMANIZATION:
+- Перепиши текст так, чтобы он выглядел как работа живого эксперта
+- Вариативная длина предложений, естественные связки, микросюжеты
+- Убери все AI-штампы и клише
+- Учитывай дополнительные ограничения из запроса
+
+СТАДИЯ 4 - UNIQUENESS:
+- Измени формулировки, порядок объяснений, переходы
+- Добейся стилистической уникальности
+- Снизь вероятность детектирования как AI-контент
+- Сохрани смысл и SEO-пользу
+
+СТАДИЯ 5 - QUALITY CHECK:
+- Проверь текст на повторы мыслей, логические разрывы, ненужную воду, противоречия
+- Убери повторы, сократи лишнее
+- Выровняй тон и структуру
+
+СТАДИЯ 6 - HTML PACKAGING:
+- Оформи финальный текст в HTML-формате (h1, h2, h3, p, списки, таблицы)
+- Сгенерируй Meta title (55-60 символов)
+- Сгенерируй Meta description (155-160 символов)
+- Создай FAQ-вопросы (4-8 штук)
+- Подготовь краткий summary для редактора
+
+ВАЖНО:
+- Выполни ВСЕ 6 стадий последовательно внутри одного ответа
+- Не делай отдельные запросы - весь процесс в одном ответе
+- Если запрошенный размер превышает 3500 слов, ограничь до 3500 слов (максимум 40000 символов в HTML)
 - Разбивай длинный контент на логические блоки с четкой структурой
-- Каждый раздел должен быть самодостаточным и информативным
 
-Верни ТОЛЬКО валидный JSON:
+Верни ТОЛЬКО валидный JSON без дополнительных комментариев:
 {
-  "html": "HTML контент с тегами h1, h2, h3, p (максимум 40000 символов)",
-  "metaTitle": "Meta title до 60 символов",
-  "metaDescription": "Meta description до 160 символов",
-  "faqQuestions": ["Вопрос 1", "Вопрос 2", ...],
-  "summary": "Краткий summary с ключевой идеей"
+  "article_html": "HTML контент с тегами h1, h2, h3, p (максимум 40000 символов)",
+  "seo": {
+    "metaTitle": "Meta title до 60 символов",
+    "metaDescription": "Meta description до 160 символов",
+    "faqQuestions": ["Вопрос 1", "Вопрос 2", "Вопрос 3", ...]
+  },
+  "editor_summary": "Краткий summary для редактора с ключевой идеей, целевой аудиторией и основным интентом"
 }`;
 
 /**
@@ -100,16 +133,20 @@ export async function POST(request: Request) {
     const openai = await getOpenAIClient();
     const startTime = Date.now();
 
-    // Используем Chat Completions API с оптимизированными параметрами
-    const model = 'gpt-4o'; // Модель gpt-4o
+    // Используем Chat Completions API - один запрос для всего пайплайна
+    const model = 'gpt-4o';
     const desiredLengthNum = parseInt(desiredLength) || 2000;
     
     // Ограничиваем размер контента: максимум 40000 символов (примерно 3000-3500 слов)
-    // Вычисляем max_tokens на основе желаемой длины, но с ограничением
     const maxWords = Math.min(desiredLengthNum, 3500);
-    const maxTokens = Math.min(8000, Math.max(2000, Math.floor(maxWords * 1.5)));
+    
+    // Вычисляем max_tokens: для поддержки 10-30k символов нужно примерно 2500-7500 токенов
+    // Учитываем что HTML содержит теги, поэтому умножаем на коэффициент
+    // Для 3500 слов (примерно 42000 символов с HTML тегами) нужно около 10000-12000 токенов
+    const maxTokens = Math.min(12000, Math.max(4000, Math.floor(maxWords * 2.5)));
 
     // Формируем промпт для генерации контента
+    // Ассистент выполнит все 6 стадий внутри одного запроса
     const userPrompt = `Создай контент по следующему запросу:
 
 Основной запрос/тема: ${mainQuery}
@@ -120,11 +157,11 @@ export async function POST(request: Request) {
 Тон: ${toneOfVoice}
 ${additionalConstraints ? `Дополнительные ограничения: ${additionalConstraints}` : ''}
 
-Выполни все 6 этапов обработки и верни результат в формате JSON. Следуй правилам chunking - не превышай 40000 символов в HTML.`;
+Выполни весь Multi-Stage пайплайн (Draft → SEO Structuring → Humanization → Uniqueness → Quality Check → HTML Packaging) внутри одного ответа и верни результат в формате JSON.`;
     
-    // Создаем AbortController для контроля таймаута (50 сек для безопасности)
+    // Создаем AbortController для контроля таймаута (55 сек для безопасности, меньше лимита Vercel 60 сек)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 50000);
+    const timeoutId = setTimeout(() => controller.abort(), 55000);
     
     try {
       const completion = await openai.chat.completions.create(
@@ -137,8 +174,8 @@ ${additionalConstraints ? `Дополнительные ограничения: 
           temperature: 0.7,
           max_tokens: maxTokens,
           response_format: { type: 'json_object' }, // Принудительно JSON формат
-          // Оптимизация для скорости
-          stream: false, // Явно отключаем streaming для простоты
+          // Не используем дополнительные инструменты - весь пайплайн в одном запросе
+          stream: false,
         },
         {
           signal: controller.signal,
@@ -157,28 +194,52 @@ ${additionalConstraints ? `Дополнительные ограничения: 
       try {
         result = JSON.parse(assistantMessage.trim());
         
-        // Проверяем наличие обязательных полей
-        if (!result.html && !result.content) {
-          // Если нет html или content, используем весь ответ как HTML
+        // Нормализуем формат ответа: поддерживаем как новый формат (article_html, seo, editor_summary),
+        // так и старый формат (html, metaTitle, metaDescription, faqQuestions, summary) для обратной совместимости
+        if (result.article_html) {
+          // Новый формат
+          const html = result.article_html;
+          if (html.length > 40000) {
+            console.warn(`HTML контент превышает лимит: ${html.length} символов, обрезаем до 40000`);
+            result.article_html = html.substring(0, 40000) + '...';
+          }
+          
+          // Преобразуем в формат для фронтенда
           result = {
-            html: assistantMessage.trim(),
+            html: result.article_html,
+            metaTitle: result.seo?.metaTitle || '',
+            metaDescription: result.seo?.metaDescription || '',
+            faqQuestions: result.seo?.faqQuestions || [],
+            summary: result.editor_summary || '',
+          };
+        } else if (result.html || result.content) {
+          // Старый формат - нормализуем
+          const html = result.html || result.content;
+          if (html.length > 40000) {
+            console.warn(`HTML контент превышает лимит: ${html.length} символов, обрезаем до 40000`);
+            result.html = html.substring(0, 40000) + '...';
+          }
+          
+          result = {
+            html: result.html || result.content,
             metaTitle: result.metaTitle || '',
             metaDescription: result.metaDescription || '',
             faqQuestions: result.faqQuestions || [],
             summary: result.summary || '',
           };
-        }
-        
-        // Если есть content вместо html, переименовываем
-        if (result.content && !result.html) {
-          result.html = result.content;
-          delete result.content;
-        }
-        
-        // Проверка размера HTML - не должен превышать 40000 символов
-        if (result.html && result.html.length > 40000) {
-          console.warn(`HTML контент превышает лимит: ${result.html.length} символов, обрезаем до 40000`);
-          result.html = result.html.substring(0, 40000) + '...';
+        } else {
+          // Если нет HTML, используем весь ответ как HTML
+          let fallbackHtml = assistantMessage.trim();
+          if (fallbackHtml.length > 40000) {
+            fallbackHtml = fallbackHtml.substring(0, 40000) + '...';
+          }
+          result = {
+            html: fallbackHtml,
+            metaTitle: result.metaTitle || '',
+            metaDescription: result.metaDescription || '',
+            faqQuestions: result.faqQuestions || [],
+            summary: result.summary || '',
+          };
         }
       } catch (error) {
         console.error('Ошибка парсинга JSON:', error);
