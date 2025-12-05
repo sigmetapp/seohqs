@@ -173,7 +173,16 @@ export default function ContentGeneratorPage() {
       const res = await fetchPromise;
       if (progressInterval) clearInterval(progressInterval);
 
-      const data = await res.json();
+      // Получаем текст ответа для безопасного парсинга
+      const responseText = await res.text();
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonError) {
+        // Если не JSON, показываем текст ошибки
+        throw new Error(responseText.substring(0, 500) || 'Ошибка: сервер вернул не-JSON ответ');
+      }
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Ошибка генерации контента');

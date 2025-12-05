@@ -104,7 +104,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const body: ContentGenerationRequest = await request.json();
+    let body: ContentGenerationRequest;
+    try {
+      body = await request.json();
+    } catch (error) {
+      return NextResponse.json(
+        { success: false, error: 'Неверный формат запроса' },
+        { status: 400 }
+      );
+    }
     const {
       mainQuery,
       language,
