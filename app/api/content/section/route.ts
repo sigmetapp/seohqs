@@ -205,8 +205,11 @@ export async function POST(request: Request) {
     const openai = await getOpenAIClient();
     const assistantId = await getSectionAssistantId(openai);
 
-    // Таймаут: ~55 секунд, но не больше 57 секунд (чтобы не упираться в лимит Vercel 60 секунд)
+    // Таймаут: 55 секунд (55000 мс)
     const timeoutMs = 55000;
+
+    // Объявляем переменную для HTML секции
+    let sectionHtml: string | null = null;
 
     // Первая попытка: всегда "medium"
     try {
@@ -230,6 +233,11 @@ export async function POST(request: Request) {
       const duration = Date.now() - startTime;
       console.log(`[SECTION] Генерация секции "${sectionTitle}" завершена за ${duration}ms (medium)`);
 
+      // Проверяем, что получили валидный HTML
+      if (!sectionHtml || typeof sectionHtml !== 'string' || sectionHtml.trim().length === 0) {
+        throw new Error(`Ассистент вернул пустой HTML для секции "${sectionTitle}"`);
+      }
+
       return NextResponse.json({
         success: true,
         sectionHtml,
@@ -246,11 +254,11 @@ export async function POST(request: Request) {
         throw error;
       }
 
-      // Если это таймаут, делаем одну повторную попытку с "low"
+      // Если это таймаут, делаем одну повторную попытку с "low" (максимум 1 ретрай)
       console.log(`[SECTION] Таймаут при генерации секции "${sectionTitle}" в режиме medium, повторяем с low`);
       
       try {
-        const sectionHtml = await generateSection(
+        sectionHtml = await generateSection(
           openai,
           assistantId,
           topic,
@@ -269,6 +277,11 @@ export async function POST(request: Request) {
 
         const duration = Date.now() - startTime;
         console.log(`[SECTION] Генерация секции "${sectionTitle}" завершена за ${duration}ms (low, после таймаута medium)`);
+
+        // Проверяем, что получили валидный HTML
+        if (!sectionHtml || typeof sectionHtml !== 'string' || sectionHtml.trim().length === 0) {
+          throw new Error(`Ассистент вернул пустой HTML для секции "${sectionTitle}" (low режим)`);
+        }
 
         return NextResponse.json({
           success: true,

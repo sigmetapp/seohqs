@@ -234,15 +234,28 @@ export default function ContentGeneratorPage() {
             throw new Error(sectionData.error || `Ошибка генерации секции ${i + 1}: ${section.title}`);
           }
 
-          // Успешно получили секцию
-          const sectionHtml = sectionData.sectionHtml;
+          // Инициализируем переменную для HTML секции
+          let sectionHtml: string | null = null;
           
-          // Отслеживаем секции, сгенерированные в режиме "low"
-          if (sectionData.complexityLevel === 'low') {
-            lowComplexity.add(i);
+          // Проверяем успешность и наличие HTML
+          if (sectionData.success && sectionData.sectionHtml && typeof sectionData.sectionHtml === 'string') {
+            sectionHtml = sectionData.sectionHtml.trim();
+            
+            // Проверяем, что HTML не пустой
+            if (sectionHtml.length === 0) {
+              throw new Error(`Ассистент вернул пустой HTML для секции ${i + 1}: ${section.title}`);
+            }
+            
+            // Отслеживаем секции, сгенерированные в режиме "low"
+            if (sectionData.complexityLevel === 'low') {
+              lowComplexity.add(i);
+            }
+            
+            sectionsHtml.push(sectionHtml);
+          } else {
+            // Если success=true, но HTML отсутствует или невалиден
+            throw new Error(`Не получен валидный HTML для секции ${i + 1}: ${section.title}`);
           }
-          
-          sectionsHtml.push(sectionHtml);
         } catch (error: any) {
           const lastError = error.message || `Ошибка генерации секции ${i + 1}: ${section.title}`;
           console.error(`Не удалось сгенерировать секцию ${i + 1}:`, lastError);
@@ -251,8 +264,8 @@ export default function ContentGeneratorPage() {
             title: section.title,
             error: lastError,
           });
-          // Добавляем placeholder вместо секции
-          sectionsHtml.push(`<h2>${section.title}</h2><p><em>Не удалось сгенерировать содержимое этой секции. ${lastError}</em></p>`);
+          // НЕ добавляем placeholder в sectionsHtml - секция будет пропущена
+          // Это предотвращает использование undefined sectionHtml в дальнейшем
         }
       }
 
@@ -265,13 +278,21 @@ export default function ContentGeneratorPage() {
       // ШАГ 3: Assembling - склеиваем секции на фронте с отметками для low complexity
       const assembledHtmlParts: string[] = [];
       for (let i = 0; i < sectionsHtml.length; i++) {
-        let sectionHtml = sectionsHtml[i];
+        // Всегда проверяем, что sectionHtml существует и является строкой
+        const sectionHtml = sectionsHtml[i];
+        if (!sectionHtml || typeof sectionHtml !== 'string') {
+          // Пропускаем секции с невалидным HTML
+          console.warn(`Пропущена секция ${i + 1}: невалидный HTML`);
+          continue;
+        }
+        
+        let finalSectionHtml = sectionHtml;
         // Добавляем визуальную отметку для секций в режиме "low"
         if (lowComplexity.has(i)) {
           const lowBadge = '<div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 8px 12px; margin-bottom: 16px; border-radius: 4px; font-size: 14px; color: #92400e;"><strong>⚠️ Упрощённый режим:</strong> Эта секция была сгенерирована в упрощённом режиме из-за таймаута. Вы можете доработать её вручную или перегенерировать позже.</div>';
-          sectionHtml = lowBadge + sectionHtml;
+          finalSectionHtml = lowBadge + finalSectionHtml;
         }
-        assembledHtmlParts.push(sectionHtml);
+        assembledHtmlParts.push(finalSectionHtml);
       }
       const assembledHtml = assembledHtmlParts.join('\n');
 
