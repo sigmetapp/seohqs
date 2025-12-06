@@ -39,61 +39,92 @@ export type SerpParams = {
 export async function fetchGoogleSerpTop10(params: SerpParams): Promise<SerpResult[]> {
   const { query, language, country } = params;
 
-  // TODO: Implement actual SERP API integration
-  // 
-  // Example implementations:
-  //
-  // Option 1: SerpAPI (https://serpapi.com/)
-  // const apiKey = process.env.SERP_API_KEY;
-  // if (!apiKey) {
-  //   throw new Error('SERP_API_KEY environment variable is not set');
-  // }
-  // const response = await fetch(
-  //   `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${apiKey}&hl=${language || 'en'}&gl=${country || 'us'}&num=10`
-  // );
-  // const data = await response.json();
-  // return (data.organic_results || []).slice(0, 10).map((result: any) => ({
-  //   url: result.link,
-  //   title: result.title || '',
-  //   snippet: result.snippet || '',
-  // }));
-  //
-  // Option 2: Zenserp (https://zenserp.com/)
-  // const apiKey = process.env.ZENSERP_API_KEY;
-  // if (!apiKey) {
-  //   throw new Error('ZENSERP_API_KEY environment variable is not set');
-  // }
-  // const response = await fetch(
-  //   `https://app.zenserp.com/api/v2/search?q=${encodeURIComponent(query)}&apikey=${apiKey}&hl=${language || 'en'}&gl=${country || 'us'}&num=10`
-  // );
-  // const data = await response.json();
-  // return (data.organic || []).slice(0, 10).map((result: any) => ({
-  //   url: result.url,
-  //   title: result.title || '',
-  //   snippet: result.description || '',
-  // }));
-  //
-  // Option 3: Google Custom Search API (https://developers.google.com/custom-search/v1/overview)
-  // const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
-  // const engineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
-  // if (!apiKey || !engineId) {
-  //   throw new Error('GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID environment variables must be set');
-  // }
-  // const response = await fetch(
-  //   `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${engineId}&q=${encodeURIComponent(query)}&hl=${language || 'en'}&gl=${country || 'us'}&num=10`
-  // );
-  // const data = await response.json();
-  // return (data.items || []).slice(0, 10).map((item: any) => ({
-  //   url: item.link,
-  //   title: item.title || '',
-  //   snippet: item.snippet || '',
-  // }));
-
-  // Stub implementation for now - returns empty array
-  // Replace this with actual API call when SERP provider is configured
-  console.warn('[GOOGLE_SERP] Stub implementation - SERP API not configured. Please set up SERP_API_KEY or similar environment variable.');
+  // Try Google Custom Search API first (recommended for free tier)
+  const googleApiKey = process.env.GOOGLE_SEARCH_API_KEY;
+  const googleEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
   
-  // Return empty array to trigger validation error
-  // This ensures the integration is properly configured before use
-  return [];
+  if (googleApiKey && googleEngineId) {
+    try {
+      const response = await fetch(
+        `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleEngineId}&q=${encodeURIComponent(query)}&hl=${language || 'en'}&gl=${country || 'us'}&num=10`
+      );
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Google Custom Search API error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Handle API errors
+      if (data.error) {
+        throw new Error(`Google Custom Search API error: ${data.error.message || JSON.stringify(data.error)}`);
+      }
+      
+      return (data.items || []).slice(0, 10).map((item: any) => ({
+        url: item.link,
+        title: item.title || '',
+        snippet: item.snippet || '',
+      }));
+    } catch (error: any) {
+      console.error('[GOOGLE_SERP] Google Custom Search API failed:', error.message);
+      throw error;
+    }
+  }
+
+  // Fallback to SerpAPI if configured
+  const serpApiKey = process.env.SERP_API_KEY;
+  if (serpApiKey) {
+    try {
+      const response = await fetch(
+        `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${serpApiKey}&hl=${language || 'en'}&gl=${country || 'us'}&num=10`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`SerpAPI error: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      return (data.organic_results || []).slice(0, 10).map((result: any) => ({
+        url: result.link,
+        title: result.title || '',
+        snippet: result.snippet || '',
+      }));
+    } catch (error: any) {
+      console.error('[GOOGLE_SERP] SerpAPI failed:', error.message);
+      throw error;
+    }
+  }
+
+  // Fallback to Zenserp if configured
+  const zenserpApiKey = process.env.ZENSERP_API_KEY;
+  if (zenserpApiKey) {
+    try {
+      const response = await fetch(
+        `https://app.zenserp.com/api/v2/search?q=${encodeURIComponent(query)}&apikey=${zenserpApiKey}&hl=${language || 'en'}&gl=${country || 'us'}&num=10`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Zenserp error: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      return (data.organic || []).slice(0, 10).map((result: any) => ({
+        url: result.url,
+        title: result.title || '',
+        snippet: result.description || '',
+      }));
+    } catch (error: any) {
+      console.error('[GOOGLE_SERP] Zenserp failed:', error.message);
+      throw error;
+    }
+  }
+
+  // No SERP provider configured
+  throw new Error(
+    'No SERP API configured. Please set one of: GOOGLE_SEARCH_API_KEY + GOOGLE_SEARCH_ENGINE_ID, SERP_API_KEY, or ZENSERP_API_KEY. ' +
+    'See GOOGLE_SERP_SETUP.md for setup instructions.'
+  );
 }
