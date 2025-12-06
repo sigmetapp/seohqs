@@ -53,37 +53,45 @@ export async function fetchGoogleSerpTop10(params: SerpParams): Promise<SerpResu
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`[GOOGLE_SERP] Google Custom Search API HTTP error: ${response.status} ${response.statusText}`);
-        throw new Error(`Google Custom Search API error: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      
-      // Handle API errors
-      if (data.error) {
-        console.error(`[GOOGLE_SERP] Google Custom Search API error response:`, data.error);
-        throw new Error(`Google Custom Search API error: ${data.error.message || JSON.stringify(data.error)}`);
-      }
-      
-      const items = data.items || [];
-      console.log(`[GOOGLE_SERP] Google Custom Search API returned ${items.length} items`);
-      
-      const results = items.slice(0, 10).map((item: any) => ({
-        url: item.link || '',
-        title: item.title || '',
-        snippet: item.snippet || '',
-      }));
-      
-      // Log results for debugging
-      if (results.length === 0) {
-        console.warn(`[GOOGLE_SERP] No results returned for query: "${query}"`);
+        console.error(`[GOOGLE_SERP] Error response body:`, errorText);
+        // Don't throw here, try fallback APIs instead
+        console.warn(`[GOOGLE_SERP] Google Custom Search API failed, trying fallback APIs...`);
       } else {
-        console.log(`[GOOGLE_SERP] Mapped ${results.length} results with URLs:`, results.map(r => r.url).filter(Boolean).length);
+        const data = await response.json();
+        
+        // Handle API errors in response body
+        if (data.error) {
+          console.error(`[GOOGLE_SERP] Google Custom Search API error response:`, JSON.stringify(data.error, null, 2));
+          console.warn(`[GOOGLE_SERP] Google Custom Search API returned error, trying fallback APIs...`);
+        } else {
+          const items = data.items || [];
+          console.log(`[GOOGLE_SERP] Google Custom Search API returned ${items.length} items`);
+          
+          const results = items.slice(0, 10).map((item: any) => ({
+            url: item.link || '',
+            title: item.title || '',
+            snippet: item.snippet || '',
+          }));
+          
+          // Filter out results without URLs
+          const validResults = results.filter(r => r.url && r.url.trim().length > 0);
+          
+          // Log results for debugging
+          if (validResults.length === 0) {
+            console.warn(`[GOOGLE_SERP] No valid results returned for query: "${query}" (${items.length} items but none have valid URLs)`);
+            console.warn(`[GOOGLE_SERP] Sample items:`, JSON.stringify(items.slice(0, 2), null, 2));
+            // Try fallback APIs if no valid results
+            console.warn(`[GOOGLE_SERP] Trying fallback APIs...`);
+          } else {
+            console.log(`[GOOGLE_SERP] Mapped ${validResults.length} valid results with URLs out of ${results.length} total`);
+            return validResults;
+          }
+        }
       }
-      
-      return results;
     } catch (error: any) {
       console.error('[GOOGLE_SERP] Google Custom Search API failed:', error.message);
-      throw error;
+      console.warn(`[GOOGLE_SERP] Trying fallback APIs...`);
+      // Don't throw here, try fallback APIs instead
     }
   }
 
@@ -99,28 +107,41 @@ export async function fetchGoogleSerpTop10(params: SerpParams): Promise<SerpResu
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`[GOOGLE_SERP] SerpAPI HTTP error: ${response.status} ${response.statusText}`);
-        throw new Error(`SerpAPI error: ${response.status} ${response.statusText} - ${errorText}`);
+        console.error(`[GOOGLE_SERP] Error response body:`, errorText);
+        console.warn(`[GOOGLE_SERP] SerpAPI failed, trying next fallback...`);
+      } else {
+        const data = await response.json();
+        
+        // Handle API errors in response body
+        if (data.error) {
+          console.error(`[GOOGLE_SERP] SerpAPI error response:`, JSON.stringify(data.error, null, 2));
+          console.warn(`[GOOGLE_SERP] SerpAPI returned error, trying next fallback...`);
+        } else {
+          const organicResults = data.organic_results || [];
+          console.log(`[GOOGLE_SERP] SerpAPI returned ${organicResults.length} organic results`);
+          
+          const results = organicResults.slice(0, 10).map((result: any) => ({
+            url: result.link || '',
+            title: result.title || '',
+            snippet: result.snippet || '',
+          }));
+          
+          // Filter out results without URLs
+          const validResults = results.filter(r => r.url && r.url.trim().length > 0);
+          
+          if (validResults.length === 0) {
+            console.warn(`[GOOGLE_SERP] No valid results returned from SerpAPI for query: "${query}"`);
+            console.warn(`[GOOGLE_SERP] Trying next fallback...`);
+          } else {
+            console.log(`[GOOGLE_SERP] SerpAPI returned ${validResults.length} valid results`);
+            return validResults;
+          }
+        }
       }
-      
-      const data = await response.json();
-      
-      const organicResults = data.organic_results || [];
-      console.log(`[GOOGLE_SERP] SerpAPI returned ${organicResults.length} organic results`);
-      
-      const results = organicResults.slice(0, 10).map((result: any) => ({
-        url: result.link || '',
-        title: result.title || '',
-        snippet: result.snippet || '',
-      }));
-      
-      if (results.length === 0) {
-        console.warn(`[GOOGLE_SERP] No organic results returned for query: "${query}"`);
-      }
-      
-      return results;
     } catch (error: any) {
       console.error('[GOOGLE_SERP] SerpAPI failed:', error.message);
-      throw error;
+      console.warn(`[GOOGLE_SERP] Trying next fallback...`);
+      // Don't throw here, try next fallback
     }
   }
 
@@ -136,31 +157,60 @@ export async function fetchGoogleSerpTop10(params: SerpParams): Promise<SerpResu
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`[GOOGLE_SERP] Zenserp HTTP error: ${response.status} ${response.statusText}`);
-        throw new Error(`Zenserp error: ${response.status} ${response.statusText} - ${errorText}`);
+        console.error(`[GOOGLE_SERP] Error response body:`, errorText);
+        // This is the last fallback, so we'll throw if it fails
+      } else {
+        const data = await response.json();
+        
+        // Handle API errors in response body
+        if (data.error) {
+          console.error(`[GOOGLE_SERP] Zenserp error response:`, JSON.stringify(data.error, null, 2));
+        } else {
+          const organicResults = data.organic || [];
+          console.log(`[GOOGLE_SERP] Zenserp returned ${organicResults.length} organic results`);
+          
+          const results = organicResults.slice(0, 10).map((result: any) => ({
+            url: result.url || '',
+            title: result.title || '',
+            snippet: result.description || '',
+          }));
+          
+          // Filter out results without URLs
+          const validResults = results.filter(r => r.url && r.url.trim().length > 0);
+          
+          if (validResults.length === 0) {
+            console.warn(`[GOOGLE_SERP] No valid results returned from Zenserp for query: "${query}"`);
+          } else {
+            console.log(`[GOOGLE_SERP] Zenserp returned ${validResults.length} valid results`);
+            return validResults;
+          }
+        }
       }
-      
-      const data = await response.json();
-      
-      const organicResults = data.organic || [];
-      console.log(`[GOOGLE_SERP] Zenserp returned ${organicResults.length} organic results`);
-      
-      const results = organicResults.slice(0, 10).map((result: any) => ({
-        url: result.url || '',
-        title: result.title || '',
-        snippet: result.description || '',
-      }));
-      
-      if (results.length === 0) {
-        console.warn(`[GOOGLE_SERP] No organic results returned for query: "${query}"`);
-      }
-      
-      return results;
     } catch (error: any) {
       console.error('[GOOGLE_SERP] Zenserp failed:', error.message);
-      throw error;
+      // This is the last fallback, continue to error handling below
     }
   }
 
+  // Check if any API was configured but all failed/returned no results
+  const hasGoogleApi = process.env.GOOGLE_SEARCH_API_KEY && process.env.GOOGLE_SEARCH_ENGINE_ID;
+  const hasSerpApi = process.env.SERP_API_KEY;
+  const hasZenserpApi = process.env.ZENSERP_API_KEY;
+  
+  if (hasGoogleApi || hasSerpApi || hasZenserpApi) {
+    const configuredApis = [];
+    if (hasGoogleApi) configuredApis.push('Google Custom Search');
+    if (hasSerpApi) configuredApis.push('SerpAPI');
+    if (hasZenserpApi) configuredApis.push('Zenserp');
+    
+    throw new Error(
+      `All configured SERP APIs (${configuredApis.join(', ')}) returned no results for query: "${query}". ` +
+      `Possible reasons: 1) Query is too specific or unusual, 2) API quotas exceeded, 3) Invalid API keys, ` +
+      `4) Search Engine ID is restricted (for Google Custom Search). Try: a different query, check API quotas, ` +
+      `or verify API configuration.`
+    );
+  }
+  
   // No SERP provider configured
   throw new Error(
     'No SERP API configured. Please set one of: GOOGLE_SEARCH_API_KEY + GOOGLE_SEARCH_ENGINE_ID, SERP_API_KEY, or ZENSERP_API_KEY. ' +
