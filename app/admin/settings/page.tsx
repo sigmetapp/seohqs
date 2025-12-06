@@ -136,12 +136,27 @@ export default function AdminSettingsPage() {
           )}
 
           <form onSubmit={handleSave} className="space-y-6">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+              <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-200 mb-2">
+                Поля для Content Generator
+              </h2>
+              <p className="text-sm text-blue-800 dark:text-blue-300">
+                Следующие поля используются в генераторе контента (/content-generator):
+              </p>
+              <ul className="mt-2 text-sm text-blue-700 dark:text-blue-400 list-disc list-inside space-y-1">
+                <li>OpenAI API Key</li>
+                <li>Outline Assistant ID</li>
+                <li>Content Section Writer ID</li>
+                <li>Cleanup Assistant ID</li>
+              </ul>
+            </div>
+
             <div>
               <label
                 htmlFor="openaiApiKey"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
-                OpenAI API Key
+                OpenAI API Key <span className="text-blue-600 dark:text-blue-400">(используется в Content Generator)</span>
               </label>
               <input
                 type="password"
@@ -182,7 +197,7 @@ export default function AdminSettingsPage() {
                 htmlFor="outlineAssistantId"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
-                Outline Assistant ID *
+                Outline Assistant ID * <span className="text-blue-600 dark:text-blue-400">(используется в Content Generator)</span>
               </label>
               <input
                 type="text"
@@ -193,7 +208,7 @@ export default function AdminSettingsPage() {
                 placeholder="asst_e1693TT89qMWg206LoATncoO"
               />
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                ID ассистента для генерации структуры статей (Outline Assistant)
+                ID ассистента для генерации структуры статей (Outline Assistant). Используется в /content-generator для создания структуры статьи на этапе research.
               </p>
             </div>
 
@@ -202,7 +217,7 @@ export default function AdminSettingsPage() {
                 htmlFor="sectionAssistantId"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
-                Content Section Writer ID *
+                Content Section Writer ID * <span className="text-blue-600 dark:text-blue-400">(используется в Content Generator)</span>
               </label>
               <input
                 type="text"
@@ -213,7 +228,7 @@ export default function AdminSettingsPage() {
                 placeholder="asst_VJWo1WOjUgU3Hi34rFAOjQnQ"
               />
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                ID ассистента для генерации секций статей (Content Section Writer)
+                ID ассистента для генерации секций статей (Content Section Writer). Используется в /content-generator для написания отдельных секций статьи.
               </p>
             </div>
 
@@ -222,7 +237,7 @@ export default function AdminSettingsPage() {
                 htmlFor="seoAssistantId"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
-                SEO Packaging Assistant ID *
+                SEO Packaging Assistant ID
               </label>
               <input
                 type="text"
@@ -233,7 +248,7 @@ export default function AdminSettingsPage() {
                 placeholder="asst_3EUKN4Ch098Fc8CumZVfKUdG"
               />
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                ID ассистента для генерации SEO метаданных (SEO Packaging Assistant)
+                ID ассистента для генерации SEO метаданных (SEO Packaging Assistant). В настоящее время не используется в /content-generator, но может быть добавлен в будущем.
               </p>
             </div>
 
@@ -242,7 +257,7 @@ export default function AdminSettingsPage() {
                 htmlFor="cleanupAssistantId"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
-                Cleanup Assistant ID *
+                Cleanup Assistant ID * <span className="text-blue-600 dark:text-blue-400">(используется в Content Generator)</span>
               </label>
               <input
                 type="text"
@@ -253,7 +268,7 @@ export default function AdminSettingsPage() {
                 placeholder="asst_kwQQhhnsoG21VkggWIfHRGTt"
               />
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                ID ассистента для очистки и "очеловечивания" HTML секций (Cleanup Assistant v1.0)
+                ID ассистента для очистки и "очеловечивания" HTML секций (Cleanup Assistant v1.0). Используется в /content-generator на этапе финализации статьи для улучшения стиля и удаления AI-штампов.
               </p>
             </div>
 
