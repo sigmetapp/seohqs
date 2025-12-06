@@ -38,20 +38,16 @@ export async function GET(request: Request) {
 
     // Если ключ не указан, возвращаем все настройки OpenAI
     const openaiApiKey = await getSetting('openai_api_key');
-    const openaiAssistantId = await getSetting('openai_assistant_id');
     const outlineAssistantId = await getSetting('openai_outline_assistant_id');
     const sectionAssistantId = await getSetting('openai_section_assistant_id');
-    const seoAssistantId = await getSetting('openai_seo_assistant_id');
     const cleanupAssistantId = await getSetting('openai_cleanup_assistant_id');
 
     return NextResponse.json({
       success: true,
       settings: {
         openaiApiKey: openaiApiKey?.value || null,
-        openaiAssistantId: openaiAssistantId?.value || null,
         outlineAssistantId: outlineAssistantId?.value || null,
         sectionAssistantId: sectionAssistantId?.value || null,
-        seoAssistantId: seoAssistantId?.value || null,
         cleanupAssistantId: cleanupAssistantId?.value || null,
       },
     });
@@ -81,7 +77,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { openaiApiKey, openaiAssistantId, outlineAssistantId, sectionAssistantId, seoAssistantId, cleanupAssistantId } = body;
+    const { openaiApiKey, outlineAssistantId, sectionAssistantId, cleanupAssistantId } = body;
 
     const settings: any = {};
 
@@ -92,15 +88,6 @@ export async function POST(request: Request) {
         'OpenAI API Key для работы с Assistants API'
       );
       settings.openaiApiKey = openaiApiKey;
-    }
-
-    if (openaiAssistantId !== undefined) {
-      await setSetting(
-        'openai_assistant_id',
-        openaiAssistantId || '',
-        'ID ассистента OpenAI для генерации контента (устаревшее)'
-      );
-      settings.openaiAssistantId = openaiAssistantId;
     }
 
     if (outlineAssistantId !== undefined) {
@@ -119,15 +106,6 @@ export async function POST(request: Request) {
         'ID ассистента OpenAI для генерации секций статей (Content Section Writer)'
       );
       settings.sectionAssistantId = sectionAssistantId;
-    }
-
-    if (seoAssistantId !== undefined) {
-      await setSetting(
-        'openai_seo_assistant_id',
-        seoAssistantId || '',
-        'ID ассистента OpenAI для генерации SEO метаданных (SEO Packaging Assistant)'
-      );
-      settings.seoAssistantId = seoAssistantId;
     }
 
     if (cleanupAssistantId !== undefined) {

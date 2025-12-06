@@ -10,10 +10,8 @@ export default function AdminSettingsPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [openaiApiKey, setOpenaiApiKey] = useState('');
-  const [openaiAssistantId, setOpenaiAssistantId] = useState('');
   const [outlineAssistantId, setOutlineAssistantId] = useState('');
   const [sectionAssistantId, setSectionAssistantId] = useState('');
-  const [seoAssistantId, setSeoAssistantId] = useState('');
   const [cleanupAssistantId, setCleanupAssistantId] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -61,10 +59,8 @@ export default function AdminSettingsPage() {
       
       if (data.success && data.settings) {
         setOpenaiApiKey(data.settings.openaiApiKey || '');
-        setOpenaiAssistantId(data.settings.openaiAssistantId || '');
         setOutlineAssistantId(data.settings.outlineAssistantId || '');
         setSectionAssistantId(data.settings.sectionAssistantId || '');
-        setSeoAssistantId(data.settings.seoAssistantId || '');
         setCleanupAssistantId(data.settings.cleanupAssistantId || '');
       }
     } catch (error) {
@@ -85,10 +81,8 @@ export default function AdminSettingsPage() {
         },
         body: JSON.stringify({
           openaiApiKey,
-          openaiAssistantId,
           outlineAssistantId,
           sectionAssistantId,
-          seoAssistantId,
           cleanupAssistantId,
         }),
       });
@@ -174,26 +168,6 @@ export default function AdminSettingsPage() {
 
             <div>
               <label
-                htmlFor="openaiAssistantId"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >
-                OpenAI Assistant ID (опционально, устаревшее)
-              </label>
-              <input
-                type="text"
-                id="openaiAssistantId"
-                value={openaiAssistantId}
-                onChange={(e) => setOpenaiAssistantId(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="asst_..."
-              />
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Устаревшее поле. Используйте поля ниже.
-              </p>
-            </div>
-
-            <div>
-              <label
                 htmlFor="outlineAssistantId"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
@@ -229,26 +203,6 @@ export default function AdminSettingsPage() {
               />
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 ID ассистента для генерации секций статей (Content Section Writer). Используется в /content-generator для написания отдельных секций статьи.
-              </p>
-            </div>
-
-            <div>
-              <label
-                htmlFor="seoAssistantId"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >
-                SEO Packaging Assistant ID
-              </label>
-              <input
-                type="text"
-                id="seoAssistantId"
-                value={seoAssistantId}
-                onChange={(e) => setSeoAssistantId(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="asst_3EUKN4Ch098Fc8CumZVfKUdG"
-              />
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                ID ассистента для генерации SEO метаданных (SEO Packaging Assistant). В настоящее время не используется в /content-generator, но может быть добавлен в будущем.
               </p>
             </div>
 
