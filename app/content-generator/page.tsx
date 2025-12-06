@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import SectionStatusCard, { SectionStatusData, SectionStatus } from '@/app/components/content-generator/SectionStatusCard';
 
 interface FinalResult {
   html?: string;
@@ -12,24 +11,6 @@ interface FinalResult {
   summary?: string;
 }
 
-interface ArticleJob {
-  jobId: string;
-  status: string;
-  topic: string;
-  outline?: {
-    title: string;
-    sections: Array<{ id: string; title: string; description: string }>;
-  };
-  sources?: Array<{ url: string; title: string; snippet: string }>;
-  progress?: {
-    totalSections: number;
-    completedSections: number;
-    sections: Array<{ sectionId: string; status: string; completedAt?: string }>;
-  };
-  finalHtml?: string;
-  metaTitle?: string;
-  metaDescription?: string;
-}
 
 export default function ContentGeneratorPage() {
   const router = useRouter();
@@ -50,16 +31,13 @@ export default function ContentGeneratorPage() {
   const [finalResult, setFinalResult] = useState<FinalResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState('');
-  const [outlineSections, setOutlineSections] = useState<Array<{ id: string; title: string; description: string }>>([]);
-  const [step, setStep] = useState<'idle' | 'researching' | 'writing' | 'finalizing' | 'done'>('idle');
-  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [step, setStep] = useState<'idle' | 'generating' | 'done'>('idle');
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [runId, setRunId] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
-  const [sectionStatuses, setSectionStatuses] = useState<SectionStatusData[]>([]);
-  const [failedSections, setFailedSections] = useState<Array<{ index: number; title: string; error: string }>>([]);
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const sectionGenerationRef = useRef<boolean>(false);
 
   useEffect(() => {
     checkAuth();
@@ -119,186 +97,25 @@ export default function ContentGeneratorPage() {
     }
   };
 
-  // Polling статуса research
-  const pollResearchStatus = async (jobId: string): Promise<boolean> => {
+  // Polling статуса генерации статьи
+  const pollArticleStatus = async (threadId: string, runId: string): Promise<{ completed: boolean; article?: string }> => {
     try {
-      const res = await fetch(`/api/article/research-status?jobId=${jobId}`);
+      const res = await fetch(`/api/article/status?threadId=${threadId}&runId=${runId}`);
       const data = await res.json();
 
       if (!data.success) {
-        throw new Error(data.error || 'Ошибка проверки статуса research');
+        throw new Error(data.error || 'Ошибка проверки статуса генерации');
       }
 
-      if (data.status === 'completed') {
-        // Research завершён, сохраняем outline
-        const result = data.result;
-        setOutlineSections(result.outline.sections || []);
-        setStep('writing');
-        setProgress('Research завершён. Начинаем генерацию секций...');
-        return true;
+      if (data.status === 'completed' && data.article) {
+        return { completed: true, article: data.article };
       }
 
-      // Research ещё выполняется
-      return false;
-    } catch (error: any) {
-      console.error('[POLL RESEARCH] Ошибка:', error);
-      throw error;
-    }
-  };
-
-  // Polling общего статуса задачи
-  const pollJobStatus = async (jobId: string): Promise<ArticleJob | null> => {
-    try {
-      const res = await fetch(`/api/article/status?jobId=${jobId}`);
-      const data = await res.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Ошибка получения статуса задачи');
-      }
-
-      return data.job;
+      // Генерация ещё выполняется
+      return { completed: false };
     } catch (error: any) {
       console.error('[POLL STATUS] Ошибка:', error);
-      return null;
-    }
-  };
-
-  // Генерация всех секций последовательно
-  const generateAllSections = async (jobId: string, sections: Array<{ id: string; title: string; description: string }>) => {
-    if (sectionGenerationRef.current) {
-      return; // Уже генерируем
-    }
-
-    sectionGenerationRef.current = true;
-    const failed: Array<{ index: number; title: string; error: string }> = [];
-    const statuses: SectionStatusData[] = [];
-
-    // Инициализируем статусы секций
-    sections.forEach((section, index) => {
-      statuses.push({
-        index: index + 1,
-        title: section.title,
-        status: 'skipped',
-      });
-    });
-    setSectionStatuses([...statuses]);
-
-    for (let i = 0; i < sections.length; i++) {
-      const section = sections[i];
-      const sectionStartTime = Date.now();
-      setProgress(`Генерация секции ${i + 1} из ${sections.length}: ${section.title}...`);
-
-      // Обновляем статус на "в процессе"
-      statuses[i].status = 'skipped';
-      setSectionStatuses([...statuses]);
-
-      try {
-        const res = await fetch('/api/article/write-section', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            jobId,
-            sectionId: section.id,
-          }),
-        });
-
-        const data = await res.json();
-
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || `Ошибка генерации секции ${i + 1}`);
-        }
-
-        const generationTime = Math.floor((Date.now() - sectionStartTime) / 1000);
-        const wordCount = data.sectionHtml
-          ? data.sectionHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter((w: string) => w.length > 0).length
-          : undefined;
-
-        statuses[i] = {
-          index: i + 1,
-          title: section.title,
-          status: 'success',
-          sectionHtml: data.sectionHtml,
-          generationTime,
-          wordCount,
-          complexityLevel: 'medium',
-        };
-      } catch (error: any) {
-        const errorMsg = error.message || `Ошибка генерации секции ${i + 1}`;
-        failed.push({
-          index: i + 1,
-          title: section.title,
-          error: errorMsg,
-        });
-
-        statuses[i] = {
-          index: i + 1,
-          title: section.title,
-          status: 'backend_error',
-          error: errorMsg,
-        };
-      }
-
-      setSectionStatuses([...statuses]);
-      setFailedSections([...failed]);
-    }
-
-    sectionGenerationRef.current = false;
-
-    // После генерации всех секций вызываем finalize
-    if (failed.length < sections.length) {
-      await finalizeArticle(jobId);
-    } else {
-      setError('Не удалось сгенерировать ни одной секции');
-      setGenerating(false);
-    }
-  };
-
-  // Финализация статьи
-  const finalizeArticle = async (jobId: string) => {
-    setStep('finalizing');
-    setProgress('Финализация статьи...');
-
-    try {
-      const res = await fetch('/api/article/finalize', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ jobId }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Ошибка финализации статьи');
-      }
-
-      // Получаем финальный статус задачи
-      const job = await pollJobStatus(jobId);
-      if (job) {
-        setFinalResult({
-          html: job.finalHtml || data.finalHtml,
-          meta_title: job.metaTitle || '',
-          meta_description: job.metaDescription || '',
-          h1: job.outline?.title || '',
-          summary: `Статья "${job.outline?.title || job.topic}" состоит из ${job.progress?.totalSections || 0} секций.`,
-        });
-      } else {
-        setFinalResult({
-          html: data.finalHtml,
-          summary: 'Статья успешно сгенерирована.',
-        });
-      }
-
-      setStep('done');
-      setProgress('Статья готова! ✓');
-      setGenerating(false);
-    } catch (error: any) {
-      console.error('[FINALIZE] Ошибка:', error);
-      setError(error.message || 'Ошибка финализации статьи');
-      setGenerating(false);
+      throw error;
     }
   };
 
@@ -313,18 +130,16 @@ export default function ContentGeneratorPage() {
     setGenerating(true);
     setError(null);
     setFinalResult(null);
-    setOutlineSections([]);
-    setFailedSections([]);
-    setSectionStatuses([]);
-    setStep('researching');
+    setStep('generating');
     setProgress('Запуск генерации статьи...');
     setStartTime(Date.now());
     setElapsedTime(0);
-    sectionGenerationRef.current = false;
+    setThreadId(null);
+    setRunId(null);
 
     try {
-      // ШАГ 1: Запускаем задачу
-      const startRes = await fetch('/api/article/start', {
+      // ШАГ 1: Создаём задачу и запускаем ассистента
+      const createRes = await fetch('/api/article/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -342,52 +157,70 @@ export default function ContentGeneratorPage() {
         }),
       });
 
-      const startData = await startRes.json();
+      const createData = await createRes.json();
 
-      if (!startRes.ok || !startData.success) {
-        throw new Error(startData.error || 'Ошибка запуска генерации статьи');
+      if (!createRes.ok || !createData.success) {
+        throw new Error(createData.error || 'Ошибка создания задачи генерации статьи');
       }
 
-      const jobId = startData.jobId;
-      setCurrentJobId(jobId);
-      setProgress('Research выполняется...');
+      const { threadId: newThreadId, runId: newRunId } = createData;
+      setThreadId(newThreadId);
+      setRunId(newRunId);
+      setProgress('Ассистент ищет статьи, анализирует источники и создаёт статью...');
 
-      // ШАГ 2: Polling статуса research
-      const maxPollAttempts = 60; // Максимум 60 попыток (1 минута)
+      // ШАГ 2: Polling статуса генерации
+      const maxPollAttempts = 300; // Максимум 300 попыток (10 минут при проверке каждые 2 секунды)
       let pollAttempts = 0;
-      let researchCompleted = false;
 
       pollingIntervalRef.current = setInterval(async () => {
         pollAttempts++;
         
         try {
-          researchCompleted = await pollResearchStatus(jobId);
+          const { completed, article } = await pollArticleStatus(newThreadId, newRunId);
           
-          if (researchCompleted) {
+          if (completed && article) {
+            // Генерация завершена
             if (pollingIntervalRef.current) {
               clearInterval(pollingIntervalRef.current);
               pollingIntervalRef.current = null;
             }
 
-            // Начинаем генерацию секций
-            const job = await pollJobStatus(jobId);
-            if (job && job.outline) {
-              await generateAllSections(jobId, job.outline.sections);
-            }
+            // Извлекаем H1 из HTML для отображения
+            const h1Match = article.match(/<h1[^>]*>(.*?)<\/h1>/i);
+            const h1 = h1Match ? h1Match[1].replace(/<[^>]*>/g, '') : '';
+
+            setFinalResult({
+              html: article,
+              h1: h1 || topic,
+              summary: 'Статья успешно сгенерирована ассистентом.',
+            });
+            setStep('done');
+            setProgress('Статья готова! ✓');
+            setGenerating(false);
           } else if (pollAttempts >= maxPollAttempts) {
             // Таймаут polling
             if (pollingIntervalRef.current) {
               clearInterval(pollingIntervalRef.current);
               pollingIntervalRef.current = null;
             }
-            throw new Error('Превышено время ожидания research. Попробуйте позже проверить статус задачи.');
+            setError('Превышено время ожидания генерации. Статья может быть готова позже. Проверьте статус позже.');
+            setGenerating(false);
+          } else {
+            // Обновляем прогресс
+            const statusMessages: Record<string, string> = {
+              'queued': 'Задача в очереди...',
+              'in_progress': 'Ассистент работает: ищет статьи, анализирует источники, создаёт контент...',
+              'requires_action': 'Требуется действие...',
+            };
+            const statusMessage = statusMessages[createData.status] || 'Генерация статьи...';
+            setProgress(statusMessage);
           }
         } catch (error: any) {
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
             pollingIntervalRef.current = null;
           }
-          setError(error.message || 'Ошибка при проверке статуса research');
+          setError(error.message || 'Ошибка при проверке статуса генерации');
           setGenerating(false);
         }
       }, 2000); // Проверяем каждые 2 секунды
@@ -414,80 +247,6 @@ export default function ContentGeneratorPage() {
     }
   };
 
-  const handleRegenerateSection = async (index: number, complexity: 'medium' | 'low' | 'high') => {
-    if (!currentJobId || !outlineSections.length) return;
-
-    const section = outlineSections[index - 1];
-    if (!section) return;
-
-    // Обновляем статус на "в процессе"
-    setSectionStatuses(prev => prev.map(s => 
-      s.index === index 
-        ? { ...s, status: 'skipped' as SectionStatus }
-        : s
-    ));
-
-    try {
-      const res = await fetch('/api/article/write-section', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          jobId: currentJobId,
-          sectionId: section.id,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || `Ошибка перегенерации секции ${index}`);
-      }
-
-      const wordCount = data.sectionHtml
-        ? data.sectionHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter((w: string) => w.length > 0).length
-        : undefined;
-
-      // Обновляем статус секции
-      setSectionStatuses(prev => {
-        const updated = prev.map(s => 
-          s.index === index 
-            ? {
-                ...s,
-                status: 'success' as SectionStatus,
-                sectionHtml: data.sectionHtml,
-                wordCount,
-                complexityLevel: complexity,
-              }
-            : s
-        );
-
-        // Пересобираем финальный HTML если есть результат
-        if (finalResult) {
-          const successfulSections = updated
-            .filter(s => s.sectionHtml && (s.status === 'success' || s.status === 'success_light'))
-            .sort((a, b) => a.index - b.index)
-            .map(s => s.sectionHtml!);
-        
-          const assembledHtml = successfulSections.join('\n');
-          setFinalResult({
-            ...finalResult,
-            html: assembledHtml,
-          });
-        }
-
-        return updated;
-      });
-    } catch (error: any) {
-      console.error(`Не удалось перегенерировать секцию ${index}:`, error);
-      setSectionStatuses(prev => prev.map(s => 
-        s.index === index 
-          ? { ...s, status: 'backend_error' as SectionStatus, error: error.message }
-          : s
-      ));
-    }
-  };
 
   if (loading) {
     return (
@@ -680,9 +439,7 @@ export default function ContentGeneratorPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     {progress}
-                    {step === 'researching' && ' (Шаг 1/4)'}
-                    {step === 'writing' && ' (Шаг 2/4)'}
-                    {step === 'finalizing' && ' (Шаг 3/4)'}
+                    {step === 'generating' && ' (Генерация...)'}
                     {step === 'done' && ' ✓'}
                   </div>
                   {generating && elapsedTime > 0 && (
@@ -696,25 +453,6 @@ export default function ContentGeneratorPage() {
               </div>
             )}
 
-            {outlineSections.length > 0 && (
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                <h3 className="font-semibold text-green-900 dark:text-green-200 mb-2">
-                  Структура статьи ({outlineSections.length} секций)
-                </h3>
-                <ol className="list-decimal list-inside space-y-2 text-sm text-green-800 dark:text-green-300">
-                  {outlineSections.map((section, index) => (
-                    <li key={section.id}>
-                      <strong>{section.title}</strong>
-                      {section.description && (
-                        <span className="ml-2 text-gray-600 dark:text-gray-400">
-                          - {section.description}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            )}
 
             <button
               type="submit"
@@ -726,23 +464,6 @@ export default function ContentGeneratorPage() {
           </form>
         </div>
 
-        {/* Карточки статусов секций */}
-        {sectionStatuses.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
-              Статусы генерации секций
-            </h2>
-            <div className="space-y-3">
-              {sectionStatuses.map((section) => (
-                <SectionStatusCard
-                  key={section.index}
-                  section={section}
-                  onRegenerate={handleRegenerateSection}
-                />
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Финальный результат */}
         {finalResult && (
@@ -828,24 +549,6 @@ export default function ContentGeneratorPage() {
                 </div>
               )}
 
-              {failedSections.length > 0 && (
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                  <h3 className="font-semibold text-yellow-900 dark:text-yellow-200 mb-2">
-                    ⚠️ Секции, которые не удалось сгенерировать ({failedSections.length}):
-                  </h3>
-                  <ul className="list-disc list-inside space-y-2 text-sm text-yellow-800 dark:text-yellow-300">
-                    {failedSections.map((failed, idx) => (
-                      <li key={idx}>
-                        <strong>Секция {failed.index}: {failed.title}</strong>
-                        <br />
-                        <span className="text-xs text-gray-600 dark:text-gray-400">
-                          {failed.error}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
             </div>
 
             {/* HTML контент */}
