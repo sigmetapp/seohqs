@@ -3,35 +3,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
-interface FinalResult {
-  html?: string;
-  meta_title?: string;
-  meta_description?: string;
-  h1?: string;
-  summary?: string;
-}
-
-
 export default function ContentGeneratorPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
+  // Параметры формы
   const [topic, setTopic] = useState('');
   const [language, setLanguage] = useState('RU');
   const [audience, setAudience] = useState('general');
-  const [authorPersona, setAuthorPersona] = useState('expert');
+  const [persona, setPersona] = useState('expert');
   const [angle, setAngle] = useState('informative');
   const [contentGoal, setContentGoal] = useState('SEO article');
   const [desiredLength, setDesiredLength] = useState('2000');
   const [complexity, setComplexity] = useState('medium');
-  const [constraints, setConstraints] = useState('');
 
+  // Состояние генерации
   const [generating, setGenerating] = useState(false);
-  const [finalResult, setFinalResult] = useState<FinalResult | null>(null);
+  const [article, setArticle] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState('');
-  const [step, setStep] = useState<'idle' | 'generating' | 'done'>('idle');
   const [threadId, setThreadId] = useState<string | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<number | null>(null);
@@ -129,8 +120,7 @@ export default function ContentGeneratorPage() {
 
     setGenerating(true);
     setError(null);
-    setFinalResult(null);
-    setStep('generating');
+    setArticle(null);
     setProgress('Запуск генерации статьи...');
     setStartTime(Date.now());
     setElapsedTime(0);
@@ -138,7 +128,7 @@ export default function ContentGeneratorPage() {
     setRunId(null);
 
     try {
-      // ШАГ 1: Создаём задачу и запускаем ассистента
+      // Создаём задачу и запускаем ассистента
       const createRes = await fetch('/api/article/create', {
         method: 'POST',
         headers: {
@@ -148,12 +138,11 @@ export default function ContentGeneratorPage() {
           topic,
           language,
           audience,
-          authorPersona,
+          authorPersona: persona,
           angle,
           contentGoal,
           desiredLength,
           complexity,
-          constraints: constraints || undefined,
         }),
       });
 
@@ -166,9 +155,9 @@ export default function ContentGeneratorPage() {
       const { threadId: newThreadId, runId: newRunId } = createData;
       setThreadId(newThreadId);
       setRunId(newRunId);
-      setProgress('Ассистент ищет статьи, анализирует источники и создаёт статью...');
+      setProgress('Ассистент ищет статьи в Google, выбирает лучшие, парсит контент и создаёт статью...');
 
-      // ШАГ 2: Polling статуса генерации
+      // Polling статуса генерации
       const maxPollAttempts = 300; // Максимум 300 попыток (10 минут при проверке каждые 2 секунды)
       let pollAttempts = 0;
 
@@ -176,25 +165,16 @@ export default function ContentGeneratorPage() {
         pollAttempts++;
         
         try {
-          const { completed, article } = await pollArticleStatus(newThreadId, newRunId);
+          const { completed, article: articleHtml } = await pollArticleStatus(newThreadId, newRunId);
           
-          if (completed && article) {
+          if (completed && articleHtml) {
             // Генерация завершена
             if (pollingIntervalRef.current) {
               clearInterval(pollingIntervalRef.current);
               pollingIntervalRef.current = null;
             }
 
-            // Извлекаем H1 из HTML для отображения
-            const h1Match = article.match(/<h1[^>]*>(.*?)<\/h1>/i);
-            const h1 = h1Match ? h1Match[1].replace(/<[^>]*>/g, '') : '';
-
-            setFinalResult({
-              html: article,
-              h1: h1 || topic,
-              summary: 'Статья успешно сгенерирована ассистентом.',
-            });
-            setStep('done');
+            setArticle(articleHtml);
             setProgress('Статья готова! ✓');
             setGenerating(false);
           } else if (pollAttempts >= maxPollAttempts) {
@@ -209,7 +189,7 @@ export default function ContentGeneratorPage() {
             // Обновляем прогресс
             const statusMessages: Record<string, string> = {
               'queued': 'Задача в очереди...',
-              'in_progress': 'Ассистент работает: ищет статьи, анализирует источники, создаёт контент...',
+              'in_progress': 'Ассистент работает: ищет статьи в Google, анализирует источники, создаёт контент...',
               'requires_action': 'Требуется действие...',
             };
             const statusMessage = statusMessages[createData.status] || 'Генерация статьи...';
@@ -228,7 +208,6 @@ export default function ContentGeneratorPage() {
     } catch (err: any) {
       console.error('Ошибка генерации контента:', err);
       setError(err.message || 'Ошибка генерации контента');
-      setStep('idle');
       setGenerating(false);
       
       if (pollingIntervalRef.current) {
@@ -238,12 +217,13 @@ export default function ContentGeneratorPage() {
     }
   };
 
-  const copyToClipboard = async (text: string, type: string) => {
+  const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      alert(`${type} скопирован в буфер обмена`);
+      alert('Статья скопирована в буфер обмена');
     } catch (error) {
       console.error('Ошибка копирования:', error);
+      alert('Не удалось скопировать статью');
     }
   };
 
@@ -337,11 +317,11 @@ export default function ContentGeneratorPage() {
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Author Persona
+                  Persona
                 </label>
                 <select
-                  value={authorPersona}
-                  onChange={(e) => setAuthorPersona(e.target.value)}
+                  value={persona}
+                  onChange={(e) => setPersona(e.target.value)}
                   className="w-full px-2 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="expert">Expert</option>
@@ -415,19 +395,6 @@ export default function ContentGeneratorPage() {
               Алгоритм автоматически регулирует глубину, количество секций, насыщенность структуры, уровень противоречий и плотность инсайтов.
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Additional Constraints
-              </label>
-              <textarea
-                value={constraints}
-                onChange={(e) => setConstraints(e.target.value)}
-                rows={2}
-                className="w-full px-2 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Без длинных тире, без воды, добавлять примеры..."
-              />
-            </div>
-
             {error && (
               <div className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-4 py-3 rounded">
                 {error}
@@ -437,11 +404,7 @@ export default function ContentGeneratorPage() {
             {progress && (
               <div className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-4 py-3 rounded">
                 <div className="flex items-center justify-between">
-                  <div>
-                    {progress}
-                    {step === 'generating' && ' (Генерация...)'}
-                    {step === 'done' && ' ✓'}
-                  </div>
+                  <div>{progress}</div>
                   {generating && elapsedTime > 0 && (
                     <div className="text-sm font-mono ml-4">
                       {Math.floor(elapsedTime / 60) > 0 
@@ -465,141 +428,57 @@ export default function ContentGeneratorPage() {
         </div>
 
 
-        {/* Финальный результат */}
-        {finalResult && (
+        {/* Результат - готовая статья */}
+        {article && (
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
-              Результат
-            </h2>
-
-            {/* SEO данные */}
-            <div className="mb-6 space-y-4">
-              {finalResult.h1 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    H1
-                  </label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={finalResult.h1}
-                      readOnly
-                      className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"
-                    />
-                    <button
-                      onClick={() => copyToClipboard(finalResult.h1 || '', 'H1')}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Meta Title
-                </label>
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={finalResult.meta_title || ''}
-                    readOnly
-                    placeholder="Meta Title не был сгенерирован"
-                    className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"
-                  />
-                  <button
-                    onClick={() => copyToClipboard(finalResult.meta_title || '', 'Meta Title')}
-                    disabled={!finalResult.meta_title}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Copy
-                  </button>
-                </div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                Сгенерированная статья
+              </h2>
+              <div className="space-x-2">
+                <button
+                  onClick={() => copyToClipboard(article)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                >
+                  Copy HTML
+                </button>
+                <button
+                  onClick={() => {
+                    const plainText = article.replace(/<[^>]*>/g, '');
+                    copyToClipboard(plainText);
+                  }}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
+                >
+                  Copy Plain Text
+                </button>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Meta Description
-                </label>
-                <div className="flex space-x-2">
-                  <textarea
-                    value={finalResult.meta_description || ''}
-                    readOnly
-                    rows={3}
-                    placeholder="Meta Description не был сгенерирован"
-                    className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"
-                  />
-                  <button
-                    onClick={() => copyToClipboard(finalResult.meta_description || '', 'Meta Description')}
-                    disabled={!finalResult.meta_description}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-
-              {finalResult.summary && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Summary
-                  </label>
-                  <p className="text-gray-900 dark:text-white">{finalResult.summary}</p>
-                </div>
-              )}
-
             </div>
 
-            {/* HTML контент */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  HTML Content
-                </label>
-                <div className="space-x-2">
-                  <button
-                    onClick={() => copyToClipboard(finalResult.html || '', 'HTML')}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-                  >
-                    Copy HTML
-                  </button>
-                  <button
-                    onClick={() => {
-                      const plainText = finalResult.html?.replace(/<[^>]*>/g, '') || '';
-                      copyToClipboard(plainText, 'Plain Text');
-                    }}
-                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
-                  >
-                    Copy Plain Text
-                  </button>
-                </div>
-              </div>
+            {/* HTML контент статьи */}
+            <div
+              className="p-6 bg-white dark:bg-gray-900 rounded-lg border-2 border-gray-200 dark:border-gray-700 shadow-sm"
+              style={{
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+              }}
+            >
               <div
-                className="p-6 bg-white dark:bg-gray-900 rounded-lg border-2 border-gray-200 dark:border-gray-700 shadow-sm"
-                style={{
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                }}
-              >
-                <div
-                  className="prose prose-lg dark:prose-invert max-w-none
-                    prose-headings:font-bold prose-headings:text-gray-900 dark:prose-headings:text-white
-                    prose-h1:text-4xl prose-h1:mt-8 prose-h1:mb-4 prose-h1:border-b-2 prose-h1:border-gray-300 dark:prose-h1:border-gray-600 prose-h1:pb-3
-                    prose-h2:text-3xl prose-h2:mt-6 prose-h2:mb-3 prose-h2:text-gray-800 dark:prose-h2:text-gray-100
-                    prose-h3:text-2xl prose-h3:mt-5 prose-h3:mb-2 prose-h3:text-gray-700 dark:prose-h3:text-gray-200
-                    prose-h4:text-xl prose-h4:mt-4 prose-h4:mb-2 prose-h4:text-gray-700 dark:prose-h4:text-gray-200
-                    prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-p:leading-relaxed prose-p:mb-4
-                    prose-ul:list-disc prose-ul:pl-6 prose-ul:mb-4 prose-ul:text-gray-700 dark:prose-ul:text-gray-300
-                    prose-ol:list-decimal prose-ol:pl-6 prose-ol:mb-4 prose-ol:text-gray-700 dark:prose-ol:text-gray-300
-                    prose-li:mb-2 prose-li:leading-relaxed
-                    prose-strong:text-gray-900 dark:prose-strong:text-white prose-strong:font-semibold
-                    prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:underline
-                    prose-blockquote:border-l-4 prose-blockquote:border-gray-300 dark:prose-blockquote:border-gray-600 prose-blockquote:pl-4 prose-blockquote:italic
-                    prose-code:text-sm prose-code:bg-gray-100 dark:prose-code:bg-gray-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded
-                    prose-pre:bg-gray-100 dark:prose-pre:bg-gray-800 prose-pre:p-4 prose-pre:rounded-lg prose-pre:overflow-x-auto"
-                  dangerouslySetInnerHTML={{ __html: finalResult.html || '' }}
-                />
-              </div>
+                className="prose prose-lg dark:prose-invert max-w-none
+                  prose-headings:font-bold prose-headings:text-gray-900 dark:prose-headings:text-white
+                  prose-h1:text-4xl prose-h1:mt-8 prose-h1:mb-4 prose-h1:border-b-2 prose-h1:border-gray-300 dark:prose-h1:border-gray-600 prose-h1:pb-3
+                  prose-h2:text-3xl prose-h2:mt-6 prose-h2:mb-3 prose-h2:text-gray-800 dark:prose-h2:text-gray-100
+                  prose-h3:text-2xl prose-h3:mt-5 prose-h3:mb-2 prose-h3:text-gray-700 dark:prose-h3:text-gray-200
+                  prose-h4:text-xl prose-h4:mt-4 prose-h4:mb-2 prose-h4:text-gray-700 dark:prose-h4:text-gray-200
+                  prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-p:leading-relaxed prose-p:mb-4
+                  prose-ul:list-disc prose-ul:pl-6 prose-ul:mb-4 prose-ul:text-gray-700 dark:prose-ul:text-gray-300
+                  prose-ol:list-decimal prose-ol:pl-6 prose-ol:mb-4 prose-ol:text-gray-700 dark:prose-ol:text-gray-300
+                  prose-li:mb-2 prose-li:leading-relaxed
+                  prose-strong:text-gray-900 dark:prose-strong:text-white prose-strong:font-semibold
+                  prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:underline
+                  prose-blockquote:border-l-4 prose-blockquote:border-gray-300 dark:prose-blockquote:border-gray-600 prose-blockquote:pl-4 prose-blockquote:italic
+                  prose-code:text-sm prose-code:bg-gray-100 dark:prose-code:bg-gray-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded
+                  prose-pre:bg-gray-100 dark:prose-pre:bg-gray-800 prose-pre:p-4 prose-pre:rounded-lg prose-pre:overflow-x-auto"
+                dangerouslySetInnerHTML={{ __html: article }}
+              />
             </div>
           </div>
         )}

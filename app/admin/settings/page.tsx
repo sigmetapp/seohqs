@@ -10,9 +10,6 @@ export default function AdminSettingsPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [openaiApiKey, setOpenaiApiKey] = useState('');
-  const [outlineAssistantId, setOutlineAssistantId] = useState('');
-  const [sectionAssistantId, setSectionAssistantId] = useState('');
-  const [cleanupAssistantId, setCleanupAssistantId] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -59,9 +56,6 @@ export default function AdminSettingsPage() {
       
       if (data.success && data.settings) {
         setOpenaiApiKey(data.settings.openaiApiKey || '');
-        setOutlineAssistantId(data.settings.outlineAssistantId || '');
-        setSectionAssistantId(data.settings.sectionAssistantId || '');
-        setCleanupAssistantId(data.settings.cleanupAssistantId || '');
       }
     } catch (error) {
       console.error('Ошибка загрузки настроек:', error);
@@ -81,9 +75,6 @@ export default function AdminSettingsPage() {
         },
         body: JSON.stringify({
           openaiApiKey,
-          outlineAssistantId,
-          sectionAssistantId,
-          cleanupAssistantId,
         }),
       });
 
@@ -132,17 +123,11 @@ export default function AdminSettingsPage() {
           <form onSubmit={handleSave} className="space-y-6">
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
               <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-200 mb-2">
-                Поля для Content Generator
+                Настройки Content Generator
               </h2>
               <p className="text-sm text-blue-800 dark:text-blue-300">
-                Следующие поля используются в генераторе контента (/content-generator):
+                Система использует одного ассистента OpenAI (Article Creator Assistant), который автоматически создается при первом использовании. Ассистент сам выполняет поиск статей в Google, выбор лучших источников, парсинг контента и создание статьи.
               </p>
-              <ul className="mt-2 text-sm text-blue-700 dark:text-blue-400 list-disc list-inside space-y-1">
-                <li>OpenAI API Key</li>
-                <li>Outline Assistant ID</li>
-                <li>Content Section Writer ID</li>
-                <li>Cleanup Assistant ID</li>
-              </ul>
             </div>
 
             <div>
@@ -150,7 +135,7 @@ export default function AdminSettingsPage() {
                 htmlFor="openaiApiKey"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
-                OpenAI API Key <span className="text-blue-600 dark:text-blue-400">(используется в Content Generator)</span>
+                OpenAI API Key *
               </label>
               <input
                 type="password"
@@ -162,67 +147,16 @@ export default function AdminSettingsPage() {
                 placeholder="sk-..."
               />
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                API ключ для работы с OpenAI Assistants API
+                API ключ для работы с OpenAI Assistants API. Используется в генераторе контента (/content-generator) для создания SEO-статей.
               </p>
             </div>
 
-            <div>
-              <label
-                htmlFor="outlineAssistantId"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >
-                Outline Assistant ID * <span className="text-blue-600 dark:text-blue-400">(используется в Content Generator)</span>
-              </label>
-              <input
-                type="text"
-                id="outlineAssistantId"
-                value={outlineAssistantId}
-                onChange={(e) => setOutlineAssistantId(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="asst_e1693TT89qMWg206LoATncoO"
-              />
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                ID ассистента для генерации структуры статей (Outline Assistant). Используется в /content-generator для создания структуры статьи на этапе research.
-              </p>
-            </div>
-
-            <div>
-              <label
-                htmlFor="sectionAssistantId"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >
-                Content Section Writer ID * <span className="text-blue-600 dark:text-blue-400">(используется в Content Generator)</span>
-              </label>
-              <input
-                type="text"
-                id="sectionAssistantId"
-                value={sectionAssistantId}
-                onChange={(e) => setSectionAssistantId(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="asst_VJWo1WOjUgU3Hi34rFAOjQnQ"
-              />
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                ID ассистента для генерации секций статей (Content Section Writer). Используется в /content-generator для написания отдельных секций статьи.
-              </p>
-            </div>
-
-            <div>
-              <label
-                htmlFor="cleanupAssistantId"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >
-                Cleanup Assistant ID * <span className="text-blue-600 dark:text-blue-400">(используется в Content Generator)</span>
-              </label>
-              <input
-                type="text"
-                id="cleanupAssistantId"
-                value={cleanupAssistantId}
-                onChange={(e) => setCleanupAssistantId(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="asst_kwQQhhnsoG21VkggWIfHRGTt"
-              />
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                ID ассистента для очистки и "очеловечивания" HTML секций (Cleanup Assistant v1.0). Используется в /content-generator на этапе финализации статьи для улучшения стиля и удаления AI-штампов.
+            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                Article Creator Assistant
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Ассистент создается автоматически при первом использовании генератора контента. ID ассистента сохраняется в настройках системы и используется для всех последующих генераций статей.
               </p>
             </div>
 

@@ -36,19 +36,13 @@ export async function GET(request: Request) {
       });
     }
 
-    // Если ключ не указан, возвращаем все настройки OpenAI
+    // Если ключ не указан, возвращаем настройки OpenAI
     const openaiApiKey = await getSetting('openai_api_key');
-    const outlineAssistantId = await getSetting('openai_outline_assistant_id');
-    const sectionAssistantId = await getSetting('openai_section_assistant_id');
-    const cleanupAssistantId = await getSetting('openai_cleanup_assistant_id');
 
     return NextResponse.json({
       success: true,
       settings: {
         openaiApiKey: openaiApiKey?.value || null,
-        outlineAssistantId: outlineAssistantId?.value || null,
-        sectionAssistantId: sectionAssistantId?.value || null,
-        cleanupAssistantId: cleanupAssistantId?.value || null,
       },
     });
   } catch (error: any) {
@@ -77,7 +71,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { openaiApiKey, outlineAssistantId, sectionAssistantId, cleanupAssistantId } = body;
+    const { openaiApiKey } = body;
 
     const settings: any = {};
 
@@ -88,33 +82,6 @@ export async function POST(request: Request) {
         'OpenAI API Key для работы с Assistants API'
       );
       settings.openaiApiKey = openaiApiKey;
-    }
-
-    if (outlineAssistantId !== undefined) {
-      await setSetting(
-        'openai_outline_assistant_id',
-        outlineAssistantId || '',
-        'ID ассистента OpenAI для генерации структуры статей (Outline Assistant)'
-      );
-      settings.outlineAssistantId = outlineAssistantId;
-    }
-
-    if (sectionAssistantId !== undefined) {
-      await setSetting(
-        'openai_section_assistant_id',
-        sectionAssistantId || '',
-        'ID ассистента OpenAI для генерации секций статей (Content Section Writer)'
-      );
-      settings.sectionAssistantId = sectionAssistantId;
-    }
-
-    if (cleanupAssistantId !== undefined) {
-      await setSetting(
-        'openai_cleanup_assistant_id',
-        cleanupAssistantId || '',
-        'ID ассистента OpenAI для очистки и "очеловечивания" HTML секций (Cleanup Assistant v1.0)'
-      );
-      settings.cleanupAssistantId = cleanupAssistantId;
     }
 
     return NextResponse.json({
