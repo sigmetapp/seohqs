@@ -36,7 +36,7 @@ export async function getOpenAIClient(): Promise<OpenAI> {
  * Получает или создаёт ассистента RESEARCH_OUTLINE_ASSISTANT
  */
 export async function getResearchOutlineAssistant(openai: OpenAI): Promise<string> {
-  const assistantIdSetting = await getSetting('openai_research_outline_assistant_id');
+  const assistantIdSetting = await getSetting('openai_outline_assistant_id');
   let assistantId = assistantIdSetting?.value;
 
   if (assistantId) {
@@ -96,7 +96,7 @@ export async function getResearchOutlineAssistant(openai: OpenAI): Promise<strin
 
   // Сохраняем ID ассистента в настройках
   const { setSetting } = await import('./db-settings');
-  await setSetting('openai_research_outline_assistant_id', assistant.id, 'ID ассистента для исследования и создания структуры статей');
+  await setSetting('openai_outline_assistant_id', assistant.id, 'ID ассистента для исследования и создания структуры статей');
 
   return assistant.id;
 }
@@ -105,7 +105,7 @@ export async function getResearchOutlineAssistant(openai: OpenAI): Promise<strin
  * Получает или создаёт ассистента SECTION_WRITER_FROM_RESEARCH
  */
 export async function getSectionWriterAssistant(openai: OpenAI): Promise<string> {
-  const assistantIdSetting = await getSetting('openai_section_writer_assistant_id');
+  const assistantIdSetting = await getSetting('openai_section_assistant_id');
   let assistantId = assistantIdSetting?.value;
 
   if (assistantId) {
@@ -147,7 +147,7 @@ export async function getSectionWriterAssistant(openai: OpenAI): Promise<string>
 
   // Сохраняем ID ассистента в настройках
   const { setSetting } = await import('./db-settings');
-  await setSetting('openai_section_writer_assistant_id', assistant.id, 'ID ассистента для написания секций статей');
+  await setSetting('openai_section_assistant_id', assistant.id, 'ID ассистента для написания секций статей');
 
   return assistant.id;
 }
@@ -156,7 +156,7 @@ export async function getSectionWriterAssistant(openai: OpenAI): Promise<string>
  * Получает или создаёт ассистента CLEANUP_HUMANIZER
  */
 export async function getCleanupHumanizerAssistant(openai: OpenAI): Promise<string> {
-  const assistantIdSetting = await getSetting('openai_cleanup_humanizer_assistant_id');
+  const assistantIdSetting = await getSetting('openai_cleanup_assistant_id');
   let assistantId = assistantIdSetting?.value;
 
   if (assistantId) {
@@ -198,7 +198,7 @@ export async function getCleanupHumanizerAssistant(openai: OpenAI): Promise<stri
 
   // Сохраняем ID ассистента в настройках
   const { setSetting } = await import('./db-settings');
-  await setSetting('openai_cleanup_humanizer_assistant_id', assistant.id, 'ID ассистента для финальной очистки статей');
+  await setSetting('openai_cleanup_assistant_id', assistant.id, 'ID ассистента для финальной очистки статей');
 
   return assistant.id;
 }
