@@ -107,6 +107,7 @@ export async function POST(request: Request) {
         ? ` Received ${serpResults.length} results, but only ${validResults.length} have valid URLs.`
         : ` No results returned from SERP API.`;
       console.error(`[ARTICLE/CREATE] Not enough valid SERP results. Query: "${topic}".${debugInfo}`);
+      console.error(`[ARTICLE/CREATE] Sample results:`, JSON.stringify(serpResults.slice(0, 3), null, 2));
       
       // Check if API is configured
       const hasGoogleApi = process.env.GOOGLE_SEARCH_API_KEY && process.env.GOOGLE_SEARCH_ENGINE_ID;
@@ -114,16 +115,30 @@ export async function POST(request: Request) {
       const hasZenserpApi = process.env.ZENSERP_API_KEY;
       
       let configInfo = '';
+      let suggestions = '';
+      
       if (!hasGoogleApi && !hasSerpApi && !hasZenserpApi) {
-        configInfo = ' No SERP API configured. Please set GOOGLE_SEARCH_API_KEY + GOOGLE_SEARCH_ENGINE_ID, SERP_API_KEY, or ZENSERP_API_KEY.';
+        configInfo = ' No SERP API configured.';
+        suggestions = ' Please set GOOGLE_SEARCH_API_KEY + GOOGLE_SEARCH_ENGINE_ID, SERP_API_KEY, or ZENSERP_API_KEY environment variables.';
       } else {
-        configInfo = ` SERP API configured (${hasGoogleApi ? 'Google' : ''}${hasSerpApi ? 'SerpAPI' : ''}${hasZenserpApi ? 'Zenserp' : ''}).`;
+        const configuredApis = [];
+        if (hasGoogleApi) configuredApis.push('Google Custom Search');
+        if (hasSerpApi) configuredApis.push('SerpAPI');
+        if (hasZenserpApi) configuredApis.push('Zenserp');
+        configInfo = ` SERP API configured (${configuredApis.join(', ')}).`;
+        
+        // Provide specific suggestions based on what's configured
+        if (hasGoogleApi && !hasSerpApi && !hasZenserpApi) {
+          suggestions = ' The Google Custom Search API may have returned no results. Possible reasons: 1) Search Engine ID is restricted to specific sites, 2) Query is too specific, 3) API quota exceeded, 4) Invalid API key or Engine ID. Try: a different query, check API quota, verify Search Engine ID allows web-wide search, or configure a fallback API (SerpAPI/Zenserp).';
+        } else {
+          suggestions = ' All configured APIs returned no results. Try: a different query, check API quotas, or verify API keys are valid.';
+        }
       }
       
       return NextResponse.json(
         { 
           success: false, 
-          error: `Not enough Google SERP results.${debugInfo}${configInfo} Please check your SERP API configuration and try a different query.` 
+          error: `Not enough Google SERP results.${debugInfo}${configInfo}${suggestions}` 
         },
         { status: 400 }
       );
