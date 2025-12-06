@@ -45,12 +45,14 @@ export async function fetchGoogleSerpTop10(params: SerpParams): Promise<SerpResu
   
   if (googleApiKey && googleEngineId) {
     try {
-      const response = await fetch(
-        `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleEngineId}&q=${encodeURIComponent(query)}&hl=${language || 'en'}&gl=${country || 'us'}&num=10`
-      );
+      const url = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleEngineId}&q=${encodeURIComponent(query)}&hl=${language || 'en'}&gl=${country || 'us'}&num=10`;
+      console.log(`[GOOGLE_SERP] Fetching from Google Custom Search API: query="${query}", language=${language || 'en'}`);
+      
+      const response = await fetch(url);
       
       if (!response.ok) {
         const errorText = await response.text();
+        console.error(`[GOOGLE_SERP] Google Custom Search API HTTP error: ${response.status} ${response.statusText}`);
         throw new Error(`Google Custom Search API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
       
@@ -58,14 +60,27 @@ export async function fetchGoogleSerpTop10(params: SerpParams): Promise<SerpResu
       
       // Handle API errors
       if (data.error) {
+        console.error(`[GOOGLE_SERP] Google Custom Search API error response:`, data.error);
         throw new Error(`Google Custom Search API error: ${data.error.message || JSON.stringify(data.error)}`);
       }
       
-      return (data.items || []).slice(0, 10).map((item: any) => ({
-        url: item.link,
+      const items = data.items || [];
+      console.log(`[GOOGLE_SERP] Google Custom Search API returned ${items.length} items`);
+      
+      const results = items.slice(0, 10).map((item: any) => ({
+        url: item.link || '',
         title: item.title || '',
         snippet: item.snippet || '',
       }));
+      
+      // Log results for debugging
+      if (results.length === 0) {
+        console.warn(`[GOOGLE_SERP] No results returned for query: "${query}"`);
+      } else {
+        console.log(`[GOOGLE_SERP] Mapped ${results.length} results with URLs:`, results.map(r => r.url).filter(Boolean).length);
+      }
+      
+      return results;
     } catch (error: any) {
       console.error('[GOOGLE_SERP] Google Custom Search API failed:', error.message);
       throw error;
@@ -76,21 +91,33 @@ export async function fetchGoogleSerpTop10(params: SerpParams): Promise<SerpResu
   const serpApiKey = process.env.SERP_API_KEY;
   if (serpApiKey) {
     try {
-      const response = await fetch(
-        `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${serpApiKey}&hl=${language || 'en'}&gl=${country || 'us'}&num=10`
-      );
+      const url = `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${serpApiKey}&hl=${language || 'en'}&gl=${country || 'us'}&num=10`;
+      console.log(`[GOOGLE_SERP] Fetching from SerpAPI: query="${query}", language=${language || 'en'}`);
+      
+      const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error(`SerpAPI error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`[GOOGLE_SERP] SerpAPI HTTP error: ${response.status} ${response.statusText}`);
+        throw new Error(`SerpAPI error: ${response.status} ${response.statusText} - ${errorText}`);
       }
       
       const data = await response.json();
       
-      return (data.organic_results || []).slice(0, 10).map((result: any) => ({
-        url: result.link,
+      const organicResults = data.organic_results || [];
+      console.log(`[GOOGLE_SERP] SerpAPI returned ${organicResults.length} organic results`);
+      
+      const results = organicResults.slice(0, 10).map((result: any) => ({
+        url: result.link || '',
         title: result.title || '',
         snippet: result.snippet || '',
       }));
+      
+      if (results.length === 0) {
+        console.warn(`[GOOGLE_SERP] No organic results returned for query: "${query}"`);
+      }
+      
+      return results;
     } catch (error: any) {
       console.error('[GOOGLE_SERP] SerpAPI failed:', error.message);
       throw error;
@@ -101,21 +128,33 @@ export async function fetchGoogleSerpTop10(params: SerpParams): Promise<SerpResu
   const zenserpApiKey = process.env.ZENSERP_API_KEY;
   if (zenserpApiKey) {
     try {
-      const response = await fetch(
-        `https://app.zenserp.com/api/v2/search?q=${encodeURIComponent(query)}&apikey=${zenserpApiKey}&hl=${language || 'en'}&gl=${country || 'us'}&num=10`
-      );
+      const url = `https://app.zenserp.com/api/v2/search?q=${encodeURIComponent(query)}&apikey=${zenserpApiKey}&hl=${language || 'en'}&gl=${country || 'us'}&num=10`;
+      console.log(`[GOOGLE_SERP] Fetching from Zenserp: query="${query}", language=${language || 'en'}`);
+      
+      const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error(`Zenserp error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`[GOOGLE_SERP] Zenserp HTTP error: ${response.status} ${response.statusText}`);
+        throw new Error(`Zenserp error: ${response.status} ${response.statusText} - ${errorText}`);
       }
       
       const data = await response.json();
       
-      return (data.organic || []).slice(0, 10).map((result: any) => ({
-        url: result.url,
+      const organicResults = data.organic || [];
+      console.log(`[GOOGLE_SERP] Zenserp returned ${organicResults.length} organic results`);
+      
+      const results = organicResults.slice(0, 10).map((result: any) => ({
+        url: result.url || '',
         title: result.title || '',
         snippet: result.description || '',
       }));
+      
+      if (results.length === 0) {
+        console.warn(`[GOOGLE_SERP] No organic results returned for query: "${query}"`);
+      }
+      
+      return results;
     } catch (error: any) {
       console.error('[GOOGLE_SERP] Zenserp failed:', error.message);
       throw error;
