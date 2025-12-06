@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import SectionStatusCard, { SectionStatusData, SectionStatus } from '@/app/components/content-generator/SectionStatusCard';
 
@@ -10,6 +10,25 @@ interface FinalResult {
   meta_description?: string;
   h1?: string;
   summary?: string;
+}
+
+interface ArticleJob {
+  jobId: string;
+  status: string;
+  topic: string;
+  outline?: {
+    title: string;
+    sections: Array<{ id: string; title: string; description: string }>;
+  };
+  sources?: Array<{ url: string; title: string; snippet: string }>;
+  progress?: {
+    totalSections: number;
+    completedSections: number;
+    sections: Array<{ sectionId: string; status: string; completedAt?: string }>;
+  };
+  finalHtml?: string;
+  metaTitle?: string;
+  metaDescription?: string;
 }
 
 export default function ContentGeneratorPage() {
@@ -32,15 +51,15 @@ export default function ContentGeneratorPage() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState('');
   const [outlineSections, setOutlineSections] = useState<Array<{ id: string; title: string; description: string }>>([]);
-  const [step, setStep] = useState<'idle' | 'outline' | 'sections' | 'seo' | 'done'>('idle');
-  const [currentSection, setCurrentSection] = useState<number>(0);
-  const [totalSections, setTotalSections] = useState<number>(0);
-  const [failedSections, setFailedSections] = useState<Array<{ index: number; title: string; error: string }>>([]);
-  const [lowComplexitySections, setLowComplexitySections] = useState<Set<number>>(new Set());
+  const [step, setStep] = useState<'idle' | 'researching' | 'writing' | 'finalizing' | 'done'>('idle');
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [sectionStatuses, setSectionStatuses] = useState<SectionStatusData[]>([]);
-  const [currentTargetSectionWords, setCurrentTargetSectionWords] = useState<number | undefined>(undefined);
+  const [failedSections, setFailedSections] = useState<Array<{ index: number; title: string; error: string }>>([]);
+  
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const sectionGenerationRef = useRef<boolean>(false);
 
   useEffect(() => {
     checkAuth();
@@ -65,6 +84,15 @@ export default function ContentGeneratorPage() {
       }
     };
   }, [generating, startTime]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
 
   const checkAuth = async () => {
     try {
@@ -91,6 +119,189 @@ export default function ContentGeneratorPage() {
     }
   };
 
+  // Polling статуса research
+  const pollResearchStatus = async (jobId: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/article/research-status?jobId=${jobId}`);
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Ошибка проверки статуса research');
+      }
+
+      if (data.status === 'completed') {
+        // Research завершён, сохраняем outline
+        const result = data.result;
+        setOutlineSections(result.outline.sections || []);
+        setStep('writing');
+        setProgress('Research завершён. Начинаем генерацию секций...');
+        return true;
+      }
+
+      // Research ещё выполняется
+      return false;
+    } catch (error: any) {
+      console.error('[POLL RESEARCH] Ошибка:', error);
+      throw error;
+    }
+  };
+
+  // Polling общего статуса задачи
+  const pollJobStatus = async (jobId: string): Promise<ArticleJob | null> => {
+    try {
+      const res = await fetch(`/api/article/status?jobId=${jobId}`);
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Ошибка получения статуса задачи');
+      }
+
+      return data.job;
+    } catch (error: any) {
+      console.error('[POLL STATUS] Ошибка:', error);
+      return null;
+    }
+  };
+
+  // Генерация всех секций последовательно
+  const generateAllSections = async (jobId: string, sections: Array<{ id: string; title: string; description: string }>) => {
+    if (sectionGenerationRef.current) {
+      return; // Уже генерируем
+    }
+
+    sectionGenerationRef.current = true;
+    const failed: Array<{ index: number; title: string; error: string }> = [];
+    const statuses: SectionStatusData[] = [];
+
+    // Инициализируем статусы секций
+    sections.forEach((section, index) => {
+      statuses.push({
+        index: index + 1,
+        title: section.title,
+        status: 'skipped',
+      });
+    });
+    setSectionStatuses([...statuses]);
+
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+      const sectionStartTime = Date.now();
+      setProgress(`Генерация секции ${i + 1} из ${sections.length}: ${section.title}...`);
+
+      // Обновляем статус на "в процессе"
+      statuses[i].status = 'skipped';
+      setSectionStatuses([...statuses]);
+
+      try {
+        const res = await fetch('/api/article/write-section', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            jobId,
+            sectionId: section.id,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || `Ошибка генерации секции ${i + 1}`);
+        }
+
+        const generationTime = Math.floor((Date.now() - sectionStartTime) / 1000);
+        const wordCount = data.sectionHtml
+          ? data.sectionHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter((w: string) => w.length > 0).length
+          : undefined;
+
+        statuses[i] = {
+          index: i + 1,
+          title: section.title,
+          status: 'success',
+          sectionHtml: data.sectionHtml,
+          generationTime,
+          wordCount,
+          complexityLevel: 'medium',
+        };
+      } catch (error: any) {
+        const errorMsg = error.message || `Ошибка генерации секции ${i + 1}`;
+        failed.push({
+          index: i + 1,
+          title: section.title,
+          error: errorMsg,
+        });
+
+        statuses[i] = {
+          index: i + 1,
+          title: section.title,
+          status: 'backend_error',
+          error: errorMsg,
+        };
+      }
+
+      setSectionStatuses([...statuses]);
+      setFailedSections([...failed]);
+    }
+
+    sectionGenerationRef.current = false;
+
+    // После генерации всех секций вызываем finalize
+    if (failed.length < sections.length) {
+      await finalizeArticle(jobId);
+    } else {
+      setError('Не удалось сгенерировать ни одной секции');
+      setGenerating(false);
+    }
+  };
+
+  // Финализация статьи
+  const finalizeArticle = async (jobId: string) => {
+    setStep('finalizing');
+    setProgress('Финализация статьи...');
+
+    try {
+      const res = await fetch('/api/article/finalize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ jobId }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Ошибка финализации статьи');
+      }
+
+      // Получаем финальный статус задачи
+      const job = await pollJobStatus(jobId);
+      if (job) {
+        setFinalResult({
+          html: job.finalHtml || data.finalHtml,
+          meta_title: job.metaTitle || '',
+          meta_description: job.metaDescription || '',
+          h1: job.outline?.title || '',
+          summary: `Статья "${job.outline?.title || job.topic}" состоит из ${job.progress?.totalSections || 0} секций.`,
+        });
+      } else {
+        setFinalResult({
+          html: data.finalHtml,
+          summary: 'Статья успешно сгенерирована.',
+        });
+      }
+
+      setStep('done');
+      setProgress('Статья готова! ✓');
+      setGenerating(false);
+    } catch (error: any) {
+      console.error('[FINALIZE] Ошибка:', error);
+      setError(error.message || 'Ошибка финализации статьи');
+      setGenerating(false);
+    }
+  };
+
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -104,498 +315,92 @@ export default function ContentGeneratorPage() {
     setFinalResult(null);
     setOutlineSections([]);
     setFailedSections([]);
-    setLowComplexitySections(new Set());
     setSectionStatuses([]);
-    setStep('outline');
-    setProgress('Generating outline…');
+    setStep('researching');
+    setProgress('Запуск генерации статьи...');
     setStartTime(Date.now());
     setElapsedTime(0);
+    sectionGenerationRef.current = false;
 
     try {
-      // ШАГ 1: Outline
-      setProgress('Generating outline…');
-      
-      const outlineController = new AbortController();
-      const outlineTimeout = setTimeout(() => outlineController.abort(), 35000); // 35 секунд на клиенте (запас для серверных 30 секунд)
-      
-      let outlineRes;
-      try {
-        outlineRes = await fetch('/api/content/outline', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            topic,
-            language,
-            audience,
-            authorPersona,
-            angle,
-            contentGoal,
-            desiredLength,
-            complexity,
-            constraints: constraints || undefined,
-          }),
-          signal: outlineController.signal,
-        });
-        clearTimeout(outlineTimeout);
-      } catch (fetchError: any) {
-        clearTimeout(outlineTimeout);
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Превышено время ожидания генерации структуры (35 секунд). Попробуйте еще раз.');
-        }
-        throw fetchError;
-      }
-
-      const outlineText = await outlineRes.text();
-      
-      if (!outlineText || outlineText.length > 10000) {
-        throw new Error('Сервер вернул неожиданный ответ при генерации структуры');
-      }
-      
-      let outlineData;
-      try {
-        outlineData = JSON.parse(outlineText);
-      } catch (jsonError) {
-        const preview = outlineText.length > 200 ? outlineText.substring(0, 200) + '...' : outlineText;
-        throw new Error(`Ошибка: сервер вернул не-JSON ответ при генерации структуры. Ответ: ${preview}`);
-      }
-
-      if (!outlineRes.ok || !outlineData.success) {
-        throw new Error(outlineData.error || 'Ошибка генерации структуры');
-      }
-
-      const sections = outlineData.sections || [];
-      setOutlineSections(sections);
-
-      // Вычисляем целевую длину секции на основе желаемой длины статьи
-      const desiredLengthNum = parseInt(String(desiredLength || '2000'), 10);
-      const sectionsCount = sections.length;
-      const targetSectionWords = sectionsCount > 0 
-        ? Math.round(desiredLengthNum / sectionsCount)
-        : undefined;
-
-      // Сохраняем targetSectionWords в состояние для использования при перегенерации
-      setCurrentTargetSectionWords(targetSectionWords);
-
-      console.log(`[FRONTEND] Желаемая длина: ${desiredLengthNum} слов, секций: ${sectionsCount}, целевая длина секции: ${targetSectionWords} слов`);
-
-      // ШАГ 2: Sections - последовательная генерация
-      const sectionsHtml: string[] = [];
-      const totalSections = sections.length;
-      const failed: Array<{ index: number; title: string; error: string }> = [];
-      const lowComplexity: Set<number> = new Set();
-      const statuses: SectionStatusData[] = [];
-      setTotalSections(totalSections);
-      setStep('sections');
-      setFailedSections([]);
-      setLowComplexitySections(new Set());
-
-      for (let i = 0; i < totalSections; i++) {
-        const section = sections[i];
-        const sectionStartTime = Date.now();
-        setCurrentSection(i + 1);
-        setProgress(`Генерация секции ${i + 1} из ${totalSections}: ${section.title}...`);
-
-        // Инициализируем статус секции
-        let sectionStatus: SectionStatus = 'skipped';
-        let sectionHtml: string | null = null;
-        let rawHtmlSection: string | null = null;
-        let cleanHtmlSection: string | null = null;
-        let cleaned = false;
-        let cleanupTime: number | undefined = undefined;
-        let complexityLevel: 'medium' | 'low' | 'high' = 'medium';
-        let retryCount = 0;
-        let errorMessage: string | undefined = undefined;
-        const technicalLogs: string[] = [];
-
-        try {
-          const sectionController = new AbortController();
-          // Таймаут 60 секунд на клиенте (запас для серверных 55 секунд)
-          const sectionTimeout = setTimeout(() => sectionController.abort(), 60000);
-          
-          let sectionRes;
-          try {
-            technicalLogs.push(`[${new Date().toISOString()}] Начало запроса к API для секции ${i + 1}`);
-            sectionRes = await fetch('/api/content/section', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                sectionTitle: section.title,
-                sectionDescription: section.description,
-                targetSectionWords: targetSectionWords,
-                complexityLevel: complexity,
-                authorPersona,
-                angle,
-                contentGoal,
-              }),
-              signal: sectionController.signal,
-            });
-            clearTimeout(sectionTimeout);
-            technicalLogs.push(`[${new Date().toISOString()}] Ответ получен, статус: ${sectionRes.status}`);
-          } catch (fetchError: any) {
-            clearTimeout(sectionTimeout);
-            if (fetchError.name === 'AbortError') {
-              const timeoutError = `Превышено время ожидания генерации секции ${i + 1}: "${section.title}"`;
-              technicalLogs.push(`[${new Date().toISOString()}] Таймаут: ${timeoutError}`);
-              throw new Error(timeoutError);
-            }
-            technicalLogs.push(`[${new Date().toISOString()}] Ошибка запроса: ${fetchError.message}`);
-            throw fetchError;
-          }
-
-          const sectionText = await sectionRes.text();
-          technicalLogs.push(`[${new Date().toISOString()}] Размер ответа: ${sectionText.length} символов`);
-          
-          // Проверяем, что ответ не пустой и не слишком большой перед парсингом
-          if (!sectionText || sectionText.length > 50000) {
-            const error = `Сервер вернул неожиданный ответ при генерации секции ${i + 1}`;
-            technicalLogs.push(`[${new Date().toISOString()}] Ошибка: ${error}`);
-            throw new Error(error);
-          }
-          
-          let sectionData;
-          try {
-            sectionData = JSON.parse(sectionText);
-            technicalLogs.push(`[${new Date().toISOString()}] JSON распарсен успешно, success: ${sectionData.success}`);
-          } catch (jsonError) {
-            const preview = sectionText.length > 200 ? sectionText.substring(0, 200) + '...' : sectionText;
-            const error = `Ошибка: сервер вернул не-JSON ответ при генерации секции ${i + 1}. Ответ: ${preview}`;
-            technicalLogs.push(`[${new Date().toISOString()}] Ошибка парсинга JSON: ${error}`);
-            throw new Error(error);
-          }
-
-          if (!sectionRes.ok || !sectionData.success) {
-            const error = sectionData.error || `Ошибка генерации секции ${i + 1}: ${section.title}`;
-            technicalLogs.push(`[${new Date().toISOString()}] Ошибка от API: ${error}`);
-            
-            // Определяем тип ошибки
-            if (error.includes('OpenAI') || error.includes('openai')) {
-              sectionStatus = 'openai_error';
-            } else {
-              sectionStatus = 'backend_error';
-            }
-            errorMessage = error;
-            throw new Error(error);
-          }
-
-          // Проверяем успешность и наличие HTML
-          if (sectionData.success && sectionData.sectionHtml && typeof sectionData.sectionHtml === 'string') {
-            rawHtmlSection = sectionData.sectionHtml.trim();
-            technicalLogs.push(`[${new Date().toISOString()}] HTML получен, длина: ${rawHtmlSection.length} символов`);
-            
-            // Проверяем, что HTML не пустой
-            if (rawHtmlSection.length === 0) {
-              const error = `Ассистент вернул пустой HTML для секции ${i + 1}: ${section.title}`;
-              technicalLogs.push(`[${new Date().toISOString()}] Ошибка: ${error}`);
-              sectionStatus = 'backend_error';
-              errorMessage = error;
-              throw new Error(error);
-            }
-            
-            // Определяем статус и complexityLevel
-            complexityLevel = sectionData.complexityLevel || 'medium';
-            if (complexityLevel === 'low') {
-              sectionStatus = 'success_light';
-              lowComplexity.add(i);
-            } else {
-              sectionStatus = 'success';
-            }
-            
-            // ШАГ 2.5: Cleanup - очистка секции через Cleanup Assistant
-            const cleanupStartTime = Date.now();
-            
-            try {
-              setProgress(`Очистка секции ${i + 1} из ${totalSections}: ${section.title}...`);
-              technicalLogs.push(`[${new Date().toISOString()}] Начало очистки секции через Cleanup Assistant`);
-              
-              const cleanupController = new AbortController();
-              const cleanupTimeout = setTimeout(() => cleanupController.abort(), 30000); // 30 секунд на клиенте (запас для серверных 25 секунд)
-              
-              let cleanupRes;
-              try {
-                cleanupRes = await fetch('/api/content/cleanup', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    htmlSection: rawHtmlSection,
-                    language,
-                    authorPersona,
-                    angle,
-                    editIntensity: 'medium',
-                  }),
-                  signal: cleanupController.signal,
-                });
-                clearTimeout(cleanupTimeout);
-                technicalLogs.push(`[${new Date().toISOString()}] Ответ от cleanup получен, статус: ${cleanupRes.status}`);
-              } catch (fetchError: any) {
-                clearTimeout(cleanupTimeout);
-                if (fetchError.name === 'AbortError') {
-                  technicalLogs.push(`[${new Date().toISOString()}] Таймаут cleanup: превышено время ожидания`);
-                  throw new Error('Превышено время ожидания очистки секции');
-                }
-                throw fetchError;
-              }
-
-              const cleanupText = await cleanupRes.text();
-              technicalLogs.push(`[${new Date().toISOString()}] Размер ответа cleanup: ${cleanupText.length} символов`);
-              
-              if (!cleanupText || cleanupText.length > 50000) {
-                technicalLogs.push(`[${new Date().toISOString()}] Ошибка: неожиданный размер ответа cleanup`);
-                throw new Error('Сервер вернул неожиданный ответ при очистке секции');
-              }
-              
-              let cleanupData;
-              try {
-                cleanupData = JSON.parse(cleanupText);
-                technicalLogs.push(`[${new Date().toISOString()}] JSON cleanup распарсен, success: ${cleanupData.success}`);
-              } catch (jsonError) {
-                const preview = cleanupText.length > 200 ? cleanupText.substring(0, 200) + '...' : cleanupText;
-                technicalLogs.push(`[${new Date().toISOString()}] Ошибка парсинга JSON cleanup: ${preview}`);
-                throw new Error(`Ошибка: сервер вернул не-JSON ответ при очистке секции. Ответ: ${preview}`);
-              }
-
-              if (cleanupRes.ok && cleanupData.success && cleanupData.cleanHtmlSection) {
-                cleanHtmlSection = cleanupData.cleanHtmlSection.trim();
-                cleaned = true;
-                cleanupTime = Math.floor((Date.now() - cleanupStartTime) / 1000);
-                technicalLogs.push(`[${new Date().toISOString()}] Секция успешно очищена за ${cleanupTime}с, длина: ${cleanHtmlSection.length} символов`);
-                
-                // Используем очищенный HTML
-                sectionHtml = cleanHtmlSection;
-                sectionsHtml.push(sectionHtml);
-              } else {
-                // Cleanup не удался, используем raw как fallback
-                const cleanupError = cleanupData.error || 'Ошибка очистки секции';
-                technicalLogs.push(`[${new Date().toISOString()}] Cleanup не удался: ${cleanupError}. Используем raw HTML как fallback`);
-                sectionHtml = rawHtmlSection;
-                sectionsHtml.push(sectionHtml);
-              }
-            } catch (cleanupError: any) {
-              // При ошибке cleanup используем raw HTML как fallback
-              const cleanupErrorMsg = cleanupError.message || 'Ошибка очистки секции';
-              technicalLogs.push(`[${new Date().toISOString()}] Ошибка cleanup: ${cleanupErrorMsg}. Используем raw HTML как fallback`);
-              sectionHtml = rawHtmlSection;
-              sectionsHtml.push(sectionHtml);
-            }
-            
-            technicalLogs.push(`[${new Date().toISOString()}] Секция успешно сгенерирована, статус: ${sectionStatus}, очищена: ${cleaned}`);
-          } else {
-            // Если success=true, но HTML отсутствует или невалиден
-            const error = `Не получен валидный HTML для секции ${i + 1}: ${section.title}`;
-            technicalLogs.push(`[${new Date().toISOString()}] Ошибка: ${error}`);
-            sectionStatus = 'backend_error';
-            errorMessage = error;
-            throw new Error(error);
-          }
-        } catch (error: any) {
-          const lastError = error.message || `Ошибка генерации секции ${i + 1}: ${section.title}`;
-          console.error(`Не удалось сгенерировать секцию ${i + 1}:`, lastError);
-          
-          // Определяем статус ошибки
-          if (sectionStatus === 'skipped') {
-            if (lastError.includes('Превышено время') || lastError.includes('timeout') || lastError.includes('aborted')) {
-              sectionStatus = 'timeout';
-            } else if (lastError.includes('OpenAI') || lastError.includes('openai')) {
-              sectionStatus = 'openai_error';
-            } else {
-              sectionStatus = 'backend_error';
-            }
-          }
-          
-          errorMessage = lastError;
-          failed.push({
-            index: i + 1,
-            title: section.title,
-            error: lastError,
-          });
-          technicalLogs.push(`[${new Date().toISOString()}] Финальная ошибка: ${lastError}`);
-        } finally {
-          const generationTime = Math.floor((Date.now() - sectionStartTime) / 1000);
-          
-          // Подсчет слов (приблизительно) - используем финальный HTML (clean или raw)
-          const wordCount = sectionHtml 
-            ? sectionHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(w => w.length > 0).length
-            : undefined;
-
-          statuses.push({
-            index: i + 1,
-            title: section.title,
-            status: sectionStatus,
-            sectionHtml: sectionHtml || undefined, // финальный HTML (clean если есть, иначе raw)
-            rawHtmlSection: rawHtmlSection || undefined,
-            cleanHtmlSection: cleanHtmlSection || undefined,
-            cleaned: cleaned,
-            cleanupTime: cleanupTime,
-            generationTime,
-            wordCount,
-            complexityLevel,
-            retryCount,
-            error: errorMessage,
-            technicalLogs: technicalLogs.length > 0 ? technicalLogs : undefined,
-          });
-
-          // Обновляем статусы в реальном времени
-          setSectionStatuses([...statuses]);
-        }
-      }
-
-      // Сохраняем информацию о секциях с low complexity
-      setLowComplexitySections(lowComplexity);
-
-      // Обновляем список неудачных секций
-      setFailedSections(failed);
-
-      // Финальное обновление статусов
-      setSectionStatuses(statuses);
-
-      // ШАГ 3: Assembling - склеиваем секции на фронте с отметками для low complexity
-      const assembledHtmlParts: string[] = [];
-      for (let i = 0; i < sectionsHtml.length; i++) {
-        // Всегда проверяем, что sectionHtml существует и является строкой
-        const sectionHtml = sectionsHtml[i];
-        if (!sectionHtml || typeof sectionHtml !== 'string') {
-          // Пропускаем секции с невалидным HTML
-          console.warn(`Пропущена секция ${i + 1}: невалидный HTML`);
-          continue;
-        }
-        
-        let finalSectionHtml = sectionHtml;
-        // Добавляем визуальную отметку для секций в режиме "low"
-        if (lowComplexity.has(i)) {
-          const lowBadge = '<div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 8px 12px; margin-bottom: 16px; border-radius: 4px; font-size: 14px; color: #92400e;"><strong>⚠️ Упрощённый режим:</strong> Эта секция была сгенерирована в упрощённом режиме из-за таймаута. Вы можете доработать её вручную или перегенерировать позже.</div>';
-          finalSectionHtml = lowBadge + finalSectionHtml;
-        }
-        assembledHtmlParts.push(finalSectionHtml);
-      }
-      const assembledHtml = assembledHtmlParts.join('\n');
-
-      // ШАГ 4: SEO Packaging
-      setStep('seo');
-      setProgress('Creating SEO metadata…');
-      
-      const seoController = new AbortController();
-      const seoTimeout = setTimeout(() => seoController.abort(), 35000); // 35 секунд на клиенте (запас для серверных 30 секунд)
-      
-      let seoRes;
-      try {
-        seoRes = await fetch('/api/content/seo', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fullArticleHtml: assembledHtml,
-            topic,
-            language,
-            authorPersona,
-            angle,
-          }),
-          signal: seoController.signal,
-        });
-        clearTimeout(seoTimeout);
-      } catch (fetchError: any) {
-        clearTimeout(seoTimeout);
-        if (fetchError.name === 'AbortError') {
-          // SEO не критично, продолжаем без него
-          console.warn('Таймаут генерации SEO, продолжаем без SEO метаданных');
-          seoRes = null;
-        } else {
-          throw fetchError;
-        }
-      }
-
-      let seoData: any = {
-        meta_title: '',
-        meta_description: '',
-        h1: '',
-      };
-      let seoError: string | null = null;
-
-      if (seoRes) {
-        const seoText = await seoRes.text();
-        try {
-          const parsed = JSON.parse(seoText);
-          if (parsed.success) {
-            seoData = {
-              meta_title: parsed.meta_title || '',
-              meta_description: parsed.meta_description || '',
-              h1: parsed.h1 || '',
-            };
-          } else {
-            // SEO ассистент вернул ошибку
-            seoError = parsed.error || 'Ошибка генерации SEO метаданных';
-            console.error('[SEO] Ошибка от API:', seoError);
-          }
-        } catch (jsonError) {
-          seoError = 'Не удалось обработать ответ SEO ассистента';
-          console.warn('[SEO] Не удалось распарсить SEO ответ:', seoText.substring(0, 200));
-        }
-      } else {
-        seoError = 'Не удалось получить ответ от SEO ассистента (таймаут или ошибка сети)';
-      }
-
-      // ШАГ 5: Показ результата
-      setStep('done');
-      
-      let summaryMessage = `Статья состоит из ${totalSections} секций.`;
-      if (lowComplexity.size > 0) {
-        summaryMessage += ` ${lowComplexity.size} секций сгенерировано в упрощённом режиме (из-за таймаута).`;
-      }
-      if (failed.length > 0) {
-        summaryMessage += ` ${failed.length} секций не удалось сгенерировать.`;
-      }
-      
-      let finalSummaryMessage = summaryMessage;
-      if (seoError) {
-        finalSummaryMessage += ` ⚠️ SEO метаданные не были сгенерированы: ${seoError}`;
-      }
-
-      setProgress(failed.length > 0 ? `Статья готова! (${failed.length} секций пропущено)` : 'Статья готова!');
-      setFinalResult({
-        html: assembledHtml,
-        meta_title: seoData.meta_title,
-        meta_description: seoData.meta_description,
-        h1: seoData.h1,
-        summary: finalSummaryMessage,
+      // ШАГ 1: Запускаем задачу
+      const startRes = await fetch('/api/article/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          topic,
+          language,
+          audience,
+          authorPersona,
+          angle,
+          contentGoal,
+          desiredLength,
+          complexity,
+          constraints: constraints || undefined,
+        }),
       });
 
-      // Показываем ошибку SEO, если она есть
-      if (seoError) {
-        setError(`⚠️ SEO метаданные не были сгенерированы: ${seoError}. Статья сгенерирована, но поля Meta Title и Meta Description пустые.`);
+      const startData = await startRes.json();
+
+      if (!startRes.ok || !startData.success) {
+        throw new Error(startData.error || 'Ошибка запуска генерации статьи');
       }
-      setCurrentSection(0);
-      setTotalSections(0);
+
+      const jobId = startData.jobId;
+      setCurrentJobId(jobId);
+      setProgress('Research выполняется...');
+
+      // ШАГ 2: Polling статуса research
+      const maxPollAttempts = 60; // Максимум 60 попыток (1 минута)
+      let pollAttempts = 0;
+      let researchCompleted = false;
+
+      pollingIntervalRef.current = setInterval(async () => {
+        pollAttempts++;
+        
+        try {
+          researchCompleted = await pollResearchStatus(jobId);
+          
+          if (researchCompleted) {
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+
+            // Начинаем генерацию секций
+            const job = await pollJobStatus(jobId);
+            if (job && job.outline) {
+              await generateAllSections(jobId, job.outline.sections);
+            }
+          } else if (pollAttempts >= maxPollAttempts) {
+            // Таймаут polling
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+            throw new Error('Превышено время ожидания research. Попробуйте позже проверить статус задачи.');
+          }
+        } catch (error: any) {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          setError(error.message || 'Ошибка при проверке статуса research');
+          setGenerating(false);
+        }
+      }, 2000); // Проверяем каждые 2 секунды
+
     } catch (err: any) {
-      let errorMessage = 'Ошибка генерации контента';
-      
-      if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
-        errorMessage = 'Запрос был прерван. Возможно, превышено время ожидания. Попробуйте еще раз или уменьшите размер статьи.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
       console.error('Ошибка генерации контента:', err);
-      setError(errorMessage);
+      setError(err.message || 'Ошибка генерации контента');
       setStep('idle');
-      setCurrentSection(0);
-      setTotalSections(0);
-      setFailedSections([]);
-      setLowComplexitySections(new Set());
-      setSectionStatuses([]);
-    } finally {
       setGenerating(false);
-      setStartTime(null);
-      // Не очищаем прогресс если была ошибка, чтобы пользователь видел что произошло
-      if (!error) {
-        setTimeout(() => {
-          setProgress('');
-          setElapsedTime(0);
-        }, 2000);
+      
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
       }
     }
   };
@@ -610,234 +415,78 @@ export default function ContentGeneratorPage() {
   };
 
   const handleRegenerateSection = async (index: number, complexity: 'medium' | 'low' | 'high') => {
-    const section = sectionStatuses.find(s => s.index === index);
-    if (!section) return;
+    if (!currentJobId || !outlineSections.length) return;
 
-    const sectionStartTime = Date.now();
-    const technicalLogs: string[] = [];
-    let sectionStatus: SectionStatus = 'skipped';
-    let sectionHtml: string | null = null;
-    let rawHtmlSection: string | null = null;
-    let cleanHtmlSection: string | null = null;
-    let cleaned = false;
-    let cleanupTime: number | undefined = undefined;
-    let complexityLevel: 'medium' | 'low' | 'high' = complexity;
-    let retryCount = (section.retryCount || 0) + 1;
-    let errorMessage: string | undefined = undefined;
+    const section = outlineSections[index - 1];
+    if (!section) return;
 
     // Обновляем статус на "в процессе"
     setSectionStatuses(prev => prev.map(s => 
       s.index === index 
-        ? { ...s, status: 'skipped' as SectionStatus } // Временно показываем как skipped
+        ? { ...s, status: 'skipped' as SectionStatus }
         : s
     ));
 
     try {
-      technicalLogs.push(`[${new Date().toISOString()}] Начало перегенерации секции ${index} с уровнем ${complexity}`);
-      
-      const sectionController = new AbortController();
-      const sectionTimeout = setTimeout(() => sectionController.abort(), 60000);
-      
-      let sectionRes;
-      try {
-        sectionRes = await fetch('/api/content/section', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            sectionTitle: section.title,
-            sectionDescription: outlineSections.find(s => s.title === section.title)?.description || '',
-            targetSectionWords: currentTargetSectionWords,
-            complexityLevel: complexity,
-            authorPersona,
-            angle,
-            contentGoal,
-          }),
-          signal: sectionController.signal,
-        });
-        clearTimeout(sectionTimeout);
-        technicalLogs.push(`[${new Date().toISOString()}] Ответ получен, статус: ${sectionRes.status}`);
-      } catch (fetchError: any) {
-        clearTimeout(sectionTimeout);
-        if (fetchError.name === 'AbortError') {
-          const timeoutError = `Превышено время ожидания перегенерации секции ${index}`;
-          technicalLogs.push(`[${new Date().toISOString()}] Таймаут: ${timeoutError}`);
-          throw new Error(timeoutError);
-        }
-        throw fetchError;
+      const res = await fetch('/api/article/write-section', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jobId: currentJobId,
+          sectionId: section.id,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || `Ошибка перегенерации секции ${index}`);
       }
 
-      const sectionText = await sectionRes.text();
-      technicalLogs.push(`[${new Date().toISOString()}] Размер ответа: ${sectionText.length} символов`);
-      
-      if (!sectionText || sectionText.length > 50000) {
-        throw new Error(`Сервер вернул неожиданный ответ при перегенерации секции ${index}`);
-      }
-      
-      let sectionData;
-      try {
-        sectionData = JSON.parse(sectionText);
-        technicalLogs.push(`[${new Date().toISOString()}] JSON распарсен успешно, success: ${sectionData.success}`);
-      } catch (jsonError) {
-        const preview = sectionText.length > 200 ? sectionText.substring(0, 200) + '...' : sectionText;
-        throw new Error(`Ошибка: сервер вернул не-JSON ответ. Ответ: ${preview}`);
-      }
+      const wordCount = data.sectionHtml
+        ? data.sectionHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter((w: string) => w.length > 0).length
+        : undefined;
 
-      if (!sectionRes.ok || !sectionData.success) {
-        const error = sectionData.error || `Ошибка перегенерации секции ${index}`;
-        technicalLogs.push(`[${new Date().toISOString()}] Ошибка от API: ${error}`);
-        
-        if (error.includes('OpenAI') || error.includes('openai')) {
-          sectionStatus = 'openai_error';
-        } else {
-          sectionStatus = 'backend_error';
-        }
-        errorMessage = error;
-        throw new Error(error);
-      }
-
-      if (sectionData.success && sectionData.sectionHtml && typeof sectionData.sectionHtml === 'string') {
-        rawHtmlSection = sectionData.sectionHtml.trim();
-        technicalLogs.push(`[${new Date().toISOString()}] HTML получен, длина: ${rawHtmlSection.length} символов`);
-        
-        if (rawHtmlSection.length === 0) {
-          throw new Error(`Ассистент вернул пустой HTML для секции ${index}`);
-        }
-        
-        complexityLevel = sectionData.complexityLevel || complexity;
-        if (complexityLevel === 'low') {
-          sectionStatus = 'success_light';
-        } else {
-          sectionStatus = 'success';
-        }
-        
-        // Cleanup после перегенерации
-        const cleanupStartTime = Date.now();
-        try {
-          technicalLogs.push(`[${new Date().toISOString()}] Начало очистки перегенерированной секции через Cleanup Assistant`);
-          
-          const cleanupController = new AbortController();
-          const cleanupTimeout = setTimeout(() => cleanupController.abort(), 30000);
-          
-          let cleanupRes;
-          try {
-            cleanupRes = await fetch('/api/content/cleanup', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                htmlSection: rawHtmlSection,
-                language,
-                authorPersona,
-                angle,
-                editIntensity: 'medium',
-              }),
-              signal: cleanupController.signal,
-            });
-            clearTimeout(cleanupTimeout);
-          } catch (fetchError: any) {
-            clearTimeout(cleanupTimeout);
-            if (fetchError.name === 'AbortError') {
-              technicalLogs.push(`[${new Date().toISOString()}] Таймаут cleanup при перегенерации`);
-              throw new Error('Превышено время ожидания очистки секции');
-            }
-            throw fetchError;
-          }
-
-          const cleanupText = await cleanupRes.text();
-          if (cleanupText && cleanupText.length <= 50000) {
-            let cleanupData;
-            try {
-              cleanupData = JSON.parse(cleanupText);
-              if (cleanupRes.ok && cleanupData.success && cleanupData.cleanHtmlSection) {
-                cleanHtmlSection = cleanupData.cleanHtmlSection.trim();
-                cleaned = true;
-                cleanupTime = Math.floor((Date.now() - cleanupStartTime) / 1000);
-                technicalLogs.push(`[${new Date().toISOString()}] Секция успешно очищена за ${cleanupTime}с`);
-                sectionHtml = cleanHtmlSection;
-              } else {
-                technicalLogs.push(`[${new Date().toISOString()}] Cleanup не удался, используем raw HTML`);
-                sectionHtml = rawHtmlSection;
+      // Обновляем статус секции
+      setSectionStatuses(prev => {
+        const updated = prev.map(s => 
+          s.index === index 
+            ? {
+                ...s,
+                status: 'success' as SectionStatus,
+                sectionHtml: data.sectionHtml,
+                wordCount,
+                complexityLevel: complexity,
               }
-            } catch {
-              sectionHtml = rawHtmlSection;
-            }
-          } else {
-            sectionHtml = rawHtmlSection;
-          }
-        } catch (cleanupError: any) {
-          technicalLogs.push(`[${new Date().toISOString()}] Ошибка cleanup при перегенерации: ${cleanupError.message}. Используем raw HTML`);
-          sectionHtml = rawHtmlSection;
+            : s
+        );
+
+        // Пересобираем финальный HTML если есть результат
+        if (finalResult) {
+          const successfulSections = updated
+            .filter(s => s.sectionHtml && (s.status === 'success' || s.status === 'success_light'))
+            .sort((a, b) => a.index - b.index)
+            .map(s => s.sectionHtml!);
+        
+          const assembledHtml = successfulSections.join('\n');
+          setFinalResult({
+            ...finalResult,
+            html: assembledHtml,
+          });
         }
-        
-        technicalLogs.push(`[${new Date().toISOString()}] Секция успешно перегенерирована, статус: ${sectionStatus}, очищена: ${cleaned}`);
-      } else {
-        const error = `Не получен валидный HTML для секции ${index}`;
-        sectionStatus = 'backend_error';
-        errorMessage = error;
-        throw new Error(error);
-      }
+
+        return updated;
+      });
     } catch (error: any) {
-      const lastError = error.message || `Ошибка перегенерации секции ${index}`;
-      console.error(`Не удалось перегенерировать секцию ${index}:`, lastError);
-      
-      if (lastError.includes('Превышено время') || lastError.includes('timeout') || lastError.includes('aborted')) {
-        sectionStatus = 'timeout';
-      } else if (lastError.includes('OpenAI') || lastError.includes('openai')) {
-        sectionStatus = 'openai_error';
-      } else {
-        sectionStatus = 'backend_error';
-      }
-      
-      errorMessage = lastError;
-      technicalLogs.push(`[${new Date().toISOString()}] Финальная ошибка: ${lastError}`);
-    }
-
-    const generationTime = Math.floor((Date.now() - sectionStartTime) / 1000);
-    const wordCount = sectionHtml 
-      ? sectionHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(w => w.length > 0).length
-      : undefined;
-
-    // Обновляем статус секции и пересобираем финальный результат если нужно
-    setSectionStatuses(prev => {
-      const updated = prev.map(s => 
+      console.error(`Не удалось перегенерировать секцию ${index}:`, error);
+      setSectionStatuses(prev => prev.map(s => 
         s.index === index 
-          ? {
-              ...s,
-              status: sectionStatus,
-              sectionHtml: sectionHtml || undefined,
-              rawHtmlSection: rawHtmlSection || undefined,
-              cleanHtmlSection: cleanHtmlSection || undefined,
-              cleaned: cleaned,
-              cleanupTime: cleanupTime,
-              generationTime,
-              wordCount,
-              complexityLevel,
-              retryCount,
-              error: errorMessage,
-              technicalLogs: technicalLogs.length > 0 ? technicalLogs : undefined,
-            }
+          ? { ...s, status: 'backend_error' as SectionStatus, error: error.message }
           : s
-      );
-      
-      // Если секция успешно перегенерирована, пересобираем финальный HTML
-      if (sectionHtml && finalResult) {
-        const successfulSections = updated
-          .filter(s => s.sectionHtml && (s.status === 'success' || s.status === 'success_light'))
-          .sort((a, b) => a.index - b.index)
-          .map(s => s.sectionHtml!);
-        
-        const assembledHtml = successfulSections.join('\n');
-        setFinalResult({
-          ...finalResult,
-          html: assembledHtml,
-        });
-      }
-      
-      return updated;
-    });
+      ));
+    }
   };
 
   if (loading) {
@@ -1031,9 +680,9 @@ export default function ContentGeneratorPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     {progress}
-                    {step === 'outline' && ' (Шаг 1/3)'}
-                    {step === 'sections' && totalSections > 0 && ` (Шаг 2/3: ${currentSection}/${totalSections})`}
-                    {step === 'seo' && ' (Шаг 3/3)'}
+                    {step === 'researching' && ' (Шаг 1/4)'}
+                    {step === 'writing' && ' (Шаг 2/4)'}
+                    {step === 'finalizing' && ' (Шаг 3/4)'}
                     {step === 'done' && ' ✓'}
                   </div>
                   {generating && elapsedTime > 0 && (
@@ -1130,17 +779,12 @@ export default function ContentGeneratorPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Meta Title
                 </label>
-                {!finalResult.meta_title && (
-                  <div className="mb-2 text-sm text-yellow-600 dark:text-yellow-400">
-                    ⚠️ Meta Title не был сгенерирован. SEO ассистент вернул ошибку или не был вызван.
-                  </div>
-                )}
                 <div className="flex space-x-2">
                   <input
                     type="text"
                     value={finalResult.meta_title || ''}
                     readOnly
-                    placeholder={finalResult.meta_title ? '' : 'Meta Title не был сгенерирован'}
+                    placeholder="Meta Title не был сгенерирован"
                     className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"
                   />
                   <button
@@ -1157,17 +801,12 @@ export default function ContentGeneratorPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Meta Description
                 </label>
-                {!finalResult.meta_description && (
-                  <div className="mb-2 text-sm text-yellow-600 dark:text-yellow-400">
-                    ⚠️ Meta Description не был сгенерирован. SEO ассистент вернул ошибку или не был вызван.
-                  </div>
-                )}
                 <div className="flex space-x-2">
                   <textarea
                     value={finalResult.meta_description || ''}
                     readOnly
                     rows={3}
-                    placeholder={finalResult.meta_description ? '' : 'Meta Description не был сгенерирован'}
+                    placeholder="Meta Description не был сгенерирован"
                     className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white"
                   />
                   <button
@@ -1205,9 +844,6 @@ export default function ContentGeneratorPage() {
                       </li>
                     ))}
                   </ul>
-                  <p className="mt-2 text-sm text-yellow-800 dark:text-yellow-300">
-                    Эти секции были пропущены, но процесс генерации статьи продолжен. Вы можете попробовать сгенерировать статью еще раз или отредактировать эти секции вручную.
-                  </p>
                 </div>
               )}
             </div>
