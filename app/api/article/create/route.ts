@@ -86,19 +86,45 @@ export async function POST(request: Request) {
         language: language || undefined,
         country: undefined, // Can be extended if needed
       });
+      
+      console.log(`[ARTICLE/CREATE] SERP results received: ${serpResults.length} total results`);
+      console.log(`[ARTICLE/CREATE] Query: "${topic}", Language: ${language || 'not specified'}`);
     } catch (error: any) {
       console.error('[ARTICLE/CREATE] SERP request failed:', error);
+      const errorMessage = error.message || 'SERP request failed';
       return NextResponse.json(
-        { success: false, error: 'SERP request failed' },
+        { success: false, error: `SERP request failed: ${errorMessage}` },
         { status: 500 }
       );
     }
 
     // Validate that we have at least 2 SERP results with non-empty URLs
     const validResults = serpResults.filter((r) => r.url && r.url.trim().length > 0);
+    console.log(`[ARTICLE/CREATE] Valid SERP results: ${validResults.length} out of ${serpResults.length} total`);
+    
     if (validResults.length < 2) {
+      const debugInfo = serpResults.length > 0 
+        ? ` Received ${serpResults.length} results, but only ${validResults.length} have valid URLs.`
+        : ` No results returned from SERP API.`;
+      console.error(`[ARTICLE/CREATE] Not enough valid SERP results. Query: "${topic}".${debugInfo}`);
+      
+      // Check if API is configured
+      const hasGoogleApi = process.env.GOOGLE_SEARCH_API_KEY && process.env.GOOGLE_SEARCH_ENGINE_ID;
+      const hasSerpApi = process.env.SERP_API_KEY;
+      const hasZenserpApi = process.env.ZENSERP_API_KEY;
+      
+      let configInfo = '';
+      if (!hasGoogleApi && !hasSerpApi && !hasZenserpApi) {
+        configInfo = ' No SERP API configured. Please set GOOGLE_SEARCH_API_KEY + GOOGLE_SEARCH_ENGINE_ID, SERP_API_KEY, or ZENSERP_API_KEY.';
+      } else {
+        configInfo = ` SERP API configured (${hasGoogleApi ? 'Google' : ''}${hasSerpApi ? 'SerpAPI' : ''}${hasZenserpApi ? 'Zenserp' : ''}).`;
+      }
+      
       return NextResponse.json(
-        { success: false, error: 'Not enough Google SERP results' },
+        { 
+          success: false, 
+          error: `Not enough Google SERP results.${debugInfo}${configInfo} Please check your SERP API configuration and try a different query.` 
+        },
         { status: 400 }
       );
     }
