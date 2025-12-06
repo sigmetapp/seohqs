@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth-utils';
 import { createJob, updateJob } from '@/lib/db-article-jobs';
 import { getOpenAIClient, getArticleCreatorAssistant } from '@/lib/article-assistants';
+import { fetchGoogleSerpTop10, type SerpResult } from '@/lib/googleSerp';
 
 // Генерируем UUID без внешней библиотеки
 function generateUUID(): string {
@@ -14,6 +15,19 @@ function generateUUID(): string {
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+/**
+ * Builds the GOOGLE_SERP_TOP10 block for the assistant user message
+ */
+function buildGoogleSerpBlock(results: SerpResult[]): string {
+  return [
+    'GOOGLE_SERP_TOP10:',
+    ...results.map((r, index) =>
+      `${index + 1}) ${r.url} - ${r.title || ''} - ${r.snippet || ''}`
+    ),
+    '',
+  ].join('\n');
+}
 
 export async function POST(request: Request) {
   try {
@@ -64,6 +78,34 @@ export async function POST(request: Request) {
       constraints,
     });
 
+    // Fetch Google SERP top 10 results
+    let serpResults: SerpResult[];
+    try {
+      serpResults = await fetchGoogleSerpTop10({
+        query: topic,
+        language: language || undefined,
+        country: undefined, // Can be extended if needed
+      });
+    } catch (error: any) {
+      console.error('[ARTICLE/CREATE] SERP request failed:', error);
+      return NextResponse.json(
+        { success: false, error: 'SERP request failed' },
+        { status: 500 }
+      );
+    }
+
+    // Validate that we have at least 2 SERP results with non-empty URLs
+    const validResults = serpResults.filter((r) => r.url && r.url.trim().length > 0);
+    if (validResults.length < 2) {
+      return NextResponse.json(
+        { success: false, error: 'Not enough Google SERP results' },
+        { status: 400 }
+      );
+    }
+
+    // Use only valid results (max 10)
+    const top10Results = validResults.slice(0, 10);
+
     // Получаем OpenAI клиент и ассистента
     const openai = await getOpenAIClient();
     const assistantId = await getArticleCreatorAssistant(openai);
@@ -71,36 +113,55 @@ export async function POST(request: Request) {
     // Создаём thread
     const thread = await openai.beta.threads.create();
     
+    // Build the GOOGLE_SERP_TOP10 block
+    const serpBlock = buildGoogleSerpBlock(top10Results);
+    const debugFlag = debug ? 'DEBUG_MODE_ON' : '';
+
     // Формируем промпт с параметрами для ассистента
-    // Ассистент сам выполнит поиск, выбор статей, парсинг и создание статьи
-    const debugToken = debug ? 'DEBUG_MODE_ON' : '';
-    const prompt = `Создай SEO-статью на основе поиска и анализа существующих материалов в интернете.
-
-${debugToken ? `${debugToken}\n\n` : ''}ПАРАМЕТРЫ СТАТЬИ:
-Тема: ${topic}
-Язык: ${language || 'RU'}
-Аудитория: ${audience || 'general'}
-Авторская персона: ${authorPersona || 'expert'}
-Угол подачи: ${angle || 'informative'}
-Цель контента: ${contentGoal || 'SEO article'}
-Желаемый размер: ${desiredLength || '2000'} слов
-Сложность: ${complexity || 'medium'}
-${constraints ? `Дополнительные ограничения: ${constraints}` : ''}
-
-Выполни весь процесс: поиск статей в Google через web_search, выбор 2-3 лучших из топ-10, получение их контента через web_fetch, анализ и извлечение основного контента (игнорируя меню, сайдбары, комментарии), создание новой статьи путем рерайта и объединения структур.
-
-${debugToken ? 'Верни три блока: [DEBUG_SOURCES], [DEBUG_REWRITE_PROMPT], [ARTICLE]' : 'Верни ТОЛЬКО HTML контент готовой статьи без дополнительного текста, без JSON обёрток.'}`;
+    // Ассистент должен использовать только URLs из GOOGLE_SERP_TOP10 блока
+    const userContent = [
+      `topic: ${topic}`,
+      `language: ${language || 'RU'}`,
+      `desired length: ${desiredLength || '2000'}`,
+      `audience: ${audience || 'general'}`,
+      `persona: ${authorPersona || 'expert'}`,
+      `angle: ${angle || 'informative'}`,
+      `content goal: ${contentGoal || 'SEO article'}`,
+      `complexity: ${complexity || 'medium'}`,
+      constraints ? `constraints: ${constraints}` : '',
+      '',
+      serpBlock,
+      debugFlag,
+    ]
+      .filter((line) => line !== '')
+      .join('\n');
 
     // Создаём сообщение пользователя
     await openai.beta.threads.messages.create(thread.id, {
       role: 'user',
-      content: prompt,
+      content: userContent,
     });
 
     // Запускаем run ассистента
-    const run = await openai.beta.threads.runs.create(thread.id, {
-      assistant_id: assistantId,
-    });
+    let run;
+    try {
+      run = await openai.beta.threads.runs.create(thread.id, {
+        assistant_id: assistantId,
+      });
+    } catch (error: any) {
+      console.error('[ARTICLE/CREATE] Assistant run failed:', error);
+      // Update job status to failed
+      await updateJob(jobId, {
+        status: 'failed',
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Failed to start assistant run',
+        },
+        { status: 500 }
+      );
+    }
 
     // Обновляем задачу с threadId и runId
     await updateJob(jobId, {
