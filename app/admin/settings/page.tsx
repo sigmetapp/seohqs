@@ -10,6 +10,7 @@ export default function AdminSettingsPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [openaiApiKey, setOpenaiApiKey] = useState('');
+  const [assistantId, setAssistantId] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -56,6 +57,7 @@ export default function AdminSettingsPage() {
       
       if (data.success && data.settings) {
         setOpenaiApiKey(data.settings.openaiApiKey || '');
+        setAssistantId(data.settings.assistantId || '');
       }
     } catch (error) {
       console.error('Ошибка загрузки настроек:', error);
@@ -75,6 +77,7 @@ export default function AdminSettingsPage() {
         },
         body: JSON.stringify({
           openaiApiKey,
+          assistantId,
         }),
       });
 
@@ -151,12 +154,24 @@ export default function AdminSettingsPage() {
               </p>
             </div>
 
-            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                Article Creator Assistant
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Ассистент создается автоматически при первом использовании генератора контента. ID ассистента сохраняется в настройках системы и используется для всех последующих генераций статей.
+            <div>
+              <label
+                htmlFor="assistantId"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                Article Creator Assistant ID
+              </label>
+              <input
+                type="text"
+                id="assistantId"
+                value={assistantId}
+                onChange={(e) => setAssistantId(e.target.value)}
+                autoComplete="off"
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="asst_..."
+              />
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Ассистент создается автоматически при первом использовании генератора контента. ID ассистента сохраняется в настройках системы и используется для всех последующих генераций статей. Вы можете вставить свой ID ассистента здесь.
               </p>
             </div>
 
