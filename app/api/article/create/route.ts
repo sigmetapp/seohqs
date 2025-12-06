@@ -36,6 +36,7 @@ export async function POST(request: Request) {
       desiredLength,
       complexity,
       constraints,
+      debug,
     } = body;
 
     if (!topic) {
@@ -72,9 +73,10 @@ export async function POST(request: Request) {
     
     // Формируем промпт с параметрами для ассистента
     // Ассистент сам выполнит поиск, выбор статей, парсинг и создание статьи
+    const debugToken = debug ? 'DEBUG_MODE_ON' : '';
     const prompt = `Создай SEO-статью на основе поиска и анализа существующих материалов в интернете.
 
-ПАРАМЕТРЫ СТАТЬИ:
+${debugToken ? `${debugToken}\n\n` : ''}ПАРАМЕТРЫ СТАТЬИ:
 Тема: ${topic}
 Язык: ${language || 'RU'}
 Аудитория: ${audience || 'general'}
@@ -87,7 +89,7 @@ ${constraints ? `Дополнительные ограничения: ${constrai
 
 Выполни весь процесс: поиск статей в Google через web_search, выбор 2-3 лучших из топ-10, получение их контента через web_fetch, анализ и извлечение основного контента (игнорируя меню, сайдбары, комментарии), создание новой статьи путем рерайта и объединения структур.
 
-Верни ТОЛЬКО HTML контент готовой статьи без дополнительного текста, без JSON обёрток.`;
+${debugToken ? 'Верни три блока: [DEBUG_SOURCES], [DEBUG_REWRITE_PROMPT], [ARTICLE]' : 'Верни ТОЛЬКО HTML контент готовой статьи без дополнительного текста, без JSON обёрток.'}`;
 
     // Создаём сообщение пользователя
     await openai.beta.threads.messages.create(thread.id, {
