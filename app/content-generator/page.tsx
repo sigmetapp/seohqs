@@ -17,10 +17,13 @@ export default function ContentGeneratorPage() {
   const [contentGoal, setContentGoal] = useState('SEO article');
   const [desiredLength, setDesiredLength] = useState('2000');
   const [complexity, setComplexity] = useState('medium');
+  const [debug, setDebug] = useState(false);
 
   // Состояние генерации
   const [generating, setGenerating] = useState(false);
   const [article, setArticle] = useState<string | null>(null);
+  const [debugSources, setDebugSources] = useState<string | null>(null);
+  const [debugRewritePrompt, setDebugRewritePrompt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState('');
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -89,9 +92,10 @@ export default function ContentGeneratorPage() {
   };
 
   // Polling статуса генерации статьи
-  const pollArticleStatus = async (threadId: string, runId: string): Promise<{ completed: boolean; article?: string }> => {
+  const pollArticleStatus = async (threadId: string, runId: string, debugMode: boolean): Promise<{ completed: boolean; article?: string; debugSources?: string; debugRewritePrompt?: string }> => {
     try {
-      const res = await fetch(`/api/article/status?threadId=${threadId}&runId=${runId}`);
+      const debugParam = debugMode ? '1' : '0';
+      const res = await fetch(`/api/article/status?threadId=${threadId}&runId=${runId}&debug=${debugParam}`);
       const data = await res.json();
 
       if (!data.success) {
@@ -99,7 +103,12 @@ export default function ContentGeneratorPage() {
       }
 
       if (data.status === 'completed' && data.article) {
-        return { completed: true, article: data.article };
+        return { 
+          completed: true, 
+          article: data.article,
+          debugSources: data.debugSources || undefined,
+          debugRewritePrompt: data.debugRewritePrompt || undefined,
+        };
       }
 
       // Генерация ещё выполняется
@@ -121,6 +130,8 @@ export default function ContentGeneratorPage() {
     setGenerating(true);
     setError(null);
     setArticle(null);
+    setDebugSources(null);
+    setDebugRewritePrompt(null);
     setProgress('Запуск генерации статьи...');
     setStartTime(Date.now());
     setElapsedTime(0);
@@ -143,6 +154,7 @@ export default function ContentGeneratorPage() {
           contentGoal,
           desiredLength,
           complexity,
+          debug,
         }),
       });
 
@@ -165,7 +177,7 @@ export default function ContentGeneratorPage() {
         pollAttempts++;
         
         try {
-          const { completed, article: articleHtml } = await pollArticleStatus(newThreadId, newRunId);
+          const { completed, article: articleHtml, debugSources: sources, debugRewritePrompt: rewritePrompt } = await pollArticleStatus(newThreadId, newRunId, debug);
           
           if (completed && articleHtml) {
             // Генерация завершена
@@ -175,6 +187,10 @@ export default function ContentGeneratorPage() {
             }
 
             setArticle(articleHtml);
+            if (debug) {
+              setDebugSources(sources || null);
+              setDebugRewritePrompt(rewritePrompt || null);
+            }
             setProgress('Статья готова! ✓');
             setGenerating(false);
           } else if (pollAttempts >= maxPollAttempts) {
@@ -395,6 +411,19 @@ export default function ContentGeneratorPage() {
               Алгоритм автоматически регулирует глубину, количество секций, насыщенность структуры, уровень противоречий и плотность инсайтов.
             </div>
 
+            <div className="flex items-center pt-2">
+              <input
+                type="checkbox"
+                id="debug"
+                checked={debug}
+                onChange={(e) => setDebug(e.target.checked)}
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <label htmlFor="debug" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Show debug info (source URLs + rewrite prompt)
+              </label>
+            </div>
+
             {error && (
               <div className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-4 py-3 rounded">
                 {error}
@@ -453,6 +482,29 @@ export default function ContentGeneratorPage() {
                 </button>
               </div>
             </div>
+
+            {/* Debug информация */}
+            {debugSources && (
+              <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                  Debug: Source URLs
+                </h3>
+                <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono">
+                  {debugSources}
+                </pre>
+              </div>
+            )}
+
+            {debugRewritePrompt && (
+              <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                  Debug: Rewrite Prompt
+                </h3>
+                <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono">
+                  {debugRewritePrompt}
+                </pre>
+              </div>
+            )}
 
             {/* HTML контент статьи */}
             <div
