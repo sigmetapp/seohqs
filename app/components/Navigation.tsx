@@ -135,6 +135,7 @@ export default function Navigation() {
 
   const navItems: Array<{ href: string; labelKey: string }> = [
     { href: '/content-generator', labelKey: 'Content Generator' },
+    { href: '/humanize', labelKey: 'Humanize' },
   ];
 
   return (
@@ -170,7 +171,7 @@ export default function Navigation() {
                         : 'border-transparent text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-300'
                     }`}
                   >
-                    {item.labelKey === 'Content Generator' ? 'Content Generator' : t(item.labelKey)}
+                    {item.labelKey === 'Content Generator' ? 'Content Generator' : item.labelKey === 'Humanize' ? 'Humanize' : t(item.labelKey)}
                   </Link>
                 );
               })}
@@ -290,7 +291,7 @@ export default function Navigation() {
                     : 'border-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
-                {t(item.labelKey)}
+                {item.labelKey === 'Content Generator' ? 'Content Generator' : item.labelKey === 'Humanize' ? 'Humanize' : t(item.labelKey)}
               </Link>
             );
           })}
