@@ -39,12 +39,14 @@ export async function GET(request: Request) {
     // Если ключ не указан, возвращаем настройки OpenAI
     const openaiApiKey = await getSetting('openai_api_key');
     const assistantId = await getSetting('openai_article_creator_assistant_id');
+    const humanizeAssistantId = await getSetting('openai_humanize_assistant_id');
 
     return NextResponse.json({
       success: true,
       settings: {
         openaiApiKey: openaiApiKey?.value || null,
         assistantId: assistantId?.value || null,
+        humanizeAssistantId: humanizeAssistantId?.value || null,
       },
     });
   } catch (error: any) {
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { openaiApiKey, assistantId } = body;
+    const { openaiApiKey, assistantId, humanizeAssistantId } = body;
 
     const settings: any = {};
 
@@ -93,6 +95,15 @@ export async function POST(request: Request) {
         'ID ассистента для создания статей (поиск, парсинг, рерайт)'
       );
       settings.assistantId = assistantId;
+    }
+
+    if (humanizeAssistantId !== undefined) {
+      await setSetting(
+        'openai_humanize_assistant_id',
+        humanizeAssistantId || '',
+        'ID ассистента для обработки текста Humanize'
+      );
+      settings.humanizeAssistantId = humanizeAssistantId;
     }
 
     return NextResponse.json({
