@@ -30,6 +30,8 @@ export default function ContentGeneratorPage() {
   const [runId, setRunId] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const [captchaHtml, setCaptchaHtml] = useState<string | null>(null);
+  const [parsingSerp, setParsingSerp] = useState(false);
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -119,25 +121,8 @@ export default function ContentGeneratorPage() {
     }
   };
 
-  const handleGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!topic.trim()) {
-      setError('Тема обязательна');
-      return;
-    }
-
-    setGenerating(true);
-    setError(null);
-    setArticle(null);
-    setDebugSources(null);
-    setDebugRewritePrompt(null);
-    setProgress('Запуск генерации статьи...');
-    setStartTime(Date.now());
-    setElapsedTime(0);
-    setThreadId(null);
-    setRunId(null);
-
+  // Создание статьи после успешного парсинга
+  const handleGenerateAfterParsing = async (serpResults: any[]) => {
     try {
       // Создаём задачу и запускаем ассистента
       const createRes = await fetch('/api/article/create', {
@@ -155,6 +140,7 @@ export default function ContentGeneratorPage() {
           desiredLength,
           complexity,
           debug,
+          serpResults, // Передаём результаты парсинга
         }),
       });
 
@@ -220,6 +206,69 @@ export default function ContentGeneratorPage() {
           setGenerating(false);
         }
       }, 2000); // Проверяем каждые 2 секунды
+    } catch (err: any) {
+      console.error('Ошибка генерации контента:', err);
+      setError(err.message || 'Ошибка генерации контента');
+      setGenerating(false);
+      
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    }
+  };
+
+  const handleGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!topic.trim()) {
+      setError('Тема обязательна');
+      return;
+    }
+
+    setGenerating(true);
+    setError(null);
+    setArticle(null);
+    setDebugSources(null);
+    setDebugRewritePrompt(null);
+    setCaptchaHtml(null);
+    setProgress('Парсинг топ-10 результатов из веба...');
+    setStartTime(Date.now());
+    setElapsedTime(0);
+    setThreadId(null);
+    setRunId(null);
+    setParsingSerp(true);
+
+    try {
+      // Сначала парсим топ-10 результатов из веба
+      const parseRes = await fetch('/api/article/parse-serp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: topic,
+          language,
+        }),
+      });
+
+      const parseData = await parseRes.json();
+      setParsingSerp(false);
+
+      // Если обнаружена CAPTCHA, отображаем её
+      if (parseData.captchaHtml) {
+        setCaptchaHtml(parseData.captchaHtml);
+        setProgress('Обнаружена CAPTCHA. Пожалуйста, решите её ниже.');
+        setGenerating(false);
+        return;
+      }
+
+      if (!parseRes.ok || !parseData.success) {
+        throw new Error(parseData.error || 'Ошибка парсинга SERP');
+      }
+
+      // Если парсинг успешен, продолжаем с созданием статьи
+      await handleGenerateAfterParsing(parseData.results);
 
     } catch (err: any) {
       console.error('Ошибка генерации контента:', err);
@@ -445,6 +494,77 @@ export default function ContentGeneratorPage() {
               </div>
             )}
 
+            {/* Отображение CAPTCHA */}
+            {captchaHtml && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-300 dark:border-yellow-700 rounded-lg p-6 mb-4">
+                <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-4">
+                  Обнаружена CAPTCHA
+                </h3>
+                <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-4">
+                  Пожалуйста, решите CAPTCHA ниже, чтобы продолжить парсинг результатов:
+                </p>
+                <div 
+                  className="bg-white dark:bg-gray-800 p-4 rounded border border-yellow-300 dark:border-yellow-700"
+                  dangerouslySetInnerHTML={{ __html: captchaHtml }}
+                />
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={async () => {
+                      // Повторная попытка парсинга после решения CAPTCHA
+                      setParsingSerp(true);
+                      setProgress('Повторный парсинг топ-10 результатов...');
+                      setCaptchaHtml(null);
+                      
+                      try {
+                        const parseRes = await fetch('/api/article/parse-serp', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            query: topic,
+                            language,
+                          }),
+                        });
+
+                        const parseData = await parseRes.json();
+                        setParsingSerp(false);
+
+                        if (parseData.captchaHtml) {
+                          setCaptchaHtml(parseData.captchaHtml);
+                          setProgress('CAPTCHA всё ещё присутствует. Пожалуйста, решите её снова.');
+                          return;
+                        }
+
+                        if (!parseRes.ok || !parseData.success) {
+                          throw new Error(parseData.error || 'Ошибка парсинга SERP');
+                        }
+
+                        // Если парсинг успешен, продолжаем с созданием статьи
+                        setProgress('Создание задачи генерации статьи...');
+                        await handleGenerateAfterParsing(parseData.results);
+                      } catch (err: any) {
+                        setError(err.message || 'Ошибка при повторном парсинге');
+                        setParsingSerp(false);
+                      }
+                    }}
+                    className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg transition-colors"
+                  >
+                    Продолжить после решения CAPTCHA
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCaptchaHtml(null);
+                      setGenerating(false);
+                      setProgress('');
+                    }}
+                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            )}
 
             <button
               type="submit"
