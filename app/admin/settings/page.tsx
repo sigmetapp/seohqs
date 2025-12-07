@@ -11,6 +11,7 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [openaiApiKey, setOpenaiApiKey] = useState('');
   const [assistantId, setAssistantId] = useState('');
+  const [humanizeAssistantId, setHumanizeAssistantId] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -58,6 +59,7 @@ export default function AdminSettingsPage() {
       if (data.success && data.settings) {
         setOpenaiApiKey(data.settings.openaiApiKey || '');
         setAssistantId(data.settings.assistantId || '');
+        setHumanizeAssistantId(data.settings.humanizeAssistantId || '');
       }
     } catch (error) {
       console.error('Ошибка загрузки настроек:', error);
@@ -78,6 +80,7 @@ export default function AdminSettingsPage() {
         body: JSON.stringify({
           openaiApiKey,
           assistantId,
+          humanizeAssistantId,
         }),
       });
 
@@ -172,6 +175,36 @@ export default function AdminSettingsPage() {
               />
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Ассистент создается автоматически при первом использовании генератора контента. ID ассистента сохраняется в настройках системы и используется для всех последующих генераций статей. Вы можете вставить свой ID ассистента здесь.
+              </p>
+            </div>
+
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
+              <h2 className="text-lg font-semibold text-green-900 dark:text-green-200 mb-2">
+                Настройки Humanize
+              </h2>
+              <p className="text-sm text-green-800 dark:text-green-300">
+                Ассистент для обработки текста и придания ему более человеческого стиля.
+              </p>
+            </div>
+
+            <div>
+              <label
+                htmlFor="humanizeAssistantId"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                Humanize Assistant ID
+              </label>
+              <input
+                type="text"
+                id="humanizeAssistantId"
+                value={humanizeAssistantId}
+                onChange={(e) => setHumanizeAssistantId(e.target.value)}
+                autoComplete="off"
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="asst_..."
+              />
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                ID ассистента OpenAI для функционала Humanize. Используется для обработки текста и придания ему более человеческого стиля.
               </p>
             </div>
 
