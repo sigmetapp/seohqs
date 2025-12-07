@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
 import { getCurrentUser } from '@/lib/auth-utils';
 import type { SerpResult } from '@/lib/googleSerp';
+import { computeExecutablePath } from '@puppeteer/browsers';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -38,8 +39,22 @@ export async function POST(request: Request) {
     console.log(`[PARSE_SERP] Starting parsing for query: "${query}"`);
 
     // Запускаем браузер
+    // Получаем путь к установленному Chrome из Puppeteer cache
+    let executablePath: string | undefined;
+    try {
+      executablePath = computeExecutablePath({
+        browser: 'chrome',
+        cacheDir: process.env.PUPPETEER_CACHE_DIR || undefined,
+      });
+      console.log(`[PARSE_SERP] Using Chrome executable: ${executablePath}`);
+    } catch (error) {
+      console.warn('[PARSE_SERP] Could not compute executable path, Puppeteer will try to find Chrome automatically:', error);
+      // Puppeteer will try to find Chrome automatically if executablePath is undefined
+    }
+
     browser = await puppeteer.launch({
       headless: true,
+      ...(executablePath && { executablePath }),
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
