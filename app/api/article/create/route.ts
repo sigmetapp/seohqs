@@ -51,6 +51,7 @@ export async function POST(request: Request) {
       complexity,
       constraints,
       debug,
+      serpResults: providedSerpResults, // Результаты парсинга из веба
     } = body;
 
     if (!topic) {
@@ -78,24 +79,32 @@ export async function POST(request: Request) {
       constraints,
     });
 
-    // Fetch Google SERP top 10 results
+    // Используем предоставленные результаты парсинга или получаем через API
     let serpResults: SerpResult[];
-    try {
-      serpResults = await fetchGoogleSerpTop10({
-        query: topic,
-        language: language || undefined,
-        country: undefined, // Can be extended if needed
-      });
-      
-      console.log(`[ARTICLE/CREATE] SERP results received: ${serpResults.length} total results`);
-      console.log(`[ARTICLE/CREATE] Query: "${topic}", Language: ${language || 'not specified'}`);
-    } catch (error: any) {
-      console.error('[ARTICLE/CREATE] SERP request failed:', error);
-      const errorMessage = error.message || 'SERP request failed';
-      return NextResponse.json(
-        { success: false, error: `SERP request failed: ${errorMessage}` },
-        { status: 500 }
-      );
+    
+    if (providedSerpResults && Array.isArray(providedSerpResults) && providedSerpResults.length > 0) {
+      // Используем результаты из веб-парсинга
+      serpResults = providedSerpResults;
+      console.log(`[ARTICLE/CREATE] Using provided SERP results from web parsing: ${serpResults.length} total results`);
+    } else {
+      // Fallback: используем API для получения результатов
+      try {
+        serpResults = await fetchGoogleSerpTop10({
+          query: topic,
+          language: language || undefined,
+          country: undefined, // Can be extended if needed
+        });
+        
+        console.log(`[ARTICLE/CREATE] SERP results received from API: ${serpResults.length} total results`);
+        console.log(`[ARTICLE/CREATE] Query: "${topic}", Language: ${language || 'not specified'}`);
+      } catch (error: any) {
+        console.error('[ARTICLE/CREATE] SERP request failed:', error);
+        const errorMessage = error.message || 'SERP request failed';
+        return NextResponse.json(
+          { success: false, error: `SERP request failed: ${errorMessage}` },
+          { status: 500 }
+        );
+      }
     }
 
     // Validate that we have at least 2 SERP results with non-empty URLs
