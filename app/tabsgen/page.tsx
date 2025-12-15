@@ -110,22 +110,21 @@ export default function TabsGenPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Preview Section */}
-          <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-6xl rotate-12 select-none">
-                PREVIEW
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 relative z-10">
-                Предпросмотр
-              </h2>
-              <PaymentMethodsTable country={country} casinos={casinos} />
+        {/* Preview Section */}
+        <div className="mb-8">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-6xl rotate-12 select-none">
+              PREVIEW
             </div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 relative z-10">
+              Предпросмотр
+            </h2>
+            <PaymentMethodsTable country={country} casinos={casinos} />
           </div>
+        </div>
 
-          {/* Configuration Section */}
-          <div className="space-y-6">
+        {/* Configuration Section */}
+        <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
                 Настройки
@@ -136,20 +135,20 @@ export default function TabsGenPage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Выберите страну
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {countries.map((c) => (
                       <button
                         key={c.code}
                         onClick={() => setCountry(c.code)}
                         className={`
-                          flex items-center gap-2 px-4 py-3 rounded-lg font-medium text-sm transition-all
-                          border-2
+                          flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all
+                          border
                           ${country === c.code
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-lg scale-105'
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                             : 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}
                         `}
                       >
-                        <span className="text-xl">{c.flag}</span>
+                        <span className="text-sm">{c.flag}</span>
                         <span>{c.name}</span>
                       </button>
                     ))}
