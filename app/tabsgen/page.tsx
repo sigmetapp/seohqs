@@ -58,6 +58,8 @@ export default function TabsGenPage() {
     { code: 'NO', name: 'Norway', flag: '🇳🇴' },
   ];
 
+  const selectedCountryFlag = countries.find(c => c.code === country)?.flag || '';
+
   const generateEmbedCode = () => {
     // Serialize casinos data
     const casinosData = JSON.stringify(casinos).replace(/"/g, '&quot;');
@@ -119,7 +121,7 @@ export default function TabsGenPage() {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 relative z-10">
               Предпросмотр
             </h2>
-            <PaymentMethodsTable country={country} casinos={casinos} />
+            <PaymentMethodsTable country={country} casinos={casinos} countryFlag={selectedCountryFlag} />
           </div>
         </div>
 

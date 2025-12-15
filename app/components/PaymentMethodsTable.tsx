@@ -393,9 +393,10 @@ interface PaymentMethodsTableProps {
   country: CountryCode;
   showDetails?: boolean;
   casinos?: Record<string, Casino[]>; // methodId -> casinos
+  countryFlag?: string; // Flag emoji for the selected country
 }
 
-export default function PaymentMethodsTable({ country, showDetails = true, casinos }: PaymentMethodsTableProps) {
+export default function PaymentMethodsTable({ country, showDetails = true, casinos, countryFlag }: PaymentMethodsTableProps) {
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const t = TRANSLATIONS[country];
   
@@ -439,19 +440,19 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700">
+    <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700">
       {/* Header */}
-      <div className="text-center mb-8">
-        <h2 className="text-3xl md:text-4xl font-extrabold mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
+      <div className="text-center mb-6 sm:mb-8">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-2 sm:mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
           {t.title}
         </h2>
-        <p className="text-lg text-gray-600 dark:text-gray-300">
+        <p className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-300 px-2">
           {t.subtitle}
         </p>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b-2 border-gray-300 dark:border-gray-600">
@@ -485,9 +486,14 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
                 <td className="py-4 px-4">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{method.icon}</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {method.name[country]}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {countryFlag && (
+                        <span className="text-lg" title={country}>{countryFlag}</span>
+                      )}
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {method.name[country]}
+                      </span>
+                    </div>
                   </div>
                 </td>
                 <td className="py-4 px-4 text-center">
@@ -524,13 +530,81 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
         </table>
       </div>
 
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-4">
+        {topMethods.map((method, index) => (
+          <motion.div
+            key={method.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className={`
+              p-4 rounded-xl border-2 transition-all cursor-pointer
+              ${selectedMethod === method.id 
+                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400' 
+                : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}
+            `}
+            onClick={() => setSelectedMethod(selectedMethod === method.id ? null : method.id)}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{method.icon}</span>
+                <div className="flex items-center gap-1.5">
+                  {countryFlag && (
+                    <span className="text-base" title={country}>{countryFlag}</span>
+                  )}
+                  <span className="font-bold text-gray-900 dark:text-white text-base">
+                    {method.name[country]}
+                  </span>
+                </div>
+              </div>
+              <span className={`
+                inline-block px-2.5 py-1 rounded-full text-xs font-semibold text-white
+                ${getStatusColor(method.status)}
+              `}>
+                {getStatusText(method.status)}
+              </span>
+            </div>
+
+            {/* Popularity */}
+            <div className="mb-3">
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">{t.popularity}</div>
+              <div className="text-base">{getPopularityStars(method.popularity)}</div>
+            </div>
+
+            {/* Details */}
+            {showDetails && (
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <div className="text-gray-600 dark:text-gray-400 mb-1">{t.minDeposit}</div>
+                  <div className="font-semibold text-gray-900 dark:text-white">{method.minDeposit || '-'}</div>
+                </div>
+                <div>
+                  <div className="text-gray-600 dark:text-gray-400 mb-1">{t.maxDeposit}</div>
+                  <div className="font-semibold text-gray-900 dark:text-white">{method.maxDeposit || '-'}</div>
+                </div>
+                <div>
+                  <div className="text-gray-600 dark:text-gray-400 mb-1">{t.processingTime}</div>
+                  <div className="font-semibold text-gray-900 dark:text-white">
+                    {typeof method.processingTime === 'object' 
+                      ? method.processingTime[country] || '-' 
+                      : method.processingTime || '-'}
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        ))}
+      </div>
+
       {/* Selected Method Details */}
       {selectedMethod && showDetails && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="mt-6 p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200 dark:border-blue-800"
+          className="mt-4 sm:mt-6 p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200 dark:border-blue-800"
         >
           {(() => {
             const method = topMethods.find(m => m.id === selectedMethod);
@@ -539,10 +613,15 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
               <div className="flex items-start gap-4">
                 <span className="text-4xl">{method.icon}</span>
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                    {method.name[country]}
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    {countryFlag && (
+                      <span className="text-2xl" title={country}>{countryFlag}</span>
+                    )}
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+                      {method.name[country]}
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-4">
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.minDeposit}</p>
                       <p className="text-lg font-semibold text-gray-900 dark:text-white">{method.minDeposit}</p>
@@ -563,11 +642,11 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
                   
                   {/* Top Casinos */}
                   {method.casinos && method.casinos.length > 0 && (
-                    <div className="mt-6 pt-6 border-t border-blue-200 dark:border-blue-800">
-                      <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                    <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-blue-200 dark:border-blue-800">
+                      <h4 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">
                         {t.topCasinos}
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                         {method.casinos.map((casino, idx) => (
                           <motion.a
                             key={idx}
