@@ -66,7 +66,7 @@ export default function LogcheckerPage() {
     setResult(null);
 
     try {
-      // Список паттернов для поиска Google ботов
+      // Список паттернов для поиска Google ботов в User-Agent
       const googleBotPatterns = [
         /Googlebot/i,
         /Google-InspectionTool/i,
@@ -85,6 +85,13 @@ export default function LogcheckerPage() {
         /Googlebot-Smartphone/i,
       ];
 
+      // Паттерны для поиска рефереров от Google (любые домены google.*)
+      const googleRefererPatterns = [
+        /https?:\/\/[^\s"']*google\.[^\s"']*/i,
+        /referer[:\s]+[^\s"']*google\.[^\s"']*/i,
+        /referrer[:\s]+[^\s"']*google\.[^\s"']*/i,
+      ];
+
       // Разбиваем логи на строки
       const lines = logs.split('\n').filter(line => line.trim());
       
@@ -93,11 +100,16 @@ export default function LogcheckerPage() {
 
       // Анализируем каждую строку
       lines.forEach((line, index) => {
-        // Проверяем каждый паттерн
+        let foundBot = false;
+        let botName = '';
+        let userAgent = '';
+
+        // Сначала проверяем User-Agent паттерны
         for (const pattern of googleBotPatterns) {
           if (pattern.test(line)) {
+            foundBot = true;
+            
             // Извлекаем User-Agent из строки
-            let userAgent = '';
             const uaMatch = line.match(/["']([^"']*Google[^"']*)["']/i) || 
                            line.match(/User-Agent[:\s]+([^\s]+)/i) ||
                            line.match(/(Google[^\s]+)/i);
@@ -111,7 +123,6 @@ export default function LogcheckerPage() {
             }
 
             // Определяем имя бота
-            let botName = 'Googlebot';
             if (/Google-InspectionTool/i.test(userAgent)) {
               botName = 'Google Inspection Tool';
             } else if (/Google-Extended/i.test(userAgent)) {
@@ -140,26 +151,54 @@ export default function LogcheckerPage() {
               botName = 'Googlebot Smartphone';
             } else if (/Googlebot/i.test(userAgent)) {
               botName = 'Googlebot';
+            } else {
+              botName = 'Googlebot';
             }
+            break;
+          }
+        }
 
-            // Сохраняем информацию о боте
-            const key = botName.toLowerCase();
-            if (!botsMap.has(key)) {
-              botsMap.set(key, {
-                botName,
-                userAgent: userAgent.substring(0, 100), // Ограничиваем длину
-                count: 0,
-                sampleLines: [],
-              });
+        // Если не нашли по User-Agent, проверяем рефереры от Google
+        if (!foundBot) {
+          for (const pattern of googleRefererPatterns) {
+            if (pattern.test(line)) {
+              foundBot = true;
+              botName = 'Googlebot (по рефереру)';
+              
+              // Пытаемся извлечь User-Agent, если он есть
+              const uaMatch = line.match(/User-Agent[:\s]+([^\s]+)/i) ||
+                             line.match(/["']([^"']*User-Agent[^"']*)["']/i);
+              
+              if (uaMatch) {
+                userAgent = uaMatch[1].substring(0, 100);
+              } else {
+                // Извлекаем реферер как идентификатор
+                const refererMatch = line.match(/(https?:\/\/[^\s"']*google[^\s"']*)/i);
+                userAgent = refererMatch ? `Referer: ${refererMatch[1]}` : 'Google Referer';
+              }
+              break;
             }
+          }
+        }
 
-            const bot = botsMap.get(key)!;
-            bot.count++;
-            
-            // Сохраняем примеры строк (максимум 3)
-            if (bot.sampleLines.length < 3) {
-              bot.sampleLines.push(line.substring(0, 200)); // Ограничиваем длину
-            }
+        // Если нашли бота, сохраняем информацию
+        if (foundBot) {
+          const key = botName.toLowerCase();
+          if (!botsMap.has(key)) {
+            botsMap.set(key, {
+              botName,
+              userAgent: userAgent.substring(0, 100), // Ограничиваем длину
+              count: 0,
+              sampleLines: [],
+            });
+          }
+
+          const bot = botsMap.get(key)!;
+          bot.count++;
+          
+          // Сохраняем примеры строк (максимум 3)
+          if (bot.sampleLines.length < 3) {
+            bot.sampleLines.push(line.substring(0, 200)); // Ограничиваем длину
           }
         }
       });
