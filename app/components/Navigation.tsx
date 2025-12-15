@@ -28,7 +28,7 @@ export default function Navigation() {
                 </h1>
               </Link>
             </div>
-            <div className="hidden md:ml-4 md:flex md:space-x-4 lg:space-x-6 md:items-center">
+            <div className="hidden md:ml-[50px] md:flex md:space-x-4 lg:space-x-6 md:items-center">
               {navItems.map((item) => {
                 const isActive = pathname === item.href || 
                   (item.href !== '/' && pathname?.startsWith(item.href));
