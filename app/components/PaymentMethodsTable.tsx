@@ -5,6 +5,11 @@ import { motion } from 'framer-motion';
 
 export type CountryCode = 'UK' | 'DE' | 'FR' | 'ES' | 'IT' | 'PT' | 'BR' | 'BG' | 'HU' | 'FI' | 'NO';
 
+export interface Casino {
+  name: string;
+  url: string;
+}
+
 export interface PaymentMethod {
   id: string;
   name: Record<CountryCode, string>;
@@ -13,7 +18,8 @@ export interface PaymentMethod {
   popularity: number; // 1-5, где 5 самый популярный
   minDeposit?: string;
   maxDeposit?: string;
-  processingTime?: string;
+  processingTime?: string | Record<CountryCode, string>;
+  casinos?: Casino[];
 }
 
 const PAYMENT_METHODS: PaymentMethod[] = [
@@ -202,6 +208,8 @@ const TRANSLATIONS: Record<CountryCode, {
   maxDeposit: string;
   processingTime: string;
   topMethods: string;
+  topCasinos: string;
+  playNow: string;
 }> = {
   UK: {
     title: 'Top Payment Methods',
@@ -216,6 +224,8 @@ const TRANSLATIONS: Record<CountryCode, {
     maxDeposit: 'Max Deposit',
     processingTime: 'Processing Time',
     topMethods: 'Top 5 Payment Methods',
+    topCasinos: 'Top Casinos',
+    playNow: 'Play Now',
   },
   DE: {
     title: 'Top Zahlungsmethoden',
@@ -230,6 +240,8 @@ const TRANSLATIONS: Record<CountryCode, {
     maxDeposit: 'Höchstbetrag',
     processingTime: 'Bearbeitungszeit',
     topMethods: 'Top 5 Zahlungsmethoden',
+    topCasinos: 'Top Casinos',
+    playNow: 'Jetzt Spielen',
   },
   FR: {
     title: 'Méthodes de Paiement Populaires',
@@ -244,6 +256,8 @@ const TRANSLATIONS: Record<CountryCode, {
     maxDeposit: 'Dépôt Max',
     processingTime: 'Délai de Traitement',
     topMethods: 'Top 5 Méthodes de Paiement',
+    topCasinos: 'Meilleurs Casinos',
+    playNow: 'Jouer Maintenant',
   },
   ES: {
     title: 'Métodos de Pago Populares',
@@ -258,6 +272,8 @@ const TRANSLATIONS: Record<CountryCode, {
     maxDeposit: 'Depósito Máx',
     processingTime: 'Tiempo de Procesamiento',
     topMethods: 'Top 5 Métodos de Pago',
+    topCasinos: 'Mejores Casinos',
+    playNow: 'Jugar Ahora',
   },
   IT: {
     title: 'Metodi di Pagamento Popolari',
@@ -272,6 +288,8 @@ const TRANSLATIONS: Record<CountryCode, {
     maxDeposit: 'Deposito Max',
     processingTime: 'Tempo di Elaborazione',
     topMethods: 'Top 5 Metodi di Pagamento',
+    topCasinos: 'Migliori Casinò',
+    playNow: 'Gioca Ora',
   },
   PT: {
     title: 'Métodos de Pagamento Populares',
@@ -286,6 +304,8 @@ const TRANSLATIONS: Record<CountryCode, {
     maxDeposit: 'Depósito Máx',
     processingTime: 'Tempo de Processamento',
     topMethods: 'Top 5 Métodos de Pagamento',
+    topCasinos: 'Melhores Casinos',
+    playNow: 'Jogar Agora',
   },
   BR: {
     title: 'Métodos de Pagamento Populares',
@@ -300,6 +320,8 @@ const TRANSLATIONS: Record<CountryCode, {
     maxDeposit: 'Depósito Máx',
     processingTime: 'Tempo de Processamento',
     topMethods: 'Top 5 Métodos de Pagamento',
+    topCasinos: 'Melhores Cassinos',
+    playNow: 'Jogar Agora',
   },
   BG: {
     title: 'Популярни Методи за Плащане',
@@ -314,6 +336,8 @@ const TRANSLATIONS: Record<CountryCode, {
     maxDeposit: 'Макс. Депозит',
     processingTime: 'Време за Обработка',
     topMethods: 'Топ 5 Методи за Плащане',
+    topCasinos: 'Топ Казина',
+    playNow: 'Играй Сега',
   },
   HU: {
     title: 'Népszerű Fizetési Módok',
@@ -328,6 +352,8 @@ const TRANSLATIONS: Record<CountryCode, {
     maxDeposit: 'Max. Befizetés',
     processingTime: 'Feldolgozási Idő',
     topMethods: 'Top 5 Fizetési Mód',
+    topCasinos: 'Legjobb Kaszinók',
+    playNow: 'Játék Most',
   },
   FI: {
     title: 'Suosituimmat Maksutavat',
@@ -342,6 +368,8 @@ const TRANSLATIONS: Record<CountryCode, {
     maxDeposit: 'Max. Talletus',
     processingTime: 'Käsittelyaika',
     topMethods: 'Top 5 Maksutapa',
+    topCasinos: 'Parhaat Kasinot',
+    playNow: 'Pelaa Nyt',
   },
   NO: {
     title: 'Populære Betalingsmetoder',
@@ -356,22 +384,29 @@ const TRANSLATIONS: Record<CountryCode, {
     maxDeposit: 'Max. Innskudd',
     processingTime: 'Behandlingstid',
     topMethods: 'Top 5 Betalingsmetoder',
+    topCasinos: 'Beste Casinoer',
+    playNow: 'Spill Nå',
   },
 };
 
 interface PaymentMethodsTableProps {
   country: CountryCode;
   showDetails?: boolean;
+  casinos?: Record<string, Casino[]>; // methodId -> casinos
 }
 
-export default function PaymentMethodsTable({ country, showDetails = true }: PaymentMethodsTableProps) {
+export default function PaymentMethodsTable({ country, showDetails = true, casinos }: PaymentMethodsTableProps) {
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const t = TRANSLATIONS[country];
   
-  // Get top 5 by popularity
+  // Get top 5 by popularity and merge with custom casinos
   const topMethods = [...PAYMENT_METHODS]
     .sort((a, b) => b.popularity - a.popularity)
-    .slice(0, 5);
+    .slice(0, 5)
+    .map(method => ({
+      ...method,
+      casinos: casinos?.[method.id] || method.casinos || [],
+    }));
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -525,6 +560,39 @@ export default function PaymentMethodsTable({ country, showDetails = true }: Pay
                       </p>
                     </div>
                   </div>
+                  
+                  {/* Top Casinos */}
+                  {method.casinos && method.casinos.length > 0 && (
+                    <div className="mt-6 pt-6 border-t border-blue-200 dark:border-blue-800">
+                      <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                        {t.topCasinos}
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {method.casinos.map((casino, idx) => (
+                          <motion.a
+                            key={idx}
+                            href={casino.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.1 }}
+                            className="group p-4 bg-white dark:bg-gray-700 rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-all shadow-sm hover:shadow-md"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                {casino.name}
+                              </span>
+                              <span className="text-xl">🎰</span>
+                            </div>
+                            <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                              {t.playNow} →
+                            </span>
+                          </motion.a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );

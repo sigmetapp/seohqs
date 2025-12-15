@@ -1,11 +1,48 @@
 'use client';
 
 import { useState } from 'react';
-import PaymentMethodsTable, { CountryCode } from '../components/PaymentMethodsTable';
+import PaymentMethodsTable, { CountryCode, Casino } from '../components/PaymentMethodsTable';
+
+const DEFAULT_CASINOS: Record<string, Casino[]> = {
+  visa: [
+    { name: 'Casino A', url: 'https://example.com/casino-a' },
+    { name: 'Casino B', url: 'https://example.com/casino-b' },
+    { name: 'Casino C', url: 'https://example.com/casino-c' },
+  ],
+  mastercard: [
+    { name: 'Casino A', url: 'https://example.com/casino-a' },
+    { name: 'Casino B', url: 'https://example.com/casino-b' },
+    { name: 'Casino C', url: 'https://example.com/casino-c' },
+  ],
+  skrill: [
+    { name: 'Casino X', url: 'https://example.com/casino-x' },
+    { name: 'Casino Y', url: 'https://example.com/casino-y' },
+    { name: 'Casino Z', url: 'https://example.com/casino-z' },
+  ],
+  neteller: [
+    { name: 'Casino X', url: 'https://example.com/casino-x' },
+    { name: 'Casino Y', url: 'https://example.com/casino-y' },
+    { name: 'Casino Z', url: 'https://example.com/casino-z' },
+  ],
+  paysafecard: [
+    { name: 'Casino 1', url: 'https://example.com/casino-1' },
+    { name: 'Casino 2', url: 'https://example.com/casino-2' },
+    { name: 'Casino 3', url: 'https://example.com/casino-3' },
+  ],
+};
+
+const PAYMENT_METHOD_NAMES: Record<string, string> = {
+  visa: 'Visa',
+  mastercard: 'Mastercard',
+  skrill: 'Skrill',
+  neteller: 'Neteller',
+  paysafecard: 'Paysafecard',
+};
 
 export default function TabsGenPage() {
   const [country, setCountry] = useState<CountryCode>('UK');
   const [copied, setCopied] = useState(false);
+  const [casinos, setCasinos] = useState<Record<string, Casino[]>>(DEFAULT_CASINOS);
 
   const countries: { code: CountryCode; name: string; flag: string }[] = [
     { code: 'UK', name: 'United Kingdom', flag: '🇬🇧' },
@@ -22,6 +59,9 @@ export default function TabsGenPage() {
   ];
 
   const generateEmbedCode = () => {
+    // Serialize casinos data
+    const casinosData = JSON.stringify(casinos).replace(/"/g, '&quot;');
+    
     const embedCode = `<!-- Payment Methods Table Widget by SEOHQS -->
 <div id="seohqs-payment-methods-widget"></div>
 <script>
@@ -29,12 +69,24 @@ export default function TabsGenPage() {
     var script = document.createElement('script');
     script.src = 'https://www.seohqs.com/embed/tabsgen.js';
     script.setAttribute('data-country', '${country}');
+    script.setAttribute('data-casinos', '${casinosData}');
     document.head.appendChild(script);
   })();
 </script>
 <!-- End SEOHQS Payment Methods Widget -->`;
 
     return embedCode;
+  };
+
+  const updateCasino = (methodId: string, index: number, field: 'name' | 'url', value: string) => {
+    setCasinos(prev => {
+      const methodCasinos = [...(prev[methodId] || [])];
+      if (!methodCasinos[index]) {
+        methodCasinos[index] = { name: '', url: '' };
+      }
+      methodCasinos[index] = { ...methodCasinos[index], [field]: value };
+      return { ...prev, [methodId]: methodCasinos };
+    });
   };
 
   const handleCopy = () => {
@@ -68,7 +120,7 @@ export default function TabsGenPage() {
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 relative z-10">
                 Предпросмотр
               </h2>
-              <PaymentMethodsTable country={country} />
+              <PaymentMethodsTable country={country} casinos={casinos} />
             </div>
           </div>
 
@@ -105,6 +157,46 @@ export default function TabsGenPage() {
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                     Таблица автоматически адаптируется под выбранный язык страны
                   </p>
+                </div>
+
+                {/* Casinos Settings */}
+                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                    Настройка казино для каждого метода
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Укажите топ-3 казино для каждого платежного метода. Они будут отображаться при клике на метод.
+                  </p>
+                  
+                  <div className="space-y-6">
+                    {Object.keys(PAYMENT_METHOD_NAMES).map((methodId) => (
+                      <div key={methodId} className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                          {PAYMENT_METHOD_NAMES[methodId]}
+                        </h4>
+                        <div className="space-y-3">
+                          {[0, 1, 2].map((index) => (
+                            <div key={index} className="grid grid-cols-2 gap-2">
+                              <input
+                                type="text"
+                                placeholder={`Название казино ${index + 1}`}
+                                value={casinos[methodId]?.[index]?.name || ''}
+                                onChange={(e) => updateCasino(methodId, index, 'name', e.target.value)}
+                                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                              <input
+                                type="url"
+                                placeholder={`URL казино ${index + 1}`}
+                                value={casinos[methodId]?.[index]?.url || ''}
+                                onChange={(e) => updateCasino(methodId, index, 'url', e.target.value)}
+                                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

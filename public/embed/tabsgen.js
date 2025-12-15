@@ -4,6 +4,13 @@
   // Получаем параметры из data-атрибутов скрипта
   var script = document.currentScript || document.querySelector('script[data-country]');
   var country = script?.getAttribute('data-country') || 'UK';
+  var casinosDataStr = script?.getAttribute('data-casinos') || '{}';
+  var customCasinos = {};
+  try {
+    customCasinos = JSON.parse(casinosDataStr.replace(/&quot;/g, '"'));
+  } catch(e) {
+    customCasinos = {};
+  }
 
   var uniqueId = 'seohqs-tabsgen-' + Math.random().toString(36).slice(2, 11);
 
@@ -182,6 +189,8 @@
       maxDeposit: 'Max Deposit',
       processingTime: 'Processing Time',
       topMethods: 'Top 5 Payment Methods',
+      topCasinos: 'Top Casinos',
+      playNow: 'Play Now',
     },
     DE: {
       title: 'Top Zahlungsmethoden',
@@ -196,6 +205,8 @@
       maxDeposit: 'Höchstbetrag',
       processingTime: 'Bearbeitungszeit',
       topMethods: 'Top 5 Zahlungsmethoden',
+      topCasinos: 'Top Casinos',
+      playNow: 'Jetzt Spielen',
     },
     FR: {
       title: 'Méthodes de Paiement Populaires',
@@ -210,6 +221,8 @@
       maxDeposit: 'Dépôt Max',
       processingTime: 'Délai de Traitement',
       topMethods: 'Top 5 Méthodes de Paiement',
+      topCasinos: 'Meilleurs Casinos',
+      playNow: 'Jouer Maintenant',
     },
     ES: {
       title: 'Métodos de Pago Populares',
@@ -224,6 +237,8 @@
       maxDeposit: 'Depósito Máx',
       processingTime: 'Tiempo de Procesamiento',
       topMethods: 'Top 5 Métodos de Pago',
+      topCasinos: 'Mejores Casinos',
+      playNow: 'Jugar Ahora',
     },
     IT: {
       title: 'Metodi di Pagamento Popolari',
@@ -238,6 +253,8 @@
       maxDeposit: 'Deposito Max',
       processingTime: 'Tempo di Elaborazione',
       topMethods: 'Top 5 Metodi di Pagamento',
+      topCasinos: 'Migliori Casinò',
+      playNow: 'Gioca Ora',
     },
     PT: {
       title: 'Métodos de Pagamento Populares',
@@ -252,6 +269,8 @@
       maxDeposit: 'Depósito Máx',
       processingTime: 'Tempo de Processamento',
       topMethods: 'Top 5 Métodos de Pagamento',
+      topCasinos: 'Melhores Casinos',
+      playNow: 'Jogar Agora',
     },
     BR: {
       title: 'Métodos de Pagamento Populares',
@@ -266,6 +285,8 @@
       maxDeposit: 'Depósito Máx',
       processingTime: 'Tempo de Processamento',
       topMethods: 'Top 5 Métodos de Pagamento',
+      topCasinos: 'Melhores Cassinos',
+      playNow: 'Jogar Agora',
     },
     BG: {
       title: 'Популярни Методи за Плащане',
@@ -280,6 +301,8 @@
       maxDeposit: 'Макс. Депозит',
       processingTime: 'Време за Обработка',
       topMethods: 'Топ 5 Методи за Плащане',
+      topCasinos: 'Топ Казина',
+      playNow: 'Играй Сега',
     },
     HU: {
       title: 'Népszerű Fizetési Módok',
@@ -294,6 +317,8 @@
       maxDeposit: 'Max. Befizetés',
       processingTime: 'Feldolgozási Idő',
       topMethods: 'Top 5 Fizetési Mód',
+      topCasinos: 'Legjobb Kaszinók',
+      playNow: 'Játék Most',
     },
     FI: {
       title: 'Suosituimmat Maksutavat',
@@ -308,6 +333,8 @@
       maxDeposit: 'Max. Talletus',
       processingTime: 'Käsittelyaika',
       topMethods: 'Top 5 Maksutapa',
+      topCasinos: 'Parhaat Kasinot',
+      playNow: 'Pelaa Nyt',
     },
     NO: {
       title: 'Populære Betalingsmetoder',
@@ -322,16 +349,28 @@
       maxDeposit: 'Max. Innskudd',
       processingTime: 'Behandlingstid',
       topMethods: 'Top 5 Betalingsmetoder',
+      topCasinos: 'Beste Casinoer',
+      playNow: 'Spill Nå',
     },
   };
 
   var t = translations[country] || translations.UK;
 
-  // Get top 5 by popularity
+  // Get top 5 by popularity and merge with custom casinos
   var topMethods = paymentMethods
     .slice()
     .sort(function(a, b) { return b.popularity - a.popularity; })
-    .slice(0, 5);
+    .slice(0, 5)
+    .map(function(method) {
+      var newMethod = {};
+      for (var key in method) {
+        if (method.hasOwnProperty(key)) {
+          newMethod[key] = method[key];
+        }
+      }
+      newMethod.casinos = customCasinos[method.id] || method.casinos || [];
+      return newMethod;
+    });
 
   function getStatusColor(status) {
     switch (status) {
@@ -636,14 +675,128 @@
       }
     }
 
-    .${uniqueId}-footer {
+    .${uniqueId}-casinos-section {
       margin-top: 24px;
-      text-align: center;
-      font-size: 10px;
-      color: #6b7280;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      font-weight: 600;
+      padding-top: 24px;
+      border-top: 1px solid #bfdbfe;
+      display: none;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .${uniqueId}-casinos-section {
+        border-top-color: #1e40af;
+      }
+    }
+
+    .${uniqueId}-casinos-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 16px 0;
+      color: #111827;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .${uniqueId}-casinos-title {
+        color: white;
+      }
+    }
+
+    .${uniqueId}-casinos-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    @media (max-width: 768px) {
+      .${uniqueId}-casinos-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .${uniqueId}-casino-card {
+      padding: 16px;
+      background: white;
+      border-radius: 8px;
+      border: 2px solid #e5e7eb;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: block;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .${uniqueId}-casino-card {
+        background: #374151;
+        border-color: #4b5563;
+      }
+    }
+
+    .${uniqueId}-casino-card:hover {
+      border-color: #2563eb;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .${uniqueId}-casino-card:hover {
+        border-color: #3b82f6;
+      }
+    }
+
+    .${uniqueId}-casino-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .${uniqueId}-casino-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: #111827;
+      transition: color 0.2s;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .${uniqueId}-casino-name {
+        color: white;
+      }
+    }
+
+    .${uniqueId}-casino-card:hover .${uniqueId}-casino-name {
+      color: #2563eb;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .${uniqueId}-casino-card:hover .${uniqueId}-casino-name {
+        color: #3b82f6;
+      }
+    }
+
+    .${uniqueId}-casino-icon {
+      font-size: 20px;
+    }
+
+    .${uniqueId}-casino-link {
+      font-size: 14px;
+      color: #2563eb;
+      font-weight: 500;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .${uniqueId}-casino-link {
+        color: #3b82f6;
+      }
+    }
+
+    .${uniqueId}-footer {
+        margin-top: 24px;
+        text-align: center;
+        font-size: 10px;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-weight: 600;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -807,6 +960,29 @@
             : (method.processingTime || '-');
           processingTimeValue.textContent = processingTimeVal;
           
+          // Update casinos
+          casinosGrid.innerHTML = '';
+          if (method.casinos && method.casinos.length > 0) {
+            method.casinos.forEach(function(casino, idx) {
+              var casinoCard = document.createElement('a');
+              casinoCard.href = casino.url;
+              casinoCard.target = '_blank';
+              casinoCard.rel = 'noopener noreferrer';
+              casinoCard.className = `${uniqueId}-casino-card`;
+              casinoCard.innerHTML = `
+                <div class="${uniqueId}-casino-header">
+                  <span class="${uniqueId}-casino-name">${casino.name}</span>
+                  <span class="${uniqueId}-casino-icon">🎰</span>
+                </div>
+                <span class="${uniqueId}-casino-link">${t.playNow} →</span>
+              `;
+              casinosGrid.appendChild(casinoCard);
+            });
+            casinosSection.style.display = 'block';
+          } else {
+            casinosSection.style.display = 'none';
+          }
+          
           detailsDiv.classList.add('show');
         } else {
           selectedMethod = null;
@@ -869,6 +1045,19 @@
     detailsGrid.appendChild(processingTimeItem);
     detailsInfo.appendChild(detailsTitle);
     detailsInfo.appendChild(detailsGrid);
+    
+    // Casinos section
+    var casinosSection = document.createElement('div');
+    casinosSection.className = `${uniqueId}-casinos-section`;
+    var casinosTitle = document.createElement('h4');
+    casinosTitle.className = `${uniqueId}-casinos-title`;
+    casinosTitle.textContent = t.topCasinos;
+    var casinosGrid = document.createElement('div');
+    casinosGrid.className = `${uniqueId}-casinos-grid`;
+    casinosSection.appendChild(casinosTitle);
+    casinosSection.appendChild(casinosGrid);
+    detailsInfo.appendChild(casinosSection);
+    
     detailsContent.appendChild(detailsIcon);
     detailsContent.appendChild(detailsInfo);
     detailsDiv.appendChild(detailsContent);
