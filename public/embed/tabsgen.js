@@ -187,7 +187,19 @@
       popularity: 3,
       minDeposit: '€10',
       maxDeposit: '€500',
-      processingTime: 'Мгновенно',
+      processingTime: {
+        UK: 'Instant',
+        DE: 'Sofort',
+        FR: 'Instantané',
+        ES: 'Instantáneo',
+        IT: 'Istantaneo',
+        PT: 'Instantâneo',
+        BR: 'Instantâneo',
+        BG: 'Моментално',
+        HU: 'Azonnali',
+        FI: 'Heti',
+        NO: 'Øyeblikkelig',
+      },
     },
   ];
 
