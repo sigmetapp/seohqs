@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useRef } from 'react';
 import JSZip from 'jszip';
+import { useI18n } from '@/lib/i18n-context';
 
 interface BotVisit {
   botName: string;
@@ -138,6 +139,7 @@ interface UploadedFile {
 
 export default function LogcheckerPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [logs, setLogs] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -184,10 +186,10 @@ export default function LogcheckerPage() {
         return new TextDecoder().decode(result);
       } else {
         // Fallback: используем pako если доступно, иначе ошибка
-        throw new Error('DecompressionStream не поддерживается. Используйте современный браузер или загрузите .log файлы.');
+        throw new Error(t('logchecker.errorReadingArrayBuffer'));
       }
     } catch (err: any) {
-      throw new Error(`Ошибка декомпрессии: ${err.message}`);
+      throw new Error(`${t('logchecker.errorReadingFile')}: ${err.message}`);
     }
   };
 
@@ -202,7 +204,7 @@ export default function LogcheckerPage() {
             // Для gzip файлов результат - ArrayBuffer
             const arrayBuffer = e.target?.result as ArrayBuffer;
             if (!arrayBuffer) {
-              throw new Error('Не удалось прочитать файл как ArrayBuffer');
+              throw new Error(t('logchecker.errorReadingArrayBuffer'));
             }
             // Декомпрессируем gzip файл
             const decompressed = await decompressGzip(arrayBuffer);
@@ -211,7 +213,7 @@ export default function LogcheckerPage() {
             // Для текстовых файлов результат - строка
             const text = e.target?.result as string;
             if (typeof text !== 'string') {
-              throw new Error('Не удалось прочитать файл как текст');
+              throw new Error(t('logchecker.errorReadingText'));
             }
             resolve(text);
           }
@@ -221,7 +223,7 @@ export default function LogcheckerPage() {
       };
       
       reader.onerror = () => {
-        reject(new Error('Ошибка чтения файла'));
+        reject(new Error(t('logchecker.errorReadingFile')));
       };
       
       if (file.name.endsWith('.gz')) {
@@ -281,12 +283,12 @@ export default function LogcheckerPage() {
       }
 
       if (extractedFiles.length === 0) {
-        throw new Error('В архиве не найдено поддерживаемых файлов (.log, .log.1.gz)');
+        throw new Error(t('logchecker.noSupportedFilesInArchive'));
       }
 
       return extractedFiles;
     } catch (err: any) {
-      throw new Error(`Ошибка распаковки ZIP архива: ${err.message}`);
+      throw new Error(`${t('logchecker.errorExtractingArchive')}: ${err.message}`);
     }
   };
 
@@ -343,7 +345,7 @@ export default function LogcheckerPage() {
                   size: file.size,
                   content: '',
                   status: 'error' as const,
-                  error: err.message || 'Ошибка распаковки архива',
+                  error: err.message || t('logchecker.errorExtractingArchive'),
                 };
               }
               return updated;
@@ -361,13 +363,13 @@ export default function LogcheckerPage() {
 
     // Проверяем общее количество файлов после распаковки
     if (allFilesToProcess.length > 50) {
-      setError(`Слишком много файлов после распаковки: ${allFilesToProcess.length}. Максимум 50 файлов.`);
+      setError(t('logchecker.tooManyFiles').replace('{count}', allFilesToProcess.length.toString()));
       setLoadingFiles(false);
       return;
     }
 
     if (allFilesToProcess.length === 0) {
-      setError('Не найдено файлов для обработки');
+      setError(t('logchecker.noFilesFound'));
       setLoadingFiles(false);
       return;
     }
@@ -395,7 +397,7 @@ export default function LogcheckerPage() {
     }
 
     if (newFiles.length === 0) {
-      setError('Не найдено поддерживаемых файлов (.log, .log.1.gz)');
+      setError(t('logchecker.noSupportedFiles'));
       setLoadingFiles(false);
       return;
     }
@@ -417,7 +419,7 @@ export default function LogcheckerPage() {
         return {
           ...fileInfo,
           status: 'error' as const,
-          error: 'Файл не найден',
+          error: t('logchecker.fileNotFound'),
         };
       }
 
@@ -432,7 +434,7 @@ export default function LogcheckerPage() {
         return {
           ...fileInfo,
           status: 'error' as const,
-          error: err.message || 'Ошибка чтения файла',
+          error: err.message || t('logchecker.errorReadingFile'),
         };
       }
     });
@@ -526,7 +528,7 @@ export default function LogcheckerPage() {
     const hasText = logs.trim();
     
     if (!hasFiles && !hasText) {
-      setError('Загрузите файлы или вставьте логи для анализа');
+      setError(t('logchecker.loadFilesOrPasteLogs'));
       return;
     }
 
@@ -540,7 +542,7 @@ export default function LogcheckerPage() {
     }
 
     if (!logsToAnalyze.trim()) {
-      setError('Нет данных для анализа');
+      setError(t('logchecker.noDataToAnalyze'));
       return;
     }
 
@@ -968,7 +970,7 @@ export default function LogcheckerPage() {
                   lowerUrl.includes('/wp-admin') ||
                   lowerUrl.includes('/wp-includes')) {
                 recommendation = 'ignore';
-                reason = 'Служебный URL - можно игнорировать';
+                reason = t('logchecker.serviceUrlIgnore');
               }
               // Проверяем, нужен ли редирект (старые URL, устаревшие пути)
               else if (lowerUrl.includes('/old/') ||
@@ -976,12 +978,12 @@ export default function LogcheckerPage() {
                        lowerUrl.match(/\/\d{4}\/\d{2}\/\d{2}\//) || // даты в URL
                        lowerUrl.includes('/page/') && lowerUrl.match(/\/page\/\d+$/)) {
                 recommendation = 'redirect';
-                reason = 'Устаревший URL - рекомендуется настроить редирект на актуальную страницу';
+                reason = t('logchecker.outdatedUrlRedirect');
               }
               // Остальные - нужно проверить
               else {
                 recommendation = 'check';
-                reason = 'Требуется проверка - возможно URL был удален или изменен';
+                reason = t('logchecker.requiresCheck');
               }
               
               error400UrlsMap.set(urlKey, {
@@ -1166,7 +1168,7 @@ export default function LogcheckerPage() {
         setShowSuccessNotification(false);
       }, 5000);
     } catch (err: any) {
-      setError(err.message || 'Ошибка при анализе логов');
+      setError(err.message || t('logchecker.errorAnalyzingLogs'));
       console.error('Ошибка анализа:', err);
     } finally {
       setAnalyzing(false);
@@ -1178,7 +1180,7 @@ export default function LogcheckerPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-8">
-          Logchecker
+          {t('logchecker.title')}
         </h1>
 
         {/* Уведомление об успешном завершении анализа */}
@@ -1189,9 +1191,9 @@ export default function LogcheckerPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div className="flex-1">
-                <div className="font-semibold">Анализ завершен!</div>
+                <div className="font-semibold">{t('logchecker.analysisComplete')}</div>
                 <div className="text-sm text-green-100">
-                  Обработано {result?.totalGoogleVisits || 0} запросов от Google ботов
+                  {t('logchecker.processedRequests').replace('{count}', (result?.totalGoogleVisits || 0).toString())}
                 </div>
               </div>
               <button
@@ -1215,10 +1217,10 @@ export default function LogcheckerPage() {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                  Анализ логов в процессе...
+                  {t('logchecker.analysisInProgress')}
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Обрабатываются строки логов и анализируются запросы Google ботов
+                  {t('logchecker.processingLogs')}
                 </p>
               </div>
               <div className="text-right">
@@ -1243,7 +1245,7 @@ export default function LogcheckerPage() {
             {/* Блок для загрузки файлов */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Загрузите файлы логов (.log, .log.1.gz) или ZIP архив *
+                {t('logchecker.uploadFiles')}
               </label>
               <div
                 onDragEnter={handleDragEnter}
@@ -1273,10 +1275,10 @@ export default function LogcheckerPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {isDragging ? 'Отпустите файлы здесь' : 'Нажмите для выбора файлов или перетащите файлы сюда'}
+                    {isDragging ? t('logchecker.dropFilesHere') : t('logchecker.clickToSelectFiles')}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Поддерживаются форматы: .log, .log.1.gz, .zip (до 10 файлов или 1 архив)
+                    {t('logchecker.supportedFormats')}
                   </span>
                 </label>
               </div>
@@ -1286,13 +1288,13 @@ export default function LogcheckerPage() {
                 <div className="mt-4 space-y-2">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Загруженные файлы ({uploadedFiles.filter(f => f.status === 'loaded').length}/{uploadedFiles.length})
+                      {t('logchecker.uploadedFiles')} ({uploadedFiles.filter(f => f.status === 'loaded').length}/{uploadedFiles.length})
                     </span>
                     <button
                       onClick={clearAllFiles}
                       className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                     >
-                      Очистить все
+                      {t('logchecker.clearAll')}
                     </button>
                   </div>
                   {uploadedFiles.map((file, index) => (
@@ -1356,7 +1358,7 @@ export default function LogcheckerPage() {
 
               {loadingFiles && (
                 <div className="mt-4 text-sm text-blue-600 dark:text-blue-400">
-                  Загрузка файлов...
+                  {t('logchecker.loadingFiles')}
                 </div>
               )}
             </div>
@@ -1367,24 +1369,24 @@ export default function LogcheckerPage() {
                 <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">или</span>
+                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">{t('logchecker.or')}</span>
               </div>
             </div>
 
             {/* Блок для ввода логов */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Вставьте логи для анализа
+                {t('logchecker.pasteLogs')}
               </label>
               <textarea
                 value={logs}
                 onChange={(e) => setLogs(e.target.value)}
                 rows={15}
                 className="w-full px-4 py-3 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y font-mono"
-                placeholder="Вставьте логи сервера (access.log, error.log и т.д.)..."
+                placeholder={t('logchecker.pasteLogsPlaceholder')}
               />
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Анализируются ТОЛЬКО заходы Google ботов по User-Agent (Googlebot, Google-InspectionTool, Googlebot-Image и др.). Другие боты не показываются.
+                {t('logchecker.analyzeNote')}
               </p>
             </div>
 
@@ -1402,7 +1404,7 @@ export default function LogcheckerPage() {
               {analyzing ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Анализ в процессе...</span>
+                  <span>{t('logchecker.analyzing')}</span>
                 </>
               ) : (
                 <>
@@ -1410,10 +1412,10 @@ export default function LogcheckerPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                   <span>
-                    Анализировать логи
+                    {t('logchecker.analyzeLogs')}
                     {uploadedFiles.filter(f => f.status === 'loaded').length > 0 && (
                       <span className="ml-1">
-                        ({uploadedFiles.filter(f => f.status === 'loaded').length} файл{uploadedFiles.filter(f => f.status === 'loaded').length > 1 ? 'ов' : ''})
+                        ({uploadedFiles.filter(f => f.status === 'loaded').length} {uploadedFiles.filter(f => f.status === 'loaded').length > 1 ? t('logchecker.visitsPlural') : t('logchecker.visit')})
                       </span>
                     )}
                   </span>
@@ -1427,7 +1429,7 @@ export default function LogcheckerPage() {
         {result && (
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
-              Результаты анализа
+              {t('logchecker.resultsTitle')}
             </h2>
 
             {/* Вкладки */}
@@ -1441,7 +1443,7 @@ export default function LogcheckerPage() {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                   }`}
                 >
-                  Основное
+                  {t('logchecker.tabMain')}
                 </button>
                 <button
                   onClick={() => setActiveTab('analysis')}
@@ -1451,7 +1453,7 @@ export default function LogcheckerPage() {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                   }`}
                 >
-                  Анализ Googlebot
+                  {t('logchecker.tabAnalysis')}
                 </button>
                 <button
                   onClick={() => setActiveTab('bots')}
@@ -1461,7 +1463,7 @@ export default function LogcheckerPage() {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                   }`}
                 >
-                  Таблица ботов
+                  {t('logchecker.tabBots')}
                 </button>
               </nav>
             </div>
@@ -1481,10 +1483,10 @@ export default function LogcheckerPage() {
                     </div>
                     <div className="ml-3 flex-1">
                       <h3 className="text-lg font-semibold text-orange-800 dark:text-orange-200 mb-2">
-                        1. Ошибки перехода бота - какие URL отдали 400
+                        {t('logchecker.error400Title')}
                       </h3>
                       <p className="text-sm text-orange-700 dark:text-orange-300 mb-4">
-                        Найдено {result.error400Urls.length} URL с ошибками 400. Для каждого URL указаны пути решения.
+                        {t('logchecker.error400Found').replace('{count}', result.error400Urls.length.toString())}
                       </p>
                     </div>
                   </div>
@@ -1501,9 +1503,9 @@ export default function LogcheckerPage() {
                         ignore: '✓',
                       };
                       const recommendationLabels = {
-                        check: 'Проверить надо ли',
-                        redirect: 'Сделать редиректы',
-                        ignore: 'Ничего не делать',
+                        check: t('logchecker.recommendationCheck'),
+                        redirect: t('logchecker.recommendationRedirect'),
+                        ignore: t('logchecker.recommendationIgnore'),
                       };
                       
                       return (
@@ -1531,14 +1533,14 @@ export default function LogcheckerPage() {
                                 {error400.count}
                               </div>
                               <div className="text-xs">
-                                {error400.count === 1 ? 'ошибка' : 'ошибок'}
+                                {error400.count === 1 ? t('logchecker.error') : t('logchecker.errors')}
                               </div>
                             </div>
                           </div>
                           {error400.sampleLines.length > 0 && (
                             <div className="mt-3 pt-3 border-t border-current/20">
                               <div className="text-xs font-semibold mb-2">
-                                Примеры запросов:
+                                {t('logchecker.exampleRequests')}
                               </div>
                               <div className="space-y-1">
                                 {error400.sampleLines.map((line, lineIndex) => (
@@ -1586,7 +1588,7 @@ export default function LogcheckerPage() {
                           ? 'text-red-800 dark:text-red-200'
                           : 'text-green-800 dark:text-green-200'
                       }`}>
-                        2. Последнее время захода ботов
+                        {t('logchecker.botLastVisitsTitle')}
                       </h3>
                       <p className={`text-sm mb-4 ${
                         result.botLastVisits.some(b => !b.hasRecentVisit)
@@ -1594,8 +1596,8 @@ export default function LogcheckerPage() {
                           : 'text-green-700 dark:text-green-300'
                       }`}>
                         {result.botLastVisits.some(b => !b.hasRecentVisit)
-                          ? `⚠️ ВНИМАНИЕ: Некоторые боты не заходили на сайт более 3 дней. Это может указывать на проблемы с сайтом.`
-                          : `✓ Все боты заходили на сайт в последние 3 дня.`}
+                          ? t('logchecker.warningNoRecentVisits')
+                          : t('logchecker.allBotsRecent')}
                       </p>
                     </div>
                   </div>
@@ -1619,7 +1621,7 @@ export default function LogcheckerPage() {
                                 ? 'text-green-700 dark:text-green-300'
                                 : 'text-red-700 dark:text-red-300'
                             }`}>
-                              Последний заход: {botVisit.lastVisitDate.toLocaleString('ru-RU', {
+                              {t('logchecker.lastVisit')} {botVisit.lastVisitDate.toLocaleString('ru-RU', {
                                 year: 'numeric',
                                 month: '2-digit',
                                 day: '2-digit',
@@ -1638,16 +1640,16 @@ export default function LogcheckerPage() {
                             </div>
                             <div className="text-xs">
                               {botVisit.daysSinceLastVisit === 0
-                                ? 'сегодня'
+                                ? t('logchecker.today')
                                 : botVisit.daysSinceLastVisit === 1
-                                ? 'день назад'
+                                ? t('logchecker.dayAgo')
                                 : botVisit.daysSinceLastVisit < 5
-                                ? 'дня назад'
-                                : 'дней назад'}
+                                ? t('logchecker.daysAgo')
+                                : t('logchecker.daysAgo')}
                             </div>
                             {!botVisit.hasRecentVisit && (
                               <div className="text-xs font-semibold mt-1">
-                                ⚠️ Проблема
+                                {t('logchecker.problem')}
                               </div>
                             )}
                           </div>
@@ -1671,7 +1673,7 @@ export default function LogcheckerPage() {
                     </div>
                     <div className="ml-3 flex-1">
                       <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
-                        ⚠️ Требуется исправление: Google боты получают ошибки
+                        {t('logchecker.requiresFix')}
                       </h3>
                       <div className="space-y-3">
                         {result.errors.map((error, index) => (
@@ -1682,27 +1684,24 @@ export default function LogcheckerPage() {
                             <div className="flex items-center justify-between mb-2">
                               <div>
                                 <span className="font-semibold text-red-700 dark:text-red-300">
-                                  Ошибка {error.statusCode}
-                                </span>
-                                <span className="text-sm text-gray-600 dark:text-gray-400 ml-2">
-                                  от {error.botName}
+                                  {t('logchecker.errorFrom').replace('{code}', error.statusCode.toString()).replace('{bot}', error.botName)}
                                 </span>
                               </div>
                               <span className="text-lg font-bold text-red-600 dark:text-red-400">
-                                {error.count} {error.count === 1 ? 'раз' : 'раз'}
+                                {error.count} {error.count === 1 ? t('logchecker.time') : t('logchecker.times')}
                               </span>
                             </div>
                             {error.url && (
                               <div className="text-sm text-gray-700 dark:text-gray-300 mb-2 font-mono break-all">
-                                URL: {error.url}
+                                {t('logchecker.url')} {error.url}
                               </div>
                             )}
                             <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                              User-Agent: {error.userAgent}
+                              {t('logchecker.userAgent')} {error.userAgent}
                             </div>
                             <div className="mt-2">
                               <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                                Примеры запросов с ошибкой:
+                                {t('logchecker.exampleRequests')}
                               </div>
                               <div className="space-y-1">
                                 {error.sampleLines.map((line, lineIndex) => (
@@ -1728,7 +1727,7 @@ export default function LogcheckerPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-4">
                 <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  Всего заходов Google
+                  {t('logchecker.totalGoogleVisits')}
                 </div>
                 <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
                   {result.totalGoogleVisits}
@@ -1736,7 +1735,7 @@ export default function LogcheckerPage() {
               </div>
               <div className="bg-green-50 dark:bg-green-900/30 rounded-lg p-4">
                 <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  Уникальных ботов
+                  {t('logchecker.uniqueBots')}
                 </div>
                 <div className="text-3xl font-bold text-green-600 dark:text-green-400">
                   {result.uniqueBots}
@@ -1744,7 +1743,7 @@ export default function LogcheckerPage() {
               </div>
               <div className="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-4">
                 <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  Среднее заходов на бота
+                  {t('logchecker.avgVisitsPerBot')}
                 </div>
                 <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">
                   {result.uniqueBots > 0 
@@ -1763,7 +1762,7 @@ export default function LogcheckerPage() {
             {result.bots.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                  Сводка ботов
+                  {t('logchecker.botsSummary')}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {result.bots.map((bot, index) => {
@@ -1795,7 +1794,7 @@ export default function LogcheckerPage() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
                                 <span className="text-xs font-medium text-red-700 dark:text-red-300">
-                                  {totalErrors} {totalErrors === 1 ? 'ошибка' : 'ошибок'}
+                                  {totalErrors} {totalErrors === 1 ? t('logchecker.error') : t('logchecker.errors')}
                                 </span>
                               </div>
                             )}
@@ -1804,7 +1803,7 @@ export default function LogcheckerPage() {
                         <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                           <div className="flex items-baseline justify-between">
                             <span className="text-xs text-gray-600 dark:text-gray-400">
-                              Заходов:
+                              {t('logchecker.visits')}
                             </span>
                             <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                               {bot.count.toLocaleString()}
@@ -1812,7 +1811,7 @@ export default function LogcheckerPage() {
                           </div>
                           <div className="flex items-baseline justify-between mt-2">
                             <span className="text-xs text-gray-600 dark:text-gray-400">
-                              Процент:
+                              {t('logchecker.percentage')}
                             </span>
                             <span className="text-lg font-semibold text-gray-700 dark:text-gray-300">
                               {percentage}%
@@ -1821,7 +1820,7 @@ export default function LogcheckerPage() {
                           {hasErrors && (
                             <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
                               <div className="text-xs text-red-700 dark:text-red-300">
-                                Ошибки:
+                                {t('logchecker.errorsLabel')}
                                 {bot.errors!.map((error, errIndex) => (
                                   <span key={errIndex} className="ml-1 font-semibold">
                                     {error.statusCode} ({error.count})
@@ -1842,23 +1841,23 @@ export default function LogcheckerPage() {
             {result.bots.length > 0 ? (
               <div className="mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                  Детальная таблица ботов
+                  {t('logchecker.detailedBotsTable')}
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="bg-gray-100 dark:bg-gray-700">
                         <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600">
-                          Бот
+                          {t('logchecker.bot')}
                         </th>
                         <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600">
                           User-Agent
                         </th>
                         <th className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600">
-                          Количество заходов
+                          {t('logchecker.numberOfVisits')}
                         </th>
                         <th className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600">
-                          Процент
+                          {t('logchecker.percentage')}
                         </th>
                       </tr>
                     </thead>
@@ -1878,7 +1877,7 @@ export default function LogcheckerPage() {
                                 {bot.botName}
                                 {bot.errors && bot.errors.length > 0 && (
                                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                    {bot.errors.length} {bot.errors.length === 1 ? 'ошибка' : 'ошибок'}
+                                    {bot.errors.length} {bot.errors.length === 1 ? t('logchecker.error') : t('logchecker.errors')}
                                   </span>
                                 )}
                               </div>
@@ -1901,7 +1900,7 @@ export default function LogcheckerPage() {
               </div>
             ) : (
               <div className="text-center py-8 text-gray-600 dark:text-gray-400">
-                Google боты не найдены в логах
+                {t('logchecker.googleBotsNotFound')}
               </div>
             )}
 
@@ -1909,7 +1908,7 @@ export default function LogcheckerPage() {
             {result.bots.length > 0 && (
               <div className="mt-8">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Примеры запросов
+                  {t('logchecker.requestExamples')}
                 </h3>
                 <div className="space-y-4">
                   {result.bots.map((bot, index) => (
@@ -1918,17 +1917,17 @@ export default function LogcheckerPage() {
                       className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700"
                     >
                       <div className="font-semibold text-gray-900 dark:text-white mb-2">
-                        {bot.botName} ({bot.count} {bot.count === 1 ? 'заход' : 'заходов'})
+                        {bot.botName} ({bot.count} {bot.count === 1 ? t('logchecker.visit') : t('logchecker.visitsPlural')})
                         {bot.errors && bot.errors.length > 0 && (
                           <span className="ml-2 text-red-600 dark:text-red-400 text-sm">
-                            - {bot.errors.reduce((sum, e) => sum + e.count, 0)} ошибок
+                            - {bot.errors.reduce((sum, e) => sum + e.count, 0)} {t('logchecker.errors')}
                           </span>
                         )}
                       </div>
                       {bot.errors && bot.errors.length > 0 && (
                         <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
                           <div className="text-sm font-semibold text-red-700 dark:text-red-300 mb-2">
-                            Ошибки:
+                            {t('logchecker.errorsLabel')}
                           </div>
                           <div className="space-y-2">
                             {bot.errors.map((error, errorIndex) => (
@@ -1937,7 +1936,7 @@ export default function LogcheckerPage() {
                                   {error.statusCode}:
                                 </span>
                                 <span className="text-gray-700 dark:text-gray-300 ml-1">
-                                  {error.count} {error.count === 1 ? 'раз' : 'раз'}
+                                  {error.count} {error.count === 1 ? t('logchecker.time') : t('logchecker.times')}
                                 </span>
                                 {error.sampleLines.length > 0 && (
                                   <div className="mt-1 space-y-1">
@@ -1958,7 +1957,7 @@ export default function LogcheckerPage() {
                       )}
                       <div className="space-y-2">
                         <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                          Примеры запросов:
+                          {t('logchecker.exampleRequests')}
                         </div>
                         {bot.sampleLines.map((line, lineIndex) => (
                           <div 
@@ -1984,36 +1983,36 @@ export default function LogcheckerPage() {
             {result.detailedAnalysis && (
               <div className="mt-8 bg-white dark:bg-gray-800 shadow rounded-lg p-6">
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
-                  Детальный анализ Googlebot
+                  {t('logchecker.detailedAnalysisTitle')}
                 </h2>
 
                 {/* Шаг 1: Идентификация Googlebot */}
                 <div className="mb-8">
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                    Шаг 1. Идентификация Googlebot
+                    {t('logchecker.step1Title')}
                   </h3>
                   <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-2">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">Запросов Googlebot</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{t('logchecker.googlebotRequests')}</div>
                         <div className="text-lg font-bold text-gray-900 dark:text-white">
                           {result.detailedAnalysis.step1.googlebotRequests.toLocaleString()}
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">Всего запросов</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{t('logchecker.totalRequests')}</div>
                         <div className="text-lg font-bold text-gray-900 dark:text-white">
                           {result.detailedAnalysis.step1.totalRequests.toLocaleString()}
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">Процент Googlebot</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{t('logchecker.googlebotPercentage')}</div>
                         <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
                           {result.detailedAnalysis.step1.googlebotPercentage.toFixed(2)}%
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">Подтвержденных ботов</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{t('logchecker.verifiedBots')}</div>
                         <div className="text-lg font-bold text-green-600 dark:text-green-400">
                           {result.detailedAnalysis.step1.verifiedBots}
                         </div>
@@ -2021,7 +2020,7 @@ export default function LogcheckerPage() {
                     </div>
                     {result.detailedAnalysis.step1.unverifiedBots > 0 && (
                       <div className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
-                        ⚠️ Неподтвержденных ботов: {result.detailedAnalysis.step1.unverifiedBots}
+                        {t('logchecker.unverifiedBots').replace('{count}', result.detailedAnalysis.step1.unverifiedBots.toString())}
                       </div>
                     )}
                   </div>
@@ -2030,24 +2029,24 @@ export default function LogcheckerPage() {
                 {/* Шаг 2: Объем и частота обхода */}
                 <div className="mb-8">
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                    Шаг 2. Объем и частота обхода
+                    {t('logchecker.step2Title')}
                   </h3>
                   <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-2">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">Всего запросов Googlebot</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{t('logchecker.totalGooglebotRequests')}</div>
                         <div className="text-2xl font-bold text-gray-900 dark:text-white">
                           {result.detailedAnalysis.step2.totalRequests.toLocaleString()}
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">Уникальных URL</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{t('logchecker.uniqueUrls')}</div>
                         <div className="text-2xl font-bold text-gray-900 dark:text-white">
                           {result.detailedAnalysis.step2.uniqueUrls.toLocaleString()}
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">Среднее запросов на URL</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{t('logchecker.avgRequestsPerUrl')}</div>
                         <div className="text-2xl font-bold text-gray-900 dark:text-white">
                           {result.detailedAnalysis.step2.avgRequestsPerUrl.toFixed(2)}
                         </div>
@@ -2055,7 +2054,7 @@ export default function LogcheckerPage() {
                     </div>
                     {result.detailedAnalysis.step2.avgRequestsPerUrl > 10 && (
                       <div className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
-                        Высокая концентрация запросов на малом числе URL
+                        {t('logchecker.highConcentration')}
                       </div>
                     )}
                   </div>
@@ -2064,16 +2063,16 @@ export default function LogcheckerPage() {
                 {/* Шаг 3: TOP-20 URL */}
                 <div className="mb-8">
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                    Шаг 3. TOP-20 URL по количеству запросов
+                    {t('logchecker.step3Title')}
                   </h3>
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
                         <tr className="bg-gray-100 dark:bg-gray-700">
                           <th className="px-4 py-2 text-left text-sm font-semibold text-gray-900 dark:text-white border-b">URL</th>
-                          <th className="px-4 py-2 text-right text-sm font-semibold text-gray-900 dark:text-white border-b">Запросов</th>
-                          <th className="px-4 py-2 text-right text-sm font-semibold text-gray-900 dark:text-white border-b">Глубина</th>
-                          <th className="px-4 py-2 text-left text-sm font-semibold text-gray-900 dark:text-white border-b">Статусы</th>
+                          <th className="px-4 py-2 text-right text-sm font-semibold text-gray-900 dark:text-white border-b">{t('logchecker.requests')}</th>
+                          <th className="px-4 py-2 text-right text-sm font-semibold text-gray-900 dark:text-white border-b">{t('logchecker.depth')}</th>
+                          <th className="px-4 py-2 text-left text-sm font-semibold text-gray-900 dark:text-white border-b">{t('logchecker.statuses')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -2081,7 +2080,7 @@ export default function LogcheckerPage() {
                           <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                             <td className="px-4 py-2 text-sm font-mono text-gray-900 dark:text-white">
                               {url.url || '/'}
-                              {url.hasParams && <span className="ml-2 text-xs text-yellow-600">параметры</span>}
+                              {url.hasParams && <span className="ml-2 text-xs text-yellow-600">{t('logchecker.parameters')}</span>}
                             </td>
                             <td className="px-4 py-2 text-sm text-right text-gray-900 dark:text-white font-semibold">
                               {url.count.toLocaleString()}
@@ -2106,7 +2105,7 @@ export default function LogcheckerPage() {
                 {/* Шаг 4: Распределение crawl budget */}
                 <div className="mb-8">
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                    Шаг 4. Распределение crawl budget
+                    {t('logchecker.step4Title')}
                   </h3>
                   <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
                     <div className="space-y-3">
@@ -2114,11 +2113,11 @@ export default function LogcheckerPage() {
                         const total = Object.values(result.detailedAnalysis.step4).reduce((a, b) => a + b, 0);
                         const percentage = total > 0 ? (value / total) * 100 : 0;
                         const labels: { [key: string]: string } = {
-                          canonical: 'Каноничные страницы',
-                          withParams: 'URL с параметрами',
-                          pagination: 'Pagination',
-                          service: 'Служебные разделы',
-                          notFound: 'Несуществующие URL',
+                          canonical: t('logchecker.canonicalPages'),
+                          withParams: t('logchecker.urlsWithParams'),
+                          pagination: t('logchecker.pagination'),
+                          service: t('logchecker.serviceSections'),
+                          notFound: t('logchecker.nonExistentUrls'),
                         };
                         return (
                           <div key={key}>
@@ -2145,7 +2144,7 @@ export default function LogcheckerPage() {
                     {result.detailedAnalysis.step4.notFound + result.detailedAnalysis.step4.service > 
                      Object.values(result.detailedAnalysis.step4).reduce((a, b) => a + b, 0) * 0.1 && (
                       <div className="mt-4 text-sm text-red-600 dark:text-red-400">
-                        ⚠️ Более 10% бюджета тратится на несуществующие или служебные URL
+                        {t('logchecker.budgetWasted')}
                       </div>
                     )}
                   </div>
@@ -2154,48 +2153,48 @@ export default function LogcheckerPage() {
                 {/* Шаг 5: HTTP статусы */}
                 <div className="mb-8">
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                    Шаг 5. Распределение HTTP статусов для Googlebot
+                    {t('logchecker.step5Title')}
                   </h3>
                   <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">200 OK</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{t('logchecker.status200')}</div>
                         <div className="text-xl font-bold text-green-600 dark:text-green-400">
                           {result.detailedAnalysis.step5.status200.toLocaleString()}
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">301 Moved</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{t('logchecker.status301')}</div>
                         <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
                           {result.detailedAnalysis.step5.status301.toLocaleString()}
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">302 Found</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{t('logchecker.status302')}</div>
                         <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
                           {result.detailedAnalysis.step5.status302.toLocaleString()}
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">404 Not Found</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{t('logchecker.status404')}</div>
                         <div className="text-xl font-bold text-red-600 dark:text-red-400">
                           {result.detailedAnalysis.step5.status404.toLocaleString()}
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">410 Gone</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{t('logchecker.status410')}</div>
                         <div className="text-xl font-bold text-red-600 dark:text-red-400">
                           {result.detailedAnalysis.step5.status410.toLocaleString()}
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">403/401</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{t('logchecker.status403401')}</div>
                         <div className="text-xl font-bold text-red-600 dark:text-red-400">
                           {(result.detailedAnalysis.step5.status403 + result.detailedAnalysis.step5.status401).toLocaleString()}
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">5xx ошибки</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{t('logchecker.status5xx')}</div>
                         <div className="text-xl font-bold text-red-600 dark:text-red-400">
                           {result.detailedAnalysis.step5.status5xx.toLocaleString()}
                         </div>
