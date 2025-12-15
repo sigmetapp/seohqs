@@ -181,15 +181,15 @@ const THEME_STYLES = {
     container: 'bg-indigo-500 border-b-8 border-r-8 border-indigo-700 rounded-3xl',
     background: 'bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-pink-400 via-purple-500 to-indigo-500',
     lights: 'border-white/40 border-dashed',
-    headerBox: 'bg-white text-indigo-800 border-4 border-indigo-200 shadow-[4px_4px_0_rgba(0,0,0,0.2)]',
-    headerText: 'text-indigo-800 font-black',
+    headerBox: 'bg-white border-4 border-indigo-200 shadow-[4px_4px_0_rgba(0,0,0,0.2)]',
+    headerText: 'text-indigo-900 font-black',
     screen: 'bg-indigo-800 border-4 border-white/50 rounded-2xl shadow-inner',
     payline: 'bg-pink-400',
     arrow: 'border-l-pink-400',
     button: 'bg-pink-500 border-b-4 border-pink-700 shadow-lg hover:translate-y-1 active:border-b-0 active:translate-y-2 text-white',
     buttonCta: 'bg-cyan-400 border-b-4 border-cyan-600 shadow-lg text-white hover:translate-y-1 active:border-b-0',
     resultBox: 'bg-white border-4 border-indigo-300 rounded-xl shadow-xl transform -rotate-1',
-    resultText: 'text-indigo-800 font-black'
+    resultText: 'text-indigo-900 font-black'
   }
 };
 
@@ -372,7 +372,11 @@ export default function InteractiveSlot({
         {/* Top Header */}
         <div className="relative z-10 text-center mb-6">
           <div className={`inline-block px-8 py-2 rounded-full border backdrop-blur-sm ${styles.headerBox}`}>
-            <h2 className={`text-3xl sm:text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r ${styles.headerText}`}>
+            <h2 className={`text-3xl sm:text-4xl font-black uppercase tracking-wider ${
+              theme === 'vibrant' 
+                ? styles.headerText 
+                : `text-transparent bg-clip-text bg-gradient-to-r ${styles.headerText}`
+            }`}>
               {brandName}
             </h2>
           </div>
