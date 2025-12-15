@@ -116,6 +116,8 @@ export default function LogcheckerPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
 
   useEffect(() => {
     checkAuth();
@@ -146,7 +148,7 @@ export default function LogcheckerPage() {
     }
   };
 
-  const analyzeLogs = () => {
+  const analyzeLogs = async () => {
     if (!logs.trim()) {
       setError('Вставьте логи для анализа');
       return;
@@ -155,6 +157,8 @@ export default function LogcheckerPage() {
     setAnalyzing(true);
     setError(null);
     setResult(null);
+    setShowSuccessNotification(false);
+    setAnalysisProgress(0);
 
     try {
       // Список паттернов для поиска Google ботов в User-Agent
@@ -309,6 +313,14 @@ export default function LogcheckerPage() {
 
       // Анализируем каждую строку
       lines.forEach((line, index) => {
+        // Обновляем прогресс каждые 100 строк или в конце
+        if (index % 100 === 0 || index === lines.length - 1) {
+          const progress = Math.min(95, Math.round((index / lines.length) * 90));
+          // Используем setTimeout для асинхронного обновления UI
+          setTimeout(() => {
+            setAnalysisProgress(progress);
+          }, 0);
+        }
         let foundBot = false;
         let botName = '';
         let userAgent = '';
@@ -603,6 +615,11 @@ export default function LogcheckerPage() {
         step9: timeAnalysis,
       };
 
+      setAnalysisProgress(100);
+      
+      // Небольшая задержка для плавности
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       setResult({
         totalGoogleVisits: totalVisits,
         bots: botsArray,
@@ -610,11 +627,20 @@ export default function LogcheckerPage() {
         errors: errorsArray,
         detailedAnalysis,
       });
+      
+      // Показываем уведомление об успешном завершении
+      setShowSuccessNotification(true);
+      
+      // Автоматически скрываем уведомление через 5 секунд
+      setTimeout(() => {
+        setShowSuccessNotification(false);
+      }, 5000);
     } catch (err: any) {
       setError(err.message || 'Ошибка при анализе логов');
       console.error('Ошибка анализа:', err);
     } finally {
       setAnalyzing(false);
+      setAnalysisProgress(0);
     }
   };
 
@@ -632,6 +658,62 @@ export default function LogcheckerPage() {
         <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-8">
           Logchecker
         </h1>
+
+        {/* Уведомление об успешном завершении анализа */}
+        {showSuccessNotification && (
+          <div className="fixed top-4 right-4 z-50 animate-slide-in-right">
+            <div className="bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px]">
+              <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1">
+                <div className="font-semibold">Анализ завершен!</div>
+                <div className="text-sm text-green-100">
+                  Обработано {result?.totalGoogleVisits || 0} запросов от Google ботов
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSuccessNotification(false)}
+                className="text-white hover:text-green-100 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Индикатор процесса анализа */}
+        {analyzing && (
+          <div className="mb-8 bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="relative">
+                <div className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin"></div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                  Анализ логов в процессе...
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Обрабатываются строки логов и анализируются запросы Google ботов
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {analysisProgress}%
+                </div>
+              </div>
+            </div>
+            {/* Прогресс-бар */}
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-blue-600 dark:bg-blue-400 h-full rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${analysisProgress}%` }}
+              ></div>
+            </div>
+          </div>
+        )}
 
         {/* Форма */}
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-8">
@@ -662,9 +744,16 @@ export default function LogcheckerPage() {
             <button
               onClick={analyzeLogs}
               disabled={analyzing || !logs.trim()}
-              className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {analyzing ? 'Анализ...' : 'Анализировать логи'}
+              {analyzing ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Анализ в процессе...</span>
+                </>
+              ) : (
+                'Анализировать логи'
+              )}
             </button>
           </div>
         </div>
