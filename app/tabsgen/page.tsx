@@ -264,8 +264,8 @@ export default function TabsGenPage() {
                 </button>
               </div>
               <div className="relative">
-                <pre className="bg-gray-900 dark:bg-black rounded-lg p-4 overflow-x-auto text-sm text-gray-100">
-                  <code>{generateEmbedCode()}</code>
+                <pre className="bg-gray-900 dark:bg-black rounded-lg p-4 text-sm text-gray-100 whitespace-pre-wrap break-words max-w-full">
+                  <code className="block whitespace-pre-wrap break-words">{generateEmbedCode()}</code>
                 </pre>
               </div>
               <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
