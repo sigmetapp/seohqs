@@ -1115,6 +1115,10 @@ export default function LogcheckerPage() {
             hasRecentVisit,
           };
         })
+        .filter(botVisit => {
+          const excludedBots = ['googlebot image', 'google inspection tool', 'googlebot news'];
+          return !excludedBots.includes(botVisit.botName.toLowerCase());
+        })
         .sort((a, b) => b.lastVisitDate.getTime() - a.lastVisitDate.getTime());
       
       const totalVisits = botsArray.reduce((sum, bot) => sum + bot.count, 0);
