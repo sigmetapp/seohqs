@@ -430,7 +430,7 @@
 
     #${uniqueId}-widget {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      max-width: 100%;
+      max-width: 1200px;
       width: 100%;
       margin: 0 auto;
       padding: 32px;
@@ -1349,9 +1349,9 @@
       mobileDetailsContainer.style.display = 'none';
       mobileDetailsContainer.style.marginTop = '12px';
       mobileDetailsContainer.style.padding = '16px';
-      mobileDetailsContainer.style.background = 'linear-gradient(to right, #eff6ff, #f3e8ff)';
+      mobileDetailsContainer.style.background = '#f9fafb';
       mobileDetailsContainer.style.borderRadius = '12px';
-      mobileDetailsContainer.style.border = '1px solid #bfdbfe';
+      mobileDetailsContainer.style.border = '2px solid #e5e7eb';
 
       var mobileDetailsContent = document.createElement('div');
       mobileDetailsContent.style.display = 'flex';
@@ -1375,6 +1375,8 @@
       mobileDetailsTitle.style.color = '#111827';
       if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         mobileDetailsTitle.style.color = 'white';
+        mobileDetailsContainer.style.background = 'rgba(17, 24, 39, 0.5)';
+        mobileDetailsContainer.style.borderColor = '#374151';
       }
       if (countryFlag) {
         var mobileFlag = document.createElement('span');
@@ -1397,7 +1399,7 @@
       mobileMinDeposit.style.justifyContent = 'space-between';
       mobileMinDeposit.style.alignItems = 'center';
       mobileMinDeposit.style.padding = '8px';
-      mobileMinDeposit.style.background = 'rgba(255,255,255,0.5)';
+      mobileMinDeposit.style.background = 'rgba(255,255,255,0.8)';
       mobileMinDeposit.style.borderRadius = '8px';
       var mobileMinDepositLabel = document.createElement('span');
       mobileMinDepositLabel.style.fontSize = '12px';
@@ -1416,7 +1418,7 @@
       mobileMaxDeposit.style.justifyContent = 'space-between';
       mobileMaxDeposit.style.alignItems = 'center';
       mobileMaxDeposit.style.padding = '8px';
-      mobileMaxDeposit.style.background = 'rgba(255,255,255,0.5)';
+      mobileMaxDeposit.style.background = 'rgba(255,255,255,0.8)';
       mobileMaxDeposit.style.borderRadius = '8px';
       var mobileMaxDepositLabel = document.createElement('span');
       mobileMaxDepositLabel.style.fontSize = '12px';
@@ -1435,7 +1437,7 @@
       mobileProcessingTime.style.justifyContent = 'space-between';
       mobileProcessingTime.style.alignItems = 'center';
       mobileProcessingTime.style.padding = '8px';
-      mobileProcessingTime.style.background = 'rgba(255,255,255,0.5)';
+      mobileProcessingTime.style.background = 'rgba(255,255,255,0.8)';
       mobileProcessingTime.style.borderRadius = '8px';
       var mobileProcessingTimeLabel = document.createElement('span');
       mobileProcessingTimeLabel.style.fontSize = '12px';
