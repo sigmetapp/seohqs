@@ -389,16 +389,63 @@ const TRANSLATIONS: Record<CountryCode, {
   },
 };
 
+export type TableStyle = 'classic' | 'modern' | 'minimal';
+
 interface PaymentMethodsTableProps {
   country: CountryCode;
   showDetails?: boolean;
   casinos?: Record<string, Casino[]>; // methodId -> casinos
   countryFlag?: string; // Flag emoji for the selected country
+  style?: TableStyle; // Table style variant
 }
 
-export default function PaymentMethodsTable({ country, showDetails = true, casinos, countryFlag }: PaymentMethodsTableProps) {
+export default function PaymentMethodsTable({ country, showDetails = true, casinos, countryFlag, style = 'classic' }: PaymentMethodsTableProps) {
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const t = TRANSLATIONS[country];
+  
+  // Style configurations
+  const getStyleClasses = () => {
+    switch (style) {
+      case 'modern':
+        return {
+          container: 'bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 dark:from-purple-900/30 dark:via-blue-900/30 dark:to-pink-900/30',
+          header: 'bg-gradient-to-r from-purple-600 via-blue-600 to-pink-600 dark:from-purple-500 dark:via-blue-500 dark:to-pink-500',
+          headerText: 'text-white',
+          tableHeader: 'bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-800/50 dark:to-blue-800/50',
+          row: 'hover:bg-gradient-to-r hover:from-purple-50 hover:to-blue-50 dark:hover:from-purple-800/30 dark:hover:to-blue-800/30',
+          selectedRow: 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-800/40 dark:to-purple-800/40',
+          border: 'border-purple-200 dark:border-purple-700',
+          card: 'bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-purple-900/30 border-purple-300 dark:border-purple-700',
+          details: 'bg-gradient-to-r from-purple-100 via-blue-100 to-pink-100 dark:from-purple-900/40 dark:via-blue-900/40 dark:to-pink-900/40 border-purple-300 dark:border-purple-700',
+        };
+      case 'minimal':
+        return {
+          container: 'bg-white dark:bg-gray-900',
+          header: 'bg-transparent',
+          headerText: 'text-gray-900 dark:text-white',
+          tableHeader: 'bg-gray-50 dark:bg-gray-800 border-b-2 border-gray-300 dark:border-gray-600',
+          row: 'hover:bg-gray-50 dark:hover:bg-gray-800/50',
+          selectedRow: 'bg-gray-100 dark:bg-gray-800',
+          border: 'border-gray-200 dark:border-gray-700',
+          card: 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700',
+          details: 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700',
+        };
+      default: // classic
+        return {
+          container: 'bg-white dark:bg-gray-800',
+          header: 'bg-transparent',
+          headerText: 'text-gray-900 dark:text-white',
+          tableHeader: 'bg-gray-100 dark:bg-gray-700 border-b-2 border-gray-300 dark:border-gray-600',
+          row: 'hover:bg-gray-50 dark:hover:bg-gray-700/50',
+          selectedRow: 'bg-blue-50 dark:bg-blue-900/20',
+          border: 'border-gray-200 dark:border-gray-700',
+          card: 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700',
+          details: 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800',
+        };
+    }
+  };
+  
+  const styleClasses = getStyleClasses();
   
   // Get top 5 by popularity and merge with custom casinos
   const topMethods = [...PAYMENT_METHODS]
@@ -440,13 +487,21 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700">
+    <div className={`w-full max-w-6xl mx-auto p-4 sm:p-6 ${styleClasses.container} rounded-2xl shadow-xl border ${styleClasses.border}`}>
       {/* Header */}
-      <div className="text-center mb-6 sm:mb-8">
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-2 sm:mb-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
+      <div className={`text-center mb-6 sm:mb-8 p-4 rounded-xl ${style === 'modern' ? styleClasses.header : ''}`}>
+        <h2 className={`text-2xl sm:text-3xl md:text-4xl font-extrabold mb-2 sm:mb-3 ${
+          style === 'modern' 
+            ? styleClasses.headerText 
+            : 'bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent'
+        }`}>
           {t.title}
         </h2>
-        <p className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-300 px-2">
+        <p className={`text-sm sm:text-base md:text-lg px-2 ${
+          style === 'modern' 
+            ? styleClasses.headerText + ' opacity-90' 
+            : 'text-gray-600 dark:text-gray-300'
+        }`}>
           {t.subtitle}
         </p>
       </div>
@@ -455,15 +510,15 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b-2 border-gray-300 dark:border-gray-600">
-              <th className="text-left py-4 px-4 font-bold text-gray-900 dark:text-white">{t.method}</th>
-              <th className="text-center py-4 px-4 font-bold text-gray-900 dark:text-white">{t.status}</th>
-              <th className="text-center py-4 px-4 font-bold text-gray-900 dark:text-white">{t.popularity}</th>
+            <tr className={`${styleClasses.tableHeader} border-b-2 ${styleClasses.border}`}>
+              <th className={`text-left py-4 px-4 font-bold ${style === 'modern' ? 'text-purple-900 dark:text-purple-100' : 'text-gray-900 dark:text-white'}`}>{t.method}</th>
+              <th className={`text-center py-4 px-4 font-bold ${style === 'modern' ? 'text-purple-900 dark:text-purple-100' : 'text-gray-900 dark:text-white'}`}>{t.status}</th>
+              <th className={`text-center py-4 px-4 font-bold ${style === 'modern' ? 'text-purple-900 dark:text-purple-100' : 'text-gray-900 dark:text-white'}`}>{t.popularity}</th>
               {showDetails && (
                 <>
-                  <th className="text-center py-4 px-4 font-bold text-gray-900 dark:text-white">{t.minDeposit}</th>
-                  <th className="text-center py-4 px-4 font-bold text-gray-900 dark:text-white">{t.maxDeposit}</th>
-                  <th className="text-center py-4 px-4 font-bold text-gray-900 dark:text-white">{t.processingTime}</th>
+                  <th className={`text-center py-4 px-4 font-bold ${style === 'modern' ? 'text-purple-900 dark:text-purple-100' : 'text-gray-900 dark:text-white'}`}>{t.minDeposit}</th>
+                  <th className={`text-center py-4 px-4 font-bold ${style === 'modern' ? 'text-purple-900 dark:text-purple-100' : 'text-gray-900 dark:text-white'}`}>{t.maxDeposit}</th>
+                  <th className={`text-center py-4 px-4 font-bold ${style === 'modern' ? 'text-purple-900 dark:text-purple-100' : 'text-gray-900 dark:text-white'}`}>{t.processingTime}</th>
                 </>
               )}
             </tr>
@@ -476,10 +531,10 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 className={`
-                  border-b border-gray-200 dark:border-gray-700 
-                  hover:bg-gray-50 dark:hover:bg-gray-700/50 
+                  border-b ${styleClasses.border}
+                  ${styleClasses.row}
                   transition-colors cursor-pointer
-                  ${selectedMethod === method.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
+                  ${selectedMethod === method.id ? styleClasses.selectedRow : ''}
                 `}
                 onClick={() => setSelectedMethod(selectedMethod === method.id ? null : method.id)}
               >
@@ -541,8 +596,12 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
               className={`
                 p-4 rounded-xl border-2 transition-all cursor-pointer
                 ${selectedMethod === method.id 
-                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400' 
-                  : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}
+                  ? style === 'modern'
+                    ? 'bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-800/40 dark:to-blue-800/40 border-purple-500 dark:border-purple-400'
+                    : style === 'minimal'
+                    ? 'bg-gray-100 dark:bg-gray-800 border-gray-400 dark:border-gray-500'
+                    : 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400'
+                  : `${styleClasses.card} hover:border-gray-300 dark:hover:border-gray-600`}
               `}
               onClick={() => setSelectedMethod(selectedMethod === method.id ? null : method.id)}
             >
@@ -602,7 +661,7 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mt-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200 dark:border-blue-800"
+                className={`mt-3 p-4 ${styleClasses.details} rounded-xl border ${styleClasses.border}`}
               >
                 <div className="flex items-start gap-3">
                   <span className="text-3xl">{method.icon}</span>
@@ -680,7 +739,7 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="mt-4 sm:mt-6 p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200 dark:border-blue-800"
+          className={`mt-4 sm:mt-6 p-4 sm:p-6 ${styleClasses.details} rounded-xl border ${styleClasses.border}`}
         >
           {(() => {
             const method = topMethods.find(m => m.id === selectedMethod);

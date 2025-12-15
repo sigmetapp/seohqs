@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import PaymentMethodsTable, { CountryCode, Casino } from '../components/PaymentMethodsTable';
+import PaymentMethodsTable, { CountryCode, Casino, TableStyle } from '../components/PaymentMethodsTable';
 
 const DEFAULT_CASINOS: Record<string, Casino[]> = {
   visa: [
@@ -41,6 +41,7 @@ const PAYMENT_METHOD_NAMES: Record<string, string> = {
 
 export default function TabsGenPage() {
   const [country, setCountry] = useState<CountryCode>('UK');
+  const [tableStyle, setTableStyle] = useState<TableStyle>('classic');
   const [copied, setCopied] = useState(false);
   const [casinos, setCasinos] = useState<Record<string, Casino[]>>(DEFAULT_CASINOS);
 
@@ -71,6 +72,7 @@ export default function TabsGenPage() {
     var script = document.createElement('script');
     script.src = 'https://www.seohqs.com/embed/tabsgen.js';
     script.setAttribute('data-country', '${country}');
+    script.setAttribute('data-style', '${tableStyle}');
     script.setAttribute('data-casinos', '${casinosData}');
     document.head.appendChild(script);
   })();
@@ -121,7 +123,7 @@ export default function TabsGenPage() {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 relative z-10">
               Предпросмотр
             </h2>
-            <PaymentMethodsTable country={country} casinos={casinos} countryFlag={selectedCountryFlag} />
+            <PaymentMethodsTable country={country} casinos={casinos} countryFlag={selectedCountryFlag} style={tableStyle} />
           </div>
         </div>
 
@@ -133,6 +135,49 @@ export default function TabsGenPage() {
               </h2>
 
               <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Выберите стиль таблицы
+                  </label>
+                  <div className="flex flex-wrap gap-3 mb-6">
+                    <button
+                      onClick={() => setTableStyle('classic')}
+                      className={`
+                        px-4 py-2 rounded-lg font-medium transition-all border-2
+                        ${tableStyle === 'classic'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                          : 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}
+                      `}
+                    >
+                      🎨 Классический
+                    </button>
+                    <button
+                      onClick={() => setTableStyle('modern')}
+                      className={`
+                        px-4 py-2 rounded-lg font-medium transition-all border-2
+                        ${tableStyle === 'modern'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                          : 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}
+                      `}
+                    >
+                      ✨ Современный
+                    </button>
+                    <button
+                      onClick={() => setTableStyle('minimal')}
+                      className={`
+                        px-4 py-2 rounded-lg font-medium transition-all border-2
+                        ${tableStyle === 'minimal'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                          : 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}
+                      `}
+                    >
+                      🎯 Минималистичный
+                    </button>
+                  </div>
+                  <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+                    Выберите стиль оформления таблицы. Код для встраивания будет автоматически обновлен.
+                  </p>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Выберите страну
