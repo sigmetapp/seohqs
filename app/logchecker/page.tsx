@@ -466,61 +466,145 @@ export default function LogcheckerPage() {
               </div>
             </div>
 
+            {/* Сводка ботов */}
+            {result.bots.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  Сводка ботов
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {result.bots.map((bot, index) => {
+                    const percentage = result.totalGoogleVisits > 0
+                      ? ((bot.count / result.totalGoogleVisits) * 100).toFixed(1)
+                      : '0';
+                    const hasErrors = bot.errors && bot.errors.length > 0;
+                    const totalErrors = hasErrors 
+                      ? bot.errors!.reduce((sum, e) => sum + e.count, 0)
+                      : 0;
+                    
+                    return (
+                      <div
+                        key={index}
+                        className={`bg-gradient-to-br ${
+                          hasErrors 
+                            ? 'from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-900/30 border-2 border-red-300 dark:border-red-700' 
+                            : 'from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/30 border border-blue-200 dark:border-blue-800'
+                        } rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900 dark:text-white text-sm mb-1">
+                              {bot.botName}
+                            </h4>
+                            {hasErrors && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <svg className="h-4 w-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <span className="text-xs font-medium text-red-700 dark:text-red-300">
+                                  {totalErrors} {totalErrors === 1 ? 'ошибка' : 'ошибок'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-xs text-gray-600 dark:text-gray-400">
+                              Заходов:
+                            </span>
+                            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                              {bot.count.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex items-baseline justify-between mt-2">
+                            <span className="text-xs text-gray-600 dark:text-gray-400">
+                              Процент:
+                            </span>
+                            <span className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                              {percentage}%
+                            </span>
+                          </div>
+                          {hasErrors && (
+                            <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
+                              <div className="text-xs text-red-700 dark:text-red-300">
+                                Ошибки:
+                                {bot.errors!.map((error, errIndex) => (
+                                  <span key={errIndex} className="ml-1 font-semibold">
+                                    {error.statusCode} ({error.count})
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Таблица ботов */}
             {result.bots.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-gray-100 dark:bg-gray-700">
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600">
-                        Бот
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600">
-                        User-Agent
-                      </th>
-                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600">
-                        Количество заходов
-                      </th>
-                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600">
-                        Процент
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {result.bots.map((bot, index) => {
-                      const percentage = result.totalGoogleVisits > 0
-                        ? ((bot.count / result.totalGoogleVisits) * 100).toFixed(1)
-                        : '0';
-                      
-                      return (
-                        <tr 
-                          key={index}
-                          className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                        >
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                            <div className="flex items-center gap-2">
-                              {bot.botName}
-                              {bot.errors && bot.errors.length > 0 && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                  {bot.errors.length} {bot.errors.length === 1 ? 'ошибка' : 'ошибок'}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono text-xs">
-                            {bot.userAgent || 'N/A'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white font-semibold">
-                            {bot.count.toLocaleString()}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
-                            {percentage}%
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  Детальная таблица ботов
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100 dark:bg-gray-700">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600">
+                          Бот
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600">
+                          User-Agent
+                        </th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600">
+                          Количество заходов
+                        </th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600">
+                          Процент
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {result.bots.map((bot, index) => {
+                        const percentage = result.totalGoogleVisits > 0
+                          ? ((bot.count / result.totalGoogleVisits) * 100).toFixed(1)
+                          : '0';
+                        
+                        return (
+                          <tr 
+                            key={index}
+                            className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                              <div className="flex items-center gap-2">
+                                {bot.botName}
+                                {bot.errors && bot.errors.length > 0 && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                    {bot.errors.length} {bot.errors.length === 1 ? 'ошибка' : 'ошибок'}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono text-xs">
+                              {bot.userAgent || 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white font-semibold">
+                              {bot.count.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
+                              {percentage}%
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ) : (
               <div className="text-center py-8 text-gray-600 dark:text-gray-400">
