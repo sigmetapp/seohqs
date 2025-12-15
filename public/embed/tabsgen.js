@@ -430,7 +430,8 @@
 
     #${uniqueId}-widget {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      max-width: 1000px;
+      max-width: 100%;
+      width: 100%;
       margin: 0 auto;
       padding: 32px;
       background: white;
@@ -480,12 +481,36 @@
     }
 
     .${uniqueId}-table-container {
-      overflow-x: auto;
+      overflow-x: visible;
+      width: 100%;
     }
 
     .${uniqueId}-table {
       width: 100%;
       border-collapse: collapse;
+      table-layout: auto;
+      min-width: 0;
+    }
+    
+    .${uniqueId}-th,
+    .${uniqueId}-td {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+    }
+    
+    @media (max-width: 768px) {
+      .${uniqueId}-table {
+        font-size: 12px;
+      }
+      .${uniqueId}-th,
+      .${uniqueId}-td {
+        padding: 8px 4px;
+        font-size: 11px;
+      }
+      .${uniqueId}-method-name {
+        font-size: 12px;
+      }
     }
 
     .${uniqueId}-thead {
@@ -965,13 +990,6 @@
       }
     }
 
-    @media (max-width: 768px) {
-      .${uniqueId}-th,
-      .${uniqueId}-td {
-        padding: 12px 8px;
-        font-size: 14px;
-      }
-    }
   `;
 
   // Добавляем стили в head
@@ -1023,6 +1041,72 @@
     var tbody = document.createElement('tbody');
     tbody.className = `${uniqueId}-tbody`;
     var selectedMethod = null;
+    
+    // Details section - создаем ДО добавления обработчиков кликов
+    var detailsDiv = document.createElement('div');
+    detailsDiv.className = `${uniqueId}-details`;
+    var detailsContent = document.createElement('div');
+    detailsContent.className = `${uniqueId}-details-content`;
+    var detailsIcon = document.createElement('span');
+    detailsIcon.className = `${uniqueId}-details-icon`;
+    var detailsInfo = document.createElement('div');
+    detailsInfo.className = `${uniqueId}-details-info`;
+    var detailsTitle = document.createElement('h3');
+    detailsTitle.className = `${uniqueId}-details-title`;
+    var detailsGrid = document.createElement('div');
+    detailsGrid.className = `${uniqueId}-details-grid`;
+    
+    var minDepositItem = document.createElement('div');
+    minDepositItem.className = `${uniqueId}-details-item`;
+    var minDepositLabel = document.createElement('p');
+    minDepositLabel.className = `${uniqueId}-details-label`;
+    minDepositLabel.textContent = t.minDeposit;
+    var minDepositValue = document.createElement('p');
+    minDepositValue.className = `${uniqueId}-details-value`;
+    minDepositItem.appendChild(minDepositLabel);
+    minDepositItem.appendChild(minDepositValue);
+
+    var maxDepositItem = document.createElement('div');
+    maxDepositItem.className = `${uniqueId}-details-item`;
+    var maxDepositLabel = document.createElement('p');
+    maxDepositLabel.className = `${uniqueId}-details-label`;
+    maxDepositLabel.textContent = t.maxDeposit;
+    var maxDepositValue = document.createElement('p');
+    maxDepositValue.className = `${uniqueId}-details-value`;
+    maxDepositItem.appendChild(maxDepositLabel);
+    maxDepositItem.appendChild(maxDepositValue);
+
+    var processingTimeItem = document.createElement('div');
+    processingTimeItem.className = `${uniqueId}-details-item`;
+    var processingTimeLabel = document.createElement('p');
+    processingTimeLabel.className = `${uniqueId}-details-label`;
+    processingTimeLabel.textContent = t.processingTime;
+    var processingTimeValue = document.createElement('p');
+    processingTimeValue.className = `${uniqueId}-details-value`;
+    processingTimeItem.appendChild(processingTimeLabel);
+    processingTimeItem.appendChild(processingTimeValue);
+
+    detailsGrid.appendChild(minDepositItem);
+    detailsGrid.appendChild(maxDepositItem);
+    detailsGrid.appendChild(processingTimeItem);
+    detailsInfo.appendChild(detailsTitle);
+    detailsInfo.appendChild(detailsGrid);
+    
+    // Casinos section
+    var casinosSection = document.createElement('div');
+    casinosSection.className = `${uniqueId}-casinos-section`;
+    var casinosTitle = document.createElement('h4');
+    casinosTitle.className = `${uniqueId}-casinos-title`;
+    casinosTitle.textContent = t.topCasinos;
+    var casinosGrid = document.createElement('div');
+    casinosGrid.className = `${uniqueId}-casinos-grid`;
+    casinosSection.appendChild(casinosTitle);
+    casinosSection.appendChild(casinosGrid);
+    detailsInfo.appendChild(casinosSection);
+    
+    detailsContent.appendChild(detailsIcon);
+    detailsContent.appendChild(detailsInfo);
+    detailsDiv.appendChild(detailsContent);
 
     topMethods.forEach(function(method, index) {
       var row = document.createElement('tr');
@@ -1092,10 +1176,10 @@
       // Processing Time
       var tdProcessingTime = document.createElement('td');
       tdProcessingTime.className = `${uniqueId}-td ${uniqueId}-td-center`;
-      var processingTimeValue = typeof method.processingTime === 'object' 
+      var processingTimeText = typeof method.processingTime === 'object' 
         ? (method.processingTime[country] || '-')
         : (method.processingTime || '-');
-      tdProcessingTime.textContent = processingTimeValue;
+      tdProcessingTime.textContent = processingTimeText;
       row.appendChild(tdProcessingTime);
 
       // Click handler
@@ -1163,6 +1247,7 @@
     table.appendChild(tbody);
     tableContainer.appendChild(table);
     widgetContainer.appendChild(tableContainer);
+    widgetContainer.appendChild(detailsDiv);
 
     // Mobile Cards Container
     var mobileCardsContainer = document.createElement('div');
@@ -1491,73 +1576,6 @@
       mobileCardsContainer.appendChild(cardWrapper);
     });
     widgetContainer.appendChild(mobileCardsContainer);
-
-    // Details section
-    var detailsDiv = document.createElement('div');
-    detailsDiv.className = `${uniqueId}-details`;
-    var detailsContent = document.createElement('div');
-    detailsContent.className = `${uniqueId}-details-content`;
-    var detailsIcon = document.createElement('span');
-    detailsIcon.className = `${uniqueId}-details-icon`;
-    var detailsInfo = document.createElement('div');
-    detailsInfo.className = `${uniqueId}-details-info`;
-    var detailsTitle = document.createElement('h3');
-    detailsTitle.className = `${uniqueId}-details-title`;
-    var detailsGrid = document.createElement('div');
-    detailsGrid.className = `${uniqueId}-details-grid`;
-    
-    var minDepositItem = document.createElement('div');
-    minDepositItem.className = `${uniqueId}-details-item`;
-    var minDepositLabel = document.createElement('p');
-    minDepositLabel.className = `${uniqueId}-details-label`;
-    minDepositLabel.textContent = t.minDeposit;
-    var minDepositValue = document.createElement('p');
-    minDepositValue.className = `${uniqueId}-details-value`;
-    minDepositItem.appendChild(minDepositLabel);
-    minDepositItem.appendChild(minDepositValue);
-
-    var maxDepositItem = document.createElement('div');
-    maxDepositItem.className = `${uniqueId}-details-item`;
-    var maxDepositLabel = document.createElement('p');
-    maxDepositLabel.className = `${uniqueId}-details-label`;
-    maxDepositLabel.textContent = t.maxDeposit;
-    var maxDepositValue = document.createElement('p');
-    maxDepositValue.className = `${uniqueId}-details-value`;
-    maxDepositItem.appendChild(maxDepositLabel);
-    maxDepositItem.appendChild(maxDepositValue);
-
-    var processingTimeItem = document.createElement('div');
-    processingTimeItem.className = `${uniqueId}-details-item`;
-    var processingTimeLabel = document.createElement('p');
-    processingTimeLabel.className = `${uniqueId}-details-label`;
-    processingTimeLabel.textContent = t.processingTime;
-    var processingTimeValue = document.createElement('p');
-    processingTimeValue.className = `${uniqueId}-details-value`;
-    processingTimeItem.appendChild(processingTimeLabel);
-    processingTimeItem.appendChild(processingTimeValue);
-
-    detailsGrid.appendChild(minDepositItem);
-    detailsGrid.appendChild(maxDepositItem);
-    detailsGrid.appendChild(processingTimeItem);
-    detailsInfo.appendChild(detailsTitle);
-    detailsInfo.appendChild(detailsGrid);
-    
-    // Casinos section
-    var casinosSection = document.createElement('div');
-    casinosSection.className = `${uniqueId}-casinos-section`;
-    var casinosTitle = document.createElement('h4');
-    casinosTitle.className = `${uniqueId}-casinos-title`;
-    casinosTitle.textContent = t.topCasinos;
-    var casinosGrid = document.createElement('div');
-    casinosGrid.className = `${uniqueId}-casinos-grid`;
-    casinosSection.appendChild(casinosTitle);
-    casinosSection.appendChild(casinosGrid);
-    detailsInfo.appendChild(casinosSection);
-    
-    detailsContent.appendChild(detailsIcon);
-    detailsContent.appendChild(detailsInfo);
-    detailsDiv.appendChild(detailsContent);
-    widgetContainer.appendChild(detailsDiv);
 
     // Footer
     var footer = document.createElement('div');
