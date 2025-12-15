@@ -4,6 +4,7 @@
   // Получаем параметры из data-атрибутов скрипта
   var script = document.currentScript || document.querySelector('script[data-country]');
   var country = script?.getAttribute('data-country') || 'UK';
+  var tableStyle = script?.getAttribute('data-style') || 'classic';
   var casinosDataStr = script?.getAttribute('data-casinos') || '{}';
   var customCasinos = {};
   try {
@@ -371,6 +372,83 @@
 
   var t = translations[country] || translations.UK;
 
+  // Style configuration function
+  function getStyleConfig(style) {
+    switch(style) {
+      case 'modern':
+        return {
+          widgetBg: 'linear-gradient(to bottom right, #faf5ff, #eff6ff, #fdf2f8)',
+          widgetBgDark: 'linear-gradient(to bottom right, rgba(147, 51, 234, 0.3), rgba(59, 130, 246, 0.3), rgba(219, 39, 119, 0.3))',
+          headerBg: 'linear-gradient(to right, #9333ea, #2563eb, #db2777)',
+          headerText: 'white',
+          tableHeaderBg: 'linear-gradient(to right, #e9d5ff, #dbeafe)',
+          tableHeaderBgDark: 'linear-gradient(to right, rgba(147, 51, 234, 0.5), rgba(59, 130, 246, 0.5))',
+          rowHover: 'linear-gradient(to right, #f3e8ff, #dbeafe)',
+          rowHoverDark: 'linear-gradient(to right, rgba(147, 51, 234, 0.3), rgba(59, 130, 246, 0.3))',
+          selectedRowBg: 'linear-gradient(to right, #dbeafe, #e9d5ff)',
+          selectedRowBgDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.4), rgba(147, 51, 234, 0.4))',
+          borderColor: '#c084fc',
+          borderColorDark: '#9333ea',
+          cardBg: 'linear-gradient(to bottom right, white, #faf5ff)',
+          cardBgDark: 'linear-gradient(to bottom right, #1f2937, rgba(147, 51, 234, 0.3))',
+          detailsBg: 'linear-gradient(to right, #f3e8ff, #dbeafe, #fce7f3)',
+          detailsBgDark: 'linear-gradient(to right, rgba(147, 51, 234, 0.4), rgba(59, 130, 246, 0.4), rgba(219, 39, 119, 0.4))',
+          mobileCardBg: 'linear-gradient(to bottom right, #faf5ff, #eff6ff)',
+          mobileCardBgDark: 'rgba(17, 24, 39, 0.5)',
+          mobileSelectedBg: 'linear-gradient(to right, #dbeafe, #e9d5ff)',
+          mobileSelectedBgDark: 'rgba(30, 58, 138, 0.2)',
+        };
+      case 'minimal':
+        return {
+          widgetBg: 'white',
+          widgetBgDark: '#111827',
+          headerBg: 'transparent',
+          headerText: '#111827',
+          tableHeaderBg: '#f9fafb',
+          tableHeaderBgDark: '#1f2937',
+          rowHover: '#f9fafb',
+          rowHoverDark: '#1f2937',
+          selectedRowBg: '#f3f4f6',
+          selectedRowBgDark: '#1f2937',
+          borderColor: '#e5e7eb',
+          borderColorDark: '#374151',
+          cardBg: 'white',
+          cardBgDark: '#111827',
+          detailsBg: '#f9fafb',
+          detailsBgDark: '#1f2937',
+          mobileCardBg: '#f9fafb',
+          mobileCardBgDark: 'rgba(17, 24, 39, 0.5)',
+          mobileSelectedBg: '#f3f4f6',
+          mobileSelectedBgDark: '#1f2937',
+        };
+      default: // classic
+        return {
+          widgetBg: 'white',
+          widgetBgDark: '#1f2937',
+          headerBg: 'transparent',
+          headerText: '#111827',
+          tableHeaderBg: '#f3f4f6',
+          tableHeaderBgDark: '#374151',
+          rowHover: '#f9fafb',
+          rowHoverDark: 'rgba(31, 41, 55, 0.5)',
+          selectedRowBg: '#eff6ff',
+          selectedRowBgDark: 'rgba(30, 58, 138, 0.2)',
+          borderColor: '#e5e7eb',
+          borderColorDark: '#374151',
+          cardBg: '#f9fafb',
+          cardBgDark: 'rgba(17, 24, 39, 0.5)',
+          detailsBg: 'linear-gradient(to right, #eff6ff, #f3e8ff)',
+          detailsBgDark: 'linear-gradient(to right, rgba(30, 58, 138, 0.2), rgba(147, 51, 234, 0.2))',
+          mobileCardBg: '#f9fafb',
+          mobileCardBgDark: 'rgba(17, 24, 39, 0.5)',
+          mobileSelectedBg: '#eff6ff',
+          mobileSelectedBgDark: 'rgba(30, 58, 138, 0.2)',
+        };
+    }
+  }
+
+  var styleConfig = getStyleConfig(tableStyle);
+
   // Get top 5 by popularity and merge with custom casinos
   var topMethods = paymentMethods
     .slice()
@@ -430,23 +508,13 @@
 
     #${uniqueId}-widget {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      max-width: 100%;
+      max-width: 1200px;
       width: 100%;
       margin: 0 auto;
       padding: 32px;
-      background: white;
       border-radius: 16px;
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      border: 1px solid #e5e7eb;
       box-sizing: border-box;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      #${uniqueId}-widget {
-        background: #1f2937;
-        border-color: #374151;
-        color: white;
-      }
     }
 
     #${uniqueId}-widget * {
@@ -456,6 +524,8 @@
     .${uniqueId}-header {
       text-align: center;
       margin-bottom: 32px;
+      padding: 16px;
+      border-radius: 12px;
     }
 
     .${uniqueId}-title {
@@ -527,13 +597,6 @@
       text-align: left;
       padding: 16px;
       font-weight: 700;
-      color: #111827;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-th {
-        color: white;
-      }
     }
 
     .${uniqueId}-th-center {
@@ -553,23 +616,11 @@
     }
 
     .${uniqueId}-tbody .${uniqueId}-tr:hover {
-      background-color: #f9fafb;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-tbody .${uniqueId}-tr:hover {
-        background-color: rgba(31, 41, 55, 0.5);
-      }
+      transition: background-color 0.2s;
     }
 
     .${uniqueId}-tbody .${uniqueId}-tr.selected {
-      background-color: #eff6ff;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-tbody .${uniqueId}-tr.selected {
-        background-color: rgba(30, 58, 138, 0.2);
-      }
+      transition: background-color 0.2s;
     }
 
     .${uniqueId}-td {
@@ -617,18 +668,9 @@
     .${uniqueId}-details {
       margin-top: 24px;
       padding: 24px;
-      background: linear-gradient(to right, #eff6ff, #f3e8ff);
       border-radius: 12px;
-      border: 1px solid #bfdbfe;
       display: none;
       animation: ${uniqueId}-fadeIn 0.3s ease-out;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-details {
-        background: linear-gradient(to right, rgba(30, 58, 138, 0.2), rgba(147, 51, 234, 0.2));
-        border-color: #1e40af;
-      }
     }
 
     .${uniqueId}-details.show {
@@ -871,40 +913,18 @@
     .${uniqueId}-mobile-card {
       padding: 16px;
       border-radius: 12px;
-      border: 2px solid #e5e7eb;
+      border: 2px solid;
       margin-bottom: 16px;
-      background: #f9fafb;
       cursor: pointer;
       transition: all 0.2s;
     }
 
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-mobile-card {
-        background: rgba(17, 24, 39, 0.5);
-        border-color: #374151;
-      }
-    }
-
     .${uniqueId}-mobile-card:hover {
-      border-color: #9ca3af;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-mobile-card:hover {
-        border-color: #4b5563;
-      }
+      opacity: 0.8;
     }
 
     .${uniqueId}-mobile-card.selected {
-      background: #eff6ff;
-      border-color: #2563eb;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-mobile-card.selected {
-        background: rgba(30, 58, 138, 0.2);
-        border-color: #3b82f6;
-      }
+      border-width: 2px;
     }
 
     .${uniqueId}-mobile-card-header {
@@ -1003,10 +1023,21 @@
 
     var widgetContainer = document.createElement('div');
     widgetContainer.id = `${uniqueId}-widget`;
+    widgetContainer.style.background = styleConfig.widgetBg;
+    widgetContainer.style.border = '1px solid ' + styleConfig.borderColor;
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      widgetContainer.style.background = styleConfig.widgetBgDark;
+      widgetContainer.style.borderColor = styleConfig.borderColorDark;
+      widgetContainer.style.color = 'white';
+    }
 
     // Header
     var header = document.createElement('div');
     header.className = `${uniqueId}-header`;
+    if (tableStyle === 'modern') {
+      header.style.background = styleConfig.headerBg;
+      header.style.color = styleConfig.headerText;
+    }
     var title = document.createElement('h2');
     title.className = `${uniqueId}-title`;
     title.textContent = t.title;
@@ -1026,12 +1057,28 @@
     // Header row
     var thead = document.createElement('thead');
     thead.className = `${uniqueId}-thead`;
+    thead.style.background = styleConfig.tableHeaderBg;
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      thead.style.background = styleConfig.tableHeaderBgDark;
+    }
     var headerRow = document.createElement('tr');
     var headers = [t.method, t.status, t.popularity, t.minDeposit, t.maxDeposit, t.processingTime];
     headers.forEach(function(headerText) {
       var th = document.createElement('th');
       th.className = `${uniqueId}-th ${uniqueId}-th-center`;
       th.textContent = headerText;
+      if (tableStyle === 'modern') {
+        th.style.color = '#581c87';
+      } else {
+        th.style.color = '#111827';
+      }
+      if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        if (tableStyle === 'modern') {
+          th.style.color = '#e9d5ff';
+        } else {
+          th.style.color = 'white';
+        }
+      }
       headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
@@ -1045,6 +1092,12 @@
     // Details section - создаем ДО добавления обработчиков кликов
     var detailsDiv = document.createElement('div');
     detailsDiv.className = `${uniqueId}-details`;
+    detailsDiv.style.background = styleConfig.detailsBg;
+    detailsDiv.style.border = '1px solid ' + styleConfig.borderColor;
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      detailsDiv.style.background = styleConfig.detailsBgDark;
+      detailsDiv.style.borderColor = styleConfig.borderColorDark;
+    }
     var detailsContent = document.createElement('div');
     detailsContent.className = `${uniqueId}-details-content`;
     var detailsIcon = document.createElement('span');
@@ -1112,6 +1165,19 @@
       var row = document.createElement('tr');
       row.className = `${uniqueId}-tr`;
       row.setAttribute('data-method-id', method.id);
+      row.addEventListener('mouseenter', function() {
+        if (selectedMethod !== method.id) {
+          this.style.background = styleConfig.rowHover;
+          if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            this.style.background = styleConfig.rowHoverDark;
+          }
+        }
+      });
+      row.addEventListener('mouseleave', function() {
+        if (selectedMethod !== method.id) {
+          this.style.background = '';
+        }
+      });
 
       // Method name
       var tdMethod = document.createElement('td');
@@ -1189,13 +1255,20 @@
         // Remove previous selection
         if (selectedMethod) {
           var prevRow = tbody.querySelector('[data-method-id="' + selectedMethod + '"]');
-          if (prevRow) prevRow.classList.remove('selected');
+          if (prevRow) {
+            prevRow.classList.remove('selected');
+            prevRow.style.background = '';
+          }
           detailsDiv.classList.remove('show');
         }
 
         if (!wasSelected) {
           selectedMethod = method.id;
           row.classList.add('selected');
+          row.style.background = styleConfig.selectedRowBg;
+          if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            row.style.background = styleConfig.selectedRowBgDark;
+          }
           
           // Update details
           detailsIcon.textContent = method.icon;
@@ -1238,6 +1311,7 @@
           detailsDiv.classList.add('show');
         } else {
           selectedMethod = null;
+          row.style.background = '';
         }
       });
 
@@ -1256,6 +1330,12 @@
       var card = document.createElement('div');
       card.className = `${uniqueId}-mobile-card`;
       card.setAttribute('data-method-id', method.id);
+      card.style.background = styleConfig.mobileCardBg;
+      card.style.borderColor = styleConfig.borderColor;
+      if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        card.style.background = styleConfig.mobileCardBgDark;
+        card.style.borderColor = styleConfig.borderColorDark;
+      }
 
       var header = document.createElement('div');
       header.className = `${uniqueId}-mobile-card-header`;
@@ -1349,9 +1429,9 @@
       mobileDetailsContainer.style.display = 'none';
       mobileDetailsContainer.style.marginTop = '12px';
       mobileDetailsContainer.style.padding = '16px';
-      mobileDetailsContainer.style.background = 'linear-gradient(to right, #eff6ff, #f3e8ff)';
+      mobileDetailsContainer.style.background = styleConfig.detailsBg;
       mobileDetailsContainer.style.borderRadius = '12px';
-      mobileDetailsContainer.style.border = '1px solid #bfdbfe';
+      mobileDetailsContainer.style.border = '2px solid ' + styleConfig.borderColor;
 
       var mobileDetailsContent = document.createElement('div');
       mobileDetailsContent.style.display = 'flex';
@@ -1375,6 +1455,8 @@
       mobileDetailsTitle.style.color = '#111827';
       if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         mobileDetailsTitle.style.color = 'white';
+        mobileDetailsContainer.style.background = styleConfig.detailsBgDark;
+        mobileDetailsContainer.style.borderColor = styleConfig.borderColorDark;
       }
       if (countryFlag) {
         var mobileFlag = document.createElement('span');
@@ -1397,7 +1479,7 @@
       mobileMinDeposit.style.justifyContent = 'space-between';
       mobileMinDeposit.style.alignItems = 'center';
       mobileMinDeposit.style.padding = '8px';
-      mobileMinDeposit.style.background = 'rgba(255,255,255,0.5)';
+      mobileMinDeposit.style.background = 'rgba(255,255,255,0.8)';
       mobileMinDeposit.style.borderRadius = '8px';
       var mobileMinDepositLabel = document.createElement('span');
       mobileMinDepositLabel.style.fontSize = '12px';
@@ -1416,7 +1498,7 @@
       mobileMaxDeposit.style.justifyContent = 'space-between';
       mobileMaxDeposit.style.alignItems = 'center';
       mobileMaxDeposit.style.padding = '8px';
-      mobileMaxDeposit.style.background = 'rgba(255,255,255,0.5)';
+      mobileMaxDeposit.style.background = 'rgba(255,255,255,0.8)';
       mobileMaxDeposit.style.borderRadius = '8px';
       var mobileMaxDepositLabel = document.createElement('span');
       mobileMaxDepositLabel.style.fontSize = '12px';
@@ -1435,7 +1517,7 @@
       mobileProcessingTime.style.justifyContent = 'space-between';
       mobileProcessingTime.style.alignItems = 'center';
       mobileProcessingTime.style.padding = '8px';
-      mobileProcessingTime.style.background = 'rgba(255,255,255,0.5)';
+      mobileProcessingTime.style.background = 'rgba(255,255,255,0.8)';
       mobileProcessingTime.style.borderRadius = '8px';
       var mobileProcessingTimeLabel = document.createElement('span');
       mobileProcessingTimeLabel.style.fontSize = '12px';
@@ -1543,6 +1625,12 @@
         var allDetails = mobileCardsContainer.querySelectorAll('.' + uniqueId + '-mobile-details');
         allCards.forEach(function(c) {
           c.classList.remove('selected');
+          c.style.background = styleConfig.mobileCardBg;
+          c.style.borderColor = styleConfig.borderColor;
+          if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            c.style.background = styleConfig.mobileCardBgDark;
+            c.style.borderColor = styleConfig.borderColorDark;
+          }
         });
         allDetails.forEach(function(d) {
           d.style.display = 'none';
@@ -1558,6 +1646,12 @@
         if (!wasSelected) {
           selectedMethod = method.id;
           card.classList.add('selected');
+          card.style.background = styleConfig.mobileSelectedBg;
+          card.style.borderColor = styleConfig.borderColor;
+          if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            card.style.background = styleConfig.mobileSelectedBgDark;
+            card.style.borderColor = styleConfig.borderColorDark;
+          }
           mobileDetailsContainer.style.display = 'block';
           
           // Scroll to card smoothly
@@ -1566,6 +1660,12 @@
           }, 100);
         } else {
           selectedMethod = null;
+          card.style.background = styleConfig.mobileCardBg;
+          card.style.borderColor = styleConfig.borderColor;
+          if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            card.style.background = styleConfig.mobileCardBgDark;
+            card.style.borderColor = styleConfig.borderColorDark;
+          }
         }
       });
 
