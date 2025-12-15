@@ -4,15 +4,52 @@
   // Получаем параметры из data-атрибутов скрипта
   var script = document.currentScript || document.querySelector('script[data-brand-name]');
   var brandName = script?.getAttribute('data-brand-name') || 'CASINO';
-  var values1Str = script?.getAttribute('data-values1') || '🎁,💎,⭐,🏆,🎯,💫';
-  var values2Str = script?.getAttribute('data-values2') || 'Скидка,Бонус,Подарок,Акция,Приз,Выигрыш';
-  var values3Str = script?.getAttribute('data-values3') || '10%,20%,30%,50%,100%,200%';
+  var values1Str = script?.getAttribute('data-values1') || '🍒,🍋,🍇,🍉,🔔,💎';
+  var values2Str = script?.getAttribute('data-values2') || '7️⃣,🍀,🎲,🎰,🃏,👑';
+  var values3Str = script?.getAttribute('data-values3') || '💰,💵,🪙,🧧,🏦,💳';
+  var offerUrl = script?.getAttribute('data-offer-url') || '#';
+  var language = script?.getAttribute('data-language') || 'ru';
 
   var values1 = values1Str.split(',').map(function(v) { return v.trim(); }).filter(Boolean);
   var values2 = values2Str.split(',').map(function(v) { return v.trim(); }).filter(Boolean);
   var values3 = values3Str.split(',').map(function(v) { return v.trim(); }).filter(Boolean);
 
   var uniqueId = 'seohqs-' + Math.random().toString(36).slice(2, 11);
+
+  var translations = {
+    ru: {
+        spin: 'Крутить',
+        spinning: 'Крутится...',
+        playReal: 'Играть на деньги',
+        congrats: 'Поздравляем! Вы выиграли!'
+    },
+    en: {
+        spin: 'SPIN',
+        spinning: 'SPINNING...',
+        playReal: 'PLAY FOR REAL MONEY',
+        congrats: 'Congratulations! You won!'
+    },
+    es: {
+        spin: 'GIRAR',
+        spinning: 'GIRANDO...',
+        playReal: 'JUGAR CON DINERO REAL',
+        congrats: '¡Felicidades! ¡Ganaste!'
+    },
+    fr: {
+        spin: 'TOURNER',
+        spinning: 'TOURNE...',
+        playReal: "JOUER POUR DE L'ARGENT",
+        congrats: 'Félicitations ! Vous avez gagné !'
+    },
+    de: {
+        spin: 'DREHEN',
+        spinning: 'DREHT SICH...',
+        playReal: 'UM ECHTES GELD SPIELEN',
+        congrats: 'Herzlichen Glückwunsch! Sie haben gewonnen!'
+    }
+  };
+
+  var texts = translations[language] || translations.en;
 
   // Создаем стили с modern casino-стилем
   var styles = `
@@ -239,10 +276,27 @@
       transition: all 0.1s;
       overflow: hidden;
     }
+    
+    .${uniqueId}-button.cta {
+        background: linear-gradient(to bottom, #22c55e, #15803d);
+        border-color: #4ade80;
+        box-shadow: 0 0 20px rgba(34,197,94,0.6);
+        animation: ${uniqueId}-pulse-cta 2s infinite;
+    }
+
+    @keyframes ${uniqueId}-pulse-cta {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
 
     .${uniqueId}-button:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 8px 0 rgb(153, 27, 27), 0 15px 25px rgba(0,0,0,0.5);
+    }
+    
+    .${uniqueId}-button.cta:hover {
+         transform: scale(1.05) translateY(-2px);
+         box-shadow: 0 0 30px rgba(34,197,94,0.8);
     }
 
     .${uniqueId}-button:active:not(:disabled) {
@@ -379,15 +433,6 @@
     }, 1500); // 1.5 сек вращения
   }
 
-  var combinations = {
-    '🎁-Скидка-10%': '🎉 Поздравляем! Вы получили подарок со скидкой 10%!',
-    '💎-Бонус-20%': '✨ Отлично! Драгоценный бонус 20% ваш!',
-    '⭐-Подарок-30%': '🌟 Удивительно! Звездный подарок 30%!',
-    '🏆-Акция-50%': '🏅 Потрясающе! Трофейная акция 50%!',
-    '🎯-Приз-100%': '🎊 Невероятно! Точно в цель - приз 100%!',
-    '💫-Выигрыш-200%': '🚀 Фантастика! Максимальный выигрыш 200%!',
-  };
-
   function initWidget() {
     var container = document.getElementById('seohqs-slot-widget');
     if (!container) {
@@ -450,9 +495,11 @@
     // Controls
     var controls = document.createElement('div');
     controls.className = `${uniqueId}-controls`;
+    
+    // Button
     var button = document.createElement('button');
     button.className = `${uniqueId}-button`;
-    button.innerHTML = '<span style="position: relative; z-index: 2;">SPIN</span><div class="' + uniqueId + '-button-shine"></div>';
+    button.innerHTML = '<span style="position: relative; z-index: 2;">' + texts.spin + '</span><div class="' + uniqueId + '-button-shine"></div>';
     controls.appendChild(button);
     widgetContainer.appendChild(controls);
 
@@ -469,11 +516,19 @@
 
     // Logic
     var spinning = false;
+    var spinFinished = false;
+
     button.addEventListener('click', function() {
+      if (spinFinished) {
+          window.open(offerUrl, '_blank');
+          return;
+      }
+
       if (spinning) return;
+      
       spinning = true;
       button.disabled = true;
-      button.querySelector('span').textContent = 'SPINNING...';
+      button.querySelector('span').textContent = texts.spinning;
       resultDiv.style.display = 'none';
       resultDiv.className = `${uniqueId}-result`; // Reset classes if any
 
@@ -485,19 +540,19 @@
       spinWheel(wheel1, values1, result1, function() {
         spinWheel(wheel2, values2, result2, function() {
           spinWheel(wheel3, values3, result3, function() {
-            var combo = result1 + '-' + result2 + '-' + result3;
-            var message = combinations[combo] || '🎲 Result: ' + result1 + ' ' + result2 + ' ' + result3;
-            var isWin = !!combinations[combo];
+            var message = texts.congrats + ' ' + result1 + ' ' + result2 + ' ' + result3;
             
             resultDiv.textContent = message;
             resultDiv.style.display = 'block';
-            if (isWin) {
-                resultDiv.classList.add(`${uniqueId}-win-text`);
-            }
+            resultDiv.classList.add(`${uniqueId}-win-text`);
 
             spinning = false;
+            spinFinished = true;
+            
+            // Transform button to CTA
             button.disabled = false;
-            button.querySelector('span').textContent = 'SPIN';
+            button.classList.add('cta');
+            button.querySelector('span').textContent = texts.playReal;
           });
         });
       });

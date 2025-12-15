@@ -4,11 +4,15 @@ import { useState } from 'react';
 import InteractiveSlot from '../components/InteractiveSlot';
 
 export default function EmbedPage() {
-  const [brandName, setBrandName] = useState('Ваш бренд');
+  const [brandName, setBrandName] = useState('My Casino');
   const [copied, setCopied] = useState(false);
-  const [customValues1, setCustomValues1] = useState('🎁,💎,⭐,🏆,🎯,💫');
-  const [customValues2, setCustomValues2] = useState('Скидка,Бонус,Подарок,Акция,Приз,Выигрыш');
-  const [customValues3, setCustomValues3] = useState('10%,20%,30%,50%,100%,200%');
+  const [offerUrl, setOfferUrl] = useState('https://example.com/signup');
+  const [language, setLanguage] = useState('ru');
+  
+  // Use symbols/emojis as defaults instead of long text
+  const [customValues1, setCustomValues1] = useState('🍒,🍋,🍇,🍉,🔔,💎');
+  const [customValues2, setCustomValues2] = useState('7️⃣,🍀,🎲,🎰,🃏,👑');
+  const [customValues3, setCustomValues3] = useState('💰,💵,🪙,🧧,🏦,💳');
 
   const generateEmbedCode = () => {
     const values1Array = customValues1.split(',').map(v => v.trim()).filter(Boolean);
@@ -25,6 +29,8 @@ export default function EmbedPage() {
     script.setAttribute('data-values1', '${values1Array.join(',')}');
     script.setAttribute('data-values2', '${values2Array.join(',')}');
     script.setAttribute('data-values3', '${values3Array.join(',')}');
+    script.setAttribute('data-offer-url', '${offerUrl}');
+    script.setAttribute('data-language', '${language}');
     document.head.appendChild(script);
   })();
 </script>
@@ -67,9 +73,11 @@ export default function EmbedPage() {
               </h2>
               <InteractiveSlot
                 brandName={brandName}
-                values1={values1Array.length > 0 ? values1Array : ['🎁', '💎', '⭐']}
-                values2={values2Array.length > 0 ? values2Array : ['Скидка', 'Бонус', 'Подарок']}
-                values3={values3Array.length > 0 ? values3Array : ['10%', '20%', '30%']}
+                values1={values1Array.length > 0 ? values1Array : ['🍒', '🍋', '🔔']}
+                values2={values2Array.length > 0 ? values2Array : ['7️⃣', '🍀', '💎']}
+                values3={values3Array.length > 0 ? values3Array : ['💰', '💵', '🪙']}
+                offerUrl={offerUrl}
+                language={language}
               />
             </div>
           </div>
@@ -96,6 +104,36 @@ export default function EmbedPage() {
                 </div>
 
                 <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Ссылка на оффер (для кнопки "Играть")
+                    </label>
+                    <input
+                        type="url"
+                        value={offerUrl}
+                        onChange={(e) => setOfferUrl(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="https://example.com/signup"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Язык интерфейса
+                    </label>
+                    <select
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                        <option value="ru">Русский</option>
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                        <option value="fr">Français</option>
+                        <option value="de">Deutsch</option>
+                    </select>
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Значения для первого колеса (через запятую)
                   </label>
@@ -104,7 +142,7 @@ export default function EmbedPage() {
                     value={customValues1}
                     onChange={(e) => setCustomValues1(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="🎁,💎,⭐,🏆,🎯,💫"
+                    placeholder="🍒,🍋,🍇,🍉,🔔,💎"
                   />
                 </div>
 
@@ -117,7 +155,7 @@ export default function EmbedPage() {
                     value={customValues2}
                     onChange={(e) => setCustomValues2(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Скидка,Бонус,Подарок,Акция,Приз,Выигрыш"
+                    placeholder="7️⃣,🍀,🎲,🎰,🃏,👑"
                   />
                 </div>
 
@@ -130,7 +168,7 @@ export default function EmbedPage() {
                     value={customValues3}
                     onChange={(e) => setCustomValues3(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="10%,20%,30%,50%,100%,200%"
+                    placeholder="💰,💵,🪙,🧧,🏦,💳"
                   />
                 </div>
               </div>

@@ -71,20 +71,65 @@ interface InteractiveSlotProps {
   values1?: string[];
   values2?: string[];
   values3?: string[];
+  offerUrl?: string;
+  language?: string;
 }
+
+const TRANSLATIONS = {
+    ru: {
+        spin: 'Крутить',
+        spinning: 'Крутится...',
+        win: 'Победа!',
+        playReal: 'Играть на деньги',
+        congrats: 'Поздравляем! Вы выиграли!'
+    },
+    en: {
+        spin: 'SPIN',
+        spinning: 'SPINNING...',
+        win: 'WIN!',
+        playReal: 'PLAY FOR REAL MONEY',
+        congrats: 'Congratulations! You won!'
+    },
+    es: {
+        spin: 'GIRAR',
+        spinning: 'GIRANDO...',
+        win: '¡GANASTE!',
+        playReal: 'JUGAR CON DINERO REAL',
+        congrats: '¡Felicidades! ¡Ganaste!'
+    },
+    fr: {
+        spin: 'TOURNER',
+        spinning: 'TOURNE...',
+        win: 'GAGNÉ !',
+        playReal: "JOUER POUR DE L'ARGENT",
+        congrats: 'Félicitations ! Vous avez gagné !'
+    },
+    de: {
+        spin: 'DREHEN',
+        spinning: 'DREHT SICH...',
+        win: 'GEWONNEN!',
+        playReal: 'UM ECHTES GELD SPIELEN',
+        congrats: 'Herzlichen Glückwunsch! Sie haben gewonnen!'
+    }
+} as const;
 
 export default function InteractiveSlot({
   brandName = 'CASINO',
-  values1 = ['🎁', '💎', '⭐', '🏆', '🎯', '💫'],
-  values2 = ['Скидка', 'Бонус', 'Подарок', 'Акция', 'Приз', 'Выигрыш'],
-  values3 = ['10%', '20%', '30%', '50%', '100%', '200%'],
+  values1 = ['🍒', '🍋', '🍇', '🍉', '🔔', '💎'],
+  values2 = ['7️⃣', '🍀', '🎲', '🎰', '🃏', '👑'],
+  values3 = ['💰', '💵', '🪙', '🧧', '🏦', '💳'],
+  offerUrl = '#',
+  language = 'ru'
 }: InteractiveSlotProps) {
   const [spinning, setSpinning] = useState(false);
   const [results, setResults] = useState<[string, string, string] | null>(null);
   const [combination, setCombination] = useState<string>('');
   const [showConfetti, setShowConfetti] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  const [spinFinished, setSpinFinished] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  const texts = TRANSLATIONS[language as keyof typeof TRANSLATIONS] || TRANSLATIONS.en;
 
   useEffect(() => {
     const updateSize = () => {
@@ -98,15 +143,6 @@ export default function InteractiveSlot({
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  const combinations: Record<string, string> = {
-    '🎁-Скидка-10%': '🎉 Поздравляем! Вы получили подарок со скидкой 10%!',
-    '💎-Бонус-20%': '✨ Отлично! Драгоценный бонус 20% ваш!',
-    '⭐-Подарок-30%': '🌟 Удивительно! Звездный подарок 30%!',
-    '🏆-Акция-50%': '🏅 Потрясающе! Трофейная акция 50%!',
-    '🎯-Приз-100%': '🎊 Невероятно! Точно в цель - приз 100%!',
-    '💫-Выигрыш-200%': '🚀 Фантастика! Максимальный выигрыш 200%!',
-  };
-
   const [wheel1Spinning, setWheel1Spinning] = useState(false);
   const [wheel2Spinning, setWheel2Spinning] = useState(false);
   const [wheel3Spinning, setWheel3Spinning] = useState(false);
@@ -118,6 +154,7 @@ export default function InteractiveSlot({
     setResults(null);
     setCombination('');
     setShowConfetti(false);
+    setSpinFinished(false);
 
     // Генерируем случайные результаты
     const result1 = values1[Math.floor(Math.random() * values1.length)];
@@ -143,21 +180,18 @@ export default function InteractiveSlot({
           setResults([result1, result2, result3]);
           setSpinning(false);
 
-          // Проверяем комбинацию
-          const combo = `${result1}-${result2}-${result3}`;
-          if (combinations[combo]) {
-            setCombination(combinations[combo]);
-            setShowConfetti(true);
-            setTimeout(() => setShowConfetti(false), 5000);
-          } else {
-            setCombination(`🎲 Выпало: ${result1} ${result2} ${result3}`);
-          }
+          // Always show win for engagement in this demo
+          setCombination(`${texts.congrats} ${result1} ${result2} ${result3}`);
+          setShowConfetti(true);
+          setSpinFinished(true); // Show CTA button
+          
+          setTimeout(() => setShowConfetti(false), 5000);
         }, 1500);
       }, 1500);
     }, 1500);
   };
 
-  const isWin = combination && Object.values(combinations).includes(combination);
+  const isWin = !!combination;
 
   return (
     <div ref={containerRef} className="relative w-full max-w-4xl mx-auto font-sans">
@@ -221,27 +255,54 @@ export default function InteractiveSlot({
         </div>
 
         {/* Controls Area */}
-        <div className="flex flex-col items-center justify-center relative z-10">
-          <motion.button
-            onClick={handleSpin}
-            disabled={spinning}
-            className={`
-              relative group px-12 py-4 rounded-full font-black text-xl uppercase tracking-widest
-              text-white shadow-[0_6px_0_rgb(180,0,0),0_10px_20px_rgba(0,0,0,0.4)]
-              bg-gradient-to-b from-red-500 to-red-700
-              border-2 border-red-400
-              transition-all duration-100
-              ${spinning ? 'opacity-80 cursor-not-allowed filter grayscale-[0.5]' : 'hover:-translate-y-1 hover:shadow-[0_8px_0_rgb(180,0,0),0_15px_25px_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-[0_2px_0_rgb(180,0,0),0_5px_10px_rgba(0,0,0,0.4)]'}
-            `}
-          >
-            <span className="drop-shadow-md flex items-center gap-2">
-                {spinning ? 'SPINNING...' : 'SPIN'}
-            </span>
-             {/* Shine effect on button */}
-             <div className="absolute inset-0 rounded-full overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-[50%] bg-gradient-to-b from-white/20 to-transparent"></div>
-             </div>
-          </motion.button>
+        <div className="flex flex-col items-center justify-center relative z-10 space-y-4">
+          {!spinFinished ? (
+            <motion.button
+              onClick={handleSpin}
+              disabled={spinning}
+              className={`
+                relative group px-12 py-4 rounded-full font-black text-xl uppercase tracking-widest
+                text-white shadow-[0_6px_0_rgb(180,0,0),0_10px_20px_rgba(0,0,0,0.4)]
+                bg-gradient-to-b from-red-500 to-red-700
+                border-2 border-red-400
+                transition-all duration-100
+                ${spinning ? 'opacity-80 cursor-not-allowed filter grayscale-[0.5]' : 'hover:-translate-y-1 hover:shadow-[0_8px_0_rgb(180,0,0),0_15px_25px_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-[0_2px_0_rgb(180,0,0),0_5px_10px_rgba(0,0,0,0.4)]'}
+              `}
+            >
+              <span className="drop-shadow-md flex items-center gap-2">
+                  {spinning ? texts.spinning : texts.spin}
+              </span>
+               {/* Shine effect on button */}
+               <div className="absolute inset-0 rounded-full overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-[50%] bg-gradient-to-b from-white/20 to-transparent"></div>
+               </div>
+            </motion.button>
+          ) : (
+            <motion.a
+                href={offerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="
+                    relative group px-10 py-5 rounded-full font-black text-xl uppercase tracking-widest
+                    text-white shadow-[0_0_20px_rgba(34,197,94,0.6)]
+                    bg-gradient-to-b from-green-500 to-green-700
+                    border-2 border-green-400
+                    cursor-pointer inline-block
+                    animate-pulse
+                    text-center
+                "
+            >
+                 <span className="drop-shadow-md">{texts.playReal}</span>
+                  {/* Shine effect on button */}
+               <div className="absolute inset-0 rounded-full overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-[50%] bg-gradient-to-b from-white/20 to-transparent"></div>
+               </div>
+            </motion.a>
+          )}
         </div>
 
         {/* Result Message */}
