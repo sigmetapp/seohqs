@@ -11,6 +11,7 @@ interface BotVisit {
   userAgent: string;
   count: number;
   sampleLines: string[];
+  lastVisitDate?: Date;
   errors?: {
     statusCode: number;
     count: number;
@@ -25,6 +26,21 @@ interface GoogleError {
   count: number;
   sampleLines: string[];
   url?: string;
+}
+
+interface Error400Url {
+  url: string;
+  count: number;
+  sampleLines: string[];
+  recommendation: 'check' | 'redirect' | 'ignore';
+  reason: string;
+}
+
+interface BotLastVisit {
+  botName: string;
+  lastVisitDate: Date;
+  daysSinceLastVisit: number;
+  hasRecentVisit: boolean;
 }
 
 interface UrlAnalysis {
@@ -107,6 +123,8 @@ interface AnalysisResult {
   bots: BotVisit[];
   uniqueBots: number;
   errors: GoogleError[];
+  error400Urls?: Error400Url[];
+  botLastVisits?: BotLastVisit[];
   detailedAnalysis?: DetailedAnalysis;
 }
 
@@ -595,6 +613,12 @@ export default function LogcheckerPage() {
       // Массив для хранения ошибок Google ботов
       const errorsMap = new Map<string, GoogleError>();
 
+      // Массив для хранения ошибок 400 по URL
+      const error400UrlsMap = new Map<string, Error400Url>();
+
+      // Массив для хранения последнего времени захода ботов
+      const botLastVisitsMap = new Map<string, Date>();
+
       // Данные для детального анализа
       const urlMap = new Map<string, UrlAnalysis>();
       const statusDistribution: StatusDistribution = {
@@ -675,20 +699,66 @@ export default function LogcheckerPage() {
       };
 
       // Вспомогательная функция для извлечения времени из строки
-      const extractTime = (line: string): { hour?: number; day?: string } => {
+      const extractTime = (line: string): { hour?: number; day?: string; date?: Date } => {
         // Паттерны для даты/времени в различных форматах логов
         const datePatterns = [
-          /\[(\d{2})\/(\w{3})\/(\d{4}):(\d{2}):(\d{2}):(\d{2})/,
-          /(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/,
-          /\[(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/,
+          // Формат: [25/Dec/2024:10:30:45
+          {
+            pattern: /\[(\d{2})\/(\w{3})\/(\d{4}):(\d{2}):(\d{2}):(\d{2})/,
+            parser: (match: RegExpMatchArray) => {
+              const day = parseInt(match[1], 10);
+              const monthStr = match[2];
+              const year = parseInt(match[3], 10);
+              const hour = parseInt(match[4], 10);
+              const minute = parseInt(match[5], 10);
+              const second = parseInt(match[6], 10);
+              
+              const monthMap: { [key: string]: number } = {
+                'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+                'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+              };
+              
+              const month = monthMap[monthStr] ?? 0;
+              const date = new Date(year, month, day, hour, minute, second);
+              return { hour, day: `${day}/${monthStr}/${year}`, date };
+            }
+          },
+          // Формат: 2024-12-25 10:30:45
+          {
+            pattern: /(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/,
+            parser: (match: RegExpMatchArray) => {
+              const year = parseInt(match[1], 10);
+              const month = parseInt(match[2], 10) - 1;
+              const day = parseInt(match[3], 10);
+              const hour = parseInt(match[4], 10);
+              const minute = parseInt(match[5], 10);
+              const second = parseInt(match[6], 10);
+              
+              const date = new Date(year, month, day, hour, minute, second);
+              return { hour, day: `${year}-${match[2]}-${match[3]}`, date };
+            }
+          },
+          // Формат: [2024-12-25 10:30:45
+          {
+            pattern: /\[(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/,
+            parser: (match: RegExpMatchArray) => {
+              const year = parseInt(match[1], 10);
+              const month = parseInt(match[2], 10) - 1;
+              const day = parseInt(match[3], 10);
+              const hour = parseInt(match[4], 10);
+              const minute = parseInt(match[5], 10);
+              const second = parseInt(match[6], 10);
+              
+              const date = new Date(year, month, day, hour, minute, second);
+              return { hour, day: `${year}-${match[2]}-${match[3]}`, date };
+            }
+          }
         ];
         
-        for (const pattern of datePatterns) {
+        for (const { pattern, parser } of datePatterns) {
           const match = line.match(pattern);
           if (match) {
-            const hour = parseInt(match[4] || match[match.length - 3], 10);
-            const day = match[2] || `${match[1]}-${match[2]}-${match[3]}`;
-            return { hour, day };
+            return parser(match);
           }
         }
         return {};
@@ -894,10 +964,70 @@ export default function LogcheckerPage() {
             timeAnalysis.byDay[timeData.day] = (timeAnalysis.byDay[timeData.day] || 0) + 1;
           }
           
+          // Отслеживаем последнее время захода бота
+          if (timeData.date) {
+            const botKey = botName.toLowerCase();
+            const existingDate = botLastVisitsMap.get(botKey);
+            if (!existingDate || timeData.date > existingDate) {
+              botLastVisitsMap.set(botKey, timeData.date);
+              bot.lastVisitDate = timeData.date;
+            }
+          }
+          
           // Время ответа
           const responseTime = extractResponseTime(line);
           if (responseTime !== null) {
             responseTimes.push(responseTime);
+          }
+          
+          // Если это ошибка 400, сохраняем информацию об ошибке по URL
+          if (statusCode === 400 && url) {
+            const urlKey = url.split('?')[0];
+            if (!error400UrlsMap.has(urlKey)) {
+              // Определяем рекомендацию для URL
+              let recommendation: 'check' | 'redirect' | 'ignore' = 'check';
+              let reason = '';
+              
+              const lowerUrl = urlKey.toLowerCase();
+              
+              // Проверяем, нужно ли игнорировать (служебные URL)
+              if (lowerUrl.includes('/admin') || 
+                  lowerUrl.includes('/api/') || 
+                  lowerUrl.includes('/_next') || 
+                  lowerUrl.includes('/static') ||
+                  lowerUrl.includes('/wp-admin') ||
+                  lowerUrl.includes('/wp-includes')) {
+                recommendation = 'ignore';
+                reason = 'Служебный URL - можно игнорировать';
+              }
+              // Проверяем, нужен ли редирект (старые URL, устаревшие пути)
+              else if (lowerUrl.includes('/old/') ||
+                       lowerUrl.includes('/archive/') ||
+                       lowerUrl.match(/\/\d{4}\/\d{2}\/\d{2}\//) || // даты в URL
+                       lowerUrl.includes('/page/') && lowerUrl.match(/\/page\/\d+$/)) {
+                recommendation = 'redirect';
+                reason = 'Устаревший URL - рекомендуется настроить редирект на актуальную страницу';
+              }
+              // Остальные - нужно проверить
+              else {
+                recommendation = 'check';
+                reason = 'Требуется проверка - возможно URL был удален или изменен';
+              }
+              
+              error400UrlsMap.set(urlKey, {
+                url: urlKey,
+                count: 0,
+                sampleLines: [],
+                recommendation,
+                reason,
+              });
+            }
+            
+            const error400 = error400UrlsMap.get(urlKey)!;
+            error400.count++;
+            if (error400.sampleLines.length < 3) {
+              error400.sampleLines.push(line.substring(0, 200));
+            }
           }
           
           // Если это ошибка, сохраняем информацию об ошибке
@@ -965,6 +1095,28 @@ export default function LogcheckerPage() {
           return b.count - a.count;
         });
       
+      // Формируем массив ошибок 400 по URL
+      const error400UrlsArray = Array.from(error400UrlsMap.values())
+        .sort((a, b) => b.count - a.count);
+      
+      // Формируем массив последнего времени захода ботов
+      const now = new Date();
+      const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+      const botLastVisitsArray: BotLastVisit[] = Array.from(botLastVisitsMap.entries())
+        .map(([botKey, lastVisitDate]) => {
+          const bot = botsArray.find(b => b.botName.toLowerCase() === botKey);
+          const daysSinceLastVisit = Math.floor((now.getTime() - lastVisitDate.getTime()) / (24 * 60 * 60 * 1000));
+          const hasRecentVisit = lastVisitDate >= threeDaysAgo;
+          
+          return {
+            botName: bot?.botName || botKey,
+            lastVisitDate,
+            daysSinceLastVisit,
+            hasRecentVisit,
+          };
+        })
+        .sort((a, b) => b.lastVisitDate.getTime() - a.lastVisitDate.getTime());
+      
       const totalVisits = botsArray.reduce((sum, bot) => sum + bot.count, 0);
       
       // Формируем TOP-20 URL
@@ -1027,6 +1179,8 @@ export default function LogcheckerPage() {
         bots: botsArray,
         uniqueBots: botsArray.length,
         errors: errorsArray,
+        error400Urls: error400UrlsArray.length > 0 ? error400UrlsArray : undefined,
+        botLastVisits: botLastVisitsArray.length > 0 ? botLastVisitsArray : undefined,
         detailedAnalysis,
       });
       
@@ -1309,6 +1463,196 @@ export default function LogcheckerPage() {
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
               Результаты анализа
             </h2>
+
+            {/* 1. Ошибки 400 - какие URL отдали 400 */}
+            {result.error400Urls && result.error400Urls.length > 0 && (
+              <div className="mb-6">
+                <div className="bg-orange-50 dark:bg-orange-900/30 border-2 border-orange-300 dark:border-orange-700 rounded-lg p-6">
+                  <div className="flex items-start mb-4">
+                    <div className="flex-shrink-0">
+                      <svg className="h-6 w-6 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div className="ml-3 flex-1">
+                      <h3 className="text-lg font-semibold text-orange-800 dark:text-orange-200 mb-2">
+                        1. Ошибки перехода бота - какие URL отдали 400
+                      </h3>
+                      <p className="text-sm text-orange-700 dark:text-orange-300 mb-4">
+                        Найдено {result.error400Urls.length} URL с ошибками 400. Для каждого URL указаны пути решения.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {result.error400Urls.map((error400, index) => {
+                      const recommendationColors = {
+                        check: 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-300 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200',
+                        redirect: 'bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-200',
+                        ignore: 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200',
+                      };
+                      const recommendationIcons = {
+                        check: '🔍',
+                        redirect: '↪️',
+                        ignore: '✓',
+                      };
+                      const recommendationLabels = {
+                        check: 'Проверить надо ли',
+                        redirect: 'Сделать редиректы',
+                        ignore: 'Ничего не делать',
+                      };
+                      
+                      return (
+                        <div 
+                          key={index}
+                          className={`rounded-lg p-4 border-2 ${recommendationColors[error400.recommendation]}`}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-lg">{recommendationIcons[error400.recommendation]}</span>
+                                <span className="font-semibold">
+                                  {recommendationLabels[error400.recommendation]}
+                                </span>
+                              </div>
+                              <div className="text-sm font-mono break-all mb-2 mt-2">
+                                {error400.url || '/'}
+                              </div>
+                              <div className="text-sm mb-2">
+                                {error400.reason}
+                              </div>
+                            </div>
+                            <div className="text-right ml-4">
+                              <div className="text-lg font-bold">
+                                {error400.count}
+                              </div>
+                              <div className="text-xs">
+                                {error400.count === 1 ? 'ошибка' : 'ошибок'}
+                              </div>
+                            </div>
+                          </div>
+                          {error400.sampleLines.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-current/20">
+                              <div className="text-xs font-semibold mb-2">
+                                Примеры запросов:
+                              </div>
+                              <div className="space-y-1">
+                                {error400.sampleLines.map((line, lineIndex) => (
+                                  <div 
+                                    key={lineIndex}
+                                    className="text-xs font-mono bg-white/50 dark:bg-black/20 p-2 rounded border border-current/20 overflow-x-auto"
+                                  >
+                                    {line}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 2. Последнее время захода ботов */}
+            {result.botLastVisits && result.botLastVisits.length > 0 && (
+              <div className="mb-6">
+                <div className={`border-2 rounded-lg p-6 ${
+                  result.botLastVisits.some(b => !b.hasRecentVisit)
+                    ? 'bg-red-50 dark:bg-red-900/30 border-red-300 dark:border-red-700'
+                    : 'bg-green-50 dark:bg-green-900/30 border-green-300 dark:border-green-700'
+                }`}>
+                  <div className="flex items-start mb-4">
+                    <div className="flex-shrink-0">
+                      {result.botLastVisits.some(b => !b.hasRecentVisit) ? (
+                        <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      ) : (
+                        <svg className="h-6 w-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="ml-3 flex-1">
+                      <h3 className={`text-lg font-semibold mb-2 ${
+                        result.botLastVisits.some(b => !b.hasRecentVisit)
+                          ? 'text-red-800 dark:text-red-200'
+                          : 'text-green-800 dark:text-green-200'
+                      }`}>
+                        2. Последнее время захода ботов
+                      </h3>
+                      <p className={`text-sm mb-4 ${
+                        result.botLastVisits.some(b => !b.hasRecentVisit)
+                          ? 'text-red-700 dark:text-red-300'
+                          : 'text-green-700 dark:text-green-300'
+                      }`}>
+                        {result.botLastVisits.some(b => !b.hasRecentVisit)
+                          ? `⚠️ ВНИМАНИЕ: Некоторые боты не заходили на сайт более 3 дней. Это может указывать на проблемы с сайтом.`
+                          : `✓ Все боты заходили на сайт в последние 3 дня.`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {result.botLastVisits.map((botVisit, index) => (
+                      <div 
+                        key={index}
+                        className={`rounded-lg p-4 border ${
+                          botVisit.hasRecentVisit
+                            ? 'bg-white dark:bg-gray-800 border-green-200 dark:border-green-800'
+                            : 'bg-white dark:bg-gray-800 border-red-200 dark:border-red-800'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-900 dark:text-white mb-1">
+                              {botVisit.botName}
+                            </div>
+                            <div className={`text-sm ${
+                              botVisit.hasRecentVisit
+                                ? 'text-green-700 dark:text-green-300'
+                                : 'text-red-700 dark:text-red-300'
+                            }`}>
+                              Последний заход: {botVisit.lastVisitDate.toLocaleString('ru-RU', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </div>
+                          </div>
+                          <div className={`text-right ml-4 ${
+                            botVisit.hasRecentVisit
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            <div className="text-lg font-bold">
+                              {botVisit.daysSinceLastVisit}
+                            </div>
+                            <div className="text-xs">
+                              {botVisit.daysSinceLastVisit === 0
+                                ? 'сегодня'
+                                : botVisit.daysSinceLastVisit === 1
+                                ? 'день назад'
+                                : botVisit.daysSinceLastVisit < 5
+                                ? 'дня назад'
+                                : 'дней назад'}
+                            </div>
+                            {!botVisit.hasRecentVisit && (
+                              <div className="text-xs font-semibold mt-1">
+                                ⚠️ Проблема
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Оповещения об ошибках */}
             {result.errors.length > 0 && (
