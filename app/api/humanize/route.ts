@@ -106,19 +106,12 @@ export async function POST(request: Request) {
     const user = await getCurrentUser();
     debugInfo.timing.authTime = `${Date.now() - authStartTime}ms`;
     
-    if (!user) {
-      debugInfo.error = 'Пользователь не авторизован';
-      console.log('[HUMANIZE DEBUG]', JSON.stringify(debugInfo, null, 2));
-      return NextResponse.json(
-        { success: false, error: 'Пользователь не авторизован', debug: debugInfo },
-        { status: 401 }
-      );
+    if (user) {
+      debugInfo.user = {
+        id: user.id,
+        email: user.email,
+      };
     }
-
-    debugInfo.user = {
-      id: user.id,
-      email: user.email,
-    };
 
     const parseStartTime = Date.now();
     const body = await request.json();

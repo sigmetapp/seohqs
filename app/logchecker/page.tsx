@@ -139,8 +139,6 @@ interface UploadedFile {
 export default function LogcheckerPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
@@ -151,35 +149,6 @@ export default function LogcheckerPage() {
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<'main' | 'analysis' | 'bots'>('main');
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const res = await fetch('/api/auth/user/me');
-      
-      if (res.status === 401) {
-        router.push('/login');
-        return;
-      }
-      
-      const data = await res.json();
-      
-      if (!data.success || !data.user) {
-        router.push('/login');
-        return;
-      }
-
-      setUser(data.user);
-    } catch (error) {
-      console.error('Ошибка проверки авторизации:', error);
-      router.push('/login');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Функция для декомпрессии gzip файла
   const decompressGzip = async (arrayBuffer: ArrayBuffer): Promise<string> => {
@@ -1204,14 +1173,6 @@ export default function LogcheckerPage() {
       setAnalysisProgress(0);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-600 dark:text-gray-400">Загрузка...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">

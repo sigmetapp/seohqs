@@ -18,14 +18,6 @@ export async function POST(request: Request) {
   let browser: any = null;
   
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Пользователь не авторизован' },
-        { status: 401 }
-      );
-    }
-
     const body = await request.json();
     const { query, language } = body;
 

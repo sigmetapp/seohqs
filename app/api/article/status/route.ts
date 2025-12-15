@@ -60,12 +60,8 @@ function extractArticleOnly(text: string): string {
 export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Пользователь не авторизован' },
-        { status: 401 }
-      );
-    }
+    // Используем user_id = 0 для неавторизованных пользователей
+    const userId = user?.id || 0;
 
     const { searchParams } = new URL(request.url);
     const threadId = searchParams.get('threadId');
@@ -88,8 +84,8 @@ export async function GET(request: Request) {
         );
       }
 
-      // Проверяем права доступа
-      if (job.user_id !== user.id) {
+      // Проверяем права доступа только если пользователь авторизован
+      if (user && job.user_id !== user.id && job.user_id !== 0) {
         return NextResponse.json(
           { success: false, error: 'Нет доступа к этой задаче' },
           { status: 403 }

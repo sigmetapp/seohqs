@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 const HUMANIZE_STRATEGIES = [
   {
@@ -32,10 +31,6 @@ const HUMANIZE_STRATEGIES = [
 ];
 
 export default function HumanizePage() {
-  const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  
   const [text, setText] = useState('');
   const [strategy, setStrategy] = useState('mode1');
   const [humanizing, setHumanizing] = useState(false);
@@ -43,35 +38,6 @@ export default function HumanizePage() {
   const [error, setError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [showDebug, setShowDebug] = useState(false);
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const res = await fetch('/api/auth/user/me');
-      
-      if (res.status === 401) {
-        router.push('/login');
-        return;
-      }
-      
-      const data = await res.json();
-      
-      if (!data.success || !data.user) {
-        router.push('/login');
-        return;
-      }
-
-      setUser(data.user);
-    } catch (error) {
-      console.error('Ошибка проверки авторизации:', error);
-      router.push('/login');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleHumanize = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,14 +157,6 @@ export default function HumanizePage() {
       alert('Не удалось скопировать текст');
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-600 dark:text-gray-400">Загрузка...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
