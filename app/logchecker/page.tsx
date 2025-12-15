@@ -210,15 +210,21 @@ export default function LogcheckerPage() {
       
       reader.onload = async (e) => {
         try {
-          const arrayBuffer = e.target?.result as ArrayBuffer;
-          
           if (file.name.endsWith('.gz')) {
+            // Для gzip файлов результат - ArrayBuffer
+            const arrayBuffer = e.target?.result as ArrayBuffer;
+            if (!arrayBuffer) {
+              throw new Error('Не удалось прочитать файл как ArrayBuffer');
+            }
             // Декомпрессируем gzip файл
             const decompressed = await decompressGzip(arrayBuffer);
             resolve(decompressed);
           } else {
-            // Обычный текстовый файл
-            const text = new TextDecoder().decode(arrayBuffer);
+            // Для текстовых файлов результат - строка
+            const text = e.target?.result as string;
+            if (typeof text !== 'string') {
+              throw new Error('Не удалось прочитать файл как текст');
+            }
             resolve(text);
           }
         } catch (err: any) {
