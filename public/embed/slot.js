@@ -424,7 +424,7 @@
       background: ${s.btnBg};
       border: 2px solid ${s.btnBorder};
       ${theme === 'vibrant' ? 'border-bottom-width: 4px; border-radius: 12px;' : 'border-radius: 9999px;'}
-      color: white;
+      color: ${theme === 'vibrant' ? '#000000' : 'white'};
       font-family: inherit;
       font-size: 20px;
       font-weight: 900;
@@ -441,6 +441,7 @@
         border-color: ${s.ctaBorder};
         box-shadow: 0 0 20px ${s.ctaShadow};
         animation: ${uniqueId}-pulse-cta 2s infinite;
+        color: white;
     }
 
     @keyframes ${uniqueId}-pulse-cta {

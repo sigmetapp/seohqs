@@ -186,7 +186,7 @@ const THEME_STYLES = {
     screen: 'bg-indigo-800 border-4 border-white/50 rounded-2xl shadow-inner',
     payline: 'bg-pink-400',
     arrow: 'border-l-pink-400',
-    button: 'bg-pink-500 border-b-4 border-pink-700 shadow-lg hover:translate-y-1 active:border-b-0 active:translate-y-2 text-white',
+    button: 'bg-pink-500 border-b-4 border-pink-700 shadow-lg hover:translate-y-1 active:border-b-0 active:translate-y-2 text-black',
     buttonCta: 'bg-cyan-400 border-b-4 border-cyan-600 shadow-lg text-white hover:translate-y-1 active:border-b-0',
     resultBox: 'bg-white border-4 border-indigo-300 rounded-xl shadow-xl transform -rotate-1',
     resultText: 'text-indigo-900 font-black'
