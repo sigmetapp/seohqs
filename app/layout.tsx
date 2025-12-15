@@ -8,6 +8,11 @@ import { I18nProvider } from '@/lib/i18n-context'
 export const metadata: Metadata = {
   title: 'SEO Tools - Индексация, Ссылочный профиль, Панель сайтов',
   description: 'Инструменты для SEO: индексация ссылок, управление ссылочным профилем, мониторинг сайтов',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 }
 
 export default function RootLayout({
