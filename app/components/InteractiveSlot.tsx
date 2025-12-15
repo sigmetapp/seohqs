@@ -73,6 +73,7 @@ interface InteractiveSlotProps {
   values3?: string[];
   offerUrl?: string;
   language?: string;
+  theme?: 'neon' | 'luxury' | 'vibrant';
 }
 
 const TRANSLATIONS = {
@@ -113,13 +114,59 @@ const TRANSLATIONS = {
     }
 } as const;
 
+const THEME_STYLES = {
+  neon: {
+    container: 'bg-gray-900 border-gray-800',
+    background: 'bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900 via-gray-900 to-black',
+    lights: 'border-yellow-500/50',
+    headerBox: 'bg-black/60 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.3)]',
+    headerText: 'from-yellow-200 via-yellow-400 to-yellow-600',
+    screen: 'from-gray-800 to-black border-yellow-600/60',
+    payline: 'bg-red-500/50',
+    arrow: 'border-l-red-500',
+    button: 'from-red-500 to-red-700 border-red-400 shadow-[0_6px_0_rgb(180,0,0),0_10px_20px_rgba(0,0,0,0.4)]',
+    buttonCta: 'from-green-500 to-green-700 border-green-400 shadow-[0_0_20px_rgba(34,197,94,0.6)]',
+    resultBox: 'bg-black/80 border-yellow-500/40 shadow-[0_0_20px_rgba(234,179,8,0.2)]',
+    resultText: 'text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.8)]'
+  },
+  luxury: {
+    container: 'bg-black border-yellow-900',
+    background: 'bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-yellow-900/40 via-black to-black',
+    lights: 'border-yellow-400/60',
+    headerBox: 'bg-black/80 border-yellow-600 shadow-[0_0_20px_rgba(250,204,21,0.4)]',
+    headerText: 'from-yellow-100 via-yellow-300 to-yellow-500',
+    screen: 'from-gray-900 to-black border-yellow-500',
+    payline: 'bg-yellow-500/50',
+    arrow: 'border-l-yellow-500',
+    button: 'from-yellow-600 to-yellow-800 border-yellow-400 shadow-[0_6px_0_rgb(161,98,7),0_10px_20px_rgba(0,0,0,0.4)]',
+    buttonCta: 'from-yellow-500 to-yellow-700 border-yellow-300 shadow-[0_0_25px_rgba(234,179,8,0.6)]',
+    resultBox: 'bg-black/90 border-yellow-500 shadow-[0_0_30px_rgba(234,179,8,0.3)]',
+    resultText: 'text-yellow-200 drop-shadow-[0_0_10px_rgba(250,204,21,1)]'
+  },
+  vibrant: {
+    container: 'bg-indigo-900 border-indigo-800',
+    background: 'bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-pink-500 via-purple-900 to-indigo-900',
+    lights: 'border-white/40',
+    headerBox: 'bg-white/10 border-white/30 backdrop-blur-md shadow-[0_0_20px_rgba(255,255,255,0.2)]',
+    headerText: 'from-pink-300 via-purple-300 to-indigo-300',
+    screen: 'from-indigo-900 to-purple-900 border-pink-500/60',
+    payline: 'bg-pink-500/50',
+    arrow: 'border-l-pink-500',
+    button: 'from-pink-500 to-purple-600 border-pink-400 shadow-[0_6px_0_rgb(192,38,211),0_10px_20px_rgba(0,0,0,0.4)]',
+    buttonCta: 'from-cyan-500 to-blue-600 border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.6)]',
+    resultBox: 'bg-indigo-900/90 border-pink-500/50 shadow-[0_0_20px_rgba(236,72,153,0.4)]',
+    resultText: 'text-pink-300 drop-shadow-[0_0_5px_rgba(244,114,182,0.8)]'
+  }
+};
+
 export default function InteractiveSlot({
   brandName = 'CASINO',
   values1 = ['🍒', '🍋', '🍇', '🍉', '🔔', '💎'],
   values2 = ['7️⃣', '🍀', '🎲', '🎰', '🃏', '👑'],
   values3 = ['💰', '💵', '🪙', '🧧', '🏦', '💳'],
   offerUrl = '#',
-  language = 'ru'
+  language = 'ru',
+  theme = 'neon'
 }: InteractiveSlotProps) {
   const [spinning, setSpinning] = useState(false);
   const [results, setResults] = useState<[string, string, string] | null>(null);
@@ -130,6 +177,7 @@ export default function InteractiveSlot({
   const containerRef = useRef<HTMLDivElement>(null);
   
   const texts = TRANSLATIONS[language as keyof typeof TRANSLATIONS] || TRANSLATIONS.en;
+  const styles = THEME_STYLES[theme];
 
   useEffect(() => {
     const updateSize = () => {
@@ -205,25 +253,25 @@ export default function InteractiveSlot({
       )}
 
       {/* Casino Machine Cabinet */}
-      <div className="relative p-6 sm:p-10 rounded-[30px] bg-gray-900 shadow-2xl overflow-hidden border-4 border-gray-800">
+      <div className={`relative p-6 sm:p-10 rounded-[30px] shadow-2xl overflow-hidden border-4 ${styles.container}`}>
         
         {/* Background Texture */}
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900 via-gray-900 to-black"></div>
+        <div className={`absolute inset-0 opacity-40 ${styles.background}`}></div>
         
         {/* Lights Border */}
-        <div className="absolute inset-2 border-2 border-dashed border-yellow-500/50 rounded-[20px] pointer-events-none animate-pulse"></div>
+        <div className={`absolute inset-2 border-2 border-dashed rounded-[20px] pointer-events-none animate-pulse ${styles.lights}`}></div>
 
         {/* Top Header */}
         <div className="relative z-10 text-center mb-6">
-          <div className="inline-block px-8 py-2 bg-black/60 rounded-full border border-yellow-500/30 backdrop-blur-sm shadow-[0_0_15px_rgba(234,179,8,0.3)]">
-            <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600">
+          <div className={`inline-block px-8 py-2 rounded-full border backdrop-blur-sm ${styles.headerBox}`}>
+            <h2 className={`text-3xl sm:text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r ${styles.headerText}`}>
               {brandName}
             </h2>
           </div>
         </div>
 
         {/* Slot Screen Area */}
-        <div className="relative bg-gradient-to-b from-gray-800 to-black p-4 rounded-xl border-4 border-yellow-600/60 shadow-inner mb-8">
+        <div className={`relative bg-gradient-to-b rounded-xl border-4 shadow-inner mb-8 ${styles.screen}`}>
             {/* Screen Glare */}
             <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-bl from-white/5 to-transparent pointer-events-none rounded-lg z-20"></div>
 
@@ -249,9 +297,9 @@ export default function InteractiveSlot({
             </div>
             
              {/* Payline */}
-             <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500/50 z-20 shadow-[0_0_5px_rgba(239,68,68,0.8)] pointer-events-none"></div>
-             <div className="absolute top-1/2 left-0 -translate-y-1/2 -left-1 w-0 h-0 border-l-[8px] border-l-red-500 border-y-[6px] border-y-transparent z-20"></div>
-             <div className="absolute top-1/2 right-0 -translate-y-1/2 -right-1 w-0 h-0 border-r-[8px] border-r-red-500 border-y-[6px] border-y-transparent z-20"></div>
+             <div className={`absolute top-1/2 left-0 w-full h-0.5 z-20 shadow-[0_0_5px_rgba(255,255,255,0.4)] pointer-events-none ${styles.payline}`}></div>
+             <div className={`absolute top-1/2 left-0 -translate-y-1/2 -left-1 w-0 h-0 border-l-[8px] border-y-[6px] border-y-transparent z-20 ${styles.arrow}`}></div>
+             <div className={`absolute top-1/2 right-0 -translate-y-1/2 -right-1 w-0 h-0 border-r-[8px] border-l-transparent border-y-[6px] border-y-transparent z-20 border-r-current ${styles.arrow.replace('border-l-', 'text-')}`}></div>
         </div>
 
         {/* Controls Area */}
@@ -262,11 +310,10 @@ export default function InteractiveSlot({
               disabled={spinning}
               className={`
                 relative group px-12 py-4 rounded-full font-black text-xl uppercase tracking-widest
-                text-white shadow-[0_6px_0_rgb(180,0,0),0_10px_20px_rgba(0,0,0,0.4)]
-                bg-gradient-to-b from-red-500 to-red-700
-                border-2 border-red-400
+                text-white bg-gradient-to-b border-2
                 transition-all duration-100
-                ${spinning ? 'opacity-80 cursor-not-allowed filter grayscale-[0.5]' : 'hover:-translate-y-1 hover:shadow-[0_8px_0_rgb(180,0,0),0_15px_25px_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-[0_2px_0_rgb(180,0,0),0_5px_10px_rgba(0,0,0,0.4)]'}
+                ${styles.button}
+                ${spinning ? 'opacity-80 cursor-not-allowed filter grayscale-[0.5]' : 'hover:-translate-y-1 active:translate-y-1'}
               `}
             >
               <span className="drop-shadow-md flex items-center gap-2">
@@ -286,15 +333,13 @@ export default function InteractiveSlot({
                 animate={{ scale: 1, opacity: 1 }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="
+                className={`
                     relative group px-10 py-5 rounded-full font-black text-xl uppercase tracking-widest
-                    text-white shadow-[0_0_20px_rgba(34,197,94,0.6)]
-                    bg-gradient-to-b from-green-500 to-green-700
-                    border-2 border-green-400
+                    text-white bg-gradient-to-b border-2
                     cursor-pointer inline-block
-                    animate-pulse
-                    text-center
-                "
+                    animate-pulse text-center
+                    ${styles.buttonCta}
+                `}
             >
                  <span className="drop-shadow-md">{texts.playReal}</span>
                   {/* Shine effect on button */}
@@ -312,10 +357,10 @@ export default function InteractiveSlot({
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
-              className="mt-6 mx-auto bg-black/80 border border-yellow-500/40 rounded-lg p-4 text-center backdrop-blur-md shadow-[0_0_20px_rgba(234,179,8,0.2)]"
+              className={`mt-6 mx-auto rounded-lg p-4 text-center backdrop-blur-md border ${styles.resultBox}`}
             >
               <motion.p 
-                className={`text-lg sm:text-xl font-bold ${isWin ? 'text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.8)]' : 'text-gray-200'}`}
+                className={`text-lg sm:text-xl font-bold ${styles.resultText}`}
                 animate={isWin ? { scale: [1, 1.02, 1] } : {}}
                 transition={{ duration: 1, repeat: isWin ? Infinity : 0 }}
               >
