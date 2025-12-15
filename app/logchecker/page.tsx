@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { useRef } from 'react';
 
 interface BotVisit {
   botName: string;
@@ -108,16 +109,28 @@ interface AnalysisResult {
   detailedAnalysis?: DetailedAnalysis;
 }
 
+interface UploadedFile {
+  name: string;
+  size: number;
+  content: string;
+  status: 'pending' | 'loading' | 'loaded' | 'error';
+  error?: string;
+}
+
 export default function LogcheckerPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [loadingFiles, setLoadingFiles] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -148,9 +161,243 @@ export default function LogcheckerPage() {
     }
   };
 
+  // Функция для декомпрессии gzip файла
+  const decompressGzip = async (arrayBuffer: ArrayBuffer): Promise<string> => {
+    try {
+      // Используем CompressionStream/DecompressionStream API если доступно
+      if ('DecompressionStream' in window) {
+        const stream = new DecompressionStream('gzip');
+        const writer = stream.writable.getWriter();
+        const reader = stream.readable.getReader();
+        
+        writer.write(new Uint8Array(arrayBuffer));
+        writer.close();
+        
+        const chunks: Uint8Array[] = [];
+        let done = false;
+        
+        while (!done) {
+          const { value, done: readerDone } = await reader.read();
+          done = readerDone;
+          if (value) {
+            chunks.push(value);
+          }
+        }
+        
+        const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+        const result = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+          result.set(chunk, offset);
+          offset += chunk.length;
+        }
+        
+        return new TextDecoder().decode(result);
+      } else {
+        // Fallback: используем pako если доступно, иначе ошибка
+        throw new Error('DecompressionStream не поддерживается. Используйте современный браузер или загрузите .log файлы.');
+      }
+    } catch (err: any) {
+      throw new Error(`Ошибка декомпрессии: ${err.message}`);
+    }
+  };
+
+  // Функция для чтения файла
+  const readFile = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = async (e) => {
+        try {
+          const arrayBuffer = e.target?.result as ArrayBuffer;
+          
+          if (file.name.endsWith('.gz')) {
+            // Декомпрессируем gzip файл
+            const decompressed = await decompressGzip(arrayBuffer);
+            resolve(decompressed);
+          } else {
+            // Обычный текстовый файл
+            const text = new TextDecoder().decode(arrayBuffer);
+            resolve(text);
+          }
+        } catch (err: any) {
+          reject(err);
+        }
+      };
+      
+      reader.onerror = () => {
+        reject(new Error('Ошибка чтения файла'));
+      };
+      
+      if (file.name.endsWith('.gz')) {
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.readAsText(file, 'utf-8');
+      }
+    });
+  };
+
+  // Обработка файлов (общая функция)
+  const processFiles = async (fileList: FileList | File[]) => {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+
+    setLoadingFiles(true);
+    setError(null);
+
+    // Проверяем количество файлов
+    if (files.length > 10) {
+      setError('Можно загрузить максимум 10 файлов одновременно');
+      setLoadingFiles(false);
+      return;
+    }
+
+    const newFiles: UploadedFile[] = [];
+    
+    // Проверяем формат файлов
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const isValidFormat = file.name.endsWith('.log') || file.name.endsWith('.log.1.gz') || file.name.endsWith('.gz');
+      
+      if (!isValidFormat) {
+        setError(`Файл "${file.name}" имеет неподдерживаемый формат. Поддерживаются только .log и .log.1.gz файлы.`);
+        continue;
+      }
+
+      newFiles.push({
+        name: file.name,
+        size: file.size,
+        content: '',
+        status: 'loading',
+      });
+    }
+
+    // Добавляем новые файлы к существующим (если есть)
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+
+    // Читаем все файлы параллельно
+    const readPromises = newFiles.map(async (fileInfo, index) => {
+      const file = files[index];
+      try {
+        const content = await readFile(file);
+        return {
+          ...fileInfo,
+          content,
+          status: 'loaded' as const,
+        };
+      } catch (err: any) {
+        return {
+          ...fileInfo,
+          status: 'error' as const,
+          error: err.message || 'Ошибка чтения файла',
+        };
+      }
+    });
+
+    const results = await Promise.all(readPromises);
+    
+    // Обновляем только новые файлы в списке
+    setUploadedFiles(prev => {
+      const updated = [...prev];
+      const startIndex = updated.length - newFiles.length;
+      results.forEach((result, index) => {
+        updated[startIndex + index] = result;
+      });
+      
+      // Объединяем содержимое всех успешно загруженных файлов
+      const allContent = updated
+        .filter(f => f.status === 'loaded')
+        .map(f => f.content)
+        .join('\n');
+      
+      setLogs(allContent);
+      
+      return updated;
+    });
+    
+    setLoadingFiles(false);
+  };
+
+  // Обработка выбора файлов через input
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    await processFiles(files);
+  };
+
+  // Обработка drag and drop
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      await processFiles(files);
+    }
+  };
+
+  // Удаление файла из списка
+  const removeFile = (index: number) => {
+    const newFiles = uploadedFiles.filter((_, i) => i !== index);
+    setUploadedFiles(newFiles);
+    
+    // Обновляем объединенное содержимое
+    const allContent = newFiles
+      .filter(f => f.status === 'loaded')
+      .map(f => f.content)
+      .join('\n');
+    
+    setLogs(allContent);
+  };
+
+  // Очистка всех файлов
+  const clearAllFiles = () => {
+    setUploadedFiles([]);
+    setLogs('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const analyzeLogs = async () => {
-    if (!logs.trim()) {
-      setError('Вставьте логи для анализа');
+    // Проверяем, есть ли загруженные файлы или текст в textarea
+    const hasFiles = uploadedFiles.some(f => f.status === 'loaded');
+    const hasText = logs.trim();
+    
+    if (!hasFiles && !hasText) {
+      setError('Загрузите файлы или вставьте логи для анализа');
+      return;
+    }
+
+    // Если есть загруженные файлы, используем их содержимое
+    let logsToAnalyze = logs;
+    if (hasFiles) {
+      logsToAnalyze = uploadedFiles
+        .filter(f => f.status === 'loaded')
+        .map(f => f.content)
+        .join('\n');
+    }
+
+    if (!logsToAnalyze.trim()) {
+      setError('Нет данных для анализа');
       return;
     }
 
@@ -184,7 +431,7 @@ export default function LogcheckerPage() {
       // Удалено: рефереры могут быть от обычных пользователей или других ботов
 
       // Разбиваем логи на строки
-      const lines = logs.split('\n').filter(line => line.trim());
+      const lines = logsToAnalyze.split('\n').filter(line => line.trim());
       const totalLines = lines.length;
       
       // Словарь для хранения информации о ботах
@@ -718,10 +965,141 @@ export default function LogcheckerPage() {
         {/* Форма */}
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-8">
           <div className="space-y-6">
+            {/* Блок для загрузки файлов */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Загрузите файлы логов (.log, .log.1.gz) *
+              </label>
+              <div
+                onDragEnter={handleDragEnter}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-lg p-6 transition-colors ${
+                  isDragging
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    : 'border-gray-300 dark:border-gray-600'
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".log,.gz,.log.1.gz"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="cursor-pointer flex flex-col items-center justify-center gap-2"
+                >
+                  <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {isDragging ? 'Отпустите файлы здесь' : 'Нажмите для выбора файлов или перетащите файлы сюда'}
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Поддерживаются форматы: .log, .log.1.gz (до 10 файлов одновременно)
+                  </span>
+                </label>
+              </div>
+
+              {/* Список загруженных файлов */}
+              {uploadedFiles.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Загруженные файлы ({uploadedFiles.filter(f => f.status === 'loaded').length}/{uploadedFiles.length})
+                    </span>
+                    <button
+                      onClick={clearAllFiles}
+                      className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                    >
+                      Очистить все
+                    </button>
+                  </div>
+                  {uploadedFiles.map((file, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-center justify-between p-3 rounded-lg border ${
+                        file.status === 'loaded'
+                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                          : file.status === 'loading'
+                          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                          : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {file.status === 'loaded' && (
+                          <svg className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        )}
+                        {file.status === 'loading' && (
+                          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                        )}
+                        {file.status === 'error' && (
+                          <svg className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {file.name}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {(file.size / 1024).toFixed(2)} KB
+                            {file.status === 'loaded' && file.content && (
+                              <span className="ml-2">
+                                • {file.content.split('\n').filter(l => l.trim()).length} строк
+                              </span>
+                            )}
+                          </div>
+                          {file.status === 'error' && file.error && (
+                            <div className="text-xs text-red-600 dark:text-red-400 mt-1">
+                              {file.error}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {file.status !== 'loading' && (
+                        <button
+                          onClick={() => removeFile(index)}
+                          className="ml-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors flex-shrink-0"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {loadingFiles && (
+                <div className="mt-4 text-sm text-blue-600 dark:text-blue-400">
+                  Загрузка файлов...
+                </div>
+              )}
+            </div>
+
+            {/* Разделитель */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">или</span>
+              </div>
+            </div>
+
             {/* Блок для ввода логов */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Вставьте логи для анализа *
+                Вставьте логи для анализа
               </label>
               <textarea
                 value={logs}
@@ -743,7 +1121,7 @@ export default function LogcheckerPage() {
 
             <button
               onClick={analyzeLogs}
-              disabled={analyzing || !logs.trim()}
+              disabled={analyzing || loadingFiles || (!logs.trim() && uploadedFiles.filter(f => f.status === 'loaded').length === 0)}
               className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {analyzing ? (
@@ -752,7 +1130,19 @@ export default function LogcheckerPage() {
                   <span>Анализ в процессе...</span>
                 </>
               ) : (
-                'Анализировать логи'
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  <span>
+                    Анализировать логи
+                    {uploadedFiles.filter(f => f.status === 'loaded').length > 0 && (
+                      <span className="ml-1">
+                        ({uploadedFiles.filter(f => f.status === 'loaded').length} файл{uploadedFiles.filter(f => f.status === 'loaded').length > 1 ? 'ов' : ''})
+                      </span>
+                    )}
+                  </span>
+                </>
               )}
             </button>
           </div>
