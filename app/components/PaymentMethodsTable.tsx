@@ -585,6 +585,87 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
         </table>
       </div>
 
+      {/* Selected Method Details - Desktop only */}
+      {selectedMethod && showDetails && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          className={`hidden md:block mt-4 sm:mt-6 p-4 sm:p-6 ${styleClasses.details} rounded-xl border ${styleClasses.border}`}
+        >
+          {(() => {
+            const method = topMethods.find(m => m.id === selectedMethod);
+            if (!method) return null;
+            return (
+              <div className="flex items-start gap-4">
+                <span className="text-4xl">{method.icon}</span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    {countryFlag && (
+                      <span className="text-2xl" title={country}>{countryFlag}</span>
+                    )}
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+                      {method.name[country]}
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-4">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.minDeposit}</p>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">{method.minDeposit}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.maxDeposit}</p>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">{method.maxDeposit}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.processingTime}</p>
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {typeof method.processingTime === 'object' 
+                          ? method.processingTime[country] || '-' 
+                          : method.processingTime || '-'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Top Casinos */}
+                  {method.casinos && method.casinos.length > 0 && (
+                    <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-blue-200 dark:border-blue-800">
+                      <h4 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">
+                        {t.topCasinos}
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                        {method.casinos.map((casino, idx) => (
+                          <motion.a
+                            key={idx}
+                            href={casino.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.1 }}
+                            className="group p-4 bg-white dark:bg-gray-700 rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-all shadow-sm hover:shadow-md"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                {casino.name}
+                              </span>
+                              <span className="text-xl">🎰</span>
+                            </div>
+                            <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                              {t.playNow} →
+                            </span>
+                          </motion.a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </motion.div>
+      )}
+
       {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
         {topMethods.map((method, index) => (
@@ -732,87 +813,6 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
           </div>
         ))}
       </div>
-
-      {/* Selected Method Details */}
-      {selectedMethod && showDetails && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          className={`mt-4 sm:mt-6 p-4 sm:p-6 ${styleClasses.details} rounded-xl border ${styleClasses.border}`}
-        >
-          {(() => {
-            const method = topMethods.find(m => m.id === selectedMethod);
-            if (!method) return null;
-            return (
-              <div className="flex items-start gap-4">
-                <span className="text-4xl">{method.icon}</span>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    {countryFlag && (
-                      <span className="text-2xl" title={country}>{countryFlag}</span>
-                    )}
-                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-                      {method.name[country]}
-                    </h3>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-4">
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.minDeposit}</p>
-                      <p className="text-lg font-semibold text-gray-900 dark:text-white">{method.minDeposit}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.maxDeposit}</p>
-                      <p className="text-lg font-semibold text-gray-900 dark:text-white">{method.maxDeposit}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.processingTime}</p>
-                      <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {typeof method.processingTime === 'object' 
-                          ? method.processingTime[country] || '-' 
-                          : method.processingTime || '-'}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Top Casinos */}
-                  {method.casinos && method.casinos.length > 0 && (
-                    <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-blue-200 dark:border-blue-800">
-                      <h4 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">
-                        {t.topCasinos}
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                        {method.casinos.map((casino, idx) => (
-                          <motion.a
-                            key={idx}
-                            href={casino.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: idx * 0.1 }}
-                            className="group p-4 bg-white dark:bg-gray-700 rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-all shadow-sm hover:shadow-md"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                {casino.name}
-                              </span>
-                              <span className="text-xl">🎰</span>
-                            </div>
-                            <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                              {t.playNow} →
-                            </span>
-                          </motion.a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-        </motion.div>
-      )}
 
       {/* Footer */}
       <div className="mt-6 text-center">
