@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useRef } from 'react';
+import JSZip from 'jszip';
 
 interface BotVisit {
   botName: string;
@@ -237,6 +238,64 @@ export default function LogcheckerPage() {
     });
   };
 
+  // Функция для распаковки ZIP архива и извлечения файлов
+  const extractZipFiles = async (file: File): Promise<File[]> => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const zip = await JSZip.loadAsync(arrayBuffer);
+      const extractedFiles: File[] = [];
+
+      // Проходим по всем файлам в архиве
+      for (const [fileName, zipEntry] of Object.entries(zip.files)) {
+        // Пропускаем папки
+        if (zipEntry.dir) continue;
+
+        // Проверяем, что это поддерживаемый формат
+        const isValidFormat = fileName.endsWith('.log') || 
+                             fileName.endsWith('.log.1.gz') || 
+                             fileName.endsWith('.gz');
+        
+        if (!isValidFormat) {
+          console.warn(`Пропущен файл "${fileName}" - неподдерживаемый формат`);
+          continue;
+        }
+
+        try {
+          // Получаем содержимое файла
+          let blob: Blob;
+          
+          if (fileName.endsWith('.gz')) {
+            // Для gz файлов получаем как ArrayBuffer
+            const arrayBuffer = await zipEntry.async('arraybuffer');
+            blob = new Blob([arrayBuffer], { type: 'application/gzip' });
+          } else {
+            // Для обычных текстовых файлов получаем как text
+            const text = await zipEntry.async('string');
+            blob = new Blob([text], { type: 'text/plain' });
+          }
+
+          // Создаем File объект из Blob
+          const extractedFile = new File([blob], fileName, {
+            type: blob.type,
+            lastModified: zipEntry.date?.getTime() || Date.now(),
+          });
+
+          extractedFiles.push(extractedFile);
+        } catch (err: any) {
+          console.error(`Ошибка извлечения файла "${fileName}":`, err);
+        }
+      }
+
+      if (extractedFiles.length === 0) {
+        throw new Error('В архиве не найдено поддерживаемых файлов (.log, .log.1.gz)');
+      }
+
+      return extractedFiles;
+    } catch (err: any) {
+      throw new Error(`Ошибка распаковки ZIP архива: ${err.message}`);
+    }
+  };
+
   // Обработка файлов (общая функция)
   const processFiles = async (fileList: FileList | File[]) => {
     const files = Array.from(fileList);
@@ -245,9 +304,76 @@ export default function LogcheckerPage() {
     setLoadingFiles(true);
     setError(null);
 
-    // Проверяем количество файлов
-    if (files.length > 10) {
-      setError('Можно загрузить максимум 10 файлов одновременно');
+    // Сначала обрабатываем ZIP архивы и извлекаем файлы
+    const allFilesToProcess: File[] = [];
+    const zipProcessingPromises: Promise<void>[] = [];
+
+    for (const file of files) {
+      if (file.name.toLowerCase().endsWith('.zip')) {
+        // Добавляем ZIP файл в список с статусом загрузки
+        setUploadedFiles(prev => [...prev, {
+          name: file.name,
+          size: file.size,
+          content: '',
+          status: 'loading' as const,
+        }]);
+
+        // Обрабатываем ZIP архив асинхронно
+        const zipPromise = extractZipFiles(file)
+          .then(extractedFiles => {
+            // Обновляем статус ZIP файла на загруженный
+            setUploadedFiles(prev => {
+              const updated = [...prev];
+              const zipIndex = updated.findIndex(f => f.name === file.name && f.status === 'loading');
+              if (zipIndex !== -1) {
+                updated[zipIndex] = {
+                  name: file.name,
+                  size: file.size,
+                  content: '',
+                  status: 'loaded' as const,
+                };
+              }
+              return updated;
+            });
+            
+            allFilesToProcess.push(...extractedFiles);
+          })
+          .catch(err => {
+            // Обновляем статус ZIP файла на ошибку
+            setUploadedFiles(prev => {
+              const updated = [...prev];
+              const zipIndex = updated.findIndex(f => f.name === file.name && f.status === 'loading');
+              if (zipIndex !== -1) {
+                updated[zipIndex] = {
+                  name: file.name,
+                  size: file.size,
+                  content: '',
+                  status: 'error' as const,
+                  error: err.message || 'Ошибка распаковки архива',
+                };
+              }
+              return updated;
+            });
+          });
+        zipProcessingPromises.push(zipPromise);
+      } else {
+        // Обычные файлы добавляем сразу
+        allFilesToProcess.push(file);
+      }
+    }
+
+    // Ждем завершения обработки всех ZIP архивов
+    await Promise.all(zipProcessingPromises);
+
+    // Проверяем общее количество файлов после распаковки
+    if (allFilesToProcess.length > 50) {
+      setError(`Слишком много файлов после распаковки: ${allFilesToProcess.length}. Максимум 50 файлов.`);
+      setLoadingFiles(false);
+      return;
+    }
+
+    if (allFilesToProcess.length === 0) {
+      setError('Не найдено файлов для обработки');
       setLoadingFiles(false);
       return;
     }
@@ -255,12 +381,14 @@ export default function LogcheckerPage() {
     const newFiles: UploadedFile[] = [];
     
     // Проверяем формат файлов
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const isValidFormat = file.name.endsWith('.log') || file.name.endsWith('.log.1.gz') || file.name.endsWith('.gz');
+    for (let i = 0; i < allFilesToProcess.length; i++) {
+      const file = allFilesToProcess[i];
+      const isValidFormat = file.name.endsWith('.log') || 
+                           file.name.endsWith('.log.1.gz') || 
+                           file.name.endsWith('.gz');
       
       if (!isValidFormat) {
-        setError(`Файл "${file.name}" имеет неподдерживаемый формат. Поддерживаются только .log и .log.1.gz файлы.`);
+        console.warn(`Файл "${file.name}" имеет неподдерживаемый формат. Поддерживаются только .log и .log.1.gz файлы.`);
         continue;
       }
 
@@ -272,12 +400,33 @@ export default function LogcheckerPage() {
       });
     }
 
+    if (newFiles.length === 0) {
+      setError('Не найдено поддерживаемых файлов (.log, .log.1.gz)');
+      setLoadingFiles(false);
+      return;
+    }
+
     // Добавляем новые файлы к существующим (если есть)
     setUploadedFiles(prev => [...prev, ...newFiles]);
 
+    // Создаем маппинг имен файлов для быстрого поиска
+    const fileMap = new Map<string, File>();
+    allFilesToProcess.forEach(f => {
+      fileMap.set(f.name, f);
+    });
+
     // Читаем все файлы параллельно
-    const readPromises = newFiles.map(async (fileInfo, index) => {
-      const file = files[index];
+    const readPromises = newFiles.map(async (fileInfo) => {
+      const file = fileMap.get(fileInfo.name);
+      
+      if (!file) {
+        return {
+          ...fileInfo,
+          status: 'error' as const,
+          error: 'Файл не найден',
+        };
+      }
+
       try {
         const content = await readFile(file);
         return {
@@ -968,7 +1117,7 @@ export default function LogcheckerPage() {
             {/* Блок для загрузки файлов */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Загрузите файлы логов (.log, .log.1.gz) *
+                Загрузите файлы логов (.log, .log.1.gz) или ZIP архив *
               </label>
               <div
                 onDragEnter={handleDragEnter}
@@ -985,7 +1134,7 @@ export default function LogcheckerPage() {
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept=".log,.gz,.log.1.gz"
+                  accept=".log,.gz,.log.1.gz,.zip"
                   onChange={handleFileSelect}
                   className="hidden"
                   id="file-upload"
@@ -1001,7 +1150,7 @@ export default function LogcheckerPage() {
                     {isDragging ? 'Отпустите файлы здесь' : 'Нажмите для выбора файлов или перетащите файлы сюда'}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Поддерживаются форматы: .log, .log.1.gz (до 10 файлов одновременно)
+                    Поддерживаются форматы: .log, .log.1.gz, .zip (до 10 файлов или 1 архив)
                   </span>
                 </label>
               </div>
