@@ -10,6 +10,7 @@
   var offerUrl = script?.getAttribute('data-offer-url') || '#';
   var language = script?.getAttribute('data-language') || 'ru';
   var theme = script?.getAttribute('data-theme') || 'neon';
+  var soundEnabled = script?.getAttribute('data-sound') === 'true';
 
   var values1 = values1Str.split(',').map(function(v) { return v.trim(); }).filter(Boolean);
   var values2 = values2Str.split(',').map(function(v) { return v.trim(); }).filter(Boolean);
@@ -73,7 +74,9 @@
       resultBorder: 'rgba(234, 179, 8, 0.4)',
       resultText: '#facc15',
       payline: 'rgba(239, 68, 68, 0.5)',
-      arrow: '#ef4444'
+      arrow: '#ef4444',
+      wheelBg: 'linear-gradient(to bottom, #f3f4f6, #e5e7eb)',
+      wheelBorder: '#9ca3af'
     },
     luxury: {
       bg: '#000000',
@@ -95,7 +98,9 @@
       resultBorder: '#eab308',
       resultText: '#fef08a',
       payline: 'rgba(234, 179, 8, 0.5)',
-      arrow: '#eab308'
+      arrow: '#eab308',
+      wheelBg: '#000000',
+      wheelBorder: '#ca8a04'
     },
     vibrant: {
       bg: '#312e81',
@@ -117,11 +122,72 @@
       resultBorder: 'rgba(236, 72, 153, 0.5)',
       resultText: '#f9a8d4',
       payline: 'rgba(236, 72, 153, 0.5)',
-      arrow: '#ec4899'
+      arrow: '#ec4899',
+      wheelBg: '#ffffff',
+      wheelBorder: '#ec4899'
     }
   };
 
   var s = themeStyles[theme] || themeStyles.neon;
+
+  // Sound Context
+  var audioCtx = null;
+  function initAudio() {
+    if (!soundEnabled || audioCtx) return;
+    var AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) {
+        audioCtx = new AudioContext();
+    }
+  }
+
+  function playSound(type) {
+    if (!soundEnabled || !audioCtx) return;
+    try {
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        var now = audioCtx.currentTime;
+        
+        if (type === 'spin') {
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+            gain.gain.setValueAtTime(0.05, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            osc.start(now);
+            osc.stop(now + 0.1);
+        } else if (type === 'stop') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(100, now);
+            osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+            osc.start(now);
+            osc.stop(now + 0.2);
+        } else if (type === 'win') {
+             var notes = [523.25, 659.25, 783.99, 1046.50];
+            notes.forEach(function(freq, i) {
+                var oscN = audioCtx.createOscillator();
+                var gainN = audioCtx.createGain();
+                oscN.connect(gainN);
+                gainN.connect(audioCtx.destination);
+                oscN.type = 'sine';
+                oscN.frequency.value = freq;
+                gainN.gain.setValueAtTime(0, now + i * 0.1);
+                gainN.gain.linearRampToValueAtTime(0.05, now + i * 0.1 + 0.05);
+                gainN.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.5);
+                oscN.start(now + i * 0.1);
+                oscN.stop(now + i * 0.1 + 0.6);
+            });
+        }
+    } catch(e) {}
+  }
 
   // Создаем стили с modern casino-стилем
   var styles = `
@@ -133,9 +199,11 @@
       margin: 0 auto;
       padding: 40px;
       background: ${s.bg};
-      border-radius: 30px;
+      border-radius: ${theme === 'vibrant' ? '24px' : theme === 'luxury' ? '0' : '30px'};
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-      border: 4px solid ${s.border};
+      border: ${theme === 'vibrant' ? 'none' : '4px solid ' + s.border};
+      border-bottom: ${theme === 'vibrant' ? '8px solid ' + s.border.replace('30a3', '2080') : '4px solid ' + s.border};
+      border-right: ${theme === 'vibrant' ? '8px solid ' + s.border.replace('30a3', '2080') : '4px solid ' + s.border};
       position: relative;
       overflow: hidden;
       box-sizing: border-box;
@@ -162,7 +230,7 @@
       position: absolute;
       inset: 10px;
       border: 2px dashed ${s.borderLights};
-      border-radius: 20px;
+      border-radius: ${theme === 'luxury' ? '0' : '20px'};
       pointer-events: none;
       animation: ${uniqueId}-pulse 2s infinite;
     }
@@ -205,7 +273,7 @@
       position: relative;
       background: ${s.screenBg};
       padding: 16px;
-      border-radius: 12px;
+      border-radius: ${theme === 'luxury' ? '0' : '12px'};
       border: 4px solid ${s.screenBorder};
       box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.6);
       margin-bottom: 32px;
@@ -218,7 +286,7 @@
       align-items: center;
       gap: 12px;
       padding: 16px 8px;
-      background: rgba(0, 0, 0, 0.4);
+      background: ${theme === 'vibrant' ? 'rgba(49, 46, 129, 0.5)' : 'rgba(0, 0, 0, 0.4)'};
       border-radius: 8px;
       box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.6);
       position: relative;
@@ -228,11 +296,11 @@
       position: relative;
       width: 100px;
       height: 140px;
-      background: linear-gradient(to bottom, #f3f4f6, #e5e7eb);
-      border-radius: 8px;
+      background: ${s.wheelBg};
+      border-radius: ${theme === 'luxury' ? '0' : '8px'};
       overflow: hidden;
-      border-left: 1px solid #9ca3af;
-      border-right: 1px solid #9ca3af;
+      border: 1px solid ${s.wheelBorder};
+      ${theme === 'vibrant' ? 'border-width: 4px;' : ''}
       box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
     }
 
@@ -244,10 +312,12 @@
       justify-content: center;
       font-size: 36px;
       font-weight: 700;
-      color: #1f2937;
+      color: ${theme === 'luxury' ? '#fef08a' : theme === 'vibrant' ? '#db2777' : '#1f2937'};
+      ${theme === 'luxury' ? 'font-family: monospace; text-shadow: 0 0 10px rgba(253,224,71,0.5);' : ''}
     }
 
-    /* 3D Cylinder Effect Shadows */
+    /* 3D Cylinder Effect Shadows - Only for Neon/Classic */
+    ${theme === 'neon' ? `
     .${uniqueId}-wheel::before {
       content: '';
       position: absolute;
@@ -283,6 +353,23 @@
         pointer-events: none;
         z-index: 5;
     }
+    ` : ''}
+
+    ${theme === 'luxury' ? `
+    .${uniqueId}-wheel-scanline {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+            0deg,
+            rgba(0,0,0,0.1),
+            rgba(0,0,0,0.1) 1px,
+            transparent 1px,
+            transparent 2px
+        );
+        pointer-events: none;
+        z-index: 5;
+    }
+    ` : ''}
 
     /* Payline */
     .${uniqueId}-payline {
@@ -336,7 +423,7 @@
       padding: 16px 48px;
       background: ${s.btnBg};
       border: 2px solid ${s.btnBorder};
-      border-radius: 9999px;
+      ${theme === 'vibrant' ? 'border-bottom-width: 4px; border-radius: 12px;' : 'border-radius: 9999px;'}
       color: white;
       font-family: inherit;
       font-size: 20px;
@@ -470,9 +557,15 @@
     content.textContent = values[0];
     wheel.appendChild(content);
     
-    var shine = document.createElement('div');
-    shine.className = `${uniqueId}-wheel-shine`;
-    wheel.appendChild(shine);
+    if (theme === 'neon') {
+        var shine = document.createElement('div');
+        shine.className = `${uniqueId}-wheel-shine`;
+        wheel.appendChild(shine);
+    } else if (theme === 'luxury') {
+        var scanline = document.createElement('div');
+        scanline.className = `${uniqueId}-wheel-scanline`;
+        wheel.appendChild(scanline);
+    }
 
     return wheel;
   }
@@ -483,14 +576,27 @@
     var isSpinning = true;
     
     // Эффект размытия
-    content.style.filter = 'blur(1px)';
+    if (theme !== 'vibrant') {
+        content.style.filter = 'blur(1px)';
+    }
+    
+    var speed = theme === 'luxury' ? 30 : theme === 'vibrant' ? 80 : 50;
     
     var spinInterval = setInterval(function() {
         var randomValue = values[Math.floor(Math.random() * values.length)];
         content.textContent = randomValue;
-        // Небольшой "шейк" по вертикали
-        content.style.transform = `translateY(${Math.random() * 4 - 2}px)`;
-    }, 50);
+        
+        if (theme === 'vibrant') {
+            // Bounce effect logic simulated simply
+            var offset = (Date.now() % 100 > 50) ? -5 : 5;
+            content.style.transform = `translateY(${offset}px)`;
+        } else {
+             content.style.transform = `translateY(${Math.random() * 4 - 2}px)`;
+        }
+        
+    }, speed);
+
+    var duration = theme === 'luxury' ? 1000 : 1500;
 
     // Остановка
     setTimeout(function() {
@@ -502,23 +608,20 @@
       if (onComplete) {
         setTimeout(onComplete, 300);
       }
-    }, 1500); // 1.5 сек вращения
+    }, duration); 
   }
 
   function initWidget() {
     var container = document.getElementById('seohqs-slot-widget');
     if (!container) {
-      // Попробуем найти контейнер, созданный пользователем, если ID стандартный
       container = document.getElementById('seohqs-slot-widget');
-      if (!container) return; // Если все еще нет, выходим
+      if (!container) return; 
     }
     
-    // Переименуем ID, чтобы применить scoped стили, или обернем
-    // Проще создать новый контейнер внутри целевого
     var widgetContainer = document.createElement('div');
     widgetContainer.id = `${uniqueId}-widget`;
     
-    container.innerHTML = ''; // Очистка
+    container.innerHTML = ''; 
     container.appendChild(widgetContainer);
 
     // Header
@@ -598,25 +701,42 @@
 
       if (spinning) return;
       
+      // Init audio on first interaction
+      initAudio();
+      
       spinning = true;
       button.disabled = true;
       button.querySelector('span').textContent = texts.spinning;
       resultDiv.style.display = 'none';
-      resultDiv.className = `${uniqueId}-result`; // Reset classes if any
+      resultDiv.className = `${uniqueId}-result`; 
 
       var result1 = values1[Math.floor(Math.random() * values1.length)];
       var result2 = values2[Math.floor(Math.random() * values2.length)];
       var result3 = values3[Math.floor(Math.random() * values3.length)];
 
+      if (soundEnabled) {
+          playSound('spin');
+          var spinLoop = setInterval(function() { 
+              if (!spinning) clearInterval(spinLoop);
+              playSound('spin'); 
+          }, 150);
+      }
+
       // Cascade spinning
       spinWheel(wheel1, values1, result1, function() {
+        if (soundEnabled) playSound('stop');
         spinWheel(wheel2, values2, result2, function() {
+          if (soundEnabled) playSound('stop');
           spinWheel(wheel3, values3, result3, function() {
+            if (soundEnabled) playSound('stop');
+            
             var message = texts.congrats + ' ' + result1 + ' ' + result2 + ' ' + result3;
             
             resultDiv.textContent = message;
             resultDiv.style.display = 'block';
             resultDiv.classList.add(`${uniqueId}-win-text`);
+            
+            if (soundEnabled) playSound('win');
 
             spinning = false;
             spinFinished = true;

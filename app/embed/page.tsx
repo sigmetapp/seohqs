@@ -11,6 +11,7 @@ export default function EmbedPage() {
   const [offerUrl, setOfferUrl] = useState('https://example.com/signup');
   const [language, setLanguage] = useState('ru');
   const [theme, setTheme] = useState<Theme>('neon');
+  const [soundEnabled, setSoundEnabled] = useState(false);
   
   // Use symbols/emojis as defaults instead of long text
   const [customValues1, setCustomValues1] = useState('🍒,🍋,🍇,🍉,🔔,💎');
@@ -35,6 +36,7 @@ export default function EmbedPage() {
     script.setAttribute('data-offer-url', '${offerUrl}');
     script.setAttribute('data-language', '${language}');
     script.setAttribute('data-theme', '${theme}');
+    script.setAttribute('data-sound', '${soundEnabled}');
     document.head.appendChild(script);
   })();
 </script>
@@ -113,6 +115,7 @@ export default function EmbedPage() {
                 offerUrl={offerUrl}
                 language={language}
                 theme={theme}
+                soundEnabled={soundEnabled}
               />
             </div>
           </div>
@@ -149,6 +152,19 @@ export default function EmbedPage() {
                         className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="https://example.com/signup"
                     />
+                </div>
+
+                <div className="flex items-center space-x-3 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <input
+                        type="checkbox"
+                        id="soundEnabled"
+                        checked={soundEnabled}
+                        onChange={(e) => setSoundEnabled(e.target.checked)}
+                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                    />
+                    <label htmlFor="soundEnabled" className="text-sm font-medium text-gray-900 dark:text-white select-none cursor-pointer">
+                        Включить звуковые эффекты 🔊
+                    </label>
                 </div>
 
                 <div>
