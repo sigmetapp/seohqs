@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import PaymentMethodsTable, { CountryCode, Casino, TableStyle } from '../components/PaymentMethodsTable';
+import { useI18n } from '@/lib/i18n-context';
 
 const DEFAULT_CASINOS: Record<string, Casino[]> = {
   visa: [
@@ -40,6 +41,7 @@ const PAYMENT_METHOD_NAMES: Record<string, string> = {
 };
 
 export default function TabsGenPage() {
+  const { t } = useI18n();
   const [country, setCountry] = useState<CountryCode>('UK');
   const [tableStyle, setTableStyle] = useState<TableStyle>('classic');
   const [copied, setCopied] = useState(false);
@@ -106,11 +108,10 @@ export default function TabsGenPage() {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-5xl md:text-6xl font-extrabold mb-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
-            TabsGen - Таблица платежных методов
+            {t('tabsgen.title')}
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Создайте красивую интерактивную таблицу со статусами топ-5 самых популярных платежных методов для казино и слотов.
-            Просто выберите страну и скопируйте код для встраивания!
+            {t('tabsgen.description')}
           </p>
         </div>
 
@@ -121,7 +122,7 @@ export default function TabsGenPage() {
               PREVIEW
             </div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 relative z-10">
-              Предпросмотр
+              {t('tabsgen.preview')}
             </h2>
             <PaymentMethodsTable country={country} casinos={casinos} countryFlag={selectedCountryFlag} style={tableStyle} />
           </div>
@@ -131,13 +132,13 @@ export default function TabsGenPage() {
         <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-                Настройки
+                {t('tabsgen.settings')}
               </h2>
 
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Выберите стиль таблицы
+                    {t('tabsgen.selectTableStyle')}
                   </label>
                   <div className="flex flex-wrap gap-3 mb-6">
                     <button
@@ -148,39 +149,39 @@ export default function TabsGenPage() {
                           ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                           : 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}
                       `}
-                    >
-                      🎨 Классический
-                    </button>
-                    <button
-                      onClick={() => setTableStyle('modern')}
-                      className={`
+                      >
+                        {t('tabsgen.classic')}
+                      </button>
+                      <button
+                        onClick={() => setTableStyle('modern')}
+                        className={`
                         px-4 py-2 rounded-lg font-medium transition-all border-2
                         ${tableStyle === 'modern'
                           ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                           : 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}
                       `}
-                    >
-                      ✨ Современный
-                    </button>
-                    <button
-                      onClick={() => setTableStyle('minimal')}
-                      className={`
+                      >
+                        {t('tabsgen.modern')}
+                      </button>
+                      <button
+                        onClick={() => setTableStyle('minimal')}
+                        className={`
                         px-4 py-2 rounded-lg font-medium transition-all border-2
                         ${tableStyle === 'minimal'
                           ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                           : 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}
                       `}
-                    >
-                      🎯 Минималистичный
-                    </button>
+                      >
+                        {t('tabsgen.minimal')}
+                      </button>
                   </div>
                   <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-                    Выберите стиль оформления таблицы. Код для встраивания будет автоматически обновлен.
+                    {t('tabsgen.selectStyleDescription')}
                   </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Выберите страну
+                    {t('tabsgen.selectCountry')}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {countries.map((c) => (
@@ -201,17 +202,17 @@ export default function TabsGenPage() {
                     ))}
                   </div>
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    Таблица автоматически адаптируется под выбранный язык страны
+                    {t('tabsgen.countryDescription')}
                   </p>
                 </div>
 
                 {/* Casinos Settings */}
                 <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                    Настройка казино для каждого метода
+                    {t('tabsgen.casinoSettings')}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Укажите топ-3 казино для каждого платежного метода. Они будут отображаться при клике на метод.
+                    {t('tabsgen.casinoSettingsDescription')}
                   </p>
                   
                   <div className="space-y-6">
@@ -225,14 +226,14 @@ export default function TabsGenPage() {
                             <div key={index} className="grid grid-cols-2 gap-2">
                               <input
                                 type="text"
-                                placeholder={`Название казино ${index + 1}`}
+                                placeholder={t('tabsgen.casinoNamePlaceholder').replace('{index}', String(index + 1))}
                                 value={casinos[methodId]?.[index]?.name || ''}
                                 onChange={(e) => updateCasino(methodId, index, 'name', e.target.value)}
                                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               />
                               <input
                                 type="url"
-                                placeholder={`URL казино ${index + 1}`}
+                                placeholder={t('tabsgen.casinoUrlPlaceholder').replace('{index}', String(index + 1))}
                                 value={casinos[methodId]?.[index]?.url || ''}
                                 onChange={(e) => updateCasino(methodId, index, 'url', e.target.value)}
                                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -250,7 +251,7 @@ export default function TabsGenPage() {
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Код для встраивания
+                  {t('tabsgen.embedCode')}
                 </h2>
                 <button
                   onClick={handleCopy}
@@ -260,7 +261,7 @@ export default function TabsGenPage() {
                       : 'bg-blue-600 hover:bg-blue-700 text-white'
                   }`}
                 >
-                  {copied ? '✓ Скопировано!' : '📋 Копировать'}
+                  {copied ? t('tabsgen.copied') : t('tabsgen.copy')}
                 </button>
               </div>
               <div className="relative">
@@ -269,7 +270,7 @@ export default function TabsGenPage() {
                 </pre>
               </div>
               <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                Скопируйте этот код и вставьте его в HTML вашего сайта там, где хотите разместить таблицу.
+                {t('tabsgen.copyInstructions')}
               </p>
             </div>
           </div>
@@ -280,30 +281,30 @@ export default function TabsGenPage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="text-4xl mb-4">🌍</div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-              Мультиязычность
+              {t('tabsgen.featureMultilingual')}
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Поддержка 11 стран с автоматической адаптацией текста под язык
+              {t('tabsgen.featureMultilingualDesc')}
             </p>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="text-4xl mb-4">📊</div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-              Интерактивность
+              {t('tabsgen.featureInteractive')}
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Кликните на метод платежа для просмотра детальной информации
+              {t('tabsgen.featureInteractiveDesc')}
             </p>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="text-4xl mb-4">⚡</div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-              Быстрая интеграция
+              {t('tabsgen.featureQuickIntegration')}
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Просто скопируйте и вставьте код - таблица заработает мгновенно
+              {t('tabsgen.featureQuickIntegrationDesc')}
             </p>
           </div>
         </div>
