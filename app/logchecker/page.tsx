@@ -150,6 +150,7 @@ export default function LogcheckerPage() {
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [activeTab, setActiveTab] = useState<'main' | 'analysis' | 'bots'>('main');
 
   useEffect(() => {
     checkAuth();
@@ -1115,6 +1116,10 @@ export default function LogcheckerPage() {
             hasRecentVisit,
           };
         })
+        .filter(botVisit => {
+          const excludedBots = ['googlebot image', 'google inspection tool', 'googlebot news'];
+          return !excludedBots.includes(botVisit.botName.toLowerCase());
+        })
         .sort((a, b) => b.lastVisitDate.getTime() - a.lastVisitDate.getTime());
       
       const totalVisits = botsArray.reduce((sum, bot) => sum + bot.count, 0);
@@ -1464,6 +1469,45 @@ export default function LogcheckerPage() {
               Результаты анализа
             </h2>
 
+            {/* Вкладки */}
+            <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+              <nav className="-mb-px flex space-x-8">
+                <button
+                  onClick={() => setActiveTab('main')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'main'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                  }`}
+                >
+                  Основное
+                </button>
+                <button
+                  onClick={() => setActiveTab('analysis')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'analysis'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                  }`}
+                >
+                  Анализ Googlebot
+                </button>
+                <button
+                  onClick={() => setActiveTab('bots')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'bots'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                  }`}
+                >
+                  Таблица ботов
+                </button>
+              </nav>
+            </div>
+
+            {/* Контент вкладки "Основное" */}
+            {activeTab === 'main' && (
+              <div>
             {/* 1. Ошибки 400 - какие URL отдали 400 */}
             {result.error400Urls && result.error400Urls.length > 0 && (
               <div className="mb-6">
@@ -1748,7 +1792,12 @@ export default function LogcheckerPage() {
                 </div>
               </div>
             </div>
+              </div>
+            )}
 
+            {/* Контент вкладки "Таблица ботов" */}
+            {activeTab === 'bots' && (
+              <div>
             {/* Сводка ботов */}
             {result.bots.length > 0 && (
               <div className="mb-6">
@@ -1964,7 +2013,12 @@ export default function LogcheckerPage() {
                 </div>
               </div>
             )}
+              </div>
+            )}
 
+            {/* Контент вкладки "Анализ Googlebot" */}
+            {activeTab === 'analysis' && (
+              <div>
             {/* Детальный анализ по 9 шагам */}
             {result.detailedAnalysis && (
               <div className="mt-8 bg-white dark:bg-gray-800 shadow rounded-lg p-6">
@@ -2343,6 +2397,8 @@ export default function LogcheckerPage() {
                     )}
                   </ul>
                 </div>
+              </div>
+            )}
               </div>
             )}
           </div>
