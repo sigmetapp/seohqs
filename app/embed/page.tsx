@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import InteractiveSlot from '../components/InteractiveSlot';
+import { useI18n } from '@/lib/i18n-context';
 
 type Theme = 'neon' | 'luxury' | 'vibrant';
 
 export default function EmbedPage() {
+  const { language: i18nLanguage, t } = useI18n();
   const [brandName, setBrandName] = useState('My Casino');
   const [copied, setCopied] = useState(false);
   const [offerUrl, setOfferUrl] = useState('https://example.com/signup');
-  const [language, setLanguage] = useState('ru');
+  const [language, setLanguage] = useState(i18nLanguage === 'en' ? 'en' : 'ru');
   const [theme, setTheme] = useState<Theme>('neon');
   const [soundEnabled, setSoundEnabled] = useState(false);
   
@@ -17,6 +19,11 @@ export default function EmbedPage() {
   const [customValues1, setCustomValues1] = useState('🍒,🍋,🍇,🍉,🔔,💎');
   const [customValues2, setCustomValues2] = useState('7️⃣,🍀,🎲,🎰,🃏,👑');
   const [customValues3, setCustomValues3] = useState('💰,💵,🪙,🧧,🏦,💳');
+
+  // Sync language with i18n language
+  useEffect(() => {
+    setLanguage(i18nLanguage === 'en' ? 'en' : 'ru');
+  }, [i18nLanguage]);
 
   const generateEmbedCode = () => {
     const values1Array = customValues1.split(',').map(v => v.trim()).filter(Boolean);
@@ -68,11 +75,10 @@ export default function EmbedPage() {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-5xl md:text-6xl font-extrabold mb-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
-            Интерактивный слот для вашего сайта
+            {t('embed.title')}
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Создайте увлекательный интерактивный слот с тремя колесами для сайтов моно-брендов.
-            Просто скопируйте код и вставьте на свой сайт!
+            {t('embed.description')}
           </p>
         </div>
 
@@ -105,7 +111,7 @@ export default function EmbedPage() {
                 PREVIEW
               </div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 relative z-10">
-                Предпросмотр
+                {t('embed.preview')}
               </h2>
               <InteractiveSlot
                 brandName={brandName}
@@ -124,26 +130,26 @@ export default function EmbedPage() {
           <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-                Настройки
+                {t('embed.settings')}
               </h2>
 
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Название бренда
+                    {t('embed.brandName')}
                   </label>
                   <input
                     type="text"
                     value={brandName}
                     onChange={(e) => setBrandName(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Введите название бренда"
+                    placeholder={t('embed.brandNamePlaceholder')}
                   />
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Ссылка на оффер (для кнопки "Играть")
+                        {t('embed.offerUrl')}
                     </label>
                     <input
                         type="url"
@@ -163,13 +169,13 @@ export default function EmbedPage() {
                         className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
                     />
                     <label htmlFor="soundEnabled" className="text-sm font-medium text-gray-900 dark:text-white select-none cursor-pointer">
-                        Включить звуковые эффекты 🔊
+                        {t('embed.soundEnabled')}
                     </label>
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Язык интерфейса
+                        {t('embed.language')}
                     </label>
                     <select
                         value={language}
@@ -186,7 +192,7 @@ export default function EmbedPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Значения для первого колеса (через запятую)
+                    {t('embed.values1')}
                   </label>
                   <input
                     type="text"
@@ -199,7 +205,7 @@ export default function EmbedPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Значения для второго колеса (через запятую)
+                    {t('embed.values2')}
                   </label>
                   <input
                     type="text"
@@ -212,7 +218,7 @@ export default function EmbedPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Значения для третьего колеса (через запятую)
+                    {t('embed.values3')}
                   </label>
                   <input
                     type="text"
@@ -229,7 +235,7 @@ export default function EmbedPage() {
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Код для встраивания
+                  {t('embed.embedCode')}
                 </h2>
                 <button
                   onClick={handleCopy}
@@ -239,7 +245,7 @@ export default function EmbedPage() {
                       : 'bg-blue-600 hover:bg-blue-700 text-white'
                   }`}
                 >
-                  {copied ? '✓ Скопировано!' : '📋 Копировать'}
+                  {copied ? t('embed.copied') : t('embed.copy')}
                 </button>
               </div>
               <div className="relative">
@@ -248,7 +254,7 @@ export default function EmbedPage() {
                 </pre>
               </div>
               <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                Скопируйте этот код и вставьте его в HTML вашего сайта там, где хотите разместить слот.
+                {t('embed.copyInstructions')}
               </p>
             </div>
           </div>
@@ -259,30 +265,30 @@ export default function EmbedPage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="text-4xl mb-4">⚡</div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-              Быстрая интеграция
+              {t('embed.quickIntegration')}
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Просто скопируйте и вставьте код - слот заработает мгновенно
+              {t('embed.quickIntegrationDesc')}
             </p>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="text-4xl mb-4">🎨</div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-              Полная кастомизация
+              {t('embed.fullCustomization')}
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Настройте все значения под ваш бренд и стиль
+              {t('embed.fullCustomizationDesc')}
             </p>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="text-4xl mb-4">📱</div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-              Адаптивный дизайн
+              {t('embed.responsiveDesign')}
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Отлично работает на всех устройствах и экранах
+              {t('embed.responsiveDesignDesc')}
             </p>
           </div>
         </div>
