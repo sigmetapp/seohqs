@@ -135,6 +135,7 @@ export default function Navigation() {
 
   const navItems: Array<{ href: string; labelKey: string }> = [
     { href: '/embed', labelKey: 'Slotget' },
+    { href: '/tabsgen', labelKey: 'TabsGen' },
     { href: '/logchecker', labelKey: 'Logchecker' },
   ];
 
@@ -171,7 +172,7 @@ export default function Navigation() {
                         : 'border-transparent text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-300'
                     }`}
                   >
-                    {item.labelKey === 'Slotget' ? 'Slotget' : item.labelKey === 'Logchecker' ? 'Logchecker' : t(item.labelKey)}
+                    {item.labelKey === 'Slotget' ? 'Slotget' : item.labelKey === 'TabsGen' ? 'TabsGen' : item.labelKey === 'Logchecker' ? 'Logchecker' : t(item.labelKey)}
                   </Link>
                 );
               })}
@@ -291,7 +292,7 @@ export default function Navigation() {
                     : 'border-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
-                {item.labelKey === 'Content Generator' ? 'Content Generator' : item.labelKey === 'Humanize' ? 'Humanize' : item.labelKey === 'Logchecker' ? 'Logchecker' : t(item.labelKey)}
+                {item.labelKey === 'Content Generator' ? 'Content Generator' : item.labelKey === 'Humanize' ? 'Humanize' : item.labelKey === 'TabsGen' ? 'TabsGen' : item.labelKey === 'Logchecker' ? 'Logchecker' : t(item.labelKey)}
               </Link>
             );
           })}
