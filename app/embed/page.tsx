@@ -3,12 +3,20 @@
 import { useState } from 'react';
 import InteractiveSlot from '../components/InteractiveSlot';
 
+type Theme = 'neon' | 'luxury' | 'vibrant';
+
 export default function EmbedPage() {
-  const [brandName, setBrandName] = useState('Ваш бренд');
+  const [brandName, setBrandName] = useState('My Casino');
   const [copied, setCopied] = useState(false);
-  const [customValues1, setCustomValues1] = useState('🎁,💎,⭐,🏆,🎯,💫');
-  const [customValues2, setCustomValues2] = useState('Скидка,Бонус,Подарок,Акция,Приз,Выигрыш');
-  const [customValues3, setCustomValues3] = useState('10%,20%,30%,50%,100%,200%');
+  const [offerUrl, setOfferUrl] = useState('https://example.com/signup');
+  const [language, setLanguage] = useState('ru');
+  const [theme, setTheme] = useState<Theme>('neon');
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  
+  // Use symbols/emojis as defaults instead of long text
+  const [customValues1, setCustomValues1] = useState('🍒,🍋,🍇,🍉,🔔,💎');
+  const [customValues2, setCustomValues2] = useState('7️⃣,🍀,🎲,🎰,🃏,👑');
+  const [customValues3, setCustomValues3] = useState('💰,💵,🪙,🧧,🏦,💳');
 
   const generateEmbedCode = () => {
     const values1Array = customValues1.split(',').map(v => v.trim()).filter(Boolean);
@@ -25,6 +33,10 @@ export default function EmbedPage() {
     script.setAttribute('data-values1', '${values1Array.join(',')}');
     script.setAttribute('data-values2', '${values2Array.join(',')}');
     script.setAttribute('data-values3', '${values3Array.join(',')}');
+    script.setAttribute('data-offer-url', '${offerUrl}');
+    script.setAttribute('data-language', '${language}');
+    script.setAttribute('data-theme', '${theme}');
+    script.setAttribute('data-sound', '${soundEnabled}');
     document.head.appendChild(script);
   })();
 </script>
@@ -44,6 +56,12 @@ export default function EmbedPage() {
   const values2Array = customValues2.split(',').map(v => v.trim()).filter(Boolean);
   const values3Array = customValues3.split(',').map(v => v.trim()).filter(Boolean);
 
+  const tabs: { id: Theme; label: string; icon: string }[] = [
+    { id: 'neon', label: 'Classic Neon', icon: '🎰' },
+    { id: 'luxury', label: 'Royal Luxury', icon: '👑' },
+    { id: 'vibrant', label: 'Vibrant Pop', icon: '🍬' },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -58,18 +76,46 @@ export default function EmbedPage() {
           </p>
         </div>
 
+        {/* Theme Tabs */}
+        <div className="flex justify-center mb-10">
+          <div className="bg-white dark:bg-gray-800 p-1 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 inline-flex">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setTheme(tab.id)}
+                className={`
+                  flex items-center gap-2 px-6 py-3 rounded-lg font-bold text-sm sm:text-base transition-all
+                  ${theme === tab.id 
+                    ? 'bg-blue-600 text-white shadow-lg scale-105' 
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}
+                `}
+              >
+                <span className="text-xl">{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Preview Section */}
           <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-6xl rotate-12 select-none">
+                PREVIEW
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 relative z-10">
                 Предпросмотр
               </h2>
               <InteractiveSlot
                 brandName={brandName}
-                values1={values1Array.length > 0 ? values1Array : ['🎁', '💎', '⭐']}
-                values2={values2Array.length > 0 ? values2Array : ['Скидка', 'Бонус', 'Подарок']}
-                values3={values3Array.length > 0 ? values3Array : ['10%', '20%', '30%']}
+                values1={values1Array.length > 0 ? values1Array : ['🍒', '🍋', '🔔']}
+                values2={values2Array.length > 0 ? values2Array : ['7️⃣', '🍀', '💎']}
+                values3={values3Array.length > 0 ? values3Array : ['💰', '💵', '🪙']}
+                offerUrl={offerUrl}
+                language={language}
+                theme={theme}
+                soundEnabled={soundEnabled}
               />
             </div>
           </div>
@@ -96,6 +142,49 @@ export default function EmbedPage() {
                 </div>
 
                 <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Ссылка на оффер (для кнопки "Играть")
+                    </label>
+                    <input
+                        type="url"
+                        value={offerUrl}
+                        onChange={(e) => setOfferUrl(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="https://example.com/signup"
+                    />
+                </div>
+
+                <div className="flex items-center space-x-3 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <input
+                        type="checkbox"
+                        id="soundEnabled"
+                        checked={soundEnabled}
+                        onChange={(e) => setSoundEnabled(e.target.checked)}
+                        className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                    />
+                    <label htmlFor="soundEnabled" className="text-sm font-medium text-gray-900 dark:text-white select-none cursor-pointer">
+                        Включить звуковые эффекты 🔊
+                    </label>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Язык интерфейса
+                    </label>
+                    <select
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                        <option value="ru">Русский</option>
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                        <option value="fr">Français</option>
+                        <option value="de">Deutsch</option>
+                    </select>
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Значения для первого колеса (через запятую)
                   </label>
@@ -104,7 +193,7 @@ export default function EmbedPage() {
                     value={customValues1}
                     onChange={(e) => setCustomValues1(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="🎁,💎,⭐,🏆,🎯,💫"
+                    placeholder="🍒,🍋,🍇,🍉,🔔,💎"
                   />
                 </div>
 
@@ -117,7 +206,7 @@ export default function EmbedPage() {
                     value={customValues2}
                     onChange={(e) => setCustomValues2(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Скидка,Бонус,Подарок,Акция,Приз,Выигрыш"
+                    placeholder="7️⃣,🍀,🎲,🎰,🃏,👑"
                   />
                 </div>
 
@@ -130,7 +219,7 @@ export default function EmbedPage() {
                     value={customValues3}
                     onChange={(e) => setCustomValues3(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="10%,20%,30%,50%,100%,200%"
+                    placeholder="💰,💵,🪙,🧧,🏦,💳"
                   />
                 </div>
               </div>

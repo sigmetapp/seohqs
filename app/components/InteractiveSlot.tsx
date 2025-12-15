@@ -10,33 +10,23 @@ interface SlotWheelProps {
   result?: string;
   onSpinComplete?: () => void;
   index: number;
+  theme: 'neon' | 'luxury' | 'vibrant';
 }
 
-function SlotWheel({ values, spinning, result, onSpinComplete, index }: SlotWheelProps) {
+function ClassicWheel({ values, spinning, result, onSpinComplete, index }: SlotWheelProps) {
   const [displayValue, setDisplayValue] = useState(values[0]);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [position, setPosition] = useState(0);
 
   useEffect(() => {
     if (spinning) {
-      setIsAnimating(true);
-      setPosition(0);
-      
       const interval = setInterval(() => {
         const randomIndex = Math.floor(Math.random() * values.length);
         setDisplayValue(values[randomIndex]);
-        setPosition(prev => prev + 1);
       }, 50);
 
       const timeout = setTimeout(() => {
         clearInterval(interval);
-        if (result) {
-          setDisplayValue(result);
-        }
-        setIsAnimating(false);
-        if (onSpinComplete) {
-          setTimeout(onSpinComplete, 300);
-        }
+        if (result) setDisplayValue(result);
+        if (onSpinComplete) setTimeout(onSpinComplete, 300);
       }, 2000 + index * 200);
 
       return () => {
@@ -47,160 +37,95 @@ function SlotWheel({ values, spinning, result, onSpinComplete, index }: SlotWhee
   }, [spinning, result, values, onSpinComplete, index]);
 
   return (
-    <motion.div
-      className="relative w-40 h-52 mx-2 overflow-hidden rounded-3xl"
-      initial={false}
-      animate={{
-        scale: spinning ? [1, 1.1, 1] : 1,
-        rotate: spinning ? [0, 2, -2, 0] : 0,
-        boxShadow: spinning
-          ? '0 0 40px rgba(255, 215, 0, 1), 0 0 80px rgba(255, 165, 0, 0.8), 0 0 120px rgba(255, 140, 0, 0.6)'
-          : '0 0 25px rgba(255, 215, 0, 0.5), 0 0 50px rgba(255, 165, 0, 0.3)',
-      }}
-      transition={{ duration: 0.2, repeat: spinning ? Infinity : 0 }}
-    >
-      {/* Animated rainbow background */}
+    <div className="relative w-24 h-32 sm:w-32 sm:h-40 mx-1 sm:mx-2 overflow-hidden bg-gradient-to-b from-gray-100 to-gray-200 border-x-2 border-gray-400 shadow-[inset_0_0_10px_rgba(0,0,0,0.2)] rounded-lg">
       <motion.div
-        className="absolute inset-0"
-        animate={spinning ? {
-          background: [
-            'linear-gradient(135deg, #fbbf24, #f97316, #dc2626)',
-            'linear-gradient(135deg, #ec4899, #8b5cf6, #3b82f6)',
-            'linear-gradient(135deg, #10b981, #f59e0b, #ef4444)',
-            'linear-gradient(135deg, #fbbf24, #f97316, #dc2626)',
-          ],
-        } : {
-          background: 'linear-gradient(135deg, #fbbf24, #f97316, #dc2626)',
-        }}
-        transition={{ duration: 0.5, repeat: spinning ? Infinity : 0 }}
-      />
+        className="absolute inset-0 flex items-center justify-center"
+        animate={{ y: spinning ? [0, -10, 0] : 0, filter: spinning ? "blur(1px)" : "none" }}
+        transition={{ duration: 0.1, repeat: spinning ? Infinity : 0 }}
+      >
+        <span className="text-3xl sm:text-4xl font-bold text-gray-800">{displayValue}</span>
+      </motion.div>
+      <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-black/30 to-transparent pointer-events-none z-10"></div>
+      <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-black/30 to-transparent pointer-events-none z-10"></div>
+      <div className="absolute top-1/2 left-0 right-0 h-10 -translate-y-1/2 bg-gradient-to-b from-white/0 via-white/50 to-white/0 pointer-events-none z-10"></div>
+    </div>
+  );
+}
+
+function ModernWheel({ values, spinning, result, onSpinComplete, index }: SlotWheelProps) {
+  const [displayValue, setDisplayValue] = useState(values[0]);
+
+  useEffect(() => {
+    if (spinning) {
+      const interval = setInterval(() => {
+        const randomIndex = Math.floor(Math.random() * values.length);
+        setDisplayValue(values[randomIndex]);
+      }, 30); // Faster updates for digital feel
+
+      const timeout = setTimeout(() => {
+        clearInterval(interval);
+        if (result) setDisplayValue(result);
+        if (onSpinComplete) setTimeout(onSpinComplete, 100); // Snappier stop
+      }, 1500 + index * 100); // Faster sequence
+
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      };
+    }
+  }, [spinning, result, values, onSpinComplete, index]);
+
+  return (
+    <div className="relative w-24 h-32 sm:w-32 sm:h-40 mx-1 sm:mx-2 overflow-hidden bg-black border border-yellow-600/30 rounded-none">
       <motion.div
-        className="absolute inset-0 bg-gradient-to-b from-purple-600 via-pink-600 to-red-600 opacity-80"
-        animate={spinning ? {
-          opacity: [0.8, 0.4, 0.8],
-        } : {}}
-        transition={{ duration: 0.3, repeat: spinning ? Infinity : 0 }}
-      />
-      
-      {/* Animated metallic border with glow */}
-      <motion.div
-        className="absolute inset-0 rounded-3xl border-4"
-        animate={spinning ? {
-          borderColor: [
-            'rgba(255, 215, 0, 1)',
-            'rgba(255, 140, 0, 1)',
-            'rgba(255, 20, 147, 1)',
-            'rgba(255, 215, 0, 1)',
-          ],
-          boxShadow: [
-            'inset 0 0 30px rgba(255, 215, 0, 0.8)',
-            'inset 0 0 30px rgba(255, 140, 0, 0.8)',
-            'inset 0 0 30px rgba(255, 20, 147, 0.8)',
-            'inset 0 0 30px rgba(255, 215, 0, 0.8)',
-          ],
-        } : {
-          borderColor: 'rgba(255, 215, 0, 0.8)',
-          boxShadow: 'inset 0 0 20px rgba(255, 215, 0, 0.5)',
-        }}
-        transition={{ duration: 0.3, repeat: spinning ? Infinity : 0 }}
-      />
-      
-      {/* Content */}
-      <div className="relative h-full flex items-center justify-center z-10">
-        <motion.div
-          className="text-5xl font-black"
-          animate={{
-            y: spinning ? [0, -25, 0] : 0,
-            scale: spinning ? [1, 1.3, 1] : 1,
-            rotate: spinning ? [0, 10, -10, 0] : 0,
-          }}
-          transition={{
-            duration: 0.1,
-            repeat: spinning ? Infinity : 0,
-            ease: 'easeInOut',
-          }}
-          style={{
-            textShadow: '0 0 15px rgba(255, 255, 255, 1), 0 0 30px rgba(255, 215, 0, 0.8), 0 0 45px rgba(255, 165, 0, 0.6), 0 0 60px rgba(255, 140, 0, 0.4)',
-            filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 1))',
-          }}
-        >
+        className="absolute inset-0 flex items-center justify-center"
+        animate={{ opacity: spinning ? [0.5, 1, 0.5] : 1, scale: spinning ? [0.9, 1.1, 0.9] : 1 }}
+        transition={{ duration: 0.2, repeat: spinning ? Infinity : 0 }}
+      >
+        <span className="text-4xl sm:text-5xl font-mono text-yellow-100 drop-shadow-[0_0_10px_rgba(253,224,71,0.8)]">
           {displayValue}
-        </motion.div>
-      </div>
+        </span>
+      </motion.div>
+      {/* Scanlines */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-20 bg-[length:100%_2px,3px_100%] pointer-events-none"></div>
+    </div>
+  );
+}
 
-      {/* Top overlay with shine */}
-      <div className="absolute top-0 left-0 right-0 h-1/3 bg-gradient-to-b from-white/70 via-white/30 to-transparent pointer-events-none z-20"></div>
-      
-      {/* Bottom overlay */}
-      <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none z-20"></div>
-      
-      {/* Multiple animated shine effects */}
-      {spinning && (
-        <>
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent z-30"
-            initial={{ x: '-100%', rotate: -15 }}
-            animate={{ x: '200%', rotate: -15 }}
-            transition={{
-              duration: 0.5,
-              repeat: Infinity,
-              ease: 'linear',
-            }}
-          />
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-300/40 to-transparent z-30"
-            initial={{ x: '-100%', rotate: 15 }}
-            animate={{ x: '200%', rotate: 15 }}
-            transition={{
-              duration: 0.7,
-              repeat: Infinity,
-              ease: 'linear',
-              delay: 0.2,
-            }}
-          />
-        </>
-      )}
+function RetroWheel({ values, spinning, result, onSpinComplete, index }: SlotWheelProps) {
+  const [displayValue, setDisplayValue] = useState(values[0]);
 
-      {/* Enhanced glow particles */}
-      {spinning && (
-        <div className="absolute inset-0 pointer-events-none z-10">
-          {[...Array(10)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute rounded-full"
-              style={{
-                width: `${4 + Math.random() * 4}px`,
-                height: `${4 + Math.random() * 4}px`,
-                background: i % 3 === 0 ? '#fbbf24' : i % 3 === 1 ? '#f97316' : '#ec4899',
-                boxShadow: `0 0 ${10 + Math.random() * 10}px ${i % 3 === 0 ? '#fbbf24' : i % 3 === 1 ? '#f97316' : '#ec4899'}`,
-              }}
-              initial={{
-                x: '50%',
-                y: '50%',
-                opacity: 0,
-              }}
-              animate={{
-                x: `${Math.random() * 100}%`,
-                y: `${Math.random() * 100}%`,
-                opacity: [0, 1, 0],
-                scale: [0, 2, 0],
-              }}
-              transition={{
-                duration: 1 + Math.random(),
-                repeat: Infinity,
-                delay: i * 0.15,
-              }}
-            />
-          ))}
-        </div>
-      )}
+  useEffect(() => {
+    if (spinning) {
+      const interval = setInterval(() => {
+        const randomIndex = Math.floor(Math.random() * values.length);
+        setDisplayValue(values[randomIndex]);
+      }, 80); // Slower, clunkier feel
 
-      {/* Corner decorations */}
-      <div className="absolute top-2 left-2 w-3 h-3 bg-yellow-300 rounded-full opacity-80 z-20" style={{ boxShadow: '0 0 10px rgba(255, 215, 0, 0.8)' }}></div>
-      <div className="absolute top-2 right-2 w-3 h-3 bg-yellow-300 rounded-full opacity-80 z-20" style={{ boxShadow: '0 0 10px rgba(255, 215, 0, 0.8)' }}></div>
-      <div className="absolute bottom-2 left-2 w-3 h-3 bg-yellow-300 rounded-full opacity-80 z-20" style={{ boxShadow: '0 0 10px rgba(255, 215, 0, 0.8)' }}></div>
-      <div className="absolute bottom-2 right-2 w-3 h-3 bg-yellow-300 rounded-full opacity-80 z-20" style={{ boxShadow: '0 0 10px rgba(255, 215, 0, 0.8)' }}></div>
-    </motion.div>
+      const timeout = setTimeout(() => {
+        clearInterval(interval);
+        if (result) setDisplayValue(result);
+        if (onSpinComplete) setTimeout(onSpinComplete, 400);
+      }, 2500 + index * 400); // Longer sequence
+
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      };
+    }
+  }, [spinning, result, values, onSpinComplete, index]);
+
+  return (
+    <div className="relative w-24 h-32 sm:w-32 sm:h-40 mx-1 sm:mx-2 overflow-hidden bg-white border-4 border-pink-500 rounded-2xl shadow-[inset_0_0_20px_rgba(236,72,153,0.3)]">
+      <motion.div
+        className="absolute inset-0 flex items-center justify-center"
+        animate={spinning ? { y: ['-100%', '100%'] } : { y: 0 }}
+        transition={spinning ? { duration: 0.2, repeat: Infinity, ease: "linear" } : { type: "spring", stiffness: 300, damping: 15 }}
+      >
+        <span className="text-4xl sm:text-5xl font-black text-pink-600">{displayValue}</span>
+      </motion.div>
+      <div className="absolute inset-0 border-4 border-white/50 rounded-xl pointer-events-none z-20"></div>
+    </div>
   );
 }
 
@@ -209,20 +134,142 @@ interface InteractiveSlotProps {
   values1?: string[];
   values2?: string[];
   values3?: string[];
+  offerUrl?: string;
+  language?: string;
+  theme?: 'neon' | 'luxury' | 'vibrant';
+  soundEnabled?: boolean;
 }
 
+const TRANSLATIONS = {
+    ru: { spin: 'Крутить', spinning: 'Крутится...', win: 'Победа!', playReal: 'Играть на деньги', congrats: 'Поздравляем! Вы выиграли!' },
+    en: { spin: 'SPIN', spinning: 'SPINNING...', win: 'WIN!', playReal: 'PLAY FOR REAL MONEY', congrats: 'Congratulations! You won!' },
+    es: { spin: 'GIRAR', spinning: 'GIRANDO...', win: '¡GANASTE!', playReal: 'JUGAR CON DINERO REAL', congrats: '¡Felicidades! ¡Ganaste!' },
+    fr: { spin: 'TOURNER', spinning: 'TOURNE...', win: 'GAGNÉ !', playReal: "JOUER POUR DE L'ARGENT", congrats: 'Félicitations ! Vous avez gagné !' },
+    de: { spin: 'DREHEN', spinning: 'DREHT SICH...', win: 'GEWONNEN!', playReal: 'UM ECHTES GELD SPIELEN', congrats: 'Herzlichen Glückwunsch! Sie haben gewonnen!' }
+} as const;
+
+const THEME_STYLES = {
+  neon: {
+    container: 'bg-gray-900 border-gray-800',
+    background: 'bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900 via-gray-900 to-black',
+    lights: 'border-yellow-500/50',
+    headerBox: 'bg-black/60 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.3)]',
+    headerText: 'from-yellow-200 via-yellow-400 to-yellow-600',
+    screen: 'from-gray-800 to-black border-yellow-600/60',
+    payline: 'bg-red-500/50',
+    arrow: 'border-l-red-500',
+    button: 'from-red-500 to-red-700 border-red-400 shadow-[0_6px_0_rgb(180,0,0),0_10px_20px_rgba(0,0,0,0.4)]',
+    buttonCta: 'from-green-500 to-green-700 border-green-400 shadow-[0_0_20px_rgba(34,197,94,0.6)]',
+    resultBox: 'bg-black/80 border-yellow-500/40 shadow-[0_0_20px_rgba(234,179,8,0.2)]',
+    resultText: 'text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.8)]'
+  },
+  luxury: {
+    container: 'bg-black border-yellow-900 rounded-none',
+    background: 'bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-yellow-900/20 via-black to-black',
+    lights: 'border-yellow-400/20',
+    headerBox: 'bg-transparent border-b border-yellow-600/50 rounded-none shadow-none',
+    headerText: 'from-yellow-100 via-yellow-200 to-yellow-400 font-serif tracking-widest',
+    screen: 'bg-black border-x-0 border-y-2 border-yellow-500/50 rounded-none shadow-none',
+    payline: 'bg-yellow-500/30',
+    arrow: 'border-l-yellow-600',
+    button: 'from-gray-800 to-black border-yellow-600/50 shadow-[0_0_15px_rgba(234,179,8,0.2)] font-serif',
+    buttonCta: 'from-yellow-600 to-yellow-800 border-yellow-400 shadow-[0_0_25px_rgba(234,179,8,0.4)]',
+    resultBox: 'bg-black/90 border-t border-b border-yellow-500/50 rounded-none shadow-none',
+    resultText: 'text-yellow-100 font-serif tracking-widest'
+  },
+  vibrant: {
+    container: 'bg-indigo-500 border-b-8 border-r-8 border-indigo-700 rounded-3xl',
+    background: 'bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-pink-400 via-purple-500 to-indigo-500',
+    lights: 'border-white/40 border-dashed',
+    headerBox: 'bg-white text-indigo-600 border-4 border-indigo-200 shadow-[4px_4px_0_rgba(0,0,0,0.2)]',
+    headerText: 'text-indigo-600 font-black',
+    screen: 'bg-indigo-800 border-4 border-white/50 rounded-2xl shadow-inner',
+    payline: 'bg-pink-400',
+    arrow: 'border-l-pink-400',
+    button: 'bg-pink-500 border-b-4 border-pink-700 shadow-lg hover:translate-y-1 active:border-b-0 active:translate-y-2 text-white',
+    buttonCta: 'bg-cyan-400 border-b-4 border-cyan-600 shadow-lg text-white hover:translate-y-1 active:border-b-0',
+    resultBox: 'bg-white border-4 border-indigo-300 rounded-xl shadow-xl transform -rotate-1',
+    resultText: 'text-indigo-600 font-black'
+  }
+};
+
 export default function InteractiveSlot({
-  brandName = 'Ваш бренд',
-  values1 = ['🎁', '💎', '⭐', '🏆', '🎯', '💫'],
-  values2 = ['Скидка', 'Бонус', 'Подарок', 'Акция', 'Приз', 'Выигрыш'],
-  values3 = ['10%', '20%', '30%', '50%', '100%', '200%'],
+  brandName = 'CASINO',
+  values1 = ['🍒', '🍋', '🍇', '🍉', '🔔', '💎'],
+  values2 = ['7️⃣', '🍀', '🎲', '🎰', '🃏', '👑'],
+  values3 = ['💰', '💵', '🪙', '🧧', '🏦', '💳'],
+  offerUrl = '#',
+  language = 'ru',
+  theme = 'neon',
+  soundEnabled = false
 }: InteractiveSlotProps) {
   const [spinning, setSpinning] = useState(false);
   const [results, setResults] = useState<[string, string, string] | null>(null);
   const [combination, setCombination] = useState<string>('');
   const [showConfetti, setShowConfetti] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  const [spinFinished, setSpinFinished] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  const texts = TRANSLATIONS[language as keyof typeof TRANSLATIONS] || TRANSLATIONS.en;
+  const styles = THEME_STYLES[theme];
+
+  // Sound logic
+  const playSound = (type: 'spin' | 'stop' | 'win') => {
+    if (!soundEnabled || typeof window === 'undefined') return;
+    
+    try {
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioContext) return;
+        
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        const now = ctx.currentTime;
+        
+        if (type === 'spin') {
+            // High pitch rapid beeps
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+            osc.start(now);
+            osc.stop(now + 0.1);
+        } else if (type === 'stop') {
+            // Heavy thud
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(100, now);
+            osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            osc.start(now);
+            osc.stop(now + 0.2);
+        } else if (type === 'win') {
+            // Major chord arpeggio
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C major
+            notes.forEach((freq, i) => {
+                const oscN = ctx.createOscillator();
+                const gainN = ctx.createGain();
+                oscN.connect(gainN);
+                gainN.connect(ctx.destination);
+                oscN.type = 'sine';
+                oscN.frequency.value = freq;
+                gainN.gain.setValueAtTime(0, now + i * 0.1);
+                gainN.gain.linearRampToValueAtTime(0.1, now + i * 0.1 + 0.05);
+                gainN.gain.exponentialRampToValueAtTime(0.01, now + i * 0.1 + 0.5);
+                oscN.start(now + i * 0.1);
+                oscN.stop(now + i * 0.1 + 0.6);
+            });
+        }
+    } catch (e) {
+        console.error('Audio playback failed', e);
+    }
+  };
 
   useEffect(() => {
     const updateSize = () => {
@@ -236,15 +283,6 @@ export default function InteractiveSlot({
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  const combinations: Record<string, string> = {
-    '🎁-Скидка-10%': '🎉 Поздравляем! Вы получили подарок со скидкой 10%!',
-    '💎-Бонус-20%': '✨ Отлично! Драгоценный бонус 20% ваш!',
-    '⭐-Подарок-30%': '🌟 Удивительно! Звездный подарок 30%!',
-    '🏆-Акция-50%': '🏅 Потрясающе! Трофейная акция 50%!',
-    '🎯-Приз-100%': '🎊 Невероятно! Точно в цель - приз 100%!',
-    '💫-Выигрыш-200%': '🚀 Фантастика! Максимальный выигрыш 200%!',
-  };
-
   const [wheel1Spinning, setWheel1Spinning] = useState(false);
   const [wheel2Spinning, setWheel2Spinning] = useState(false);
   const [wheel3Spinning, setWheel3Spinning] = useState(false);
@@ -256,338 +294,197 @@ export default function InteractiveSlot({
     setResults(null);
     setCombination('');
     setShowConfetti(false);
+    setSpinFinished(false);
+    
+    // Play start sound
+    if (soundEnabled) {
+        playSound('spin');
+        // Loop spin sound effect roughly
+        const spinSoundInterval = setInterval(() => playSound('spin'), 150);
+        setTimeout(() => clearInterval(spinSoundInterval), 1500); // Stop when first wheel stops mostly
+    }
 
-    // Генерируем случайные результаты
+    // Generate results
     const result1 = values1[Math.floor(Math.random() * values1.length)];
     const result2 = values2[Math.floor(Math.random() * values2.length)];
     const result3 = values3[Math.floor(Math.random() * values3.length)];
 
-    // Запускаем первое колесо
+    // Timing varies by theme
+    const baseDelay = theme === 'luxury' ? 1000 : theme === 'vibrant' ? 2000 : 1500;
+    const stagger = theme === 'luxury' ? 200 : theme === 'vibrant' ? 600 : 500;
+
+    // Start
     setWheel1Spinning(true);
     setTimeout(() => {
       setWheel1Spinning(false);
       setResults(prev => prev ? [result1, prev[1], prev[2]] : [result1, '', '']);
+      playSound('stop');
       
-      // Запускаем второе колесо
       setWheel2Spinning(true);
       setTimeout(() => {
         setWheel2Spinning(false);
         setResults(prev => prev ? [prev[0], result2, prev[2]] : [result1, result2, '']);
+        playSound('stop');
         
-        // Запускаем третье колесо
         setWheel3Spinning(true);
         setTimeout(() => {
           setWheel3Spinning(false);
           setResults([result1, result2, result3]);
           setSpinning(false);
+          playSound('stop');
 
-          // Проверяем комбинацию
-          const combo = `${result1}-${result2}-${result3}`;
-          if (combinations[combo]) {
-            setCombination(combinations[combo]);
-            setShowConfetti(true);
-            setTimeout(() => setShowConfetti(false), 5000);
-          } else {
-            setCombination(`🎲 Выпало: ${result1} ${result2} ${result3}`);
-          }
-        }, 2000);
-      }, 2000);
-    }, 2000);
+          setCombination(`${texts.congrats} ${result1} ${result2} ${result3}`);
+          setShowConfetti(true);
+          playSound('win');
+          setSpinFinished(true);
+          
+          setTimeout(() => setShowConfetti(false), 5000);
+        }, baseDelay);
+      }, baseDelay);
+    }, baseDelay);
   };
 
-  const isWin = combination && Object.values(combinations).includes(combination);
+  const isWin = !!combination;
+
+  // Determine Wheel Component
+  const WheelComponent = theme === 'luxury' ? ModernWheel : theme === 'vibrant' ? RetroWheel : ClassicWheel;
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-4xl mx-auto">
+    <div ref={containerRef} className="relative w-full max-w-4xl mx-auto font-sans">
       {showConfetti && (
         <Confetti
           width={windowSize.width || window.innerWidth}
           height={windowSize.height || window.innerHeight}
           recycle={false}
-          numberOfPieces={800}
-          gravity={0.3}
-          colors={['#fbbf24', '#f97316', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981']}
+          numberOfPieces={500}
         />
       )}
 
-      <motion.div
-        className="relative p-10 rounded-3xl shadow-2xl border-4 overflow-hidden"
-        initial={false}
-        animate={{
-          background: spinning
-            ? [
-                'linear-gradient(135deg, #1e1b4b 0%, #312e81 25%, #581c87 50%, #7c2d12 75%, #991b1b 100%)',
-                'linear-gradient(135deg, #312e81 0%, #581c87 25%, #7c2d12 50%, #991b1b 75%, #1e1b4b 100%)',
-                'linear-gradient(135deg, #1e1b4b 0%, #312e81 25%, #581c87 50%, #7c2d12 75%, #991b1b 100%)',
-              ]
-            : 'linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #312e81 50%, #581c87 75%, #7c2d12 100%)',
-          borderColor: spinning
-            ? [
-                'rgba(255, 215, 0, 1)',
-                'rgba(255, 140, 0, 1)',
-                'rgba(255, 20, 147, 1)',
-                'rgba(255, 215, 0, 1)',
-              ]
-            : 'rgba(255, 215, 0, 0.6)',
-          boxShadow: spinning
-            ? [
-                '0 0 60px rgba(255, 215, 0, 0.8), 0 0 120px rgba(255, 165, 0, 0.6), 0 0 180px rgba(255, 140, 0, 0.4), inset 0 0 60px rgba(255, 215, 0, 0.3)',
-                '0 0 60px rgba(255, 140, 0, 0.8), 0 0 120px rgba(255, 20, 147, 0.6), 0 0 180px rgba(255, 215, 0, 0.4), inset 0 0 60px rgba(255, 140, 0, 0.3)',
-                '0 0 60px rgba(255, 215, 0, 0.8), 0 0 120px rgba(255, 165, 0, 0.6), 0 0 180px rgba(255, 140, 0, 0.4), inset 0 0 60px rgba(255, 215, 0, 0.3)',
-              ]
-            : '0 0 40px rgba(255, 215, 0, 0.4), 0 0 80px rgba(255, 165, 0, 0.3), inset 0 0 40px rgba(255, 215, 0, 0.15)',
-        }}
-        transition={{ duration: 0.5, repeat: spinning ? Infinity : 0 }}
-      >
-        {/* Animated background particles - more and brighter */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(40)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute rounded-full"
-              style={{
-                width: `${2 + Math.random() * 3}px`,
-                height: `${2 + Math.random() * 3}px`,
-                background: i % 4 === 0 ? '#fbbf24' : i % 4 === 1 ? '#f97316' : i % 4 === 2 ? '#ec4899' : '#8b5cf6',
-                boxShadow: `0 0 ${8 + Math.random() * 8}px ${i % 4 === 0 ? '#fbbf24' : i % 4 === 1 ? '#f97316' : i % 4 === 2 ? '#ec4899' : '#8b5cf6'}`,
-              }}
-              initial={{
-                x: Math.random() * 100 + '%',
-                y: Math.random() * 100 + '%',
-                opacity: 0,
-              }}
-              animate={{
-                y: [null, Math.random() * 100 + '%'],
-                opacity: [0, 1, 0],
-                scale: [0, 1.5, 0],
-              }}
-              transition={{
-                duration: 2 + Math.random() * 3,
-                repeat: Infinity,
-                delay: Math.random() * 2,
-              }}
-            />
-          ))}
+      {/* Casino Machine Cabinet */}
+      <div className={`relative p-6 sm:p-10 rounded-[30px] shadow-2xl overflow-hidden border-4 ${styles.container}`}>
+        
+        {/* Background Texture */}
+        <div className={`absolute inset-0 opacity-40 ${styles.background}`}></div>
+        
+        {/* Lights Border */}
+        <div className={`absolute inset-2 border-2 border-dashed rounded-[20px] pointer-events-none animate-pulse ${styles.lights}`}></div>
+
+        {/* Top Header */}
+        <div className="relative z-10 text-center mb-6">
+          <div className={`inline-block px-8 py-2 rounded-full border backdrop-blur-sm ${styles.headerBox}`}>
+            <h2 className={`text-3xl sm:text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r ${styles.headerText}`}>
+              {brandName}
+            </h2>
+          </div>
         </div>
 
-        {/* Animated gradient overlay */}
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-yellow-500/20 via-pink-500/20 to-purple-500/20 pointer-events-none"
-          animate={spinning ? {
-            opacity: [0.2, 0.5, 0.2],
-            background: [
-              'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(236, 72, 153, 0.2), rgba(139, 92, 246, 0.2))',
-              'linear-gradient(135deg, rgba(236, 72, 153, 0.3), rgba(139, 92, 246, 0.3), rgba(251, 191, 36, 0.3))',
-              'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(236, 72, 153, 0.2), rgba(139, 92, 246, 0.2))',
-            ],
-          } : {}}
-          transition={{ duration: 1, repeat: spinning ? Infinity : 0 }}
-        />
+        {/* Slot Screen Area */}
+        <div className={`relative bg-gradient-to-b rounded-xl border-4 shadow-inner mb-8 ${styles.screen}`}>
+            {/* Screen Glare */}
+            {theme === 'neon' && <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-bl from-white/5 to-transparent pointer-events-none rounded-lg z-20"></div>}
 
-        {/* Content */}
-        <div className="relative z-10">
-          <motion.div
-            className="text-center mb-10"
-            initial={false}
-            animate={{
-              scale: spinning ? [1, 1.08, 1] : 1,
-            }}
-            transition={{ duration: 0.3, repeat: spinning ? Infinity : 0 }}
-          >
-            <motion.h2
-              className="text-5xl md:text-6xl font-black mb-4"
-              animate={spinning ? {
-                background: [
-                  'linear-gradient(90deg, #fbbf24, #f97316, #ec4899)',
-                  'linear-gradient(90deg, #ec4899, #8b5cf6, #3b82f6)',
-                  'linear-gradient(90deg, #3b82f6, #10b981, #fbbf24)',
-                  'linear-gradient(90deg, #fbbf24, #f97316, #ec4899)',
-                ],
-              } : {
-                background: 'linear-gradient(90deg, #fbbf24, #f97316, #ec4899)',
-              }}
-              transition={{ duration: 0.5, repeat: spinning ? Infinity : 0 }}
-              style={{
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                textShadow: '0 0 30px rgba(255, 215, 0, 0.6)',
-                filter: 'drop-shadow(0 0 15px rgba(255, 215, 0, 0.9))',
-              }}
-            >
-              {brandName}
-            </motion.h2>
-            <motion.p
-              className="text-2xl text-yellow-200 font-bold"
-              animate={spinning ? {
-                scale: [1, 1.05, 1],
-                textShadow: [
-                  '0 0 10px rgba(255, 215, 0, 0.8)',
-                  '0 0 20px rgba(255, 215, 0, 1)',
-                  '0 0 10px rgba(255, 215, 0, 0.8)',
-                ],
-              } : {}}
-              transition={{ duration: 0.5, repeat: spinning ? Infinity : 0 }}
-            >
-              Крутите слот и выигрывайте призы!
-            </motion.p>
-          </motion.div>
-
-          <div className="flex justify-center items-center mb-10 relative">
-            {/* Connecting lines between wheels */}
-            <motion.div
-              className="absolute top-1/2 left-1/2 w-full h-1 bg-gradient-to-r from-transparent via-yellow-400 to-transparent -translate-y-1/2 -translate-x-1/2 z-0"
-              animate={spinning ? {
-                opacity: [0.3, 0.8, 0.3],
-                scaleX: [1, 1.1, 1],
-              } : {
-                opacity: 0.2,
-              }}
-              transition={{ duration: 0.3, repeat: spinning ? Infinity : 0 }}
-            />
+            <div className={`flex justify-center items-center gap-2 sm:gap-4 py-4 px-2 rounded-lg shadow-inner ${theme === 'vibrant' ? 'bg-indigo-900/50' : 'bg-black/40'}`}>
+                <WheelComponent
+                    values={values1}
+                    spinning={wheel1Spinning}
+                    result={results?.[0]}
+                    index={0}
+                    theme={theme}
+                />
+                <WheelComponent
+                    values={values2}
+                    spinning={wheel2Spinning}
+                    result={results?.[1]}
+                    index={1}
+                    theme={theme}
+                />
+                <WheelComponent
+                    values={values3}
+                    spinning={wheel3Spinning}
+                    result={results?.[2]}
+                    index={2}
+                    theme={theme}
+                />
+            </div>
             
-            <SlotWheel
-              values={values1}
-              spinning={wheel1Spinning}
-              result={results?.[0]}
-              onSpinComplete={() => {}}
-              index={0}
-            />
-            <SlotWheel
-              values={values2}
-              spinning={wheel2Spinning}
-              result={results?.[1]}
-              onSpinComplete={() => {}}
-              index={1}
-            />
-            <SlotWheel
-              values={values3}
-              spinning={wheel3Spinning}
-              result={results?.[2]}
-              onSpinComplete={() => {}}
-              index={2}
-            />
-          </div>
+             {/* Payline */}
+             <div className={`absolute top-1/2 left-0 w-full h-0.5 z-20 shadow-[0_0_5px_rgba(255,255,255,0.4)] pointer-events-none ${styles.payline}`}></div>
+             <div className={`absolute top-1/2 left-0 -translate-y-1/2 -left-1 w-0 h-0 border-l-[8px] border-y-[6px] border-y-transparent z-20 ${styles.arrow}`}></div>
+             <div className={`absolute top-1/2 right-0 -translate-y-1/2 -right-1 w-0 h-0 border-r-[8px] border-l-transparent border-y-[6px] border-y-transparent z-20 border-r-current ${styles.arrow.replace('border-l-', 'text-')}`}></div>
+        </div>
 
-          <div className="text-center mb-8">
+        {/* Controls Area */}
+        <div className="flex flex-col items-center justify-center relative z-10 space-y-4">
+          {!spinFinished ? (
             <motion.button
               onClick={handleSpin}
               disabled={spinning}
-              className="relative px-16 py-6 rounded-3xl font-black text-2xl text-white overflow-hidden uppercase tracking-wider"
-              whileHover={!spinning ? { scale: 1.08, y: -2 } : {}}
-              whileTap={!spinning ? { scale: 0.95 } : {}}
-              animate={{
-                background: spinning
-                  ? 'linear-gradient(135deg, #6b7280, #9ca3af)'
-                  : [
-                      'linear-gradient(135deg, #f59e0b, #ef4444, #ec4899, #8b5cf6)',
-                      'linear-gradient(135deg, #8b5cf6, #3b82f6, #10b981, #f59e0b)',
-                      'linear-gradient(135deg, #f59e0b, #ef4444, #ec4899, #8b5cf6)',
-                    ],
-                boxShadow: spinning
-                  ? '0 0 30px rgba(107, 114, 128, 0.6)'
-                  : [
-                      '0 0 40px rgba(245, 158, 11, 0.8), 0 0 80px rgba(239, 68, 68, 0.6), 0 0 120px rgba(236, 72, 153, 0.4)',
-                      '0 0 50px rgba(139, 92, 246, 0.8), 0 0 100px rgba(59, 130, 246, 0.6), 0 0 150px rgba(16, 185, 129, 0.4)',
-                      '0 0 40px rgba(245, 158, 11, 0.8), 0 0 80px rgba(239, 68, 68, 0.6), 0 0 120px rgba(236, 72, 153, 0.4)',
-                    ],
-              }}
-              transition={{ duration: 2, repeat: spinning ? 0 : Infinity }}
+              className={`
+                relative group px-12 py-4 rounded-full font-black text-xl uppercase tracking-widest
+                text-white bg-gradient-to-b border-2
+                transition-all duration-100
+                ${styles.button}
+                ${spinning ? 'opacity-80 cursor-not-allowed filter grayscale-[0.5]' : 'hover:-translate-y-1 active:translate-y-1'}
+              `}
             >
-              {spinning ? (
-                <motion.span
-                  animate={{ opacity: [1, 0.4, 1] }}
-                  transition={{ duration: 0.4, repeat: Infinity }}
-                >
-                  Крутится...
-                </motion.span>
-              ) : (
-                <>
-                  <span className="relative z-10">🎰 Крутить!</span>
-                  <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
-                    animate={{
-                      x: ['-100%', '200%'],
-                    }}
-                    transition={{
-                      duration: 1.5,
-                      repeat: Infinity,
-                      ease: 'linear',
-                    }}
-                  />
-                  {/* Button glow particles */}
-                  {[...Array(6)].map((_, i) => (
-                    <motion.div
-                      key={i}
-                      className="absolute w-2 h-2 bg-white rounded-full"
-                      style={{
-                        left: `${20 + i * 15}%`,
-                        top: '50%',
-                      }}
-                      animate={{
-                        y: ['-50%', '-150%'],
-                        opacity: [0, 1, 0],
-                        scale: [0, 1, 0],
-                      }}
-                      transition={{
-                        duration: 1.5,
-                        repeat: Infinity,
-                        delay: i * 0.2,
-                      }}
-                    />
-                  ))}
-                </>
-              )}
+              <span className="drop-shadow-md flex items-center gap-2">
+                  {spinning ? texts.spinning : texts.spin}
+              </span>
+               {/* Shine effect on button */}
+               {theme !== 'vibrant' && <div className="absolute inset-0 rounded-full overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-[50%] bg-gradient-to-b from-white/20 to-transparent"></div>
+               </div>}
             </motion.button>
-          </div>
-
-          <AnimatePresence>
-            {combination && (
-              <motion.div
-                initial={{ opacity: 0, y: 30, scale: 0.8 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className={`mt-8 p-8 rounded-3xl border-4 shadow-2xl relative overflow-hidden ${
-                  isWin
-                    ? 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 border-yellow-300'
-                    : 'bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 border-pink-400'
-                }`}
-              >
-                {/* Animated background shine */}
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                  animate={{
-                    x: ['-100%', '200%'],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: 'linear',
-                  }}
-                />
-                <motion.p
-                  className="text-center text-2xl md:text-3xl font-black text-white relative z-10"
-                  animate={isWin ? {
-                    scale: [1, 1.15, 1],
-                    textShadow: [
-                      '0 0 15px rgba(0, 0, 0, 0.9), 0 0 30px rgba(255, 255, 255, 0.6)',
-                      '0 0 20px rgba(0, 0, 0, 0.9), 0 0 40px rgba(255, 255, 255, 0.8)',
-                      '0 0 15px rgba(0, 0, 0, 0.9), 0 0 30px rgba(255, 255, 255, 0.6)',
-                    ],
-                  } : {}}
-                  transition={{
-                    duration: 0.5,
-                    repeat: isWin ? Infinity : 0,
-                  }}
-                >
-                  {combination}
-                </motion.p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          ) : (
+            <motion.a
+                href={offerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className={`
+                    relative group px-10 py-5 rounded-full font-black text-xl uppercase tracking-widest
+                    text-white bg-gradient-to-b border-2
+                    cursor-pointer inline-block
+                    animate-pulse text-center
+                    ${styles.buttonCta}
+                `}
+            >
+                 <span className="drop-shadow-md">{texts.playReal}</span>
+                  {/* Shine effect on button */}
+               {theme !== 'vibrant' && <div className="absolute inset-0 rounded-full overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-[50%] bg-gradient-to-b from-white/20 to-transparent"></div>
+               </div>}
+            </motion.a>
+          )}
         </div>
-      </motion.div>
+
+        {/* Result Message */}
+        <AnimatePresence>
+          {combination && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className={`mt-6 mx-auto rounded-lg p-4 text-center backdrop-blur-md border ${styles.resultBox}`}
+            >
+              <motion.p 
+                className={`text-lg sm:text-xl font-bold ${styles.resultText}`}
+                animate={isWin ? { scale: [1, 1.02, 1] } : {}}
+                transition={{ duration: 1, repeat: isWin ? Infinity : 0 }}
+              >
+                {combination}
+              </motion.p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="text-center mt-3">
+        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Verified by SEOHQS</span>
+      </div>
     </div>
   );
 }
