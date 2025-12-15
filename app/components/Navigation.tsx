@@ -134,8 +134,7 @@ export default function Navigation() {
   };
 
   const navItems: Array<{ href: string; labelKey: string }> = [
-    { href: '/content-generator', labelKey: 'Content Generator' },
-    { href: '/humanize', labelKey: 'Humanize' },
+    { href: '/embed', labelKey: 'Slotget' },
   ];
 
   return (
@@ -171,7 +170,7 @@ export default function Navigation() {
                         : 'border-transparent text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-300'
                     }`}
                   >
-                    {item.labelKey === 'Content Generator' ? 'Content Generator' : item.labelKey === 'Humanize' ? 'Humanize' : t(item.labelKey)}
+                    {item.labelKey === 'Slotget' ? 'Slotget' : t(item.labelKey)}
                   </Link>
                 );
               })}
