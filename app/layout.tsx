@@ -6,7 +6,7 @@ import { ThemeProvider } from '@/lib/theme-context'
 import { I18nProvider } from '@/lib/i18n-context'
 
 export const metadata: Metadata = {
-  title: 'SEO Tools - Индексация, Ссылочный профиль, Панель сайтов',
+  title: 'SEO Tools',
   description: 'Инструменты для SEO: индексация ссылок, управление ссылочным профилем, мониторинг сайтов',
   icons: {
     icon: '/icon.svg',
