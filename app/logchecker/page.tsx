@@ -9,12 +9,27 @@ interface BotVisit {
   userAgent: string;
   count: number;
   sampleLines: string[];
+  errors?: {
+    statusCode: number;
+    count: number;
+    sampleLines: string[];
+  }[];
+}
+
+interface GoogleError {
+  statusCode: number;
+  botName: string;
+  userAgent: string;
+  count: number;
+  sampleLines: string[];
+  url?: string;
 }
 
 interface AnalysisResult {
   totalGoogleVisits: number;
   bots: BotVisit[];
   uniqueBots: number;
+  errors: GoogleError[];
 }
 
 export default function LogcheckerPage() {
@@ -97,12 +112,26 @@ export default function LogcheckerPage() {
       
       // Словарь для хранения информации о ботах
       const botsMap = new Map<string, BotVisit>();
+      
+      // Массив для хранения ошибок Google ботов
+      const errorsMap = new Map<string, GoogleError>();
 
       // Анализируем каждую строку
       lines.forEach((line, index) => {
         let foundBot = false;
         let botName = '';
         let userAgent = '';
+
+        // Извлекаем HTTP статус код из строки (обычно это число 3-5 цифр)
+        // Паттерны: " 400 ", " 400\n", "400 ", "HTTP/1.1 400", " 400 " и т.д.
+        const statusMatch = line.match(/\s(\d{3})\s/) || 
+                           line.match(/HTTP\/[\d.]+\s+(\d{3})/) ||
+                           line.match(/"\s+(\d{3})\s+/) ||
+                           line.match(/\s+(\d{3})["\s]/);
+        const statusCode = statusMatch ? parseInt(statusMatch[1], 10) : null;
+        
+        // Проверяем, является ли это ошибкой (4xx или 5xx)
+        const isError = statusCode !== null && (statusCode >= 400 && statusCode < 600);
 
         // Сначала проверяем User-Agent паттерны
         for (const pattern of googleBotPatterns) {
@@ -190,6 +219,7 @@ export default function LogcheckerPage() {
               userAgent: userAgent.substring(0, 100), // Ограничиваем длину
               count: 0,
               sampleLines: [],
+              errors: [],
             });
           }
 
@@ -200,11 +230,72 @@ export default function LogcheckerPage() {
           if (bot.sampleLines.length < 3) {
             bot.sampleLines.push(line.substring(0, 200)); // Ограничиваем длину
           }
+          
+          // Если это ошибка, сохраняем информацию об ошибке
+          if (isError && statusCode !== null) {
+            // Сохраняем в общий список ошибок
+            const errorKey = `${botName}-${statusCode}`;
+            if (!errorsMap.has(errorKey)) {
+              // Извлекаем URL из строки, если возможно
+              const urlMatch = line.match(/(?:GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+([^\s"']+)/i) ||
+                              line.match(/["']([^"']+)["']/) ||
+                              line.match(/(https?:\/\/[^\s"']+)/i);
+              const url = urlMatch ? urlMatch[1].substring(0, 150) : undefined;
+              
+              errorsMap.set(errorKey, {
+                statusCode,
+                botName,
+                userAgent: userAgent.substring(0, 100),
+                count: 0,
+                sampleLines: [],
+                url,
+              });
+            }
+            
+            const error = errorsMap.get(errorKey)!;
+            error.count++;
+            
+            // Сохраняем примеры строк с ошибками (максимум 3)
+            if (error.sampleLines.length < 3) {
+              error.sampleLines.push(line.substring(0, 200));
+            }
+            
+            // Также сохраняем ошибку в информацию о боте
+            if (!bot.errors) {
+              bot.errors = [];
+            }
+            
+            const botError = bot.errors.find(e => e.statusCode === statusCode);
+            if (!botError) {
+              bot.errors.push({
+                statusCode,
+                count: 0,
+                sampleLines: [],
+              });
+            }
+            
+            const botErrorEntry = bot.errors.find(e => e.statusCode === statusCode)!;
+            botErrorEntry.count++;
+            if (botErrorEntry.sampleLines.length < 3) {
+              botErrorEntry.sampleLines.push(line.substring(0, 200));
+            }
+          }
         }
       });
 
       // Преобразуем Map в массив и сортируем по количеству заходов
       const botsArray = Array.from(botsMap.values()).sort((a, b) => b.count - a.count);
+      
+      // Преобразуем ошибки в массив и сортируем по статус коду и количеству
+      const errorsArray = Array.from(errorsMap.values())
+        .sort((a, b) => {
+          // Сначала по статус коду (400, 401, 404, 500 и т.д.)
+          if (a.statusCode !== b.statusCode) {
+            return a.statusCode - b.statusCode;
+          }
+          // Затем по количеству ошибок
+          return b.count - a.count;
+        });
       
       const totalVisits = botsArray.reduce((sum, bot) => sum + bot.count, 0);
 
@@ -212,6 +303,7 @@ export default function LogcheckerPage() {
         totalGoogleVisits: totalVisits,
         bots: botsArray,
         uniqueBots: botsArray.length,
+        errors: errorsArray,
       });
     } catch (err: any) {
       setError(err.message || 'Ошибка при анализе логов');
@@ -279,6 +371,71 @@ export default function LogcheckerPage() {
               Результаты анализа
             </h2>
 
+            {/* Оповещения об ошибках */}
+            {result.errors.length > 0 && (
+              <div className="mb-6">
+                <div className="bg-red-50 dark:bg-red-900/30 border-2 border-red-300 dark:border-red-700 rounded-lg p-6">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div className="ml-3 flex-1">
+                      <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
+                        ⚠️ Требуется исправление: Google боты получают ошибки
+                      </h3>
+                      <div className="space-y-3">
+                        {result.errors.map((error, index) => (
+                          <div 
+                            key={index}
+                            className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-red-200 dark:border-red-800"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <span className="font-semibold text-red-700 dark:text-red-300">
+                                  Ошибка {error.statusCode}
+                                </span>
+                                <span className="text-sm text-gray-600 dark:text-gray-400 ml-2">
+                                  от {error.botName}
+                                </span>
+                              </div>
+                              <span className="text-lg font-bold text-red-600 dark:text-red-400">
+                                {error.count} {error.count === 1 ? 'раз' : 'раз'}
+                              </span>
+                            </div>
+                            {error.url && (
+                              <div className="text-sm text-gray-700 dark:text-gray-300 mb-2 font-mono break-all">
+                                URL: {error.url}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                              User-Agent: {error.userAgent}
+                            </div>
+                            <div className="mt-2">
+                              <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Примеры запросов с ошибкой:
+                              </div>
+                              <div className="space-y-1">
+                                {error.sampleLines.map((line, lineIndex) => (
+                                  <div 
+                                    key={lineIndex}
+                                    className="text-xs font-mono text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 p-2 rounded border border-gray-200 dark:border-gray-700 overflow-x-auto"
+                                  >
+                                    {line}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Краткая статистика */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-4">
@@ -341,7 +498,14 @@ export default function LogcheckerPage() {
                           className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                         >
                           <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                            {bot.botName}
+                            <div className="flex items-center gap-2">
+                              {bot.botName}
+                              {bot.errors && bot.errors.length > 0 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                  {bot.errors.length} {bot.errors.length === 1 ? 'ошибка' : 'ошибок'}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono text-xs">
                             {bot.userAgent || 'N/A'}
@@ -378,8 +542,47 @@ export default function LogcheckerPage() {
                     >
                       <div className="font-semibold text-gray-900 dark:text-white mb-2">
                         {bot.botName} ({bot.count} {bot.count === 1 ? 'заход' : 'заходов'})
+                        {bot.errors && bot.errors.length > 0 && (
+                          <span className="ml-2 text-red-600 dark:text-red-400 text-sm">
+                            - {bot.errors.reduce((sum, e) => sum + e.count, 0)} ошибок
+                          </span>
+                        )}
                       </div>
+                      {bot.errors && bot.errors.length > 0 && (
+                        <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+                          <div className="text-sm font-semibold text-red-700 dark:text-red-300 mb-2">
+                            Ошибки:
+                          </div>
+                          <div className="space-y-2">
+                            {bot.errors.map((error, errorIndex) => (
+                              <div key={errorIndex} className="text-xs">
+                                <span className="font-semibold text-red-600 dark:text-red-400">
+                                  {error.statusCode}:
+                                </span>
+                                <span className="text-gray-700 dark:text-gray-300 ml-1">
+                                  {error.count} {error.count === 1 ? 'раз' : 'раз'}
+                                </span>
+                                {error.sampleLines.length > 0 && (
+                                  <div className="mt-1 space-y-1">
+                                    {error.sampleLines.map((line, lineIndex) => (
+                                      <div 
+                                        key={lineIndex}
+                                        className="text-xs font-mono text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 p-2 rounded border border-red-200 dark:border-red-800 overflow-x-auto"
+                                      >
+                                        {line}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div className="space-y-2">
+                        <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                          Примеры запросов:
+                        </div>
                         {bot.sampleLines.map((line, lineIndex) => (
                           <div 
                             key={lineIndex}
