@@ -1258,12 +1258,213 @@
       detailsDiv.appendChild(processingTimeItem);
       card.appendChild(detailsDiv);
 
+      // Mobile details container - создаем для каждой карточки отдельно
+      var mobileDetailsContainer = document.createElement('div');
+      mobileDetailsContainer.className = `${uniqueId}-mobile-details`;
+      mobileDetailsContainer.style.display = 'none';
+      mobileDetailsContainer.style.marginTop = '12px';
+      mobileDetailsContainer.style.padding = '16px';
+      mobileDetailsContainer.style.background = 'linear-gradient(to right, #eff6ff, #f3e8ff)';
+      mobileDetailsContainer.style.borderRadius = '12px';
+      mobileDetailsContainer.style.border = '1px solid #bfdbfe';
+
+      var mobileDetailsContent = document.createElement('div');
+      mobileDetailsContent.style.display = 'flex';
+      mobileDetailsContent.style.alignItems = 'flex-start';
+      mobileDetailsContent.style.gap = '12px';
+
+      var mobileDetailsIcon = document.createElement('span');
+      mobileDetailsIcon.style.fontSize = '30px';
+      mobileDetailsIcon.textContent = method.icon;
+
+      var mobileDetailsInfo = document.createElement('div');
+      mobileDetailsInfo.style.flex = '1';
+
+      var mobileDetailsTitle = document.createElement('div');
+      mobileDetailsTitle.style.display = 'flex';
+      mobileDetailsTitle.style.alignItems = 'center';
+      mobileDetailsTitle.style.gap = '8px';
+      mobileDetailsTitle.style.marginBottom = '12px';
+      mobileDetailsTitle.style.fontSize = '18px';
+      mobileDetailsTitle.style.fontWeight = '700';
+      mobileDetailsTitle.style.color = '#111827';
+      if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        mobileDetailsTitle.style.color = 'white';
+      }
+      if (countryFlag) {
+        var mobileFlag = document.createElement('span');
+        mobileFlag.style.fontSize = '20px';
+        mobileFlag.textContent = countryFlag;
+        mobileDetailsTitle.appendChild(mobileFlag);
+      }
+      var mobileTitleText = document.createElement('span');
+      mobileTitleText.textContent = method.name[country] || method.name.UK;
+      mobileDetailsTitle.appendChild(mobileTitleText);
+
+      var mobileDetailsGrid = document.createElement('div');
+      mobileDetailsGrid.style.display = 'grid';
+      mobileDetailsGrid.style.gridTemplateColumns = '1fr';
+      mobileDetailsGrid.style.gap = '8px';
+      mobileDetailsGrid.style.marginTop = '12px';
+
+      var mobileMinDeposit = document.createElement('div');
+      mobileMinDeposit.style.display = 'flex';
+      mobileMinDeposit.style.justifyContent = 'space-between';
+      mobileMinDeposit.style.alignItems = 'center';
+      mobileMinDeposit.style.padding = '8px';
+      mobileMinDeposit.style.background = 'rgba(255,255,255,0.5)';
+      mobileMinDeposit.style.borderRadius = '8px';
+      var mobileMinDepositLabel = document.createElement('span');
+      mobileMinDepositLabel.style.fontSize = '12px';
+      mobileMinDepositLabel.style.color = '#6b7280';
+      mobileMinDepositLabel.textContent = t.minDeposit;
+      var mobileMinDepositValue = document.createElement('span');
+      mobileMinDepositValue.style.fontSize = '14px';
+      mobileMinDepositValue.style.fontWeight = '600';
+      mobileMinDepositValue.style.color = '#111827';
+      mobileMinDepositValue.textContent = method.minDeposit || '-';
+      mobileMinDeposit.appendChild(mobileMinDepositLabel);
+      mobileMinDeposit.appendChild(mobileMinDepositValue);
+
+      var mobileMaxDeposit = document.createElement('div');
+      mobileMaxDeposit.style.display = 'flex';
+      mobileMaxDeposit.style.justifyContent = 'space-between';
+      mobileMaxDeposit.style.alignItems = 'center';
+      mobileMaxDeposit.style.padding = '8px';
+      mobileMaxDeposit.style.background = 'rgba(255,255,255,0.5)';
+      mobileMaxDeposit.style.borderRadius = '8px';
+      var mobileMaxDepositLabel = document.createElement('span');
+      mobileMaxDepositLabel.style.fontSize = '12px';
+      mobileMaxDepositLabel.style.color = '#6b7280';
+      mobileMaxDepositLabel.textContent = t.maxDeposit;
+      var mobileMaxDepositValue = document.createElement('span');
+      mobileMaxDepositValue.style.fontSize = '14px';
+      mobileMaxDepositValue.style.fontWeight = '600';
+      mobileMaxDepositValue.style.color = '#111827';
+      mobileMaxDepositValue.textContent = method.maxDeposit || '-';
+      mobileMaxDeposit.appendChild(mobileMaxDepositLabel);
+      mobileMaxDeposit.appendChild(mobileMaxDepositValue);
+
+      var mobileProcessingTime = document.createElement('div');
+      mobileProcessingTime.style.display = 'flex';
+      mobileProcessingTime.style.justifyContent = 'space-between';
+      mobileProcessingTime.style.alignItems = 'center';
+      mobileProcessingTime.style.padding = '8px';
+      mobileProcessingTime.style.background = 'rgba(255,255,255,0.5)';
+      mobileProcessingTime.style.borderRadius = '8px';
+      var mobileProcessingTimeLabel = document.createElement('span');
+      mobileProcessingTimeLabel.style.fontSize = '12px';
+      mobileProcessingTimeLabel.style.color = '#6b7280';
+      mobileProcessingTimeLabel.textContent = t.processingTime;
+      var mobileProcessingTimeValue = document.createElement('span');
+      mobileProcessingTimeValue.style.fontSize = '14px';
+      mobileProcessingTimeValue.style.fontWeight = '600';
+      mobileProcessingTimeValue.style.color = '#111827';
+      var processingTimeVal = typeof method.processingTime === 'object' 
+        ? (method.processingTime[country] || '-')
+        : (method.processingTime || '-');
+      mobileProcessingTimeValue.textContent = processingTimeVal;
+      mobileProcessingTime.appendChild(mobileProcessingTimeLabel);
+      mobileProcessingTime.appendChild(mobileProcessingTimeValue);
+
+      mobileDetailsGrid.appendChild(mobileMinDeposit);
+      mobileDetailsGrid.appendChild(mobileMaxDeposit);
+      mobileDetailsGrid.appendChild(mobileProcessingTime);
+
+      // Casinos section for mobile
+      var mobileCasinosSection = document.createElement('div');
+      mobileCasinosSection.style.marginTop = '16px';
+      mobileCasinosSection.style.paddingTop = '16px';
+      mobileCasinosSection.style.borderTop = '1px solid #bfdbfe';
+      mobileCasinosSection.style.display = 'none';
+
+      var mobileCasinosTitle = document.createElement('h4');
+      mobileCasinosTitle.style.fontSize = '16px';
+      mobileCasinosTitle.style.fontWeight = '700';
+      mobileCasinosTitle.style.marginBottom = '12px';
+      mobileCasinosTitle.style.color = '#111827';
+      if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        mobileCasinosTitle.style.color = 'white';
+      }
+      mobileCasinosTitle.textContent = t.topCasinos;
+
+      var mobileCasinosList = document.createElement('div');
+      mobileCasinosList.style.display = 'flex';
+      mobileCasinosList.style.flexDirection = 'column';
+      mobileCasinosList.style.gap = '8px';
+
+      if (method.casinos && method.casinos.length > 0) {
+        method.casinos.forEach(function(casino) {
+          var mobileCasinoCard = document.createElement('a');
+          mobileCasinoCard.href = casino.url;
+          mobileCasinoCard.target = '_blank';
+          mobileCasinoCard.rel = 'noopener noreferrer';
+          mobileCasinoCard.style.display = 'block';
+          mobileCasinoCard.style.padding = '12px';
+          mobileCasinoCard.style.background = 'white';
+          mobileCasinoCard.style.borderRadius = '8px';
+          mobileCasinoCard.style.border = '2px solid #e5e7eb';
+          mobileCasinoCard.style.textDecoration = 'none';
+          mobileCasinoCard.style.transition = 'all 0.2s';
+          
+          var mobileCasinoHeader = document.createElement('div');
+          mobileCasinoHeader.style.display = 'flex';
+          mobileCasinoHeader.style.alignItems = 'center';
+          mobileCasinoHeader.style.justifyContent = 'space-between';
+          mobileCasinoHeader.style.marginBottom = '4px';
+          
+          var mobileCasinoName = document.createElement('span');
+          mobileCasinoName.style.fontSize = '14px';
+          mobileCasinoName.style.fontWeight = '700';
+          mobileCasinoName.style.color = '#111827';
+          mobileCasinoName.textContent = casino.name;
+          
+          var mobileCasinoIcon = document.createElement('span');
+          mobileCasinoIcon.style.fontSize = '18px';
+          mobileCasinoIcon.textContent = '🎰';
+          
+          var mobileCasinoLink = document.createElement('span');
+          mobileCasinoLink.style.fontSize = '12px';
+          mobileCasinoLink.style.color = '#2563eb';
+          mobileCasinoLink.style.fontWeight = '500';
+          mobileCasinoLink.style.marginTop = '4px';
+          mobileCasinoLink.style.display = 'block';
+          mobileCasinoLink.textContent = t.playNow + ' →';
+          
+          mobileCasinoHeader.appendChild(mobileCasinoName);
+          mobileCasinoHeader.appendChild(mobileCasinoIcon);
+          mobileCasinoCard.appendChild(mobileCasinoHeader);
+          mobileCasinoCard.appendChild(mobileCasinoLink);
+          mobileCasinosList.appendChild(mobileCasinoCard);
+        });
+        mobileCasinosSection.style.display = 'block';
+      }
+
+      mobileCasinosSection.appendChild(mobileCasinosTitle);
+      mobileCasinosSection.appendChild(mobileCasinosList);
+
+      mobileDetailsInfo.appendChild(mobileDetailsTitle);
+      mobileDetailsInfo.appendChild(mobileDetailsGrid);
+      mobileDetailsInfo.appendChild(mobileCasinosSection);
+      mobileDetailsContent.appendChild(mobileDetailsIcon);
+      mobileDetailsContent.appendChild(mobileDetailsInfo);
+      mobileDetailsContainer.appendChild(mobileDetailsContent);
+
       card.addEventListener('click', function() {
         var wasSelected = selectedMethod === method.id;
         
+        // Close all other cards
+        var allCards = mobileCardsContainer.querySelectorAll('[data-method-id]');
+        var allDetails = mobileCardsContainer.querySelectorAll('.' + uniqueId + '-mobile-details');
+        allCards.forEach(function(c) {
+          c.classList.remove('selected');
+        });
+        allDetails.forEach(function(d) {
+          d.style.display = 'none';
+        });
+        
+        // Also close desktop selection
         if (selectedMethod) {
-          var prevCard = mobileCardsContainer.querySelector('[data-method-id="' + selectedMethod + '"]');
-          if (prevCard) prevCard.classList.remove('selected');
           var prevRow = tbody.querySelector('[data-method-id="' + selectedMethod + '"]');
           if (prevRow) prevRow.classList.remove('selected');
           detailsDiv.classList.remove('show');
@@ -1272,47 +1473,22 @@
         if (!wasSelected) {
           selectedMethod = method.id;
           card.classList.add('selected');
+          mobileDetailsContainer.style.display = 'block';
           
-          // Update details (same as desktop)
-          detailsIcon.textContent = method.icon;
-          detailsTitle.textContent = method.name[country] || method.name.UK;
-          minDepositValue.textContent = method.minDeposit || '-';
-          maxDepositValue.textContent = method.maxDeposit || '-';
-          var processingTimeVal = typeof method.processingTime === 'object' 
-            ? (method.processingTime[country] || '-')
-            : (method.processingTime || '-');
-          processingTimeValue.textContent = processingTimeVal;
-          
-          // Update casinos
-          casinosGrid.innerHTML = '';
-          if (method.casinos && method.casinos.length > 0) {
-            method.casinos.forEach(function(casino, idx) {
-              var casinoCard = document.createElement('a');
-              casinoCard.href = casino.url;
-              casinoCard.target = '_blank';
-              casinoCard.rel = 'noopener noreferrer';
-              casinoCard.className = `${uniqueId}-casino-card`;
-              casinoCard.innerHTML = `
-                <div class="${uniqueId}-casino-header">
-                  <span class="${uniqueId}-casino-name">${casino.name}</span>
-                  <span class="${uniqueId}-casino-icon">🎰</span>
-                </div>
-                <span class="${uniqueId}-casino-link">${t.playNow} →</span>
-              `;
-              casinosGrid.appendChild(casinoCard);
-            });
-            casinosSection.style.display = 'block';
-          } else {
-            casinosSection.style.display = 'none';
-          }
-          
-          detailsDiv.classList.add('show');
+          // Scroll to card smoothly
+          setTimeout(function() {
+            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 100);
         } else {
           selectedMethod = null;
         }
       });
 
-      mobileCardsContainer.appendChild(card);
+      // Wrap card and details in container
+      var cardWrapper = document.createElement('div');
+      cardWrapper.appendChild(card);
+      cardWrapper.appendChild(mobileDetailsContainer);
+      mobileCardsContainer.appendChild(cardWrapper);
     });
     widgetContainer.appendChild(mobileCardsContainer);
 
