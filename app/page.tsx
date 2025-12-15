@@ -8,32 +8,9 @@ import { useI18n } from '@/lib/i18n-context';
 export default function Home() {
   const router = useRouter();
   const { t } = useI18n();
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Проверяем, авторизован ли пользователь
-    fetch('/api/auth/user/me')
-      .then(res => {
-        if (res.status === 401) {
-          // Пользователь не авторизован - это нормально
-          return { success: false };
-        }
-        return res.json();
-      })
-      .then(data => {
-        if (data.success && data.user) {
-          setUser(data.user);
-        }
-        setLoading(false);
-      })
-      .catch(() => {
-        setLoading(false);
-      });
-  }, []);
 
   const handleGetStarted = () => {
-    router.push('/login');
+    router.push('/embed');
   };
 
   // Демо данные для презентации
@@ -116,7 +93,7 @@ export default function Home() {
                 onClick={handleGetStarted}
                 className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg transform transition-all hover:scale-105 hover:shadow-xl"
               >
-                {user ? t('home.goToDashboard') : t('home.getStarted')}
+                {t('home.getStarted')}
               </button>
               <Link
                 href="#features"
@@ -314,7 +291,7 @@ export default function Home() {
             onClick={handleGetStarted}
             className="px-8 py-4 bg-white text-blue-600 font-semibold rounded-lg shadow-lg transform transition-all hover:scale-105 hover:shadow-xl"
           >
-            {user ? t('home.goToDashboard') : t('home.ctaButton')}
+            {t('home.ctaButton')}
           </button>
         </div>
       </section>

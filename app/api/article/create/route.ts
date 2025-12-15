@@ -32,12 +32,8 @@ function buildGoogleSerpBlock(results: SerpResult[]): string {
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Пользователь не авторизован' },
-        { status: 401 }
-      );
-    }
+    // Используем user_id = 0 для неавторизованных пользователей
+    const userId = user?.id || 0;
 
     const body = await request.json();
     const {
@@ -67,7 +63,7 @@ export async function POST(request: Request) {
     // Создаём задачу в БД
     const job = await createJob({
       jobId,
-      userId: user.id,
+      userId: userId,
       topic,
       language,
       audience,

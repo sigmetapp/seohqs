@@ -1,13 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 
 export default function ContentGeneratorPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  
   // Параметры формы
   const [topic, setTopic] = useState('');
   const [language, setLanguage] = useState('RU');
@@ -34,10 +29,6 @@ export default function ContentGeneratorPage() {
   const [parsingSerp, setParsingSerp] = useState(false);
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
 
   // Timer effect
   useEffect(() => {
@@ -67,31 +58,6 @@ export default function ContentGeneratorPage() {
       }
     };
   }, []);
-
-  const checkAuth = async () => {
-    try {
-      const res = await fetch('/api/auth/user/me');
-      
-      if (res.status === 401) {
-        router.push('/login');
-        return;
-      }
-      
-      const data = await res.json();
-      
-      if (!data.success || !data.user) {
-        router.push('/login');
-        return;
-      }
-
-      setUser(data.user);
-    } catch (error) {
-      console.error('Ошибка проверки авторизации:', error);
-      router.push('/login');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Polling статуса генерации статьи
   const pollArticleStatus = async (threadId: string, runId: string, debugMode: boolean): Promise<{ completed: boolean; article?: string; debugSources?: string; debugRewritePrompt?: string }> => {
@@ -292,14 +258,6 @@ export default function ContentGeneratorPage() {
     }
   };
 
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-600 dark:text-gray-400">Загрузка...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
