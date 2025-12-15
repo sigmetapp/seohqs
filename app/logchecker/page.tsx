@@ -176,12 +176,8 @@ export default function LogcheckerPage() {
         /Googlebot-Smartphone/i,
       ];
 
-      // Паттерны для поиска рефереров от Google (любые домены google.*)
-      const googleRefererPatterns = [
-        /https?:\/\/[^\s"']*google\.[^\s"']*/i,
-        /referer[:\s]+[^\s"']*google\.[^\s"']*/i,
-        /referrer[:\s]+[^\s"']*google\.[^\s"']*/i,
-      ];
+      // Паттерны для поиска рефереров от Google (не используются - фильтруем только по User-Agent)
+      // Удалено: рефереры могут быть от обычных пользователей или других ботов
 
       // Разбиваем логи на строки
       const lines = logs.split('\n').filter(line => line.trim());
@@ -382,28 +378,9 @@ export default function LogcheckerPage() {
           }
         }
 
-        // Если не нашли по User-Agent, проверяем рефереры от Google
-        if (!foundBot) {
-          for (const pattern of googleRefererPatterns) {
-            if (pattern.test(line)) {
-              foundBot = true;
-              botName = 'Googlebot (по рефереру)';
-              
-              // Пытаемся извлечь User-Agent, если он есть
-              const uaMatch = line.match(/User-Agent[:\s]+([^\s]+)/i) ||
-                             line.match(/["']([^"']*User-Agent[^"']*)["']/i);
-              
-              if (uaMatch) {
-                userAgent = uaMatch[1].substring(0, 100);
-              } else {
-                // Извлекаем реферер как идентификатор
-                const refererMatch = line.match(/(https?:\/\/[^\s"']*google[^\s"']*)/i);
-                userAgent = refererMatch ? `Referer: ${refererMatch[1]}` : 'Google Referer';
-              }
-              break;
-            }
-          }
-        }
+        // ВАЖНО: Показываем ТОЛЬКО Google ботов по User-Agent
+        // Рефереры от Google не учитываем, так как они могут быть от обычных пользователей
+        // или других ботов, которые перешли с Google поиска
 
         // Если нашли бота, сохраняем информацию
         if (foundBot) {
@@ -672,7 +649,7 @@ export default function LogcheckerPage() {
                 placeholder="Вставьте логи сервера (access.log, error.log и т.д.)..."
               />
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Анализируются заходы Google и всех его ботов (Googlebot, Google-InspectionTool, Googlebot-Image и др.)
+                Анализируются ТОЛЬКО заходы Google ботов по User-Agent (Googlebot, Google-InspectionTool, Googlebot-Image и др.). Другие боты не показываются.
               </p>
             </div>
 
