@@ -198,7 +198,6 @@ export default function TabsGenPage() {
                   </div>
                 </div>
               </div>
-            </div>
 
             {/* Embed Code Section */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700">
