@@ -15,17 +15,14 @@ interface SlotWheelProps {
 function SlotWheel({ values, spinning, result, onSpinComplete, index }: SlotWheelProps) {
   const [displayValue, setDisplayValue] = useState(values[0]);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [position, setPosition] = useState(0);
 
   useEffect(() => {
     if (spinning) {
       setIsAnimating(true);
-      setPosition(0);
       
       const interval = setInterval(() => {
         const randomIndex = Math.floor(Math.random() * values.length);
         setDisplayValue(values[randomIndex]);
-        setPosition(prev => prev + 1);
       }, 50);
 
       const timeout = setTimeout(() => {
@@ -47,160 +44,25 @@ function SlotWheel({ values, spinning, result, onSpinComplete, index }: SlotWhee
   }, [spinning, result, values, onSpinComplete, index]);
 
   return (
-    <motion.div
-      className="relative w-40 h-52 mx-2 overflow-hidden rounded-3xl"
-      initial={false}
-      animate={{
-        scale: spinning ? [1, 1.1, 1] : 1,
-        rotate: spinning ? [0, 2, -2, 0] : 0,
-        boxShadow: spinning
-          ? '0 0 40px rgba(255, 215, 0, 1), 0 0 80px rgba(255, 165, 0, 0.8), 0 0 120px rgba(255, 140, 0, 0.6)'
-          : '0 0 25px rgba(255, 215, 0, 0.5), 0 0 50px rgba(255, 165, 0, 0.3)',
-      }}
-      transition={{ duration: 0.2, repeat: spinning ? Infinity : 0 }}
-    >
-      {/* Animated rainbow background */}
+    <div className="relative w-24 h-32 sm:w-32 sm:h-40 mx-1 sm:mx-2 overflow-hidden bg-gradient-to-b from-gray-100 to-gray-200 border-x-2 border-gray-400 shadow-[inset_0_0_10px_rgba(0,0,0,0.2)] rounded-lg">
       <motion.div
-        className="absolute inset-0"
-        animate={spinning ? {
-          background: [
-            'linear-gradient(135deg, #fbbf24, #f97316, #dc2626)',
-            'linear-gradient(135deg, #ec4899, #8b5cf6, #3b82f6)',
-            'linear-gradient(135deg, #10b981, #f59e0b, #ef4444)',
-            'linear-gradient(135deg, #fbbf24, #f97316, #dc2626)',
-          ],
-        } : {
-          background: 'linear-gradient(135deg, #fbbf24, #f97316, #dc2626)',
+        className="absolute inset-0 flex items-center justify-center"
+        animate={{
+          y: spinning ? [0, -10, 0] : 0,
+          filter: spinning ? "blur(1px)" : "none"
         }}
-        transition={{ duration: 0.5, repeat: spinning ? Infinity : 0 }}
-      />
-      <motion.div
-        className="absolute inset-0 bg-gradient-to-b from-purple-600 via-pink-600 to-red-600 opacity-80"
-        animate={spinning ? {
-          opacity: [0.8, 0.4, 0.8],
-        } : {}}
-        transition={{ duration: 0.3, repeat: spinning ? Infinity : 0 }}
-      />
+        transition={{ duration: 0.1, repeat: spinning ? Infinity : 0 }}
+      >
+        <span className="text-3xl sm:text-4xl font-bold text-gray-800">{displayValue}</span>
+      </motion.div>
       
-      {/* Animated metallic border with glow */}
-      <motion.div
-        className="absolute inset-0 rounded-3xl border-4"
-        animate={spinning ? {
-          borderColor: [
-            'rgba(255, 215, 0, 1)',
-            'rgba(255, 140, 0, 1)',
-            'rgba(255, 20, 147, 1)',
-            'rgba(255, 215, 0, 1)',
-          ],
-          boxShadow: [
-            'inset 0 0 30px rgba(255, 215, 0, 0.8)',
-            'inset 0 0 30px rgba(255, 140, 0, 0.8)',
-            'inset 0 0 30px rgba(255, 20, 147, 0.8)',
-            'inset 0 0 30px rgba(255, 215, 0, 0.8)',
-          ],
-        } : {
-          borderColor: 'rgba(255, 215, 0, 0.8)',
-          boxShadow: 'inset 0 0 20px rgba(255, 215, 0, 0.5)',
-        }}
-        transition={{ duration: 0.3, repeat: spinning ? Infinity : 0 }}
-      />
+      {/* Shadows for cylinder effect */}
+      <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-black/30 to-transparent pointer-events-none z-10"></div>
+      <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-black/30 to-transparent pointer-events-none z-10"></div>
       
-      {/* Content */}
-      <div className="relative h-full flex items-center justify-center z-10">
-        <motion.div
-          className="text-5xl font-black"
-          animate={{
-            y: spinning ? [0, -25, 0] : 0,
-            scale: spinning ? [1, 1.3, 1] : 1,
-            rotate: spinning ? [0, 10, -10, 0] : 0,
-          }}
-          transition={{
-            duration: 0.1,
-            repeat: spinning ? Infinity : 0,
-            ease: 'easeInOut',
-          }}
-          style={{
-            textShadow: '0 0 15px rgba(255, 255, 255, 1), 0 0 30px rgba(255, 215, 0, 0.8), 0 0 45px rgba(255, 165, 0, 0.6), 0 0 60px rgba(255, 140, 0, 0.4)',
-            filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 1))',
-          }}
-        >
-          {displayValue}
-        </motion.div>
-      </div>
-
-      {/* Top overlay with shine */}
-      <div className="absolute top-0 left-0 right-0 h-1/3 bg-gradient-to-b from-white/70 via-white/30 to-transparent pointer-events-none z-20"></div>
-      
-      {/* Bottom overlay */}
-      <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none z-20"></div>
-      
-      {/* Multiple animated shine effects */}
-      {spinning && (
-        <>
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent z-30"
-            initial={{ x: '-100%', rotate: -15 }}
-            animate={{ x: '200%', rotate: -15 }}
-            transition={{
-              duration: 0.5,
-              repeat: Infinity,
-              ease: 'linear',
-            }}
-          />
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-300/40 to-transparent z-30"
-            initial={{ x: '-100%', rotate: 15 }}
-            animate={{ x: '200%', rotate: 15 }}
-            transition={{
-              duration: 0.7,
-              repeat: Infinity,
-              ease: 'linear',
-              delay: 0.2,
-            }}
-          />
-        </>
-      )}
-
-      {/* Enhanced glow particles */}
-      {spinning && (
-        <div className="absolute inset-0 pointer-events-none z-10">
-          {[...Array(10)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute rounded-full"
-              style={{
-                width: `${4 + Math.random() * 4}px`,
-                height: `${4 + Math.random() * 4}px`,
-                background: i % 3 === 0 ? '#fbbf24' : i % 3 === 1 ? '#f97316' : '#ec4899',
-                boxShadow: `0 0 ${10 + Math.random() * 10}px ${i % 3 === 0 ? '#fbbf24' : i % 3 === 1 ? '#f97316' : '#ec4899'}`,
-              }}
-              initial={{
-                x: '50%',
-                y: '50%',
-                opacity: 0,
-              }}
-              animate={{
-                x: `${Math.random() * 100}%`,
-                y: `${Math.random() * 100}%`,
-                opacity: [0, 1, 0],
-                scale: [0, 2, 0],
-              }}
-              transition={{
-                duration: 1 + Math.random(),
-                repeat: Infinity,
-                delay: i * 0.15,
-              }}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Corner decorations */}
-      <div className="absolute top-2 left-2 w-3 h-3 bg-yellow-300 rounded-full opacity-80 z-20" style={{ boxShadow: '0 0 10px rgba(255, 215, 0, 0.8)' }}></div>
-      <div className="absolute top-2 right-2 w-3 h-3 bg-yellow-300 rounded-full opacity-80 z-20" style={{ boxShadow: '0 0 10px rgba(255, 215, 0, 0.8)' }}></div>
-      <div className="absolute bottom-2 left-2 w-3 h-3 bg-yellow-300 rounded-full opacity-80 z-20" style={{ boxShadow: '0 0 10px rgba(255, 215, 0, 0.8)' }}></div>
-      <div className="absolute bottom-2 right-2 w-3 h-3 bg-yellow-300 rounded-full opacity-80 z-20" style={{ boxShadow: '0 0 10px rgba(255, 215, 0, 0.8)' }}></div>
-    </motion.div>
+      {/* Shine/Reflection */}
+      <div className="absolute top-1/2 left-0 right-0 h-10 -translate-y-1/2 bg-gradient-to-b from-white/0 via-white/50 to-white/0 pointer-events-none z-10"></div>
+    </div>
   );
 }
 
@@ -212,7 +74,7 @@ interface InteractiveSlotProps {
 }
 
 export default function InteractiveSlot({
-  brandName = 'Ваш бренд',
+  brandName = 'CASINO',
   values1 = ['🎁', '💎', '⭐', '🏆', '🎯', '💫'],
   values2 = ['Скидка', 'Бонус', 'Подарок', 'Акция', 'Приз', 'Выигрыш'],
   values3 = ['10%', '20%', '30%', '50%', '100%', '200%'],
@@ -290,304 +152,122 @@ export default function InteractiveSlot({
           } else {
             setCombination(`🎲 Выпало: ${result1} ${result2} ${result3}`);
           }
-        }, 2000);
-      }, 2000);
-    }, 2000);
+        }, 1500);
+      }, 1500);
+    }, 1500);
   };
 
   const isWin = combination && Object.values(combinations).includes(combination);
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-4xl mx-auto">
+    <div ref={containerRef} className="relative w-full max-w-4xl mx-auto font-sans">
       {showConfetti && (
         <Confetti
           width={windowSize.width || window.innerWidth}
           height={windowSize.height || window.innerHeight}
           recycle={false}
-          numberOfPieces={800}
-          gravity={0.3}
-          colors={['#fbbf24', '#f97316', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981']}
+          numberOfPieces={500}
         />
       )}
 
-      <motion.div
-        className="relative p-10 rounded-3xl shadow-2xl border-4 overflow-hidden"
-        initial={false}
-        animate={{
-          background: spinning
-            ? [
-                'linear-gradient(135deg, #1e1b4b 0%, #312e81 25%, #581c87 50%, #7c2d12 75%, #991b1b 100%)',
-                'linear-gradient(135deg, #312e81 0%, #581c87 25%, #7c2d12 50%, #991b1b 75%, #1e1b4b 100%)',
-                'linear-gradient(135deg, #1e1b4b 0%, #312e81 25%, #581c87 50%, #7c2d12 75%, #991b1b 100%)',
-              ]
-            : 'linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #312e81 50%, #581c87 75%, #7c2d12 100%)',
-          borderColor: spinning
-            ? [
-                'rgba(255, 215, 0, 1)',
-                'rgba(255, 140, 0, 1)',
-                'rgba(255, 20, 147, 1)',
-                'rgba(255, 215, 0, 1)',
-              ]
-            : 'rgba(255, 215, 0, 0.6)',
-          boxShadow: spinning
-            ? [
-                '0 0 60px rgba(255, 215, 0, 0.8), 0 0 120px rgba(255, 165, 0, 0.6), 0 0 180px rgba(255, 140, 0, 0.4), inset 0 0 60px rgba(255, 215, 0, 0.3)',
-                '0 0 60px rgba(255, 140, 0, 0.8), 0 0 120px rgba(255, 20, 147, 0.6), 0 0 180px rgba(255, 215, 0, 0.4), inset 0 0 60px rgba(255, 140, 0, 0.3)',
-                '0 0 60px rgba(255, 215, 0, 0.8), 0 0 120px rgba(255, 165, 0, 0.6), 0 0 180px rgba(255, 140, 0, 0.4), inset 0 0 60px rgba(255, 215, 0, 0.3)',
-              ]
-            : '0 0 40px rgba(255, 215, 0, 0.4), 0 0 80px rgba(255, 165, 0, 0.3), inset 0 0 40px rgba(255, 215, 0, 0.15)',
-        }}
-        transition={{ duration: 0.5, repeat: spinning ? Infinity : 0 }}
-      >
-        {/* Animated background particles - more and brighter */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(40)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute rounded-full"
-              style={{
-                width: `${2 + Math.random() * 3}px`,
-                height: `${2 + Math.random() * 3}px`,
-                background: i % 4 === 0 ? '#fbbf24' : i % 4 === 1 ? '#f97316' : i % 4 === 2 ? '#ec4899' : '#8b5cf6',
-                boxShadow: `0 0 ${8 + Math.random() * 8}px ${i % 4 === 0 ? '#fbbf24' : i % 4 === 1 ? '#f97316' : i % 4 === 2 ? '#ec4899' : '#8b5cf6'}`,
-              }}
-              initial={{
-                x: Math.random() * 100 + '%',
-                y: Math.random() * 100 + '%',
-                opacity: 0,
-              }}
-              animate={{
-                y: [null, Math.random() * 100 + '%'],
-                opacity: [0, 1, 0],
-                scale: [0, 1.5, 0],
-              }}
-              transition={{
-                duration: 2 + Math.random() * 3,
-                repeat: Infinity,
-                delay: Math.random() * 2,
-              }}
-            />
-          ))}
-        </div>
+      {/* Casino Machine Cabinet */}
+      <div className="relative p-6 sm:p-10 rounded-[30px] bg-gray-900 shadow-2xl overflow-hidden border-4 border-gray-800">
+        
+        {/* Background Texture */}
+        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900 via-gray-900 to-black"></div>
+        
+        {/* Lights Border */}
+        <div className="absolute inset-2 border-2 border-dashed border-yellow-500/50 rounded-[20px] pointer-events-none animate-pulse"></div>
 
-        {/* Animated gradient overlay */}
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-yellow-500/20 via-pink-500/20 to-purple-500/20 pointer-events-none"
-          animate={spinning ? {
-            opacity: [0.2, 0.5, 0.2],
-            background: [
-              'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(236, 72, 153, 0.2), rgba(139, 92, 246, 0.2))',
-              'linear-gradient(135deg, rgba(236, 72, 153, 0.3), rgba(139, 92, 246, 0.3), rgba(251, 191, 36, 0.3))',
-              'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(236, 72, 153, 0.2), rgba(139, 92, 246, 0.2))',
-            ],
-          } : {}}
-          transition={{ duration: 1, repeat: spinning ? Infinity : 0 }}
-        />
-
-        {/* Content */}
-        <div className="relative z-10">
-          <motion.div
-            className="text-center mb-10"
-            initial={false}
-            animate={{
-              scale: spinning ? [1, 1.08, 1] : 1,
-            }}
-            transition={{ duration: 0.3, repeat: spinning ? Infinity : 0 }}
-          >
-            <motion.h2
-              className="text-5xl md:text-6xl font-black mb-4"
-              animate={spinning ? {
-                background: [
-                  'linear-gradient(90deg, #fbbf24, #f97316, #ec4899)',
-                  'linear-gradient(90deg, #ec4899, #8b5cf6, #3b82f6)',
-                  'linear-gradient(90deg, #3b82f6, #10b981, #fbbf24)',
-                  'linear-gradient(90deg, #fbbf24, #f97316, #ec4899)',
-                ],
-              } : {
-                background: 'linear-gradient(90deg, #fbbf24, #f97316, #ec4899)',
-              }}
-              transition={{ duration: 0.5, repeat: spinning ? Infinity : 0 }}
-              style={{
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                textShadow: '0 0 30px rgba(255, 215, 0, 0.6)',
-                filter: 'drop-shadow(0 0 15px rgba(255, 215, 0, 0.9))',
-              }}
-            >
+        {/* Top Header */}
+        <div className="relative z-10 text-center mb-6">
+          <div className="inline-block px-8 py-2 bg-black/60 rounded-full border border-yellow-500/30 backdrop-blur-sm shadow-[0_0_15px_rgba(234,179,8,0.3)]">
+            <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600">
               {brandName}
-            </motion.h2>
-            <motion.p
-              className="text-2xl text-yellow-200 font-bold"
-              animate={spinning ? {
-                scale: [1, 1.05, 1],
-                textShadow: [
-                  '0 0 10px rgba(255, 215, 0, 0.8)',
-                  '0 0 20px rgba(255, 215, 0, 1)',
-                  '0 0 10px rgba(255, 215, 0, 0.8)',
-                ],
-              } : {}}
-              transition={{ duration: 0.5, repeat: spinning ? Infinity : 0 }}
-            >
-              Крутите слот и выигрывайте призы!
-            </motion.p>
-          </motion.div>
-
-          <div className="flex justify-center items-center mb-10 relative">
-            {/* Connecting lines between wheels */}
-            <motion.div
-              className="absolute top-1/2 left-1/2 w-full h-1 bg-gradient-to-r from-transparent via-yellow-400 to-transparent -translate-y-1/2 -translate-x-1/2 z-0"
-              animate={spinning ? {
-                opacity: [0.3, 0.8, 0.3],
-                scaleX: [1, 1.1, 1],
-              } : {
-                opacity: 0.2,
-              }}
-              transition={{ duration: 0.3, repeat: spinning ? Infinity : 0 }}
-            />
-            
-            <SlotWheel
-              values={values1}
-              spinning={wheel1Spinning}
-              result={results?.[0]}
-              onSpinComplete={() => {}}
-              index={0}
-            />
-            <SlotWheel
-              values={values2}
-              spinning={wheel2Spinning}
-              result={results?.[1]}
-              onSpinComplete={() => {}}
-              index={1}
-            />
-            <SlotWheel
-              values={values3}
-              spinning={wheel3Spinning}
-              result={results?.[2]}
-              onSpinComplete={() => {}}
-              index={2}
-            />
+            </h2>
           </div>
-
-          <div className="text-center mb-8">
-            <motion.button
-              onClick={handleSpin}
-              disabled={spinning}
-              className="relative px-16 py-6 rounded-3xl font-black text-2xl text-white overflow-hidden uppercase tracking-wider"
-              whileHover={!spinning ? { scale: 1.08, y: -2 } : {}}
-              whileTap={!spinning ? { scale: 0.95 } : {}}
-              animate={{
-                background: spinning
-                  ? 'linear-gradient(135deg, #6b7280, #9ca3af)'
-                  : [
-                      'linear-gradient(135deg, #f59e0b, #ef4444, #ec4899, #8b5cf6)',
-                      'linear-gradient(135deg, #8b5cf6, #3b82f6, #10b981, #f59e0b)',
-                      'linear-gradient(135deg, #f59e0b, #ef4444, #ec4899, #8b5cf6)',
-                    ],
-                boxShadow: spinning
-                  ? '0 0 30px rgba(107, 114, 128, 0.6)'
-                  : [
-                      '0 0 40px rgba(245, 158, 11, 0.8), 0 0 80px rgba(239, 68, 68, 0.6), 0 0 120px rgba(236, 72, 153, 0.4)',
-                      '0 0 50px rgba(139, 92, 246, 0.8), 0 0 100px rgba(59, 130, 246, 0.6), 0 0 150px rgba(16, 185, 129, 0.4)',
-                      '0 0 40px rgba(245, 158, 11, 0.8), 0 0 80px rgba(239, 68, 68, 0.6), 0 0 120px rgba(236, 72, 153, 0.4)',
-                    ],
-              }}
-              transition={{ duration: 2, repeat: spinning ? 0 : Infinity }}
-            >
-              {spinning ? (
-                <motion.span
-                  animate={{ opacity: [1, 0.4, 1] }}
-                  transition={{ duration: 0.4, repeat: Infinity }}
-                >
-                  Крутится...
-                </motion.span>
-              ) : (
-                <>
-                  <span className="relative z-10">🎰 Крутить!</span>
-                  <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
-                    animate={{
-                      x: ['-100%', '200%'],
-                    }}
-                    transition={{
-                      duration: 1.5,
-                      repeat: Infinity,
-                      ease: 'linear',
-                    }}
-                  />
-                  {/* Button glow particles */}
-                  {[...Array(6)].map((_, i) => (
-                    <motion.div
-                      key={i}
-                      className="absolute w-2 h-2 bg-white rounded-full"
-                      style={{
-                        left: `${20 + i * 15}%`,
-                        top: '50%',
-                      }}
-                      animate={{
-                        y: ['-50%', '-150%'],
-                        opacity: [0, 1, 0],
-                        scale: [0, 1, 0],
-                      }}
-                      transition={{
-                        duration: 1.5,
-                        repeat: Infinity,
-                        delay: i * 0.2,
-                      }}
-                    />
-                  ))}
-                </>
-              )}
-            </motion.button>
-          </div>
-
-          <AnimatePresence>
-            {combination && (
-              <motion.div
-                initial={{ opacity: 0, y: 30, scale: 0.8 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className={`mt-8 p-8 rounded-3xl border-4 shadow-2xl relative overflow-hidden ${
-                  isWin
-                    ? 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 border-yellow-300'
-                    : 'bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 border-pink-400'
-                }`}
-              >
-                {/* Animated background shine */}
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                  animate={{
-                    x: ['-100%', '200%'],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: 'linear',
-                  }}
-                />
-                <motion.p
-                  className="text-center text-2xl md:text-3xl font-black text-white relative z-10"
-                  animate={isWin ? {
-                    scale: [1, 1.15, 1],
-                    textShadow: [
-                      '0 0 15px rgba(0, 0, 0, 0.9), 0 0 30px rgba(255, 255, 255, 0.6)',
-                      '0 0 20px rgba(0, 0, 0, 0.9), 0 0 40px rgba(255, 255, 255, 0.8)',
-                      '0 0 15px rgba(0, 0, 0, 0.9), 0 0 30px rgba(255, 255, 255, 0.6)',
-                    ],
-                  } : {}}
-                  transition={{
-                    duration: 0.5,
-                    repeat: isWin ? Infinity : 0,
-                  }}
-                >
-                  {combination}
-                </motion.p>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
-      </motion.div>
+
+        {/* Slot Screen Area */}
+        <div className="relative bg-gradient-to-b from-gray-800 to-black p-4 rounded-xl border-4 border-yellow-600/60 shadow-inner mb-8">
+            {/* Screen Glare */}
+            <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-bl from-white/5 to-transparent pointer-events-none rounded-lg z-20"></div>
+
+            <div className="flex justify-center items-center gap-2 sm:gap-4 py-4 px-2 bg-black/40 rounded-lg shadow-inner">
+                <SlotWheel
+                    values={values1}
+                    spinning={wheel1Spinning}
+                    result={results?.[0]}
+                    index={0}
+                />
+                <SlotWheel
+                    values={values2}
+                    spinning={wheel2Spinning}
+                    result={results?.[1]}
+                    index={1}
+                />
+                <SlotWheel
+                    values={values3}
+                    spinning={wheel3Spinning}
+                    result={results?.[2]}
+                    index={2}
+                />
+            </div>
+            
+             {/* Payline */}
+             <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500/50 z-20 shadow-[0_0_5px_rgba(239,68,68,0.8)] pointer-events-none"></div>
+             <div className="absolute top-1/2 left-0 -translate-y-1/2 -left-1 w-0 h-0 border-l-[8px] border-l-red-500 border-y-[6px] border-y-transparent z-20"></div>
+             <div className="absolute top-1/2 right-0 -translate-y-1/2 -right-1 w-0 h-0 border-r-[8px] border-r-red-500 border-y-[6px] border-y-transparent z-20"></div>
+        </div>
+
+        {/* Controls Area */}
+        <div className="flex flex-col items-center justify-center relative z-10">
+          <motion.button
+            onClick={handleSpin}
+            disabled={spinning}
+            className={`
+              relative group px-12 py-4 rounded-full font-black text-xl uppercase tracking-widest
+              text-white shadow-[0_6px_0_rgb(180,0,0),0_10px_20px_rgba(0,0,0,0.4)]
+              bg-gradient-to-b from-red-500 to-red-700
+              border-2 border-red-400
+              transition-all duration-100
+              ${spinning ? 'opacity-80 cursor-not-allowed filter grayscale-[0.5]' : 'hover:-translate-y-1 hover:shadow-[0_8px_0_rgb(180,0,0),0_15px_25px_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-[0_2px_0_rgb(180,0,0),0_5px_10px_rgba(0,0,0,0.4)]'}
+            `}
+          >
+            <span className="drop-shadow-md flex items-center gap-2">
+                {spinning ? 'SPINNING...' : 'SPIN'}
+            </span>
+             {/* Shine effect on button */}
+             <div className="absolute inset-0 rounded-full overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[50%] bg-gradient-to-b from-white/20 to-transparent"></div>
+             </div>
+          </motion.button>
+        </div>
+
+        {/* Result Message */}
+        <AnimatePresence>
+          {combination && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="mt-6 mx-auto bg-black/80 border border-yellow-500/40 rounded-lg p-4 text-center backdrop-blur-md shadow-[0_0_20px_rgba(234,179,8,0.2)]"
+            >
+              <motion.p 
+                className={`text-lg sm:text-xl font-bold ${isWin ? 'text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.8)]' : 'text-gray-200'}`}
+                animate={isWin ? { scale: [1, 1.02, 1] } : {}}
+                transition={{ duration: 1, repeat: isWin ? Infinity : 0 }}
+              >
+                {combination}
+              </motion.p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="text-center mt-3">
+        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Verified by SEOHQS</span>
+      </div>
     </div>
   );
 }
