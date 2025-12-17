@@ -2,10 +2,19 @@
   'use strict';
 
   // Получаем параметры из data-атрибутов скрипта
-  var script = document.currentScript || document.querySelector('script[data-country]');
+  var script = document.currentScript;
+  // If currentScript is not available (e.g., async loading), find the script by data attributes
+  if (!script) {
+    var scripts = document.querySelectorAll('script[data-country]');
+    script = scripts[scripts.length - 1]; // Get the last matching script
+  }
   var country = script?.getAttribute('data-country') || 'UK';
   var tableStyle = script?.getAttribute('data-style') || 'modern';
-  var singleTab = script?.getAttribute('data-tab') || null; // 'payment-methods', 'best-casino', or 'recent-winnings'
+  var singleTab = script?.getAttribute('data-tab'); // 'payment-methods', 'best-casino', or 'recent-winnings'
+  // Normalize: empty string should be treated as null
+  if (singleTab === '' || singleTab === null || singleTab === undefined) {
+    singleTab = null;
+  }
   
   // Helper function to decode HTML entities
   function decodeHtmlEntities(str) {
@@ -1291,6 +1300,9 @@
   function initWidget() {
     var container = document.getElementById('seohqs-payment-methods-widget');
     if (!container) return;
+    
+    // Debug: log singleTab value to help diagnose issues
+    // console.log('singleTab value:', singleTab);
 
     var widgetContainer = document.createElement('div');
     widgetContainer.id = `${uniqueId}-widget`;
@@ -1305,6 +1317,7 @@
     // Tabs Navigation (only show if not single tab mode)
     var activeTab = singleTab || 'payment-methods';
     
+    // Only create tabs navigation if we're in multi-tab mode
     if (!singleTab) {
       var tabsContainer = document.createElement('div');
       tabsContainer.className = `${uniqueId}-tabs`;
@@ -1352,33 +1365,36 @@
     }
 
     // Payment Methods Tab Content
-    if (singleTab === 'payment-methods' || !singleTab) {
+    if (!singleTab || singleTab === 'payment-methods') {
       var paymentMethodsContent = createPaymentMethodsContent();
       paymentMethodsContent.setAttribute('data-content', 'payment-methods');
       paymentMethodsContent.classList.add(uniqueId + '-tab-content');
-      if (singleTab === 'payment-methods' || activeTab === 'payment-methods') {
+      // In single tab mode, always show. In multi-tab mode, show if active
+      if (singleTab === 'payment-methods' || (!singleTab && activeTab === 'payment-methods')) {
         paymentMethodsContent.classList.add('active');
       }
       widgetContainer.appendChild(paymentMethodsContent);
     }
 
     // Best Casino Tab Content
-    if (singleTab === 'best-casino' || !singleTab) {
+    if (!singleTab || singleTab === 'best-casino') {
       var bestCasinoContent = createBestCasinoContent();
       bestCasinoContent.setAttribute('data-content', 'best-casino');
       bestCasinoContent.classList.add(uniqueId + '-tab-content');
-      if (singleTab === 'best-casino' || activeTab === 'best-casino') {
+      // In single tab mode, always show. In multi-tab mode, show if active
+      if (singleTab === 'best-casino' || (!singleTab && activeTab === 'best-casino')) {
         bestCasinoContent.classList.add('active');
       }
       widgetContainer.appendChild(bestCasinoContent);
     }
 
     // Recent Winnings Tab Content
-    if (singleTab === 'recent-winnings' || !singleTab) {
+    if (!singleTab || singleTab === 'recent-winnings') {
       var recentWinningsContent = createRecentWinningsContent();
       recentWinningsContent.setAttribute('data-content', 'recent-winnings');
       recentWinningsContent.classList.add(uniqueId + '-tab-content');
-      if (singleTab === 'recent-winnings' || activeTab === 'recent-winnings') {
+      // In single tab mode, always show. In multi-tab mode, show if active
+      if (singleTab === 'recent-winnings' || (!singleTab && activeTab === 'recent-winnings')) {
         recentWinningsContent.classList.add('active');
       }
       widgetContainer.appendChild(recentWinningsContent);
