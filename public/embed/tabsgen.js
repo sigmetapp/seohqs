@@ -6,12 +6,27 @@
   var country = script?.getAttribute('data-country') || 'UK';
   var tableStyle = script?.getAttribute('data-style') || 'classic';
   
+  // Helper function to decode HTML entities
+  function decodeHtmlEntities(str) {
+    if (!str) return '';
+    // Replace HTML entities - must replace &amp; first to avoid double-decoding
+    return str
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&#x27;/g, "'")
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>');
+  }
+
   // Parse casinos data
   var casinosDataStr = script?.getAttribute('data-casinos') || '{}';
   var customCasinos = {};
   try {
-    customCasinos = JSON.parse(casinosDataStr.replace(/&quot;/g, '"'));
+    var decodedStr = decodeHtmlEntities(casinosDataStr);
+    customCasinos = JSON.parse(decodedStr);
   } catch(e) {
+    console.error('Error parsing casinos data:', e);
     customCasinos = {};
   }
 
@@ -19,8 +34,10 @@
   var bestCasinosDataStr = script?.getAttribute('data-best-casinos') || '[]';
   var bestCasinos = [];
   try {
-    bestCasinos = JSON.parse(bestCasinosDataStr.replace(/&quot;/g, '"'));
+    var decodedStr = decodeHtmlEntities(bestCasinosDataStr);
+    bestCasinos = JSON.parse(decodedStr);
   } catch(e) {
+    console.error('Error parsing best casinos data:', e);
     bestCasinos = [];
   }
 
@@ -28,8 +45,10 @@
   var winningsDataStr = script?.getAttribute('data-winnings') || '[]';
   var allWinnings = [];
   try {
-    allWinnings = JSON.parse(winningsDataStr.replace(/&quot;/g, '"'));
+    var decodedStr = decodeHtmlEntities(winningsDataStr);
+    allWinnings = JSON.parse(decodedStr);
   } catch(e) {
+    console.error('Error parsing winnings data:', e);
     allWinnings = [];
   }
 

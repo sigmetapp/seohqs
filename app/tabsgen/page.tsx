@@ -88,10 +88,19 @@ export default function TabsGenPage() {
   const selectedCountryFlag = countries.find(c => c.code === country)?.flag || '';
 
   const generateEmbedCode = () => {
-    // Serialize data
-    const casinosData = JSON.stringify(casinos).replace(/"/g, '&quot;');
-    const bestCasinosData = JSON.stringify(bestCasinos).replace(/"/g, '&quot;');
-    const winningsData = JSON.stringify(winnings).replace(/"/g, '&quot;');
+    // Serialize data and properly escape for HTML attributes
+    const escapeHtmlAttribute = (str: string) => {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    };
+    
+    const casinosData = escapeHtmlAttribute(JSON.stringify(casinos));
+    const bestCasinosData = escapeHtmlAttribute(JSON.stringify(bestCasinos));
+    const winningsData = escapeHtmlAttribute(JSON.stringify(winnings));
     
     const embedCode = `<!-- Tabs Widget by SEOHQS -->
 <div id="seohqs-payment-methods-widget"></div>
