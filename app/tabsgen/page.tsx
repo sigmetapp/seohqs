@@ -494,9 +494,8 @@ export default function TabsGenPage() {
                 {t('tabsgen.embedCode')}
               </h2>
               
-              {/* Tab-specific embed codes */}
-              <div className="space-y-6">
-                {/* Payment Methods Embed Code */}
+              {/* Tab-specific embed code - only show active tab */}
+              {activeTab === 'payment-methods' && (
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -519,8 +518,9 @@ export default function TabsGenPage() {
                     </pre>
                   </div>
                 </div>
+              )}
 
-                {/* Best Casino Embed Code */}
+              {activeTab === 'best-casino' && (
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -543,8 +543,9 @@ export default function TabsGenPage() {
                     </pre>
                   </div>
                 </div>
+              )}
 
-                {/* Recent Winnings Embed Code */}
+              {activeTab === 'recent-winnings' && (
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -567,7 +568,7 @@ export default function TabsGenPage() {
                     </pre>
                   </div>
                 </div>
-              </div>
+              )}
 
               <p className="mt-6 text-sm text-gray-600 dark:text-gray-400">
                 {t('tabsgen.copyInstructions')}
