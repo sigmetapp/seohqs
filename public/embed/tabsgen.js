@@ -759,14 +759,24 @@
     .${uniqueId}-tabs {
       display: flex;
       justify-content: center;
-      gap: 8px;
-      margin-bottom: 32px;
+      gap: 4px;
+      margin-bottom: 24px;
       flex-wrap: wrap;
       background: #f8fafc;
       padding: 4px;
       border-radius: 12px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
       border: 1px solid #e2e8f0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    
+    @media (max-width: 768px) {
+      .${uniqueId}-tabs {
+        gap: 2px;
+        margin-bottom: 16px;
+        padding: 2px;
+      }
     }
 
     @media (prefers-color-scheme: dark) {
@@ -777,7 +787,7 @@
     }
 
     .${uniqueId}-tab {
-      padding: 12px 24px;
+      padding: 10px 16px;
       border-radius: 8px;
       font-weight: 600;
       font-size: 14px;
@@ -787,7 +797,46 @@
       background: transparent;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      flex: 1 1 auto;
+      min-width: 0;
+      justify-content: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    @media (max-width: 768px) {
+      .${uniqueId}-tab {
+        padding: 8px 12px;
+        font-size: 12px;
+        gap: 4px;
+        flex: 1 1 33.333%;
+        min-width: 0;
+      }
+      
+      .${uniqueId}-tab span:first-child {
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+      
+      .${uniqueId}-tab span:last-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .${uniqueId}-tab {
+        padding: 6px 8px;
+        font-size: 11px;
+        gap: 3px;
+      }
+      
+      .${uniqueId}-tab span:first-child {
+        font-size: 14px;
+      }
     }
 
     .${uniqueId}-tab:hover {
@@ -863,13 +912,35 @@
         font-size: 12px;
       }
       #${uniqueId}-widget {
-        padding: 16px;
+        padding: 12px;
       }
       .${uniqueId}-title {
-        font-size: 24px;
+        font-size: 20px;
+        line-height: 1.2;
       }
       .${uniqueId}-subtitle {
-        font-size: 14px;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+      .${uniqueId}-header {
+        padding: 12px;
+        margin-bottom: 20px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      #${uniqueId}-widget {
+        padding: 8px;
+      }
+      .${uniqueId}-title {
+        font-size: 18px;
+      }
+      .${uniqueId}-subtitle {
+        font-size: 12px;
+      }
+      .${uniqueId}-header {
+        padding: 8px;
+        margin-bottom: 16px;
       }
     }
 
