@@ -581,30 +581,30 @@
     switch(style) {
       case 'modern':
         return {
-          widgetBg: 'white',
+          widgetBg: '#ffffff',
           widgetBgDark: '#1f2937',
           headerBg: 'transparent',
-          headerText: '#111827',
-          tableHeaderBg: 'linear-gradient(to right, #f8fafc, #f1f5f9)',
+          headerText: '#000000',
+          tableHeaderBg: '#f8fafc',
           tableHeaderBgDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2))',
-          rowHover: 'linear-gradient(to right, #f8fafc, #f1f5f9)',
+          rowHover: '#f1f5f9',
           rowHoverDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.15), rgba(147, 51, 234, 0.15))',
-          selectedRowBg: 'linear-gradient(to right, #eff6ff, #f3e8ff)',
+          selectedRowBg: '#e2e8f0',
           selectedRowBgDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.25), rgba(147, 51, 234, 0.25))',
-          borderColor: '#e2e8f0',
+          borderColor: '#cbd5e1',
           borderColorDark: '#4b5563',
-          cardBg: 'white',
+          cardBg: '#ffffff',
           cardBgDark: '#1f2937',
-          detailsBg: 'linear-gradient(to right, #f8fafc, #f1f5f9, #fef3f2)',
+          detailsBg: '#f8fafc',
           detailsBgDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2), rgba(239, 68, 68, 0.2))',
-          mobileCardBg: 'white',
+          mobileCardBg: '#ffffff',
           mobileCardBgDark: 'rgba(17, 24, 39, 0.5)',
-          mobileSelectedBg: 'linear-gradient(to right, #eff6ff, #f3e8ff)',
+          mobileSelectedBg: '#e2e8f0',
           mobileSelectedBgDark: 'rgba(30, 58, 138, 0.2)',
           tabActiveBg: 'linear-gradient(to right, #3b82f6, #8b5cf6)',
           tabActiveText: 'white',
           tabInactiveBg: 'transparent',
-          tabInactiveText: '#64748b',
+          tabInactiveText: '#475569',
         };
       case 'minimal':
         return {
@@ -807,7 +807,7 @@
 
     .${uniqueId}-subtitle {
       font-size: 18px;
-      color: #6b7280;
+      color: #374151;
       margin: 0;
     }
 
@@ -873,6 +873,13 @@
       text-align: left;
       padding: 16px;
       font-weight: 700;
+      color: #000000;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .${uniqueId}-th {
+        color: white;
+      }
     }
 
     .${uniqueId}-th-center {
@@ -902,6 +909,13 @@
 
     .${uniqueId}-td {
       padding: 16px;
+      color: #000000;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .${uniqueId}-td {
+        color: white;
+      }
     }
 
     .${uniqueId}-td-center {
@@ -920,7 +934,7 @@
 
     .${uniqueId}-method-name {
       font-weight: 600;
-      color: #111827;
+      color: #000000;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -983,7 +997,7 @@
       font-size: 24px;
       font-weight: 700;
       margin: 0 0 16px 0;
-      color: #111827;
+      color: #000000;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -1025,7 +1039,7 @@
     .${uniqueId}-details-value {
       font-size: 18px;
       font-weight: 600;
-      color: #111827;
+      color: #000000;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -1051,7 +1065,7 @@
       font-size: 18px;
       font-weight: 700;
       margin: 0 0 16px 0;
-      color: #111827;
+      color: #000000;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -1112,7 +1126,7 @@
     .${uniqueId}-casino-name {
       font-size: 18px;
       font-weight: 700;
-      color: #111827;
+      color: #000000;
       transition: color 0.2s;
     }
 
@@ -1219,7 +1233,7 @@
     .${uniqueId}-mobile-card-title {
       font-weight: 700;
       font-size: 16px;
-      color: #111827;
+      color: #000000;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -1269,7 +1283,7 @@
 
     .${uniqueId}-mobile-card-detail-value {
       font-weight: 600;
-      color: #111827;
+      color: #000000;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -1308,6 +1322,7 @@
     widgetContainer.id = `${uniqueId}-widget`;
     widgetContainer.style.background = styleConfig.widgetBg;
     widgetContainer.style.border = '1px solid ' + styleConfig.borderColor;
+    widgetContainer.style.color = '#000000'; // Black text by default
     if (isDarkMode()) {
       widgetContainer.style.background = styleConfig.widgetBgDark;
       widgetContainer.style.borderColor = styleConfig.borderColorDark;
@@ -1448,7 +1463,7 @@
       var th = document.createElement('th');
       th.className = `${uniqueId}-th ${uniqueId}-th-center`;
       th.textContent = headerText;
-      th.style.color = isDarkMode() ? 'white' : '#111827';
+      th.style.color = isDarkMode() ? 'white' : '#000000';
       headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
@@ -1617,7 +1632,7 @@
       var th = document.createElement('th');
       th.className = `${uniqueId}-th ${uniqueId}-th-center`;
       th.textContent = headerText;
-      th.style.color = isDarkMode() ? 'white' : '#111827';
+      th.style.color = isDarkMode() ? 'white' : '#000000';
       headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
@@ -1765,7 +1780,7 @@
       var th = document.createElement('th');
       th.className = `${uniqueId}-th ${uniqueId}-th-center`;
       th.textContent = headerText;
-      th.style.color = isDarkMode() ? 'white' : '#111827';
+      th.style.color = isDarkMode() ? 'white' : '#000000';
       headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
