@@ -4,7 +4,7 @@
   // Получаем параметры из data-атрибутов скрипта
   var script = document.currentScript || document.querySelector('script[data-country]');
   var country = script?.getAttribute('data-country') || 'UK';
-  var tableStyle = script?.getAttribute('data-style') || 'classic';
+  var tableStyle = script?.getAttribute('data-style') || 'modern';
   var singleTab = script?.getAttribute('data-tab') || null; // 'payment-methods', 'best-casino', or 'recent-winnings'
   
   // Helper function to decode HTML entities
@@ -572,30 +572,30 @@
     switch(style) {
       case 'modern':
         return {
-          widgetBg: 'linear-gradient(to bottom right, #faf5ff, #eff6ff, #fdf2f8)',
-          widgetBgDark: 'linear-gradient(to bottom right, rgba(147, 51, 234, 0.3), rgba(59, 130, 246, 0.3), rgba(219, 39, 119, 0.3))',
-          headerBg: 'linear-gradient(to right, #9333ea, #2563eb, #db2777)',
-          headerText: 'white',
-          tableHeaderBg: 'linear-gradient(to right, #e9d5ff, #dbeafe)',
-          tableHeaderBgDark: 'linear-gradient(to right, rgba(147, 51, 234, 0.5), rgba(59, 130, 246, 0.5))',
-          rowHover: 'linear-gradient(to right, #f3e8ff, #dbeafe)',
-          rowHoverDark: 'linear-gradient(to right, rgba(147, 51, 234, 0.3), rgba(59, 130, 246, 0.3))',
-          selectedRowBg: 'linear-gradient(to right, #dbeafe, #e9d5ff)',
-          selectedRowBgDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.4), rgba(147, 51, 234, 0.4))',
-          borderColor: '#c084fc',
-          borderColorDark: '#9333ea',
-          cardBg: 'linear-gradient(to bottom right, white, #faf5ff)',
-          cardBgDark: 'linear-gradient(to bottom right, #1f2937, rgba(147, 51, 234, 0.3))',
-          detailsBg: 'linear-gradient(to right, #f3e8ff, #dbeafe, #fce7f3)',
-          detailsBgDark: 'linear-gradient(to right, rgba(147, 51, 234, 0.4), rgba(59, 130, 246, 0.4), rgba(219, 39, 119, 0.4))',
-          mobileCardBg: 'linear-gradient(to bottom right, #faf5ff, #eff6ff)',
+          widgetBg: 'white',
+          widgetBgDark: '#1f2937',
+          headerBg: 'transparent',
+          headerText: '#111827',
+          tableHeaderBg: 'linear-gradient(to right, #f8fafc, #f1f5f9)',
+          tableHeaderBgDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2))',
+          rowHover: 'linear-gradient(to right, #f8fafc, #f1f5f9)',
+          rowHoverDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.15), rgba(147, 51, 234, 0.15))',
+          selectedRowBg: 'linear-gradient(to right, #eff6ff, #f3e8ff)',
+          selectedRowBgDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.25), rgba(147, 51, 234, 0.25))',
+          borderColor: '#e2e8f0',
+          borderColorDark: '#4b5563',
+          cardBg: 'white',
+          cardBgDark: '#1f2937',
+          detailsBg: 'linear-gradient(to right, #f8fafc, #f1f5f9, #fef3f2)',
+          detailsBgDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2), rgba(239, 68, 68, 0.2))',
+          mobileCardBg: 'white',
           mobileCardBgDark: 'rgba(17, 24, 39, 0.5)',
-          mobileSelectedBg: 'linear-gradient(to right, #dbeafe, #e9d5ff)',
+          mobileSelectedBg: 'linear-gradient(to right, #eff6ff, #f3e8ff)',
           mobileSelectedBgDark: 'rgba(30, 58, 138, 0.2)',
-          tabActiveBg: 'linear-gradient(to right, #9333ea, #2563eb)',
+          tabActiveBg: 'linear-gradient(to right, #3b82f6, #8b5cf6)',
           tabActiveText: 'white',
           tabInactiveBg: 'transparent',
-          tabInactiveText: '#6b7280',
+          tabInactiveText: '#64748b',
         };
       case 'minimal':
         return {
@@ -725,7 +725,7 @@
       margin: 0 auto;
       padding: 32px;
       border-radius: 16px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
       box-sizing: border-box;
     }
 
@@ -739,15 +739,17 @@
       gap: 8px;
       margin-bottom: 32px;
       flex-wrap: wrap;
-      background: white;
+      background: #f8fafc;
       padding: 4px;
       border-radius: 12px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      border: 1px solid #e2e8f0;
     }
 
     @media (prefers-color-scheme: dark) {
       .${uniqueId}-tabs {
         background: #1f2937;
+        border-color: #4b5563;
       }
     }
 
@@ -882,6 +884,7 @@
 
     .${uniqueId}-tbody .${uniqueId}-tr:hover {
       transition: background-color 0.2s;
+      cursor: pointer;
     }
 
     .${uniqueId}-tbody .${uniqueId}-tr.selected {
@@ -1307,6 +1310,7 @@
       tabsContainer.className = `${uniqueId}-tabs`;
       if (isDarkMode()) {
         tabsContainer.style.background = '#1f2937';
+        tabsContainer.style.borderColor = '#4b5563';
       }
 
       function createTab(id, label, icon) {
@@ -1452,6 +1456,22 @@
       row.className = `${uniqueId}-tr`;
       row.setAttribute('data-method-id', method.id);
       
+      // Add hover effect
+      row.addEventListener('mouseenter', function() {
+        if (selectedMethod !== method.id) {
+          row.style.background = styleConfig.rowHover;
+          if (isDarkMode()) {
+            row.style.background = styleConfig.rowHoverDark;
+          }
+        }
+      });
+      
+      row.addEventListener('mouseleave', function() {
+        if (selectedMethod !== method.id) {
+          row.style.background = '';
+        }
+      });
+      
       row.addEventListener('click', function() {
         var wasSelected = selectedMethod === method.id;
         if (selectedMethod) {
@@ -1596,6 +1616,22 @@
       row.className = `${uniqueId}-tr`;
       row.setAttribute('data-casino-index', index);
       
+      // Add hover effect
+      row.addEventListener('mouseenter', function() {
+        if (selectedCasino !== index) {
+          row.style.background = styleConfig.rowHover;
+          if (isDarkMode()) {
+            row.style.background = styleConfig.rowHoverDark;
+          }
+        }
+      });
+      
+      row.addEventListener('mouseleave', function() {
+        if (selectedCasino !== index) {
+          row.style.background = '';
+        }
+      });
+      
       row.addEventListener('click', function() {
         var wasSelected = selectedCasino === index;
         if (selectedCasino !== null) {
@@ -1727,6 +1763,22 @@
       row.className = `${uniqueId}-tr`;
       row.setAttribute('data-winning-index', index);
       
+      // Add hover effect
+      row.addEventListener('mouseenter', function() {
+        if (selectedWinning !== index) {
+          row.style.background = styleConfig.rowHover;
+          if (isDarkMode()) {
+            row.style.background = styleConfig.rowHoverDark;
+          }
+        }
+      });
+      
+      row.addEventListener('mouseleave', function() {
+        if (selectedWinning !== index) {
+          row.style.background = '';
+        }
+      });
+      
       row.addEventListener('click', function() {
         var wasSelected = selectedWinning === index;
         if (selectedWinning !== null) {
@@ -1809,6 +1861,22 @@
           var row = document.createElement('tr');
           row.className = `${uniqueId}-tr`;
           row.setAttribute('data-winning-index', index);
+          
+          // Add hover effect
+          row.addEventListener('mouseenter', function() {
+            if (selectedWinning !== index) {
+              row.style.background = styleConfig.rowHover;
+              if (isDarkMode()) {
+                row.style.background = styleConfig.rowHoverDark;
+              }
+            }
+          });
+          
+          row.addEventListener('mouseleave', function() {
+            if (selectedWinning !== index) {
+              row.style.background = '';
+            }
+          });
           
           row.addEventListener('click', function() {
             var wasSelected = selectedWinning === index;

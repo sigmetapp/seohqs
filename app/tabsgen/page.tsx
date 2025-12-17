@@ -65,7 +65,7 @@ export default function TabsGenPage() {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<TabType>('payment-methods');
   const [country, setCountry] = useState<CountryCode>('UK');
-  const [tableStyle, setTableStyle] = useState<TableStyle>('classic');
+  const [tableStyle, setTableStyle] = useState<TableStyle>('modern');
   const [copied, setCopied] = useState(false);
   const [casinos, setCasinos] = useState<Record<string, Casino[]>>(DEFAULT_CASINOS);
   const [bestCasinos, setBestCasinos] = useState<BestCasino[]>(DEFAULT_BEST_CASINOS);
