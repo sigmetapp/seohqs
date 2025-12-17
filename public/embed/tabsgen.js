@@ -5,6 +5,7 @@
   var script = document.currentScript || document.querySelector('script[data-country]');
   var country = script?.getAttribute('data-country') || 'UK';
   var tableStyle = script?.getAttribute('data-style') || 'classic';
+  var singleTab = script?.getAttribute('data-tab') || null; // 'payment-methods', 'best-casino', or 'recent-winnings'
   
   // Helper function to decode HTML entities
   function decodeHtmlEntities(str) {
@@ -1298,69 +1299,86 @@
       widgetContainer.style.color = 'white';
     }
 
-    // Tabs Navigation
-    var tabsContainer = document.createElement('div');
-    tabsContainer.className = `${uniqueId}-tabs`;
-    if (isDarkMode()) {
-      tabsContainer.style.background = '#1f2937';
-    }
-
-    var activeTab = 'payment-methods';
+    // Tabs Navigation (only show if not single tab mode)
+    var activeTab = singleTab || 'payment-methods';
     
-    function createTab(id, label, icon) {
-      var tab = document.createElement('button');
-      tab.className = `${uniqueId}-tab`;
-      tab.setAttribute('data-tab', id);
-      tab.innerHTML = '<span>' + icon + '</span><span>' + label + '</span>';
-      tab.style.color = id === activeTab ? styleConfig.tabActiveText : styleConfig.tabInactiveText;
-      tab.style.background = id === activeTab ? styleConfig.tabActiveBg : styleConfig.tabInactiveBg;
-      if (isDarkMode() && id === activeTab) {
-        tab.style.background = styleConfig.tabActiveBg;
+    if (!singleTab) {
+      var tabsContainer = document.createElement('div');
+      tabsContainer.className = `${uniqueId}-tabs`;
+      if (isDarkMode()) {
+        tabsContainer.style.background = '#1f2937';
       }
-      tab.addEventListener('click', function() {
-        activeTab = id;
-        // Update all tabs
-        tabsContainer.querySelectorAll('.' + uniqueId + '-tab').forEach(function(t) {
-          var tabId = t.getAttribute('data-tab');
-          t.style.color = tabId === activeTab ? styleConfig.tabActiveText : styleConfig.tabInactiveText;
-          t.style.background = tabId === activeTab ? styleConfig.tabActiveBg : styleConfig.tabInactiveBg;
-          if (isDarkMode() && tabId === activeTab) {
-            t.style.background = styleConfig.tabActiveBg;
-          }
-        });
-        // Show/hide content
-        widgetContainer.querySelectorAll('.' + uniqueId + '-tab-content').forEach(function(content) {
-          content.classList.remove('active');
-        });
-        var content = widgetContainer.querySelector('[data-content="' + id + '"]');
-        if (content) content.classList.add('active');
-      });
-      return tab;
-    }
 
-    tabsContainer.appendChild(createTab('payment-methods', t.paymentMethods.title, '💳'));
-    tabsContainer.appendChild(createTab('best-casino', t.bestCasino.title, '🏆'));
-    tabsContainer.appendChild(createTab('recent-winnings', t.recentWinnings.title, '💰'));
-    
-    widgetContainer.appendChild(tabsContainer);
+      function createTab(id, label, icon) {
+        var tab = document.createElement('button');
+        tab.className = `${uniqueId}-tab`;
+        tab.setAttribute('data-tab', id);
+        tab.innerHTML = '<span>' + icon + '</span><span>' + label + '</span>';
+        tab.style.color = id === activeTab ? styleConfig.tabActiveText : styleConfig.tabInactiveText;
+        tab.style.background = id === activeTab ? styleConfig.tabActiveBg : styleConfig.tabInactiveBg;
+        if (isDarkMode() && id === activeTab) {
+          tab.style.background = styleConfig.tabActiveBg;
+        }
+        tab.addEventListener('click', function() {
+          activeTab = id;
+          // Update all tabs
+          tabsContainer.querySelectorAll('.' + uniqueId + '-tab').forEach(function(t) {
+            var tabId = t.getAttribute('data-tab');
+            t.style.color = tabId === activeTab ? styleConfig.tabActiveText : styleConfig.tabInactiveText;
+            t.style.background = tabId === activeTab ? styleConfig.tabActiveBg : styleConfig.tabInactiveBg;
+            if (isDarkMode() && tabId === activeTab) {
+              t.style.background = styleConfig.tabActiveBg;
+            }
+          });
+          // Show/hide content
+          widgetContainer.querySelectorAll('.' + uniqueId + '-tab-content').forEach(function(content) {
+            content.classList.remove('active');
+          });
+          var content = widgetContainer.querySelector('[data-content="' + id + '"]');
+          if (content) content.classList.add('active');
+        });
+        return tab;
+      }
+
+      tabsContainer.appendChild(createTab('payment-methods', t.paymentMethods.title, '💳'));
+      tabsContainer.appendChild(createTab('best-casino', t.bestCasino.title, '🏆'));
+      tabsContainer.appendChild(createTab('recent-winnings', t.recentWinnings.title, '💰'));
+      
+      widgetContainer.appendChild(tabsContainer);
+    }
 
     // Payment Methods Tab Content
-    var paymentMethodsContent = createPaymentMethodsContent();
-    paymentMethodsContent.setAttribute('data-content', 'payment-methods');
-    paymentMethodsContent.classList.add(uniqueId + '-tab-content', 'active');
-    widgetContainer.appendChild(paymentMethodsContent);
+    if (singleTab === 'payment-methods' || !singleTab) {
+      var paymentMethodsContent = createPaymentMethodsContent();
+      paymentMethodsContent.setAttribute('data-content', 'payment-methods');
+      paymentMethodsContent.classList.add(uniqueId + '-tab-content');
+      if (singleTab === 'payment-methods' || activeTab === 'payment-methods') {
+        paymentMethodsContent.classList.add('active');
+      }
+      widgetContainer.appendChild(paymentMethodsContent);
+    }
 
     // Best Casino Tab Content
-    var bestCasinoContent = createBestCasinoContent();
-    bestCasinoContent.setAttribute('data-content', 'best-casino');
-    bestCasinoContent.classList.add(uniqueId + '-tab-content');
-    widgetContainer.appendChild(bestCasinoContent);
+    if (singleTab === 'best-casino' || !singleTab) {
+      var bestCasinoContent = createBestCasinoContent();
+      bestCasinoContent.setAttribute('data-content', 'best-casino');
+      bestCasinoContent.classList.add(uniqueId + '-tab-content');
+      if (singleTab === 'best-casino' || activeTab === 'best-casino') {
+        bestCasinoContent.classList.add('active');
+      }
+      widgetContainer.appendChild(bestCasinoContent);
+    }
 
     // Recent Winnings Tab Content
-    var recentWinningsContent = createRecentWinningsContent();
-    recentWinningsContent.setAttribute('data-content', 'recent-winnings');
-    recentWinningsContent.classList.add(uniqueId + '-tab-content');
-    widgetContainer.appendChild(recentWinningsContent);
+    if (singleTab === 'recent-winnings' || !singleTab) {
+      var recentWinningsContent = createRecentWinningsContent();
+      recentWinningsContent.setAttribute('data-content', 'recent-winnings');
+      recentWinningsContent.classList.add(uniqueId + '-tab-content');
+      if (singleTab === 'recent-winnings' || activeTab === 'recent-winnings') {
+        recentWinningsContent.classList.add('active');
+      }
+      widgetContainer.appendChild(recentWinningsContent);
+    }
 
     // Footer
     var footer = document.createElement('div');
