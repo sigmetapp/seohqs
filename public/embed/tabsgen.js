@@ -1421,6 +1421,8 @@
           if (isDarkMode()) {
             row.style.background = styleConfig.selectedRowBgDark;
           }
+          // Populate details div
+          updatePaymentMethodDetails(method);
           detailsDiv.classList.add('show');
         } else {
           selectedMethod = null;
@@ -1492,6 +1494,129 @@
     content.appendChild(tableContainer);
     content.appendChild(detailsDiv);
 
+    // Function to update details div content
+    function updatePaymentMethodDetails(method) {
+      detailsDiv.innerHTML = '';
+      
+      var detailsContent = document.createElement('div');
+      detailsContent.className = `${uniqueId}-details-content`;
+      
+      var icon = document.createElement('span');
+      icon.className = `${uniqueId}-details-icon`;
+      icon.textContent = method.icon;
+      detailsContent.appendChild(icon);
+      
+      var info = document.createElement('div');
+      info.className = `${uniqueId}-details-info`;
+      
+      var title = document.createElement('h3');
+      title.className = `${uniqueId}-details-title`;
+      if (countryFlag) {
+        title.innerHTML = countryFlag + ' ' + (method.name[country] || method.name.UK);
+      } else {
+        title.textContent = method.name[country] || method.name.UK;
+      }
+      info.appendChild(title);
+      
+      var grid = document.createElement('div');
+      grid.className = `${uniqueId}-details-grid`;
+      
+      // Min Deposit
+      var minDepositItem = document.createElement('div');
+      minDepositItem.className = `${uniqueId}-details-item`;
+      var minDepositLabel = document.createElement('p');
+      minDepositLabel.className = `${uniqueId}-details-label`;
+      minDepositLabel.textContent = t.paymentMethods.minDeposit;
+      var minDepositValue = document.createElement('p');
+      minDepositValue.className = `${uniqueId}-details-value`;
+      minDepositValue.textContent = method.minDeposit || '-';
+      minDepositItem.appendChild(minDepositLabel);
+      minDepositItem.appendChild(minDepositValue);
+      grid.appendChild(minDepositItem);
+      
+      // Max Deposit
+      var maxDepositItem = document.createElement('div');
+      maxDepositItem.className = `${uniqueId}-details-item`;
+      var maxDepositLabel = document.createElement('p');
+      maxDepositLabel.className = `${uniqueId}-details-label`;
+      maxDepositLabel.textContent = t.paymentMethods.maxDeposit;
+      var maxDepositValue = document.createElement('p');
+      maxDepositValue.className = `${uniqueId}-details-value`;
+      maxDepositValue.textContent = method.maxDeposit || '-';
+      maxDepositItem.appendChild(maxDepositLabel);
+      maxDepositItem.appendChild(maxDepositValue);
+      grid.appendChild(maxDepositItem);
+      
+      // Processing Time
+      var processingTimeItem = document.createElement('div');
+      processingTimeItem.className = `${uniqueId}-details-item`;
+      var processingTimeLabel = document.createElement('p');
+      processingTimeLabel.className = `${uniqueId}-details-label`;
+      processingTimeLabel.textContent = t.paymentMethods.processingTime;
+      var processingTimeValue = document.createElement('p');
+      processingTimeValue.className = `${uniqueId}-details-value`;
+      var processingTimeText = typeof method.processingTime === 'object' 
+        ? (method.processingTime[country] || '-')
+        : (method.processingTime || '-');
+      processingTimeValue.textContent = processingTimeText;
+      processingTimeItem.appendChild(processingTimeLabel);
+      processingTimeItem.appendChild(processingTimeValue);
+      grid.appendChild(processingTimeItem);
+      
+      info.appendChild(grid);
+      
+      // Top Casinos section
+      if (method.casinos && method.casinos.length > 0) {
+        var casinosSection = document.createElement('div');
+        casinosSection.className = `${uniqueId}-casinos-section`;
+        casinosSection.style.display = 'block';
+        
+        var casinosTitle = document.createElement('h4');
+        casinosTitle.className = `${uniqueId}-casinos-title`;
+        casinosTitle.textContent = t.paymentMethods.topCasinos;
+        casinosSection.appendChild(casinosTitle);
+        
+        var casinosGrid = document.createElement('div');
+        casinosGrid.className = `${uniqueId}-casinos-grid`;
+        
+        method.casinos.forEach(function(casino) {
+          var casinoCard = document.createElement('a');
+          casinoCard.className = `${uniqueId}-casino-card`;
+          casinoCard.href = casino.url;
+          casinoCard.target = '_blank';
+          casinoCard.rel = 'noopener noreferrer';
+          
+          var casinoHeader = document.createElement('div');
+          casinoHeader.className = `${uniqueId}-casino-header`;
+          
+          var casinoName = document.createElement('span');
+          casinoName.className = `${uniqueId}-casino-name`;
+          casinoName.textContent = casino.name;
+          casinoHeader.appendChild(casinoName);
+          
+          var casinoIcon = document.createElement('span');
+          casinoIcon.className = `${uniqueId}-casino-icon`;
+          casinoIcon.textContent = '🎰';
+          casinoHeader.appendChild(casinoIcon);
+          
+          casinoCard.appendChild(casinoHeader);
+          
+          var casinoLink = document.createElement('span');
+          casinoLink.className = `${uniqueId}-casino-link`;
+          casinoLink.textContent = t.paymentMethods.playNow + ' →';
+          casinoCard.appendChild(casinoLink);
+          
+          casinosGrid.appendChild(casinoCard);
+        });
+        
+        casinosSection.appendChild(casinosGrid);
+        info.appendChild(casinosSection);
+      }
+      
+      detailsContent.appendChild(info);
+      detailsDiv.appendChild(detailsContent);
+    }
+
     return content;
   }
 
@@ -1542,6 +1667,15 @@
     var tbody = document.createElement('tbody');
     tbody.className = `${uniqueId}-tbody`;
     var selectedCasino = null;
+    
+    var detailsDiv = document.createElement('div');
+    detailsDiv.className = `${uniqueId}-details`;
+    detailsDiv.style.background = styleConfig.detailsBg;
+    detailsDiv.style.border = '1px solid ' + styleConfig.borderColor;
+    if (isDarkMode()) {
+      detailsDiv.style.background = styleConfig.detailsBgDark;
+      detailsDiv.style.borderColor = styleConfig.borderColorDark;
+    }
 
     bestCasinos.slice(0, 5).forEach(function(casino, index) {
       var row = document.createElement('tr');
@@ -1572,6 +1706,7 @@
             prevRow.classList.remove('selected');
             prevRow.style.background = '';
           }
+          detailsDiv.classList.remove('show');
         }
         if (!wasSelected) {
           selectedCasino = index;
@@ -1580,6 +1715,9 @@
           if (isDarkMode()) {
             row.style.background = styleConfig.selectedRowBgDark;
           }
+          // Populate details div
+          updateBestCasinoDetails(casino);
+          detailsDiv.classList.add('show');
         } else {
           selectedCasino = null;
           row.style.background = '';
@@ -1635,6 +1773,100 @@
     table.appendChild(tbody);
     tableContainer.appendChild(table);
     content.appendChild(tableContainer);
+    content.appendChild(detailsDiv);
+
+    // Function to update details div content
+    function updateBestCasinoDetails(casino) {
+      detailsDiv.innerHTML = '';
+      
+      var detailsContent = document.createElement('div');
+      detailsContent.className = `${uniqueId}-details-content`;
+      
+      var icon = document.createElement('span');
+      icon.className = `${uniqueId}-details-icon`;
+      icon.textContent = '🎲';
+      detailsContent.appendChild(icon);
+      
+      var info = document.createElement('div');
+      info.className = `${uniqueId}-details-info`;
+      
+      var title = document.createElement('h3');
+      title.className = `${uniqueId}-details-title`;
+      title.textContent = casino.name;
+      info.appendChild(title);
+      
+      var grid = document.createElement('div');
+      grid.className = `${uniqueId}-details-grid`;
+      
+      // Rating
+      var ratingItem = document.createElement('div');
+      ratingItem.className = `${uniqueId}-details-item`;
+      var ratingLabel = document.createElement('p');
+      ratingLabel.className = `${uniqueId}-details-label`;
+      ratingLabel.textContent = t.bestCasino.rating;
+      var ratingValue = document.createElement('p');
+      ratingValue.className = `${uniqueId}-details-value`;
+      ratingValue.textContent = getRatingStars(casino.rating || 5);
+      ratingItem.appendChild(ratingLabel);
+      ratingItem.appendChild(ratingValue);
+      grid.appendChild(ratingItem);
+      
+      // Bonus
+      var bonusItem = document.createElement('div');
+      bonusItem.className = `${uniqueId}-details-item`;
+      var bonusLabel = document.createElement('p');
+      bonusLabel.className = `${uniqueId}-details-label`;
+      bonusLabel.textContent = t.bestCasino.bonus;
+      var bonusValue = document.createElement('p');
+      bonusValue.className = `${uniqueId}-details-value`;
+      bonusValue.textContent = casino.bonus || '-';
+      bonusItem.appendChild(bonusLabel);
+      bonusItem.appendChild(bonusValue);
+      grid.appendChild(bonusItem);
+      
+      // Min Deposit
+      var minDepositItem = document.createElement('div');
+      minDepositItem.className = `${uniqueId}-details-item`;
+      var minDepositLabel = document.createElement('p');
+      minDepositLabel.className = `${uniqueId}-details-label`;
+      minDepositLabel.textContent = t.bestCasino.minDeposit;
+      var minDepositValue = document.createElement('p');
+      minDepositValue.className = `${uniqueId}-details-value`;
+      minDepositValue.textContent = casino.minDeposit || '-';
+      minDepositItem.appendChild(minDepositLabel);
+      minDepositItem.appendChild(minDepositValue);
+      grid.appendChild(minDepositItem);
+      
+      info.appendChild(grid);
+      
+      // Play Now button
+      if (casino.url) {
+        var playButton = document.createElement('a');
+        playButton.href = casino.url;
+        playButton.target = '_blank';
+        playButton.rel = 'noopener noreferrer';
+        playButton.style.display = 'inline-block';
+        playButton.style.marginTop = '16px';
+        playButton.style.padding = '12px 24px';
+        playButton.style.background = '#2563eb';
+        playButton.style.color = 'white';
+        playButton.style.fontWeight = '600';
+        playButton.style.borderRadius = '8px';
+        playButton.style.textDecoration = 'none';
+        playButton.style.transition = 'background-color 0.2s';
+        playButton.textContent = t.bestCasino.playNow + ' →';
+        playButton.addEventListener('mouseenter', function() {
+          playButton.style.background = '#1d4ed8';
+        });
+        playButton.addEventListener('mouseleave', function() {
+          playButton.style.background = '#2563eb';
+        });
+        info.appendChild(playButton);
+      }
+      
+      detailsContent.appendChild(info);
+      detailsDiv.appendChild(detailsContent);
+    }
 
     return content;
   }
@@ -1689,6 +1921,15 @@
 
     var tbody = document.createElement('tbody');
     tbody.className = `${uniqueId}-tbody`;
+    
+    var detailsDiv = document.createElement('div');
+    detailsDiv.className = `${uniqueId}-details`;
+    detailsDiv.style.background = styleConfig.detailsBg;
+    detailsDiv.style.border = '1px solid ' + styleConfig.borderColor;
+    if (isDarkMode()) {
+      detailsDiv.style.background = styleConfig.detailsBgDark;
+      detailsDiv.style.borderColor = styleConfig.borderColorDark;
+    }
 
     displayedWinnings.forEach(function(winning, index) {
       var row = document.createElement('tr');
@@ -1719,6 +1960,7 @@
             prevRow.classList.remove('selected');
             prevRow.style.background = '';
           }
+          detailsDiv.classList.remove('show');
         }
         if (!wasSelected) {
           selectedWinning = index;
@@ -1727,6 +1969,9 @@
           if (isDarkMode()) {
             row.style.background = styleConfig.selectedRowBgDark;
           }
+          // Populate details div
+          updateWinningDetails(winning);
+          detailsDiv.classList.add('show');
         } else {
           selectedWinning = null;
           row.style.background = '';
@@ -1782,11 +2027,126 @@
     table.appendChild(tbody);
     tableContainer.appendChild(table);
     content.appendChild(tableContainer);
+    content.appendChild(detailsDiv);
+
+    // Function to update details div content
+    function updateWinningDetails(winning) {
+      detailsDiv.innerHTML = '';
+      
+      var detailsContent = document.createElement('div');
+      detailsContent.className = `${uniqueId}-details-content`;
+      
+      var icon = document.createElement('span');
+      icon.className = `${uniqueId}-details-icon`;
+      icon.textContent = '🎲';
+      detailsContent.appendChild(icon);
+      
+      var info = document.createElement('div');
+      info.className = `${uniqueId}-details-info`;
+      
+      var title = document.createElement('h3');
+      title.className = `${uniqueId}-details-title`;
+      title.textContent = winning.casino;
+      info.appendChild(title);
+      
+      var grid = document.createElement('div');
+      grid.className = `${uniqueId}-details-grid`;
+      grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+      
+      // Player
+      var playerItem = document.createElement('div');
+      playerItem.className = `${uniqueId}-details-item`;
+      var playerLabel = document.createElement('p');
+      playerLabel.className = `${uniqueId}-details-label`;
+      playerLabel.textContent = t.recentWinnings.player;
+      var playerValue = document.createElement('p');
+      playerValue.className = `${uniqueId}-details-value`;
+      playerValue.textContent = winning.player;
+      playerItem.appendChild(playerLabel);
+      playerItem.appendChild(playerValue);
+      grid.appendChild(playerItem);
+      
+      // Amount
+      var amountItem = document.createElement('div');
+      amountItem.className = `${uniqueId}-details-item`;
+      var amountLabel = document.createElement('p');
+      amountLabel.className = `${uniqueId}-details-label`;
+      amountLabel.textContent = t.recentWinnings.amount;
+      var amountValue = document.createElement('p');
+      amountValue.className = `${uniqueId}-details-value`;
+      amountValue.style.color = '#10b981';
+      if (isDarkMode()) {
+        amountValue.style.color = '#34d399';
+      }
+      amountValue.textContent = winning.amount;
+      amountItem.appendChild(amountLabel);
+      amountItem.appendChild(amountValue);
+      grid.appendChild(amountItem);
+      
+      // Game
+      var gameItem = document.createElement('div');
+      gameItem.className = `${uniqueId}-details-item`;
+      var gameLabel = document.createElement('p');
+      gameLabel.className = `${uniqueId}-details-label`;
+      gameLabel.textContent = t.recentWinnings.game;
+      var gameValue = document.createElement('p');
+      gameValue.className = `${uniqueId}-details-value`;
+      gameValue.textContent = winning.game;
+      gameItem.appendChild(gameLabel);
+      gameItem.appendChild(gameValue);
+      grid.appendChild(gameItem);
+      
+      // Date
+      var dateItem = document.createElement('div');
+      dateItem.className = `${uniqueId}-details-item`;
+      var dateLabel = document.createElement('p');
+      dateLabel.className = `${uniqueId}-details-label`;
+      dateLabel.textContent = t.recentWinnings.date;
+      var dateValue = document.createElement('p');
+      dateValue.className = `${uniqueId}-details-value`;
+      dateValue.textContent = winning.date;
+      dateItem.appendChild(dateLabel);
+      dateItem.appendChild(dateValue);
+      grid.appendChild(dateItem);
+      
+      info.appendChild(grid);
+      
+      // Play Now button
+      if (winning.url) {
+        var playButton = document.createElement('a');
+        playButton.href = winning.url;
+        playButton.target = '_blank';
+        playButton.rel = 'noopener noreferrer';
+        playButton.style.display = 'inline-block';
+        playButton.style.marginTop = '16px';
+        playButton.style.padding = '12px 24px';
+        playButton.style.background = '#2563eb';
+        playButton.style.color = 'white';
+        playButton.style.fontWeight = '600';
+        playButton.style.borderRadius = '8px';
+        playButton.style.textDecoration = 'none';
+        playButton.style.transition = 'background-color 0.2s';
+        playButton.textContent = t.recentWinnings.playNow + ' →';
+        playButton.addEventListener('mouseenter', function() {
+          playButton.style.background = '#1d4ed8';
+        });
+        playButton.addEventListener('mouseleave', function() {
+          playButton.style.background = '#2563eb';
+        });
+        info.appendChild(playButton);
+      }
+      
+      detailsContent.appendChild(info);
+      detailsDiv.appendChild(detailsContent);
+    }
 
     // Auto-update winnings every 30 seconds
     if (allWinnings.length > 5) {
       setInterval(function() {
         displayedWinnings = selectRandomWinnings(allWinnings);
+        // Reset selection and hide details
+        selectedWinning = null;
+        detailsDiv.classList.remove('show');
         // Re-render table
         tbody.innerHTML = '';
         displayedWinnings.forEach(function(winning, index) {
@@ -1818,6 +2178,7 @@
                 prevRow.classList.remove('selected');
                 prevRow.style.background = '';
               }
+              detailsDiv.classList.remove('show');
             }
             if (!wasSelected) {
               selectedWinning = index;
@@ -1826,6 +2187,9 @@
               if (isDarkMode()) {
                 row.style.background = styleConfig.selectedRowBgDark;
               }
+              // Populate details div
+              updateWinningDetails(winning);
+              detailsDiv.classList.add('show');
             } else {
               selectedWinning = null;
               row.style.background = '';
