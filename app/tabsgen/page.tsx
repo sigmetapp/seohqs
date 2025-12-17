@@ -176,43 +176,43 @@ export default function TabsGenPage() {
         </div>
 
         {/* Tabs Navigation */}
-        <div className="mb-8 flex justify-center">
-          <div className="bg-white dark:bg-gray-800 p-1 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 inline-flex">
+        <div className="mb-8 flex justify-center px-2">
+          <div className="bg-white dark:bg-gray-800 p-1 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 inline-flex flex-wrap justify-center gap-1 w-full max-w-2xl">
             <button
               onClick={() => setActiveTab('payment-methods')}
               className={`
-                flex items-center gap-2 px-6 py-3 rounded-lg font-bold text-sm sm:text-base transition-all
+                flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-lg font-bold text-xs sm:text-sm md:text-base transition-all flex-1 sm:flex-none min-w-0
                 ${activeTab === 'payment-methods' 
                   ? 'bg-blue-600 text-white shadow-lg scale-105' 
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}
               `}
             >
-              <span className="text-xl">💳</span>
-              Top Payment Methods
+              <span className="text-base sm:text-lg md:text-xl flex-shrink-0">💳</span>
+              <span className="truncate">Top Payment Methods</span>
             </button>
             <button
               onClick={() => setActiveTab('best-casino')}
               className={`
-                flex items-center gap-2 px-6 py-3 rounded-lg font-bold text-sm sm:text-base transition-all
+                flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-lg font-bold text-xs sm:text-sm md:text-base transition-all flex-1 sm:flex-none min-w-0
                 ${activeTab === 'best-casino' 
                   ? 'bg-blue-600 text-white shadow-lg scale-105' 
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}
               `}
             >
-              <span className="text-xl">🏆</span>
-              Best Casino
+              <span className="text-base sm:text-lg md:text-xl flex-shrink-0">🏆</span>
+              <span className="truncate">Best Casino</span>
             </button>
             <button
               onClick={() => setActiveTab('recent-winnings')}
               className={`
-                flex items-center gap-2 px-6 py-3 rounded-lg font-bold text-sm sm:text-base transition-all
+                flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-lg font-bold text-xs sm:text-sm md:text-base transition-all flex-1 sm:flex-none min-w-0
                 ${activeTab === 'recent-winnings' 
                   ? 'bg-blue-600 text-white shadow-lg scale-105' 
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}
               `}
             >
-              <span className="text-xl">💰</span>
-              Recent Winnings
+              <span className="text-base sm:text-lg md:text-xl flex-shrink-0">💰</span>
+              <span className="truncate">Recent Winnings</span>
             </button>
           </div>
         </div>
@@ -497,13 +497,13 @@ export default function TabsGenPage() {
               {/* Tab-specific embed code - only show active tab */}
               {activeTab === 'payment-methods' && (
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                      <span>💳</span> Payment Methods Widget
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                      <span>💳</span> <span className="whitespace-nowrap">Payment Methods Widget</span>
                     </h3>
                     <button
                       onClick={() => handleCopy('payment-methods')}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-all text-sm ${
+                      className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition-all text-xs sm:text-sm whitespace-nowrap ${
                         copied
                           ? 'bg-green-500 text-white'
                           : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -513,8 +513,8 @@ export default function TabsGenPage() {
                     </button>
                   </div>
                   <div className="relative">
-                    <pre className="bg-gray-900 dark:bg-black rounded-lg p-4 text-sm text-gray-100 whitespace-pre-wrap break-words max-w-full overflow-x-auto">
-                      <code className="block whitespace-pre-wrap break-words">{generateEmbedCode('payment-methods')}</code>
+                    <pre className="bg-gray-900 dark:bg-black rounded-lg p-3 sm:p-4 text-xs sm:text-sm text-gray-100 whitespace-pre-wrap break-words max-w-full overflow-x-auto overflow-y-auto max-h-96">
+                      <code className="block whitespace-pre-wrap break-words font-mono">{generateEmbedCode('payment-methods')}</code>
                     </pre>
                   </div>
                 </div>
@@ -522,13 +522,13 @@ export default function TabsGenPage() {
 
               {activeTab === 'best-casino' && (
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                      <span>🏆</span> Best Casino Widget
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                      <span>🏆</span> <span className="whitespace-nowrap">Best Casino Widget</span>
                     </h3>
                     <button
                       onClick={() => handleCopy('best-casino')}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-all text-sm ${
+                      className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition-all text-xs sm:text-sm whitespace-nowrap ${
                         copied
                           ? 'bg-green-500 text-white'
                           : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -538,8 +538,8 @@ export default function TabsGenPage() {
                     </button>
                   </div>
                   <div className="relative">
-                    <pre className="bg-gray-900 dark:bg-black rounded-lg p-4 text-sm text-gray-100 whitespace-pre-wrap break-words max-w-full overflow-x-auto">
-                      <code className="block whitespace-pre-wrap break-words">{generateEmbedCode('best-casino')}</code>
+                    <pre className="bg-gray-900 dark:bg-black rounded-lg p-3 sm:p-4 text-xs sm:text-sm text-gray-100 whitespace-pre-wrap break-words max-w-full overflow-x-auto overflow-y-auto max-h-96">
+                      <code className="block whitespace-pre-wrap break-words font-mono">{generateEmbedCode('best-casino')}</code>
                     </pre>
                   </div>
                 </div>
@@ -547,13 +547,13 @@ export default function TabsGenPage() {
 
               {activeTab === 'recent-winnings' && (
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                      <span>💰</span> Recent Winnings Widget
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                      <span>💰</span> <span className="whitespace-nowrap">Recent Winnings Widget</span>
                     </h3>
                     <button
                       onClick={() => handleCopy('recent-winnings')}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-all text-sm ${
+                      className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition-all text-xs sm:text-sm whitespace-nowrap ${
                         copied
                           ? 'bg-green-500 text-white'
                           : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -563,8 +563,8 @@ export default function TabsGenPage() {
                     </button>
                   </div>
                   <div className="relative">
-                    <pre className="bg-gray-900 dark:bg-black rounded-lg p-4 text-sm text-gray-100 whitespace-pre-wrap break-words max-w-full overflow-x-auto">
-                      <code className="block whitespace-pre-wrap break-words">{generateEmbedCode('recent-winnings')}</code>
+                    <pre className="bg-gray-900 dark:bg-black rounded-lg p-3 sm:p-4 text-xs sm:text-sm text-gray-100 whitespace-pre-wrap break-words max-w-full overflow-x-auto overflow-y-auto max-h-96">
+                      <code className="block whitespace-pre-wrap break-words font-mono">{generateEmbedCode('recent-winnings')}</code>
                     </pre>
                   </div>
                 </div>
