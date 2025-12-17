@@ -145,7 +145,8 @@ const TRANSLATIONS = {
     en: { spin: 'SPIN', spinning: 'SPINNING...', win: 'WIN!', playReal: 'PLAY FOR REAL MONEY', congrats: 'Congratulations! You won!' },
     es: { spin: 'GIRAR', spinning: 'GIRANDO...', win: '¡GANASTE!', playReal: 'JUGAR CON DINERO REAL', congrats: '¡Felicidades! ¡Ganaste!' },
     fr: { spin: 'TOURNER', spinning: 'TOURNE...', win: 'GAGNÉ !', playReal: "JOUER POUR DE L'ARGENT", congrats: 'Félicitations ! Vous avez gagné !' },
-    de: { spin: 'DREHEN', spinning: 'DREHT SICH...', win: 'GEWONNEN!', playReal: 'UM ECHTES GELD SPIELEN', congrats: 'Herzlichen Glückwunsch! Sie haben gewonnen!' }
+    de: { spin: 'DREHEN', spinning: 'DREHT SICH...', win: 'GEWONNEN!', playReal: 'UM ECHTES GELD SPIELEN', congrats: 'Herzlichen Glückwunsch! Sie haben gewonnen!' },
+    bg: { spin: 'ЗАВЪРТАНЕ', spinning: 'ЗАВЪРТА СЕ...', win: 'ПЕЧАЛБА!', playReal: 'ИГРАЙ ЗА РЕАЛНИ ПАРИ', congrats: 'Поздравления! Спечелихте!' }
 } as const;
 
 const THEME_STYLES = {

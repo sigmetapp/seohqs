@@ -187,6 +187,7 @@ export default function EmbedPage() {
                         <option value="es">Español</option>
                         <option value="fr">Français</option>
                         <option value="de">Deutsch</option>
+                        <option value="bg">Български</option>
                     </select>
                 </div>
 

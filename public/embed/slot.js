@@ -48,6 +48,12 @@
         spinning: 'DREHT SICH...',
         playReal: 'UM ECHTES GELD SPIELEN',
         congrats: 'Herzlichen Glückwunsch! Sie haben gewonnen!'
+    },
+    bg: {
+        spin: 'ЗАВЪРТАНЕ',
+        spinning: 'ЗАВЪРТА СЕ...',
+        playReal: 'ИГРАЙ ЗА РЕАЛНИ ПАРИ',
+        congrats: 'Поздравления! Спечелихте!'
     }
   };
 
