@@ -156,6 +156,9 @@ export default function RecentWinningsTable({
 }: RecentWinningsTableProps) {
   const [displayedWinnings, setDisplayedWinnings] = useState<CasinoWinning[]>([]);
   const [selectedWinning, setSelectedWinning] = useState<number | null>(null);
+  const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [updateKey, setUpdateKey] = useState(0);
   const t = TRANSLATIONS[country];
   
   // Shuffle and select 5 random winnings
@@ -165,16 +168,51 @@ export default function RecentWinningsTable({
   };
 
   useEffect(() => {
-    // Initial selection
+    // Initial selection with animation
+    setIsInitializing(true);
     setDisplayedWinnings(selectRandomWinnings(winnings));
 
     if (autoUpdate && winnings.length > 5) {
-      const interval = setInterval(() => {
-        setDisplayedWinnings(selectRandomWinnings(winnings));
-        setSelectedWinning(null); // Reset selection on update
-      }, updateInterval);
+      const startTime = Date.now();
+      const INITIAL_UPDATE_DURATION = 6000; // 6 seconds
+      const FAST_UPDATE_INTERVAL = 1500; // 1.5 seconds for fast updates
+      let normalInterval: NodeJS.Timeout | null = null;
+      
+      // Fast updates in first 5-7 seconds
+      const fastInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        
+        if (elapsed < INITIAL_UPDATE_DURATION) {
+          const newWinnings = selectRandomWinnings(winnings);
+          setDisplayedWinnings(newWinnings);
+          setSelectedWinning(null);
+          setUpdateKey(prev => prev + 1);
+          
+          // Highlight a random row
+          const randomIndex = Math.floor(Math.random() * 5);
+          setHighlightedIndex(randomIndex);
+          setTimeout(() => setHighlightedIndex(null), 800);
+        } else {
+          clearInterval(fastInterval);
+          setIsInitializing(false);
+          
+          // Start normal update interval
+          normalInterval = setInterval(() => {
+            setDisplayedWinnings(selectRandomWinnings(winnings));
+            setSelectedWinning(null);
+          }, updateInterval);
+        }
+      }, FAST_UPDATE_INTERVAL);
 
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(fastInterval);
+        if (normalInterval) {
+          clearInterval(normalInterval);
+        }
+        setIsInitializing(false);
+      };
+    } else {
+      setIsInitializing(false);
     }
   }, [winnings, autoUpdate, updateInterval]);
   
@@ -256,15 +294,27 @@ export default function RecentWinningsTable({
           <tbody>
             {displayedWinnings.map((winning, index) => (
               <motion.tr
-                key={`${winning.casino}-${winning.player}-${index}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
+                key={`${winning.casino}-${winning.player}-${index}-${updateKey}`}
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ 
+                  opacity: 1, 
+                  y: 0, 
+                  scale: 1,
+                  backgroundColor: highlightedIndex === index 
+                    ? (style === 'modern' ? 'rgba(147, 51, 234, 0.2)' : style === 'minimal' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.15)')
+                    : 'transparent'
+                }}
+                transition={{ 
+                  delay: isInitializing ? index * 0.15 : 0,
+                  duration: 0.4,
+                  backgroundColor: { duration: 0.3 }
+                }}
                 className={`
                   border-b ${styleClasses.border}
                   ${styleClasses.row}
-                  transition-colors cursor-pointer
+                  transition-all cursor-pointer
                   ${selectedWinning === index ? styleClasses.selectedRow : ''}
+                  ${highlightedIndex === index ? 'ring-2 ring-blue-400 dark:ring-blue-500 shadow-lg' : ''}
                 `}
                 onClick={() => setSelectedWinning(selectedWinning === index ? null : index)}
               >
@@ -280,9 +330,25 @@ export default function RecentWinningsTable({
                   {winning.player}
                 </td>
                 <td className="py-4 px-4 text-center">
-                  <span className="font-bold text-green-600 dark:text-green-400 text-lg">
+                  <motion.span 
+                    key={`${winning.amount}-${updateKey}`}
+                    initial={{ scale: 1.3, opacity: 0 }}
+                    animate={{ 
+                      scale: highlightedIndex === index ? [1, 1.1, 1] : 1, 
+                      opacity: 1 
+                    }}
+                    transition={{ 
+                      duration: 0.4,
+                      scale: { 
+                        times: [0, 0.5, 1],
+                        duration: 0.5,
+                        repeat: highlightedIndex === index ? 1 : 0
+                      }
+                    }}
+                    className="font-bold text-green-600 dark:text-green-400 text-lg inline-block"
+                  >
                     {winning.amount}
-                  </span>
+                  </motion.span>
                 </td>
                 <td className="py-4 px-4 text-center text-gray-700 dark:text-gray-300">
                   {winning.game}
@@ -348,11 +414,22 @@ export default function RecentWinningsTable({
       {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
         {displayedWinnings.map((winning, index) => (
-          <div key={`${winning.casino}-${winning.player}-${index}`}>
+          <div key={`${winning.casino}-${winning.player}-${index}-${updateKey}`}>
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ 
+                opacity: 1, 
+                y: 0, 
+                scale: 1,
+                backgroundColor: highlightedIndex === index 
+                  ? (style === 'modern' ? 'rgba(147, 51, 234, 0.2)' : style === 'minimal' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.15)')
+                  : undefined
+              }}
+              transition={{ 
+                delay: isInitializing ? index * 0.15 : 0,
+                duration: 0.4,
+                backgroundColor: { duration: 0.3 }
+              }}
               className={`
                 p-4 rounded-xl border-2 transition-all cursor-pointer
                 ${selectedWinning === index 
@@ -362,6 +439,7 @@ export default function RecentWinningsTable({
                     ? 'bg-gray-100 dark:bg-gray-800 border-gray-400 dark:border-gray-500'
                     : 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400'
                   : `${styleClasses.card} hover:border-gray-300 dark:hover:border-gray-600`}
+                ${highlightedIndex === index ? 'ring-2 ring-blue-400 dark:ring-blue-500 shadow-lg' : ''}
               `}
               onClick={() => setSelectedWinning(selectedWinning === index ? null : index)}
             >
@@ -372,9 +450,15 @@ export default function RecentWinningsTable({
                     {winning.casino}
                   </span>
                 </div>
-                <span className="font-bold text-green-600 dark:text-green-400 text-lg">
+                <motion.span 
+                  key={winning.amount}
+                  initial={{ scale: 1.2, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="font-bold text-green-600 dark:text-green-400 text-lg inline-block"
+                >
                   {winning.amount}
-                </span>
+                </motion.span>
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
