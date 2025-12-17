@@ -5,8 +5,22 @@
   var script = document.currentScript;
   // If currentScript is not available (e.g., async loading), find the script by data attributes
   if (!script) {
-    var scripts = document.querySelectorAll('script[data-country]');
-    script = scripts[scripts.length - 1]; // Get the last matching script
+    // Try to find script with data-tab attribute first (more specific)
+    var scriptsWithTab = document.querySelectorAll('script[data-tab][src*="tabsgen.js"]');
+    if (scriptsWithTab.length > 0) {
+      // Get the script that was most recently added (last in list)
+      script = scriptsWithTab[scriptsWithTab.length - 1];
+    } else {
+      // Fallback to scripts with data-country and tabsgen.js src
+      var scripts = document.querySelectorAll('script[data-country][src*="tabsgen.js"]');
+      if (scripts.length > 0) {
+        script = scripts[scripts.length - 1]; // Get the last matching script
+      } else {
+        // Last fallback: any script with data-country
+        scripts = document.querySelectorAll('script[data-country]');
+        script = scripts[scripts.length - 1];
+      }
+    }
   }
   var country = script?.getAttribute('data-country') || 'UK';
   var tableStyle = script?.getAttribute('data-style') || 'modern';
@@ -1316,7 +1330,9 @@
     if (!container) return;
     
     // Debug: log singleTab value to help diagnose issues
-    // console.log('singleTab value:', singleTab);
+    console.log('singleTab value:', singleTab);
+    console.log('script element:', script);
+    console.log('data-tab attribute:', script?.getAttribute('data-tab'));
 
     var widgetContainer = document.createElement('div');
     widgetContainer.id = `${uniqueId}-widget`;
@@ -1333,7 +1349,7 @@
     var activeTab = singleTab || 'payment-methods';
     
     // Only create tabs navigation if we're in multi-tab mode
-    if (!singleTab) {
+    if (singleTab === null) {
       var tabsContainer = document.createElement('div');
       tabsContainer.className = `${uniqueId}-tabs`;
       if (isDarkMode()) {
@@ -1380,36 +1396,39 @@
     }
 
     // Payment Methods Tab Content
-    if (!singleTab || singleTab === 'payment-methods') {
+    // Only create if: no singleTab specified (multi-tab mode) OR singleTab is 'payment-methods'
+    if (singleTab === null || singleTab === 'payment-methods') {
       var paymentMethodsContent = createPaymentMethodsContent();
       paymentMethodsContent.setAttribute('data-content', 'payment-methods');
       paymentMethodsContent.classList.add(uniqueId + '-tab-content');
       // In single tab mode, always show. In multi-tab mode, show if active
-      if (singleTab === 'payment-methods' || (!singleTab && activeTab === 'payment-methods')) {
+      if (singleTab === 'payment-methods' || (singleTab === null && activeTab === 'payment-methods')) {
         paymentMethodsContent.classList.add('active');
       }
       widgetContainer.appendChild(paymentMethodsContent);
     }
 
     // Best Casino Tab Content
-    if (!singleTab || singleTab === 'best-casino') {
+    // Only create if: no singleTab specified (multi-tab mode) OR singleTab is 'best-casino'
+    if (singleTab === null || singleTab === 'best-casino') {
       var bestCasinoContent = createBestCasinoContent();
       bestCasinoContent.setAttribute('data-content', 'best-casino');
       bestCasinoContent.classList.add(uniqueId + '-tab-content');
       // In single tab mode, always show. In multi-tab mode, show if active
-      if (singleTab === 'best-casino' || (!singleTab && activeTab === 'best-casino')) {
+      if (singleTab === 'best-casino' || (singleTab === null && activeTab === 'best-casino')) {
         bestCasinoContent.classList.add('active');
       }
       widgetContainer.appendChild(bestCasinoContent);
     }
 
     // Recent Winnings Tab Content
-    if (!singleTab || singleTab === 'recent-winnings') {
+    // Only create if: no singleTab specified (multi-tab mode) OR singleTab is 'recent-winnings'
+    if (singleTab === null || singleTab === 'recent-winnings') {
       var recentWinningsContent = createRecentWinningsContent();
       recentWinningsContent.setAttribute('data-content', 'recent-winnings');
       recentWinningsContent.classList.add(uniqueId + '-tab-content');
       // In single tab mode, always show. In multi-tab mode, show if active
-      if (singleTab === 'recent-winnings' || (!singleTab && activeTab === 'recent-winnings')) {
+      if (singleTab === 'recent-winnings' || (singleTab === null && activeTab === 'recent-winnings')) {
         recentWinningsContent.classList.add('active');
       }
       widgetContainer.appendChild(recentWinningsContent);
