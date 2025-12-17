@@ -260,17 +260,17 @@ export default function RecentWinningsTable({
   const styleClasses = getStyleClasses();
 
   return (
-    <div className={`w-full max-w-6xl mx-auto p-4 sm:p-6 ${styleClasses.container} rounded-2xl shadow-xl border ${styleClasses.border}`}>
+    <div className={`w-full max-w-6xl mx-auto p-2 sm:p-4 md:p-6 ${styleClasses.container} rounded-xl sm:rounded-2xl shadow-xl border ${styleClasses.border}`}>
       {/* Header */}
-      <div className={`text-center mb-6 sm:mb-8 p-4 rounded-xl ${style === 'modern' ? styleClasses.header : ''}`}>
-        <h2 className={`text-2xl sm:text-3xl md:text-4xl font-extrabold mb-2 sm:mb-3 ${
+      <div className={`text-center mb-4 sm:mb-6 md:mb-8 p-2 sm:p-4 rounded-xl ${style === 'modern' ? styleClasses.header : ''}`}>
+        <h2 className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold mb-1 sm:mb-2 md:mb-3 ${
           style === 'modern' 
             ? styleClasses.headerText 
             : 'bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent'
         }`}>
           {t.title}
         </h2>
-        <p className={`text-sm sm:text-base md:text-lg px-2 ${
+        <p className={`text-xs sm:text-sm md:text-base lg:text-lg px-1 sm:px-2 ${
           style === 'modern' 
             ? styleClasses.headerText + ' opacity-90' 
             : 'text-gray-600 dark:text-gray-300'
@@ -412,7 +412,7 @@ export default function RecentWinningsTable({
       )}
 
       {/* Mobile Card View */}
-      <div className="md:hidden space-y-4">
+      <div className="md:hidden space-y-3 sm:space-y-4">
         {displayedWinnings.map((winning, index) => (
           <div key={`${winning.casino}-${winning.player}-${index}-${updateKey}`}>
             <motion.div
@@ -431,7 +431,7 @@ export default function RecentWinningsTable({
                 backgroundColor: { duration: 0.3 }
               }}
               className={`
-                p-4 rounded-xl border-2 transition-all cursor-pointer
+                p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 transition-all cursor-pointer
                 ${selectedWinning === index 
                   ? style === 'modern'
                     ? 'bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-800/40 dark:to-blue-800/40 border-purple-500 dark:border-purple-400'
@@ -482,7 +482,7 @@ export default function RecentWinningsTable({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className={`mt-3 p-4 ${styleClasses.details} rounded-xl border ${styleClasses.border}`}
+                className={`mt-3 p-3 sm:p-4 ${styleClasses.details} rounded-lg sm:rounded-xl border ${styleClasses.border}`}
               >
                 <div className="flex items-start gap-3">
                   <span className="text-3xl">🎲</span>
