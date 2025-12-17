@@ -2,16 +2,55 @@
   'use strict';
 
   // Получаем параметры из data-атрибутов скрипта
-  var script = document.currentScript || document.querySelector('script[data-country]');
+  var script = document.currentScript;
+  // If currentScript is not available (e.g., async loading), find the script by data attributes
+  if (!script) {
+    // Try to find script with data-tab attribute first (more specific)
+    var scriptsWithTab = document.querySelectorAll('script[data-tab][src*="tabsgen.js"]');
+    if (scriptsWithTab.length > 0) {
+      // Get the script that was most recently added (last in list)
+      script = scriptsWithTab[scriptsWithTab.length - 1];
+    } else {
+      // Fallback to scripts with data-country and tabsgen.js src
+      var scripts = document.querySelectorAll('script[data-country][src*="tabsgen.js"]');
+      if (scripts.length > 0) {
+        script = scripts[scripts.length - 1]; // Get the last matching script
+      } else {
+        // Last fallback: any script with data-country
+        scripts = document.querySelectorAll('script[data-country]');
+        script = scripts[scripts.length - 1];
+      }
+    }
+  }
   var country = script?.getAttribute('data-country') || 'UK';
-  var tableStyle = script?.getAttribute('data-style') || 'classic';
+  var tableStyle = script?.getAttribute('data-style') || 'modern';
+  var singleTab = script?.getAttribute('data-tab'); // 'payment-methods', 'best-casino', or 'recent-winnings'
+  // Normalize: empty string should be treated as null
+  if (singleTab === '' || singleTab === null || singleTab === undefined) {
+    singleTab = null;
+  }
   
+  // Helper function to decode HTML entities
+  function decodeHtmlEntities(str) {
+    if (!str) return '';
+    // Replace HTML entities - must replace &amp; first to avoid double-decoding
+    return str
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&#x27;/g, "'")
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>');
+  }
+
   // Parse casinos data
   var casinosDataStr = script?.getAttribute('data-casinos') || '{}';
   var customCasinos = {};
   try {
-    customCasinos = JSON.parse(casinosDataStr.replace(/&quot;/g, '"'));
+    var decodedStr = decodeHtmlEntities(casinosDataStr);
+    customCasinos = JSON.parse(decodedStr);
   } catch(e) {
+    console.error('Error parsing casinos data:', e);
     customCasinos = {};
   }
 
@@ -19,8 +58,10 @@
   var bestCasinosDataStr = script?.getAttribute('data-best-casinos') || '[]';
   var bestCasinos = [];
   try {
-    bestCasinos = JSON.parse(bestCasinosDataStr.replace(/&quot;/g, '"'));
+    var decodedStr = decodeHtmlEntities(bestCasinosDataStr);
+    bestCasinos = JSON.parse(decodedStr);
   } catch(e) {
+    console.error('Error parsing best casinos data:', e);
     bestCasinos = [];
   }
 
@@ -28,8 +69,10 @@
   var winningsDataStr = script?.getAttribute('data-winnings') || '[]';
   var allWinnings = [];
   try {
-    allWinnings = JSON.parse(winningsDataStr.replace(/&quot;/g, '"'));
+    var decodedStr = decodeHtmlEntities(winningsDataStr);
+    allWinnings = JSON.parse(decodedStr);
   } catch(e) {
+    console.error('Error parsing winnings data:', e);
     allWinnings = [];
   }
 
@@ -552,30 +595,30 @@
     switch(style) {
       case 'modern':
         return {
-          widgetBg: 'linear-gradient(to bottom right, #faf5ff, #eff6ff, #fdf2f8)',
-          widgetBgDark: 'linear-gradient(to bottom right, rgba(147, 51, 234, 0.3), rgba(59, 130, 246, 0.3), rgba(219, 39, 119, 0.3))',
-          headerBg: 'linear-gradient(to right, #9333ea, #2563eb, #db2777)',
-          headerText: 'white',
-          tableHeaderBg: 'linear-gradient(to right, #e9d5ff, #dbeafe)',
-          tableHeaderBgDark: 'linear-gradient(to right, rgba(147, 51, 234, 0.5), rgba(59, 130, 246, 0.5))',
-          rowHover: 'linear-gradient(to right, #f3e8ff, #dbeafe)',
-          rowHoverDark: 'linear-gradient(to right, rgba(147, 51, 234, 0.3), rgba(59, 130, 246, 0.3))',
-          selectedRowBg: 'linear-gradient(to right, #dbeafe, #e9d5ff)',
-          selectedRowBgDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.4), rgba(147, 51, 234, 0.4))',
-          borderColor: '#c084fc',
-          borderColorDark: '#9333ea',
-          cardBg: 'linear-gradient(to bottom right, white, #faf5ff)',
-          cardBgDark: 'linear-gradient(to bottom right, #1f2937, rgba(147, 51, 234, 0.3))',
-          detailsBg: 'linear-gradient(to right, #f3e8ff, #dbeafe, #fce7f3)',
-          detailsBgDark: 'linear-gradient(to right, rgba(147, 51, 234, 0.4), rgba(59, 130, 246, 0.4), rgba(219, 39, 119, 0.4))',
-          mobileCardBg: 'linear-gradient(to bottom right, #faf5ff, #eff6ff)',
+          widgetBg: '#ffffff',
+          widgetBgDark: '#1f2937',
+          headerBg: 'transparent',
+          headerText: '#000000',
+          tableHeaderBg: '#f8fafc',
+          tableHeaderBgDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2))',
+          rowHover: '#f1f5f9',
+          rowHoverDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.15), rgba(147, 51, 234, 0.15))',
+          selectedRowBg: '#e2e8f0',
+          selectedRowBgDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.25), rgba(147, 51, 234, 0.25))',
+          borderColor: '#cbd5e1',
+          borderColorDark: '#4b5563',
+          cardBg: '#ffffff',
+          cardBgDark: '#1f2937',
+          detailsBg: '#f8fafc',
+          detailsBgDark: 'linear-gradient(to right, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2), rgba(239, 68, 68, 0.2))',
+          mobileCardBg: '#ffffff',
           mobileCardBgDark: 'rgba(17, 24, 39, 0.5)',
-          mobileSelectedBg: 'linear-gradient(to right, #dbeafe, #e9d5ff)',
+          mobileSelectedBg: '#e2e8f0',
           mobileSelectedBgDark: 'rgba(30, 58, 138, 0.2)',
-          tabActiveBg: 'linear-gradient(to right, #9333ea, #2563eb)',
+          tabActiveBg: 'linear-gradient(to right, #3b82f6, #8b5cf6)',
           tabActiveText: 'white',
           tabInactiveBg: 'transparent',
-          tabInactiveText: '#6b7280',
+          tabInactiveText: '#475569',
         };
       case 'minimal':
         return {
@@ -705,7 +748,7 @@
       margin: 0 auto;
       padding: 32px;
       border-radius: 16px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
       box-sizing: border-box;
     }
 
@@ -719,15 +762,17 @@
       gap: 8px;
       margin-bottom: 32px;
       flex-wrap: wrap;
-      background: white;
+      background: #f8fafc;
       padding: 4px;
       border-radius: 12px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      border: 1px solid #e2e8f0;
     }
 
     @media (prefers-color-scheme: dark) {
       .${uniqueId}-tabs {
         background: #1f2937;
+        border-color: #4b5563;
       }
     }
 
@@ -776,7 +821,7 @@
 
     .${uniqueId}-subtitle {
       font-size: 18px;
-      color: #6b7280;
+      color: #374151;
       margin: 0;
     }
 
@@ -842,6 +887,13 @@
       text-align: left;
       padding: 16px;
       font-weight: 700;
+      color: #000000;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .${uniqueId}-th {
+        color: white;
+      }
     }
 
     .${uniqueId}-th-center {
@@ -862,6 +914,7 @@
 
     .${uniqueId}-tbody .${uniqueId}-tr:hover {
       transition: background-color 0.2s;
+      cursor: pointer;
     }
 
     .${uniqueId}-tbody .${uniqueId}-tr.selected {
@@ -870,6 +923,13 @@
 
     .${uniqueId}-td {
       padding: 16px;
+      color: #000000;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .${uniqueId}-td {
+        color: white;
+      }
     }
 
     .${uniqueId}-td-center {
@@ -888,7 +948,7 @@
 
     .${uniqueId}-method-name {
       font-weight: 600;
-      color: #111827;
+      color: #000000;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -951,7 +1011,7 @@
       font-size: 24px;
       font-weight: 700;
       margin: 0 0 16px 0;
-      color: #111827;
+      color: #000000;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -993,7 +1053,7 @@
     .${uniqueId}-details-value {
       font-size: 18px;
       font-weight: 600;
-      color: #111827;
+      color: #000000;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -1019,7 +1079,7 @@
       font-size: 18px;
       font-weight: 700;
       margin: 0 0 16px 0;
-      color: #111827;
+      color: #000000;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -1080,7 +1140,7 @@
     .${uniqueId}-casino-name {
       font-size: 18px;
       font-weight: 700;
-      color: #111827;
+      color: #000000;
       transition: color 0.2s;
     }
 
@@ -1187,7 +1247,7 @@
     .${uniqueId}-mobile-card-title {
       font-weight: 700;
       font-size: 16px;
-      color: #111827;
+      color: #000000;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -1237,7 +1297,7 @@
 
     .${uniqueId}-mobile-card-detail-value {
       font-weight: 600;
-      color: #111827;
+      color: #000000;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -1265,93 +1325,6 @@
   styleSheet.textContent = styles;
   document.head.appendChild(styleSheet);
 
-  function initWidget() {
-    var container = document.getElementById('seohqs-payment-methods-widget');
-    if (!container) return;
-
-    var widgetContainer = document.createElement('div');
-    widgetContainer.id = `${uniqueId}-widget`;
-    widgetContainer.style.background = styleConfig.widgetBg;
-    widgetContainer.style.border = '1px solid ' + styleConfig.borderColor;
-    if (isDarkMode()) {
-      widgetContainer.style.background = styleConfig.widgetBgDark;
-      widgetContainer.style.borderColor = styleConfig.borderColorDark;
-      widgetContainer.style.color = 'white';
-    }
-
-    // Tabs Navigation
-    var tabsContainer = document.createElement('div');
-    tabsContainer.className = `${uniqueId}-tabs`;
-    if (isDarkMode()) {
-      tabsContainer.style.background = '#1f2937';
-    }
-
-    var activeTab = 'payment-methods';
-    
-    function createTab(id, label, icon) {
-      var tab = document.createElement('button');
-      tab.className = `${uniqueId}-tab`;
-      tab.setAttribute('data-tab', id);
-      tab.innerHTML = '<span>' + icon + '</span><span>' + label + '</span>';
-      tab.style.color = id === activeTab ? styleConfig.tabActiveText : styleConfig.tabInactiveText;
-      tab.style.background = id === activeTab ? styleConfig.tabActiveBg : styleConfig.tabInactiveBg;
-      if (isDarkMode() && id === activeTab) {
-        tab.style.background = styleConfig.tabActiveBg;
-      }
-      tab.addEventListener('click', function() {
-        activeTab = id;
-        // Update all tabs
-        tabsContainer.querySelectorAll('.' + uniqueId + '-tab').forEach(function(t) {
-          var tabId = t.getAttribute('data-tab');
-          t.style.color = tabId === activeTab ? styleConfig.tabActiveText : styleConfig.tabInactiveText;
-          t.style.background = tabId === activeTab ? styleConfig.tabActiveBg : styleConfig.tabInactiveBg;
-          if (isDarkMode() && tabId === activeTab) {
-            t.style.background = styleConfig.tabActiveBg;
-          }
-        });
-        // Show/hide content
-        widgetContainer.querySelectorAll('.' + uniqueId + '-tab-content').forEach(function(content) {
-          content.classList.remove('active');
-        });
-        var content = widgetContainer.querySelector('[data-content="' + id + '"]');
-        if (content) content.classList.add('active');
-      });
-      return tab;
-    }
-
-    tabsContainer.appendChild(createTab('payment-methods', t.paymentMethods.title, '💳'));
-    tabsContainer.appendChild(createTab('best-casino', t.bestCasino.title, '🏆'));
-    tabsContainer.appendChild(createTab('recent-winnings', t.recentWinnings.title, '💰'));
-    
-    widgetContainer.appendChild(tabsContainer);
-
-    // Payment Methods Tab Content
-    var paymentMethodsContent = createPaymentMethodsContent();
-    paymentMethodsContent.setAttribute('data-content', 'payment-methods');
-    paymentMethodsContent.classList.add(uniqueId + '-tab-content', 'active');
-    widgetContainer.appendChild(paymentMethodsContent);
-
-    // Best Casino Tab Content
-    var bestCasinoContent = createBestCasinoContent();
-    bestCasinoContent.setAttribute('data-content', 'best-casino');
-    bestCasinoContent.classList.add(uniqueId + '-tab-content');
-    widgetContainer.appendChild(bestCasinoContent);
-
-    // Recent Winnings Tab Content
-    var recentWinningsContent = createRecentWinningsContent();
-    recentWinningsContent.setAttribute('data-content', 'recent-winnings');
-    recentWinningsContent.classList.add(uniqueId + '-tab-content');
-    widgetContainer.appendChild(recentWinningsContent);
-
-    // Footer
-    var footer = document.createElement('div');
-    footer.className = `${uniqueId}-footer`;
-    footer.textContent = 'Verified by SEOHQS';
-    widgetContainer.appendChild(footer);
-
-    container.innerHTML = '';
-    container.appendChild(widgetContainer);
-  }
 
   function createPaymentMethodsContent() {
     var content = document.createElement('div');
@@ -1391,7 +1364,7 @@
       var th = document.createElement('th');
       th.className = `${uniqueId}-th ${uniqueId}-th-center`;
       th.textContent = headerText;
-      th.style.color = isDarkMode() ? 'white' : '#111827';
+      th.style.color = isDarkMode() ? 'white' : '#000000';
       headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
@@ -1414,6 +1387,22 @@
       var row = document.createElement('tr');
       row.className = `${uniqueId}-tr`;
       row.setAttribute('data-method-id', method.id);
+      
+      // Add hover effect
+      row.addEventListener('mouseenter', function() {
+        if (selectedMethod !== method.id) {
+          row.style.background = styleConfig.rowHover;
+          if (isDarkMode()) {
+            row.style.background = styleConfig.rowHoverDark;
+          }
+        }
+      });
+      
+      row.addEventListener('mouseleave', function() {
+        if (selectedMethod !== method.id) {
+          row.style.background = '';
+        }
+      });
       
       row.addEventListener('click', function() {
         var wasSelected = selectedMethod === method.id;
@@ -1544,7 +1533,7 @@
       var th = document.createElement('th');
       th.className = `${uniqueId}-th ${uniqueId}-th-center`;
       th.textContent = headerText;
-      th.style.color = isDarkMode() ? 'white' : '#111827';
+      th.style.color = isDarkMode() ? 'white' : '#000000';
       headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
@@ -1558,6 +1547,22 @@
       var row = document.createElement('tr');
       row.className = `${uniqueId}-tr`;
       row.setAttribute('data-casino-index', index);
+      
+      // Add hover effect
+      row.addEventListener('mouseenter', function() {
+        if (selectedCasino !== index) {
+          row.style.background = styleConfig.rowHover;
+          if (isDarkMode()) {
+            row.style.background = styleConfig.rowHoverDark;
+          }
+        }
+      });
+      
+      row.addEventListener('mouseleave', function() {
+        if (selectedCasino !== index) {
+          row.style.background = '';
+        }
+      });
       
       row.addEventListener('click', function() {
         var wasSelected = selectedCasino === index;
@@ -1676,7 +1681,7 @@
       var th = document.createElement('th');
       th.className = `${uniqueId}-th ${uniqueId}-th-center`;
       th.textContent = headerText;
-      th.style.color = isDarkMode() ? 'white' : '#111827';
+      th.style.color = isDarkMode() ? 'white' : '#000000';
       headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
@@ -1689,6 +1694,22 @@
       var row = document.createElement('tr');
       row.className = `${uniqueId}-tr`;
       row.setAttribute('data-winning-index', index);
+      
+      // Add hover effect
+      row.addEventListener('mouseenter', function() {
+        if (selectedWinning !== index) {
+          row.style.background = styleConfig.rowHover;
+          if (isDarkMode()) {
+            row.style.background = styleConfig.rowHoverDark;
+          }
+        }
+      });
+      
+      row.addEventListener('mouseleave', function() {
+        if (selectedWinning !== index) {
+          row.style.background = '';
+        }
+      });
       
       row.addEventListener('click', function() {
         var wasSelected = selectedWinning === index;
@@ -1773,6 +1794,22 @@
           row.className = `${uniqueId}-tr`;
           row.setAttribute('data-winning-index', index);
           
+          // Add hover effect
+          row.addEventListener('mouseenter', function() {
+            if (selectedWinning !== index) {
+              row.style.background = styleConfig.rowHover;
+              if (isDarkMode()) {
+                row.style.background = styleConfig.rowHoverDark;
+              }
+            }
+          });
+          
+          row.addEventListener('mouseleave', function() {
+            if (selectedWinning !== index) {
+              row.style.background = '';
+            }
+          });
+          
           row.addEventListener('click', function() {
             var wasSelected = selectedWinning === index;
             if (selectedWinning !== null) {
@@ -1840,6 +1877,195 @@
     }
 
     return content;
+  }
+
+  // Separate initialization functions for each tab type
+  function initPaymentMethodsOnly() {
+    var container = document.getElementById('seohqs-payment-methods-widget');
+    if (!container) return;
+
+    var widgetContainer = document.createElement('div');
+    widgetContainer.id = `${uniqueId}-widget`;
+    widgetContainer.style.background = styleConfig.widgetBg;
+    widgetContainer.style.border = '1px solid ' + styleConfig.borderColor;
+    widgetContainer.style.color = '#000000';
+    if (isDarkMode()) {
+      widgetContainer.style.background = styleConfig.widgetBgDark;
+      widgetContainer.style.borderColor = styleConfig.borderColorDark;
+      widgetContainer.style.color = 'white';
+    }
+
+    // Only Payment Methods content - no tabs navigation
+    var paymentMethodsContent = createPaymentMethodsContent();
+    paymentMethodsContent.style.display = 'block'; // Always visible
+    widgetContainer.appendChild(paymentMethodsContent);
+
+    // Footer
+    var footer = document.createElement('div');
+    footer.className = `${uniqueId}-footer`;
+    footer.textContent = 'Verified by SEOHQS';
+    widgetContainer.appendChild(footer);
+
+    container.innerHTML = '';
+    container.appendChild(widgetContainer);
+  }
+
+  function initBestCasinoOnly() {
+    var container = document.getElementById('seohqs-payment-methods-widget');
+    if (!container) return;
+
+    var widgetContainer = document.createElement('div');
+    widgetContainer.id = `${uniqueId}-widget`;
+    widgetContainer.style.background = styleConfig.widgetBg;
+    widgetContainer.style.border = '1px solid ' + styleConfig.borderColor;
+    widgetContainer.style.color = '#000000';
+    if (isDarkMode()) {
+      widgetContainer.style.background = styleConfig.widgetBgDark;
+      widgetContainer.style.borderColor = styleConfig.borderColorDark;
+      widgetContainer.style.color = 'white';
+    }
+
+    // Only Best Casino content - no tabs navigation
+    var bestCasinoContent = createBestCasinoContent();
+    bestCasinoContent.style.display = 'block'; // Always visible
+    widgetContainer.appendChild(bestCasinoContent);
+
+    // Footer
+    var footer = document.createElement('div');
+    footer.className = `${uniqueId}-footer`;
+    footer.textContent = 'Verified by SEOHQS';
+    widgetContainer.appendChild(footer);
+
+    container.innerHTML = '';
+    container.appendChild(widgetContainer);
+  }
+
+  function initRecentWinningsOnly() {
+    var container = document.getElementById('seohqs-payment-methods-widget');
+    if (!container) return;
+
+    var widgetContainer = document.createElement('div');
+    widgetContainer.id = `${uniqueId}-widget`;
+    widgetContainer.style.background = styleConfig.widgetBg;
+    widgetContainer.style.border = '1px solid ' + styleConfig.borderColor;
+    widgetContainer.style.color = '#000000';
+    if (isDarkMode()) {
+      widgetContainer.style.background = styleConfig.widgetBgDark;
+      widgetContainer.style.borderColor = styleConfig.borderColorDark;
+      widgetContainer.style.color = 'white';
+    }
+
+    // Only Recent Winnings content - no tabs navigation
+    var recentWinningsContent = createRecentWinningsContent();
+    recentWinningsContent.style.display = 'block'; // Always visible
+    widgetContainer.appendChild(recentWinningsContent);
+
+    // Footer
+    var footer = document.createElement('div');
+    footer.className = `${uniqueId}-footer`;
+    footer.textContent = 'Verified by SEOHQS';
+    widgetContainer.appendChild(footer);
+
+    container.innerHTML = '';
+    container.appendChild(widgetContainer);
+  }
+
+  // Main initialization - route to appropriate function based on singleTab
+  function initWidget() {
+    if (singleTab === 'payment-methods') {
+      initPaymentMethodsOnly();
+    } else if (singleTab === 'best-casino') {
+      initBestCasinoOnly();
+    } else if (singleTab === 'recent-winnings') {
+      initRecentWinningsOnly();
+    } else {
+      // Multi-tab mode - show all tabs with navigation
+      var container = document.getElementById('seohqs-payment-methods-widget');
+      if (!container) return;
+
+      var widgetContainer = document.createElement('div');
+      widgetContainer.id = `${uniqueId}-widget`;
+      widgetContainer.style.background = styleConfig.widgetBg;
+      widgetContainer.style.border = '1px solid ' + styleConfig.borderColor;
+      widgetContainer.style.color = '#000000'; // Black text by default
+      if (isDarkMode()) {
+        widgetContainer.style.background = styleConfig.widgetBgDark;
+        widgetContainer.style.borderColor = styleConfig.borderColorDark;
+        widgetContainer.style.color = 'white';
+      }
+
+      // Tabs Navigation (only show if not single tab mode)
+      var activeTab = 'payment-methods';
+      
+      var tabsContainer = document.createElement('div');
+      tabsContainer.className = `${uniqueId}-tabs`;
+      if (isDarkMode()) {
+        tabsContainer.style.background = '#1f2937';
+        tabsContainer.style.borderColor = '#4b5563';
+      }
+
+      function createTab(id, label, icon) {
+        var tab = document.createElement('button');
+        tab.className = `${uniqueId}-tab`;
+        tab.setAttribute('data-tab', id);
+        tab.innerHTML = '<span>' + icon + '</span><span>' + label + '</span>';
+        tab.style.color = id === activeTab ? styleConfig.tabActiveText : styleConfig.tabInactiveText;
+        tab.style.background = id === activeTab ? styleConfig.tabActiveBg : styleConfig.tabInactiveBg;
+        if (isDarkMode() && id === activeTab) {
+          tab.style.background = styleConfig.tabActiveBg;
+        }
+        tab.addEventListener('click', function() {
+          activeTab = id;
+          // Update all tabs
+          tabsContainer.querySelectorAll('.' + uniqueId + '-tab').forEach(function(t) {
+            var tabId = t.getAttribute('data-tab');
+            t.style.color = tabId === activeTab ? styleConfig.tabActiveText : styleConfig.tabInactiveText;
+            t.style.background = tabId === activeTab ? styleConfig.tabActiveBg : styleConfig.tabInactiveBg;
+            if (isDarkMode() && tabId === activeTab) {
+              t.style.background = styleConfig.tabActiveBg;
+            }
+          });
+          // Show/hide content
+          widgetContainer.querySelectorAll('.' + uniqueId + '-tab-content').forEach(function(content) {
+            content.classList.remove('active');
+          });
+          var content = widgetContainer.querySelector('[data-content="' + id + '"]');
+          if (content) content.classList.add('active');
+        });
+        return tab;
+      }
+
+      tabsContainer.appendChild(createTab('payment-methods', t.paymentMethods.title, '💳'));
+      tabsContainer.appendChild(createTab('best-casino', t.bestCasino.title, '🏆'));
+      tabsContainer.appendChild(createTab('recent-winnings', t.recentWinnings.title, '💰'));
+      
+      widgetContainer.appendChild(tabsContainer);
+
+      // All three tab contents for multi-tab mode
+      var paymentMethodsContent = createPaymentMethodsContent();
+      paymentMethodsContent.setAttribute('data-content', 'payment-methods');
+      paymentMethodsContent.classList.add(uniqueId + '-tab-content', 'active');
+      widgetContainer.appendChild(paymentMethodsContent);
+
+      var bestCasinoContent = createBestCasinoContent();
+      bestCasinoContent.setAttribute('data-content', 'best-casino');
+      bestCasinoContent.classList.add(uniqueId + '-tab-content');
+      widgetContainer.appendChild(bestCasinoContent);
+
+      var recentWinningsContent = createRecentWinningsContent();
+      recentWinningsContent.setAttribute('data-content', 'recent-winnings');
+      recentWinningsContent.classList.add(uniqueId + '-tab-content');
+      widgetContainer.appendChild(recentWinningsContent);
+
+      // Footer
+      var footer = document.createElement('div');
+      footer.className = `${uniqueId}-footer`;
+      footer.textContent = 'Verified by SEOHQS';
+      widgetContainer.appendChild(footer);
+
+      container.innerHTML = '';
+      container.appendChild(widgetContainer);
+    }
   }
 
   if (document.readyState === 'loading') {

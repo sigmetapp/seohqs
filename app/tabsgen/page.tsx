@@ -65,7 +65,7 @@ export default function TabsGenPage() {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<TabType>('payment-methods');
   const [country, setCountry] = useState<CountryCode>('UK');
-  const [tableStyle, setTableStyle] = useState<TableStyle>('classic');
+  const [tableStyle, setTableStyle] = useState<TableStyle>('modern');
   const [copied, setCopied] = useState(false);
   const [casinos, setCasinos] = useState<Record<string, Casino[]>>(DEFAULT_CASINOS);
   const [bestCasinos, setBestCasinos] = useState<BestCasino[]>(DEFAULT_BEST_CASINOS);
@@ -87,13 +87,22 @@ export default function TabsGenPage() {
 
   const selectedCountryFlag = countries.find(c => c.code === country)?.flag || '';
 
-  const generateEmbedCode = () => {
-    // Serialize data
-    const casinosData = JSON.stringify(casinos).replace(/"/g, '&quot;');
-    const bestCasinosData = JSON.stringify(bestCasinos).replace(/"/g, '&quot;');
-    const winningsData = JSON.stringify(winnings).replace(/"/g, '&quot;');
+  const generateEmbedCode = (tabType: TabType = activeTab) => {
+    // Serialize data and properly escape for HTML attributes
+    const escapeHtmlAttribute = (str: string) => {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    };
     
-    const embedCode = `<!-- Tabs Widget by SEOHQS -->
+    const casinosData = escapeHtmlAttribute(JSON.stringify(casinos));
+    const bestCasinosData = escapeHtmlAttribute(JSON.stringify(bestCasinos));
+    const winningsData = escapeHtmlAttribute(JSON.stringify(winnings));
+    
+    const embedCode = `<!-- ${tabType === 'payment-methods' ? 'Payment Methods' : tabType === 'best-casino' ? 'Best Casino' : 'Recent Winnings'} Widget by SEOHQS -->
 <div id="seohqs-payment-methods-widget"></div>
 <script>
   (function() {
@@ -101,13 +110,14 @@ export default function TabsGenPage() {
     script.src = 'https://www.seohqs.com/embed/tabsgen.js';
     script.setAttribute('data-country', '${country}');
     script.setAttribute('data-style', '${tableStyle}');
+    script.setAttribute('data-tab', '${tabType}');
     script.setAttribute('data-casinos', '${casinosData}');
     script.setAttribute('data-best-casinos', '${bestCasinosData}');
     script.setAttribute('data-winnings', '${winningsData}');
     document.head.appendChild(script);
   })();
 </script>
-<!-- End SEOHQS Tabs Widget -->`;
+<!-- End SEOHQS Widget -->`;
 
     return embedCode;
   };
@@ -145,8 +155,8 @@ export default function TabsGenPage() {
     });
   };
 
-  const handleCopy = () => {
-    const code = generateEmbedCode();
+  const handleCopy = (tabType?: TabType) => {
+    const code = generateEmbedCode(tabType || activeTab);
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -480,27 +490,86 @@ export default function TabsGenPage() {
 
             {/* Embed Code Section */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {t('tabsgen.embedCode')}
-                </h2>
-                <button
-                  onClick={handleCopy}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    copied
-                      ? 'bg-green-500 text-white'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
-                  }`}
-                >
-                  {copied ? t('tabsgen.copied') : t('tabsgen.copy')}
-                </button>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                {t('tabsgen.embedCode')}
+              </h2>
+              
+              {/* Tab-specific embed codes */}
+              <div className="space-y-6">
+                {/* Payment Methods Embed Code */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                      <span>💳</span> Payment Methods Widget
+                    </h3>
+                    <button
+                      onClick={() => handleCopy('payment-methods')}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all text-sm ${
+                        copied
+                          ? 'bg-green-500 text-white'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
+                    >
+                      {copied ? t('tabsgen.copied') : t('tabsgen.copy')}
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <pre className="bg-gray-900 dark:bg-black rounded-lg p-4 text-sm text-gray-100 whitespace-pre-wrap break-words max-w-full overflow-x-auto">
+                      <code className="block whitespace-pre-wrap break-words">{generateEmbedCode('payment-methods')}</code>
+                    </pre>
+                  </div>
+                </div>
+
+                {/* Best Casino Embed Code */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                      <span>🏆</span> Best Casino Widget
+                    </h3>
+                    <button
+                      onClick={() => handleCopy('best-casino')}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all text-sm ${
+                        copied
+                          ? 'bg-green-500 text-white'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
+                    >
+                      {copied ? t('tabsgen.copied') : t('tabsgen.copy')}
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <pre className="bg-gray-900 dark:bg-black rounded-lg p-4 text-sm text-gray-100 whitespace-pre-wrap break-words max-w-full overflow-x-auto">
+                      <code className="block whitespace-pre-wrap break-words">{generateEmbedCode('best-casino')}</code>
+                    </pre>
+                  </div>
+                </div>
+
+                {/* Recent Winnings Embed Code */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                      <span>💰</span> Recent Winnings Widget
+                    </h3>
+                    <button
+                      onClick={() => handleCopy('recent-winnings')}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all text-sm ${
+                        copied
+                          ? 'bg-green-500 text-white'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
+                    >
+                      {copied ? t('tabsgen.copied') : t('tabsgen.copy')}
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <pre className="bg-gray-900 dark:bg-black rounded-lg p-4 text-sm text-gray-100 whitespace-pre-wrap break-words max-w-full overflow-x-auto">
+                      <code className="block whitespace-pre-wrap break-words">{generateEmbedCode('recent-winnings')}</code>
+                    </pre>
+                  </div>
+                </div>
               </div>
-              <div className="relative">
-                <pre className="bg-gray-900 dark:bg-black rounded-lg p-4 text-sm text-gray-100 whitespace-pre-wrap break-words max-w-full">
-                  <code className="block whitespace-pre-wrap break-words">{generateEmbedCode()}</code>
-                </pre>
-              </div>
-              <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+
+              <p className="mt-6 text-sm text-gray-600 dark:text-gray-400">
                 {t('tabsgen.copyInstructions')}
               </p>
             </div>
