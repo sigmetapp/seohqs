@@ -244,7 +244,7 @@ export default function BestCasinoTable({ country, casinos, countryFlag, style =
               >
                 <td className="py-4 px-4">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">🎰</span>
+                    <span className="text-2xl">🎲</span>
                     <span className="font-semibold text-gray-900 dark:text-white">
                       {casino.name}
                     </span>
@@ -279,7 +279,7 @@ export default function BestCasinoTable({ country, casinos, countryFlag, style =
           className={`hidden md:block mt-4 sm:mt-6 p-4 sm:p-6 ${styleClasses.details} rounded-xl border ${styleClasses.border}`}
         >
           <div className="flex items-start gap-4">
-            <span className="text-4xl">🎰</span>
+            <span className="text-4xl">🎲</span>
             <div className="flex-1">
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4">
                 {casinos[selectedCasino].name}
@@ -339,7 +339,7 @@ export default function BestCasinoTable({ country, casinos, countryFlag, style =
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">🎰</span>
+                  <span className="text-2xl">🎲</span>
                   <span className="font-bold text-gray-900 dark:text-white text-base">
                     {casino.name}
                   </span>
@@ -371,7 +371,7 @@ export default function BestCasinoTable({ country, casinos, countryFlag, style =
                 className={`mt-3 p-4 ${styleClasses.details} rounded-xl border ${styleClasses.border}`}
               >
                 <div className="flex items-start gap-3">
-                  <span className="text-3xl">🎰</span>
+                  <span className="text-3xl">🎲</span>
                   <div className="flex-1">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">
                       {casino.name}

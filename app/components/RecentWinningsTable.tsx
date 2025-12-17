@@ -270,7 +270,7 @@ export default function RecentWinningsTable({
               >
                 <td className="py-4 px-4">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">🎰</span>
+                    <span className="text-2xl">🎲</span>
                     <span className="font-semibold text-gray-900 dark:text-white">
                       {winning.casino}
                     </span>
@@ -305,7 +305,7 @@ export default function RecentWinningsTable({
           className={`hidden md:block mt-4 sm:mt-6 p-4 sm:p-6 ${styleClasses.details} rounded-xl border ${styleClasses.border}`}
         >
           <div className="flex items-start gap-4">
-            <span className="text-4xl">🎰</span>
+            <span className="text-4xl">🎲</span>
             <div className="flex-1">
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4">
                 {displayedWinnings[selectedWinning].casino}
@@ -367,7 +367,7 @@ export default function RecentWinningsTable({
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">🎰</span>
+                  <span className="text-2xl">🎲</span>
                   <span className="font-bold text-gray-900 dark:text-white text-base">
                     {winning.casino}
                   </span>
@@ -401,7 +401,7 @@ export default function RecentWinningsTable({
                 className={`mt-3 p-4 ${styleClasses.details} rounded-xl border ${styleClasses.border}`}
               >
                 <div className="flex items-start gap-3">
-                  <span className="text-3xl">🎰</span>
+                  <span className="text-3xl">🎲</span>
                   <div className="flex-1">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">
                       {winning.casino}
