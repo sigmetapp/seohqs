@@ -163,14 +163,14 @@ export default function TabsGenPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-6 sm:py-8 md:py-12 px-3 sm:px-4 md:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl md:text-6xl font-extrabold mb-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
+        <div className="text-center mb-8 sm:mb-10 md:mb-12">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold mb-4 sm:mb-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
             {t('tabsgen.title')}
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+          <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto px-2">
             {t('tabsgen.description')}
           </p>
         </div>
@@ -219,29 +219,31 @@ export default function TabsGenPage() {
 
         {/* Preview Section */}
         <div className="mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-6xl rotate-12 select-none">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-3 sm:p-4 md:p-6 border border-gray-200 dark:border-gray-700 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-2 sm:p-4 opacity-10 font-black text-3xl sm:text-4xl md:text-6xl rotate-12 select-none">
               PREVIEW
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 relative z-10">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6 relative z-10 px-1">
               {t('tabsgen.preview')}
             </h2>
-            {activeTab === 'payment-methods' && (
-              <PaymentMethodsTable country={country} casinos={casinos} countryFlag={selectedCountryFlag} style={tableStyle} />
-            )}
-            {activeTab === 'best-casino' && (
-              <BestCasinoTable country={country} casinos={bestCasinos} countryFlag={selectedCountryFlag} style={tableStyle} />
-            )}
-            {activeTab === 'recent-winnings' && (
-              <RecentWinningsTable country={country} winnings={winnings} countryFlag={selectedCountryFlag} style={tableStyle} />
-            )}
+            <div className="relative z-10 overflow-x-auto -mx-3 sm:-mx-4 md:-mx-6 px-3 sm:px-4 md:px-6">
+              {activeTab === 'payment-methods' && (
+                <PaymentMethodsTable country={country} casinos={casinos} countryFlag={selectedCountryFlag} style={tableStyle} />
+              )}
+              {activeTab === 'best-casino' && (
+                <BestCasinoTable country={country} casinos={bestCasinos} countryFlag={selectedCountryFlag} style={tableStyle} />
+              )}
+              {activeTab === 'recent-winnings' && (
+                <RecentWinningsTable country={country} winnings={winnings} countryFlag={selectedCountryFlag} style={tableStyle} />
+              )}
+            </div>
           </div>
         </div>
 
         {/* Configuration Section */}
-        <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+        <div className="space-y-4 sm:space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
                 {t('tabsgen.settings')}
               </h2>
 
@@ -250,11 +252,11 @@ export default function TabsGenPage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     {t('tabsgen.selectTableStyle')}
                   </label>
-                  <div className="flex flex-wrap gap-3 mb-6">
+                  <div className="flex flex-wrap gap-2 sm:gap-3 mb-4 sm:mb-6">
                     <button
                       onClick={() => setTableStyle('classic')}
                       className={`
-                        px-4 py-2 rounded-lg font-medium transition-all border-2
+                        flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg font-medium transition-all border-2 text-xs sm:text-sm
                         ${tableStyle === 'classic'
                           ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                           : 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}
@@ -265,7 +267,7 @@ export default function TabsGenPage() {
                       <button
                         onClick={() => setTableStyle('modern')}
                         className={`
-                        px-4 py-2 rounded-lg font-medium transition-all border-2
+                        flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg font-medium transition-all border-2 text-xs sm:text-sm
                         ${tableStyle === 'modern'
                           ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                           : 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}
@@ -276,7 +278,7 @@ export default function TabsGenPage() {
                       <button
                         onClick={() => setTableStyle('minimal')}
                         className={`
-                        px-4 py-2 rounded-lg font-medium transition-all border-2
+                        flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg font-medium transition-all border-2 text-xs sm:text-sm
                         ${tableStyle === 'minimal'
                           ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                           : 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}
@@ -285,7 +287,7 @@ export default function TabsGenPage() {
                         {t('tabsgen.minimal')}
                       </button>
                   </div>
-                  <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+                  <p className="mb-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                     {t('tabsgen.selectStyleDescription')}
                   </p>
                 </div>
@@ -293,61 +295,62 @@ export default function TabsGenPage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     {t('tabsgen.selectCountry')}
                   </label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {countries.map((c) => (
                       <button
                         key={c.code}
                         onClick={() => setCountry(c.code)}
                         className={`
-                          flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all
-                          border
+                          flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded text-xs font-medium transition-all
+                          border whitespace-nowrap
                           ${country === c.code
                             ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                             : 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}
                         `}
                       >
-                        <span className="text-sm">{c.flag}</span>
-                        <span>{c.name}</span>
+                        <span className="text-xs sm:text-sm">{c.flag}</span>
+                        <span className="hidden sm:inline">{c.name}</span>
+                        <span className="sm:hidden">{c.code}</span>
                       </button>
                     ))}
                   </div>
-                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  <p className="mt-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                     {t('tabsgen.countryDescription')}
                   </p>
                 </div>
 
                 {/* Tab-specific Settings */}
                 {activeTab === 'payment-methods' && (
-                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                  <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">
                       {t('tabsgen.casinoSettings')}
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 sm:mb-4">
                       {t('tabsgen.casinoSettingsDescription')}
                     </p>
                     
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                       {Object.keys(PAYMENT_METHOD_NAMES).map((methodId) => (
-                        <div key={methodId} className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                          <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                        <div key={methodId} className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">
                             {PAYMENT_METHOD_NAMES[methodId]}
                           </h4>
-                          <div className="space-y-3">
+                          <div className="space-y-2 sm:space-y-3">
                             {[0, 1, 2].map((index) => (
-                              <div key={index} className="grid grid-cols-2 gap-2">
+                              <div key={index} className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <input
                                   type="text"
                                   placeholder={t('tabsgen.casinoNamePlaceholder').replace('{index}', String(index + 1))}
                                   value={casinos[methodId]?.[index]?.name || ''}
                                   onChange={(e) => updateCasino(methodId, index, 'name', e.target.value)}
-                                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 />
                                 <input
                                   type="url"
                                   placeholder={t('tabsgen.casinoUrlPlaceholder').replace('{index}', String(index + 1))}
                                   value={casinos[methodId]?.[index]?.url || ''}
                                   onChange={(e) => updateCasino(methodId, index, 'url', e.target.value)}
-                                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 />
                               </div>
                             ))}
@@ -359,37 +362,37 @@ export default function TabsGenPage() {
                 )}
 
                 {activeTab === 'best-casino' && (
-                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                  <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">
                       Best Casino Settings
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 sm:mb-4">
                       Configure top 5 best casinos with ratings and bonuses
                     </p>
                     
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       {bestCasinos.map((casino, index) => (
-                        <div key={index} className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                          <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                        <div key={index} className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3">
                             Casino {index + 1}
                           </h4>
-                          <div className="grid grid-cols-2 gap-2 mb-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                             <input
                               type="text"
                               placeholder="Casino Name"
                               value={casino.name}
                               onChange={(e) => updateBestCasino(index, 'name', e.target.value)}
-                              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                              className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                             <input
                               type="url"
                               placeholder="Casino URL"
                               value={casino.url}
                               onChange={(e) => updateBestCasino(index, 'url', e.target.value)}
-                              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                              className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                           </div>
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <input
                               type="number"
                               placeholder="Rating (1-5)"
@@ -397,21 +400,21 @@ export default function TabsGenPage() {
                               max="5"
                               value={casino.rating}
                               onChange={(e) => updateBestCasino(index, 'rating', parseInt(e.target.value) || 5)}
-                              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                              className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                             <input
                               type="text"
                               placeholder="Bonus"
                               value={casino.bonus || ''}
                               onChange={(e) => updateBestCasino(index, 'bonus', e.target.value)}
-                              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                              className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                             <input
                               type="text"
                               placeholder="Min Deposit"
                               value={casino.minDeposit || ''}
                               onChange={(e) => updateBestCasino(index, 'minDeposit', e.target.value)}
-                              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                              className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                           </div>
                         </div>
@@ -421,66 +424,66 @@ export default function TabsGenPage() {
                 )}
 
                 {activeTab === 'recent-winnings' && (
-                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                  <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">
                       Recent Winnings Settings
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 sm:mb-4">
                       Configure 30 possible winnings. 5 random ones will be displayed and updated periodically.
                     </p>
                     
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {winnings.slice(0, 10).map((winning, index) => (
-                        <div key={index} className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                          <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div key={index} className="p-2 sm:p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                             <input
                               type="text"
                               placeholder="Casino Name"
                               value={winning.casino}
                               onChange={(e) => updateWinning(index, 'casino', e.target.value)}
-                              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs"
+                              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                             <input
                               type="url"
                               placeholder="Casino URL"
                               value={winning.url}
                               onChange={(e) => updateWinning(index, 'url', e.target.value)}
-                              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs"
+                              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                           </div>
-                          <div className="grid grid-cols-4 gap-2">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             <input
                               type="text"
                               placeholder="Player"
                               value={winning.player}
                               onChange={(e) => updateWinning(index, 'player', e.target.value)}
-                              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs"
+                              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                             <input
                               type="text"
                               placeholder="Amount"
                               value={winning.amount}
                               onChange={(e) => updateWinning(index, 'amount', e.target.value)}
-                              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs"
+                              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                             <input
                               type="text"
                               placeholder="Game"
                               value={winning.game}
                               onChange={(e) => updateWinning(index, 'game', e.target.value)}
-                              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs"
+                              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                             <input
                               type="text"
                               placeholder="Date"
                               value={winning.date}
                               onChange={(e) => updateWinning(index, 'date', e.target.value)}
-                              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs"
+                              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                           </div>
                         </div>
                       ))}
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-1">
                         Showing first 10 of {winnings.length} winnings. All {winnings.length} will be used for random selection.
                       </p>
                     </div>
@@ -489,8 +492,8 @@ export default function TabsGenPage() {
               </div>
 
             {/* Embed Code Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
                 {t('tabsgen.embedCode')}
               </h2>
               
@@ -578,7 +581,7 @@ export default function TabsGenPage() {
         </div>
 
         {/* Features Section */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="mt-8 sm:mt-10 md:mt-12 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
             <div className="text-4xl mb-4">🌍</div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
