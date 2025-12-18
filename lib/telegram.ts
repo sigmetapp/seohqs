@@ -181,12 +181,15 @@ export async function getAllTelegramChannelPosts(
       images?: Array<{ url: string; caption?: string }>;
     }> = [];
     
+    let puppeteerUsed = false;
     try {
       console.log('Attempting to fetch posts using Puppeteer...');
       puppeteerPosts = await getAllTelegramChannelPostsWithPuppeteer(channelUsername, maxPosts);
       puppeteerPosts.forEach(post => allPostsMap.set(post.message_id, post));
       console.log(`Found ${puppeteerPosts.length} posts using Puppeteer`);
+      puppeteerUsed = true;
     } catch (puppeteerError: any) {
+      console.error('Puppeteer error:', puppeteerError);
       console.log('Puppeteer not available or failed, falling back to HTML parsing:', puppeteerError.message);
       
       // Fallback: Парсинг основной страницы канала
@@ -208,6 +211,8 @@ export async function getAllTelegramChannelPosts(
         console.log('Could not parse JSON data:', error);
       }
     }
+    
+    console.log(`Total unique posts found: ${allPostsMap.size} (Puppeteer used: ${puppeteerUsed})`);
     
     // Конвертируем Map в массив и сортируем по дате
     const posts = Array.from(allPostsMap.values());
@@ -264,9 +269,12 @@ async function getAllTelegramChannelPostsWithPuppeteer(
       console.log('Messages selector not found, continuing...');
     });
     
+    // Даем время на полную загрузку начальных постов
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
     let previousPostCount = 0;
     let noNewPostsCount = 0; // Счетчик попыток без новых постов
-    const maxScrollAttempts = 100; // Максимальное количество попыток прокрутки
+    const maxScrollAttempts = 200; // Увеличиваем количество попыток
     const postsMap = new Map<number, {
       message_id: number;
       date: number;
@@ -275,7 +283,87 @@ async function getAllTelegramChannelPostsWithPuppeteer(
       images?: Array<{ url: string; caption?: string }>;
     }>();
     
+    // Сначала парсим начальные посты
+    const initialPosts = await page.evaluate(() => {
+      const posts: Array<{
+        message_id: number;
+        date: number;
+        text?: string;
+        caption?: string;
+        images?: Array<{ url: string; caption?: string }>;
+      }> = [];
+      
+      const messageElements = document.querySelectorAll('.tgme_widget_message');
+      
+      messageElements.forEach((element) => {
+        try {
+          const dataPost = element.getAttribute('data-post');
+          if (!dataPost) return;
+          
+          const messageIdMatch = dataPost.match(/\/(\d+)$/);
+          if (!messageIdMatch) return;
+          
+          const messageId = parseInt(messageIdMatch[1], 10);
+          
+          const timeElement = element.querySelector('time[datetime]');
+          let dateTimestamp = 0;
+          if (timeElement) {
+            const datetime = timeElement.getAttribute('datetime');
+            if (datetime) {
+              dateTimestamp = Math.floor(new Date(datetime).getTime() / 1000);
+            }
+          }
+          
+          const textElement = element.querySelector('.tgme_widget_message_text');
+          let text: string | undefined;
+          if (textElement) {
+            text = textElement.textContent?.trim() || undefined;
+          }
+          
+          if (!text) {
+            const captionElement = element.querySelector('.tgme_widget_message_caption');
+            if (captionElement) {
+              text = captionElement.textContent?.trim() || undefined;
+            }
+          }
+          
+          const images: Array<{ url: string; caption?: string }> = [];
+          const imageLinks = element.querySelectorAll<HTMLAnchorElement>('.tgme_widget_message_photo_wrap');
+          imageLinks.forEach((link) => {
+            const href = link.getAttribute('href');
+            if (href) {
+              images.push({ url: href });
+            }
+          });
+          
+          if (text || images.length > 0) {
+            posts.push({
+              message_id: messageId,
+              date: dateTimestamp,
+              text,
+              caption: text,
+              images: images.length > 0 ? images : undefined
+            });
+          }
+        } catch (error) {
+          // Пропускаем некорректные посты
+        }
+      });
+      
+      return posts;
+    });
+    
+    initialPosts.forEach(post => {
+      if (post.message_id) {
+        postsMap.set(post.message_id, post);
+      }
+    });
+    
+    previousPostCount = postsMap.size;
+    console.log(`Initial posts found: ${previousPostCount}`);
+    
     // Прокручиваем страницу вверх для загрузки старых постов
+    // Telegram загружает старые посты при прокрутке к самому верху
     for (let attempt = 0; attempt < maxScrollAttempts; attempt++) {
       // Парсим текущие посты на странице
       const currentPosts = await page.evaluate(() => {
@@ -370,29 +458,147 @@ async function getAllTelegramChannelPostsWithPuppeteer(
       }
       
       // Прокручиваем вверх для загрузки старых постов
-      // Telegram загружает старые посты при прокрутке к верху страницы
-      const beforeScroll = await page.evaluate(() => document.body.scrollHeight);
-      await page.evaluate(() => {
-        window.scrollTo(0, 0);
+      // Telegram загружает старые посты при прокрутке к самому верху страницы
+      const scrollInfo = await page.evaluate(() => {
+        return {
+          scrollHeight: document.body.scrollHeight,
+          scrollTop: window.pageYOffset || document.documentElement.scrollTop,
+          clientHeight: window.innerHeight
+        };
       });
       
-      // Ждем загрузки новых постов
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Прокручиваем к самому верху страницы
+      await page.evaluate(() => {
+        // Прокручиваем к самому верху
+        window.scrollTo({ top: 0, behavior: 'auto' });
+        // Также пробуем прокрутить documentElement
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      });
       
-      const afterScroll = await page.evaluate(() => document.body.scrollHeight);
+      // Ждем загрузки новых постов (увеличиваем время ожидания)
+      await new Promise(resolve => setTimeout(resolve, 4000));
+      
+      // Пробуем активировать загрузку через небольшое движение мыши или клик
+      try {
+        await page.mouse.move(100, 100);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await page.evaluate(() => {
+          // Прокручиваем немного вниз и обратно вверх
+          window.scrollBy(0, 50);
+        });
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await page.evaluate(() => {
+          window.scrollTo({ top: 0, behavior: 'auto' });
+          document.documentElement.scrollTop = 0;
+          document.body.scrollTop = 0;
+        });
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      } catch (error) {
+        console.log('Error with mouse interaction:', error);
+      }
+      
+      // Парсим посты снова после прокрутки
+      const currentPosts = await page.evaluate(() => {
+        const posts: Array<{
+          message_id: number;
+          date: number;
+          text?: string;
+          caption?: string;
+          images?: Array<{ url: string; caption?: string }>;
+        }> = [];
+        
+        const messageElements = document.querySelectorAll('.tgme_widget_message');
+        
+        messageElements.forEach((element) => {
+          try {
+            const dataPost = element.getAttribute('data-post');
+            if (!dataPost) return;
+            
+            const messageIdMatch = dataPost.match(/\/(\d+)$/);
+            if (!messageIdMatch) return;
+            
+            const messageId = parseInt(messageIdMatch[1], 10);
+            
+            const timeElement = element.querySelector('time[datetime]');
+            let dateTimestamp = 0;
+            if (timeElement) {
+              const datetime = timeElement.getAttribute('datetime');
+              if (datetime) {
+                dateTimestamp = Math.floor(new Date(datetime).getTime() / 1000);
+              }
+            }
+            
+            const textElement = element.querySelector('.tgme_widget_message_text');
+            let text: string | undefined;
+            if (textElement) {
+              text = textElement.textContent?.trim() || undefined;
+            }
+            
+            if (!text) {
+              const captionElement = element.querySelector('.tgme_widget_message_caption');
+              if (captionElement) {
+                text = captionElement.textContent?.trim() || undefined;
+              }
+            }
+            
+            const images: Array<{ url: string; caption?: string }> = [];
+            const imageLinks = element.querySelectorAll<HTMLAnchorElement>('.tgme_widget_message_photo_wrap');
+            imageLinks.forEach((link) => {
+              const href = link.getAttribute('href');
+              if (href) {
+                images.push({ url: href });
+              }
+            });
+            
+            if (text || images.length > 0) {
+              posts.push({
+                message_id: messageId,
+                date: dateTimestamp,
+                text,
+                caption: text,
+                images: images.length > 0 ? images : undefined
+              });
+            }
+          } catch (error) {
+            // Пропускаем некорректные посты
+          }
+        });
+        
+        return posts;
+      });
+      
+      // Добавляем новые посты
+      let newPostsFound = 0;
+      currentPosts.forEach(post => {
+        if (post.message_id && !postsMap.has(post.message_id)) {
+          postsMap.set(post.message_id, post);
+          newPostsFound++;
+        }
+      });
+      
       const newPostCount = postsMap.size;
+      const afterScroll = await page.evaluate(() => document.body.scrollHeight);
       
-      // Если высота страницы увеличилась или количество постов изменилось, значит загрузились новые посты
-      if (afterScroll > beforeScroll || newPostCount > previousPostCount) {
-        noNewPostsCount = 0; // Сбрасываем счетчик, так как нашли новые посты
-        previousPostCount = newPostCount; // Обновляем счетчик постов
+      console.log(`Attempt ${attempt + 1}: Found ${newPostsFound} new posts, total: ${newPostCount}, scroll height: ${scrollInfo.scrollHeight} -> ${afterScroll}`);
+      
+      // Если нашли новые посты или высота страницы увеличилась
+      if (newPostsFound > 0 || afterScroll > scrollInfo.scrollHeight) {
+        noNewPostsCount = 0; // Сбрасываем счетчик
+        previousPostCount = newPostCount;
       } else {
         noNewPostsCount++;
         // Если несколько раз подряд не находим новые посты, прекращаем
-        if (noNewPostsCount >= 5) {
-          console.log('No new posts loaded after multiple scroll attempts, stopping');
+        if (noNewPostsCount >= 10) {
+          console.log('No new posts loaded after 10 scroll attempts, stopping');
           break;
         }
+      }
+      
+      // Проверяем лимит
+      if (maxPosts && newPostCount >= maxPosts) {
+        console.log(`Reached max posts limit: ${maxPosts}`);
+        break;
       }
     }
     

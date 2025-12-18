@@ -131,11 +131,16 @@ export async function GET(request: NextRequest) {
     // Если запрошена полная синхронизация
     if (fullSync) {
       console.log('Starting full sync for channel:', channelUsername);
+      console.log('Attempting to fetch all posts with Puppeteer...');
       
       // Получаем все посты из канала через веб-страницу
+      // Не ограничиваем количество постов
       const allPosts = await getAllTelegramChannelPosts(channelUsername);
       
       console.log(`Found ${allPosts.length} posts in channel`);
+      if (allPosts.length > 0) {
+        console.log(`Date range: ${new Date(allPosts[0].date * 1000).toISOString()} to ${new Date(allPosts[allPosts.length - 1].date * 1000).toISOString()}`);
+      }
       
       // Получаем существующие посты из БД
       const { data: existingPosts } = await supabase
