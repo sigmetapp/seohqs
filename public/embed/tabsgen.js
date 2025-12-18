@@ -23,7 +23,17 @@
     }
   }
   var country = script?.getAttribute('data-country') || 'UK';
-  var tableStyle = script?.getAttribute('data-style') || 'modern';
+  function normalizeStyle(style) {
+    var s = (style || '').toString().trim().toLowerCase();
+    if (s === 'dark' || s === 'light' || s === 'casino') return s;
+    // Legacy values
+    if (s === 'classic') return 'dark';
+    if (s === 'modern') return 'light';
+    if (s === 'minimal') return 'casino';
+    // Default: light (white-site friendly)
+    return 'light';
+  }
+  var tableStyle = normalizeStyle(script?.getAttribute('data-style') || 'light');
   var singleTab = script?.getAttribute('data-tab'); // 'payment-methods', 'best-casino', or 'recent-winnings'
   // Normalize: empty string should be treated as null
   if (singleTab === '' || singleTab === null || singleTab === undefined) {
@@ -654,7 +664,7 @@
   // Style configuration function
   function getStyleConfig(style) {
     switch(style) {
-      case 'modern':
+      case 'light':
         return {
           widgetBg: '#ffffff',
           widgetBgDark: '#1f2937',
@@ -681,59 +691,60 @@
           tabInactiveBg: 'transparent',
           tabInactiveText: '#475569',
         };
-      case 'minimal':
+      case 'casino':
         return {
-          widgetBg: 'white',
-          widgetBgDark: '#111827',
+          widgetBg: '#ffffff',
+          widgetBgDark: 'linear-gradient(135deg, #070A16, #1A0636, #062A4B)',
           headerBg: 'transparent',
-          headerText: '#111827',
-          tableHeaderBg: '#f9fafb',
-          tableHeaderBgDark: '#1f2937',
-          rowHover: '#f9fafb',
-          rowHoverDark: '#1f2937',
-          selectedRowBg: '#f3f4f6',
-          selectedRowBgDark: '#1f2937',
-          borderColor: '#e5e7eb',
-          borderColorDark: '#374151',
-          cardBg: 'white',
-          cardBgDark: '#111827',
-          detailsBg: '#f9fafb',
-          detailsBgDark: '#1f2937',
-          mobileCardBg: '#f9fafb',
-          mobileCardBgDark: 'rgba(17, 24, 39, 0.5)',
-          mobileSelectedBg: '#f3f4f6',
-          mobileSelectedBgDark: '#1f2937',
-          tabActiveBg: '#f3f4f6',
-          tabActiveText: '#111827',
+          headerText: '#ffffff',
+          tableHeaderBg: '#f8fafc',
+          tableHeaderBgDark: 'linear-gradient(to right, rgba(245, 158, 11, 0.15), rgba(236, 72, 153, 0.15), rgba(34, 211, 238, 0.15))',
+          rowHover: '#f1f5f9',
+          rowHoverDark: 'rgba(255, 255, 255, 0.05)',
+          selectedRowBg: '#e2e8f0',
+          selectedRowBgDark: 'linear-gradient(to right, rgba(245, 158, 11, 0.10), rgba(236, 72, 153, 0.10), rgba(34, 211, 238, 0.10))',
+          borderColor: '#cbd5e1',
+          borderColorDark: 'rgba(255, 255, 255, 0.10)',
+          cardBg: '#ffffff',
+          cardBgDark: 'rgba(0, 0, 0, 0.25)',
+          detailsBg: '#f8fafc',
+          detailsBgDark: 'linear-gradient(to right, rgba(0, 0, 0, 0.40), rgba(88, 28, 135, 0.25), rgba(0, 0, 0, 0.40))',
+          mobileCardBg: '#ffffff',
+          mobileCardBgDark: 'rgba(0, 0, 0, 0.25)',
+          mobileSelectedBg: '#e2e8f0',
+          mobileSelectedBgDark: 'linear-gradient(to right, rgba(245, 158, 11, 0.10), rgba(236, 72, 153, 0.10), rgba(34, 211, 238, 0.10))',
+          tabActiveBg: 'linear-gradient(to right, #f59e0b, #ec4899, #22d3ee)',
+          tabActiveText: '#0f172a',
           tabInactiveBg: 'transparent',
-          tabInactiveText: '#6b7280',
+          tabInactiveText: 'rgba(255, 255, 255, 0.70)',
         };
-      default: // classic
+      case 'dark':
+      default:
         return {
-          widgetBg: 'white',
-          widgetBgDark: '#1f2937',
+          widgetBg: '#ffffff',
+          widgetBgDark: 'linear-gradient(135deg, #020617, #0f172a, #020617)',
           headerBg: 'transparent',
-          headerText: '#111827',
-          tableHeaderBg: '#f3f4f6',
-          tableHeaderBgDark: '#374151',
-          rowHover: '#f9fafb',
-          rowHoverDark: 'rgba(31, 41, 55, 0.5)',
-          selectedRowBg: '#eff6ff',
-          selectedRowBgDark: 'rgba(30, 58, 138, 0.2)',
-          borderColor: '#e5e7eb',
-          borderColorDark: '#374151',
-          cardBg: '#f9fafb',
-          cardBgDark: 'rgba(17, 24, 39, 0.5)',
-          detailsBg: 'linear-gradient(to right, #eff6ff, #f3e8ff)',
-          detailsBgDark: 'linear-gradient(to right, rgba(30, 58, 138, 0.2), rgba(147, 51, 234, 0.2))',
-          mobileCardBg: '#f9fafb',
-          mobileCardBgDark: 'rgba(17, 24, 39, 0.5)',
-          mobileSelectedBg: '#eff6ff',
-          mobileSelectedBgDark: 'rgba(30, 58, 138, 0.2)',
-          tabActiveBg: '#2563eb',
+          headerText: '#ffffff',
+          tableHeaderBg: '#f8fafc',
+          tableHeaderBgDark: 'rgba(15, 23, 42, 0.70)',
+          rowHover: '#f1f5f9',
+          rowHoverDark: 'rgba(255, 255, 255, 0.05)',
+          selectedRowBg: '#e2e8f0',
+          selectedRowBgDark: 'rgba(59, 130, 246, 0.10)',
+          borderColor: '#cbd5e1',
+          borderColorDark: 'rgba(51, 65, 85, 0.50)',
+          cardBg: '#ffffff',
+          cardBgDark: 'rgba(15, 23, 42, 0.40)',
+          detailsBg: '#f8fafc',
+          detailsBgDark: 'linear-gradient(to right, rgba(15, 23, 42, 0.70), rgba(2, 6, 23, 0.70))',
+          mobileCardBg: '#ffffff',
+          mobileCardBgDark: 'rgba(15, 23, 42, 0.40)',
+          mobileSelectedBg: '#e2e8f0',
+          mobileSelectedBgDark: 'rgba(59, 130, 246, 0.10)',
+          tabActiveBg: 'linear-gradient(to right, #3b82f6, #0ea5e9)',
           tabActiveText: 'white',
           tabInactiveBg: 'transparent',
-          tabInactiveText: '#6b7280',
+          tabInactiveText: 'rgba(255, 255, 255, 0.70)',
         };
     }
   }
@@ -795,7 +806,8 @@
   }
 
   function isDarkMode() {
-    return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // Style controls palette (fixed), not the host website theme.
+    return tableStyle !== 'light';
   }
 
   // Создаем стили
@@ -823,11 +835,11 @@
       gap: 4px;
       margin-bottom: 24px;
       flex-wrap: wrap;
-      background: #f8fafc;
+      background: ${isDarkMode() ? '#1f2937' : '#f8fafc'};
       padding: 4px;
       border-radius: 12px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-      border: 1px solid #e2e8f0;
+      border: 1px solid ${isDarkMode() ? '#4b5563' : '#e2e8f0'};
       width: 100%;
       box-sizing: border-box;
     }
@@ -837,13 +849,6 @@
         gap: 2px;
         margin-bottom: 16px;
         padding: 2px;
-      }
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-tabs {
-        background: #1f2937;
-        border-color: #4b5563;
       }
     }
 
@@ -931,14 +936,8 @@
 
     .${uniqueId}-subtitle {
       font-size: 18px;
-      color: #374151;
+      color: ${isDarkMode() ? '#9ca3af' : '#374151'};
       margin: 0;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-subtitle {
-        color: #9ca3af;
-      }
     }
 
     .${uniqueId}-table-container {
@@ -1006,26 +1005,14 @@
     }
 
     .${uniqueId}-thead {
-      border-bottom: 2px solid #d1d5db;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-thead {
-        border-bottom-color: #4b5563;
-      }
+      border-bottom: 2px solid ${isDarkMode() ? '#4b5563' : '#d1d5db'};
     }
 
     .${uniqueId}-th {
       text-align: left;
       padding: 16px;
       font-weight: 700;
-      color: #000000;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-th {
-        color: white;
-      }
+      color: ${isDarkMode() ? 'white' : '#000000'};
     }
 
     .${uniqueId}-th-center {
@@ -1033,15 +1020,9 @@
     }
 
     .${uniqueId}-tbody .${uniqueId}-tr {
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid ${isDarkMode() ? '#374151' : '#e5e7eb'};
       transition: background-color 0.2s;
       cursor: pointer;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-tbody .${uniqueId}-tr {
-        border-bottom-color: #374151;
-      }
     }
 
     .${uniqueId}-tbody .${uniqueId}-tr:hover {
@@ -1055,13 +1036,7 @@
 
     .${uniqueId}-td {
       padding: 16px;
-      color: #000000;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-td {
-        color: white;
-      }
+      color: ${isDarkMode() ? 'white' : '#000000'};
     }
 
     .${uniqueId}-td-center {
@@ -1080,13 +1055,7 @@
 
     .${uniqueId}-method-name {
       font-weight: 600;
-      color: #000000;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-method-name {
-        color: white;
-      }
+      color: ${isDarkMode() ? 'white' : '#000000'};
     }
 
     .${uniqueId}-status-badge {
@@ -1143,13 +1112,7 @@
       font-size: 24px;
       font-weight: 700;
       margin: 0 0 16px 0;
-      color: #000000;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-details-title {
-        color: white;
-      }
+      color: ${isDarkMode() ? 'white' : '#000000'};
     }
 
     .${uniqueId}-details-grid {
@@ -1172,52 +1135,28 @@
 
     .${uniqueId}-details-label {
       font-size: 14px;
-      color: #6b7280;
+      color: ${isDarkMode() ? '#9ca3af' : '#6b7280'};
       margin-bottom: 4px;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-details-label {
-        color: #9ca3af;
-      }
     }
 
     .${uniqueId}-details-value {
       font-size: 18px;
       font-weight: 600;
-      color: #000000;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-details-value {
-        color: white;
-      }
+      color: ${isDarkMode() ? 'white' : '#000000'};
     }
 
     .${uniqueId}-casinos-section {
       margin-top: 24px;
       padding-top: 24px;
-      border-top: 1px solid #bfdbfe;
+      border-top: 1px solid ${isDarkMode() ? '#1e40af' : '#bfdbfe'};
       display: none;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-casinos-section {
-        border-top-color: #1e40af;
-      }
     }
 
     .${uniqueId}-casinos-title {
       font-size: 18px;
       font-weight: 700;
       margin: 0 0 16px 0;
-      color: #000000;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-casinos-title {
-        color: white;
-      }
+      color: ${isDarkMode() ? 'white' : '#000000'};
     }
 
     .${uniqueId}-casinos-grid {
@@ -1234,32 +1173,19 @@
 
     .${uniqueId}-casino-card {
       padding: 16px;
-      background: white;
+      background: ${isDarkMode() ? 'rgba(255,255,255,0.05)' : 'white'};
       border-radius: 8px;
-      border: 2px solid #e5e7eb;
+      border: 2px solid ${isDarkMode() ? 'rgba(255,255,255,0.10)' : '#e5e7eb'};
       transition: all 0.2s;
       text-decoration: none;
       display: block;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-casino-card {
-        background: #374151;
-        border-color: #4b5563;
-      }
-    }
-
     .${uniqueId}-casino-card:hover {
-      border-color: #2563eb;
+      border-color: ${isDarkMode() ? '#60a5fa' : '#2563eb'};
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
       transform: translateY(-2px);
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-casino-card:hover {
-        border-color: #3b82f6;
-      }
     }
 
     .${uniqueId}-casino-header {
@@ -1272,24 +1198,12 @@
     .${uniqueId}-casino-name {
       font-size: 18px;
       font-weight: 700;
-      color: #000000;
+      color: ${isDarkMode() ? 'white' : '#000000'};
       transition: color 0.2s;
     }
 
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-casino-name {
-        color: white;
-      }
-    }
-
     .${uniqueId}-casino-card:hover .${uniqueId}-casino-name {
-      color: #2563eb;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-casino-card:hover .${uniqueId}-casino-name {
-        color: #3b82f6;
-      }
+      color: ${isDarkMode() ? '#60a5fa' : '#2563eb'};
     }
 
     .${uniqueId}-casino-icon {
@@ -1298,30 +1212,18 @@
 
     .${uniqueId}-casino-link {
       font-size: 14px;
-      color: #2563eb;
+      color: ${isDarkMode() ? '#60a5fa' : '#2563eb'};
       font-weight: 500;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-casino-link {
-        color: #3b82f6;
-      }
     }
 
     .${uniqueId}-footer {
         margin-top: 24px;
         text-align: center;
         font-size: 10px;
-        color: #6b7280;
+        color: ${isDarkMode() ? '#9ca3af' : '#6b7280'};
         text-transform: uppercase;
         letter-spacing: 0.1em;
         font-weight: 600;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-footer {
-        color: #9ca3af;
-      }
     }
 
     /* Mobile Card Styles (mobile-first, created by script) */
@@ -1601,7 +1503,7 @@
     // Header
     var header = document.createElement('div');
     header.className = `${uniqueId}-header`;
-    if (tableStyle === 'modern') {
+    if (tableStyle === 'light') {
       header.style.background = styleConfig.headerBg;
       header.style.color = styleConfig.headerText;
     }
@@ -2084,7 +1986,7 @@
     // Header
     var header = document.createElement('div');
     header.className = `${uniqueId}-header`;
-    if (tableStyle === 'modern') {
+    if (tableStyle === 'light') {
       header.style.background = styleConfig.headerBg;
       header.style.color = styleConfig.headerText;
     }
@@ -2462,7 +2364,7 @@
     // Header
     var header = document.createElement('div');
     header.className = `${uniqueId}-header`;
-    if (tableStyle === 'modern') {
+    if (tableStyle === 'light') {
       header.style.background = styleConfig.headerBg;
       header.style.color = styleConfig.headerText;
     }

@@ -389,7 +389,7 @@ const TRANSLATIONS: Record<CountryCode, {
   },
 };
 
-export type TableStyle = 'classic' | 'modern' | 'minimal';
+export type TableStyle = 'dark' | 'light' | 'casino' | 'classic' | 'modern' | 'minimal';
 
 interface PaymentMethodsTableProps {
   country: CountryCode;
@@ -403,49 +403,77 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const t = TRANSLATIONS[country];
   
+  const normalizedStyle: 'dark' | 'light' | 'casino' =
+    style === 'dark' || style === 'light' || style === 'casino'
+      ? style
+      : style === 'minimal'
+        ? 'casino'
+        : style === 'modern'
+          ? 'light'
+          : 'dark';
+
   // Style configurations
   const getStyleClasses = () => {
-    switch (style) {
-      case 'modern':
+    switch (normalizedStyle) {
+      // 2) Light style (for white websites)
+      case 'light':
         return {
-          container: 'bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 dark:from-purple-900/30 dark:via-blue-900/30 dark:to-pink-900/30',
-          header: 'bg-gradient-to-r from-purple-600 via-blue-600 to-pink-600 dark:from-purple-500 dark:via-blue-500 dark:to-pink-500',
-          headerText: 'text-white',
-          tableHeader: 'bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-800/50 dark:to-blue-800/50',
-          row: 'hover:bg-gradient-to-r hover:from-purple-50 hover:to-blue-50 dark:hover:from-purple-800/30 dark:hover:to-blue-800/30',
-          selectedRow: 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-800/40 dark:to-purple-800/40',
-          border: 'border-purple-200 dark:border-purple-700',
-          card: 'bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-purple-900/30 border-purple-300 dark:border-purple-700',
-          details: 'bg-gradient-to-r from-purple-100 via-blue-100 to-pink-100 dark:from-purple-900/40 dark:via-blue-900/40 dark:to-pink-900/40 border-purple-300 dark:border-purple-700',
-        };
-      case 'minimal':
-        return {
-          container: 'bg-white dark:bg-gray-900',
+          container: 'bg-white',
           header: 'bg-transparent',
-          headerText: 'text-gray-900 dark:text-white',
-          tableHeader: 'bg-gray-50 dark:bg-gray-800 border-b-2 border-gray-300 dark:border-gray-600',
-          row: 'hover:bg-gray-50 dark:hover:bg-gray-800/50',
-          selectedRow: 'bg-gray-100 dark:bg-gray-800',
-          border: 'border-gray-200 dark:border-gray-700',
-          card: 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700',
-          details: 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700',
+          headerText: 'text-slate-950',
+          tableHeader: 'bg-slate-50',
+          row: 'hover:bg-slate-50',
+          selectedRow: 'bg-blue-50',
+          border: 'border-slate-200',
+          card: 'bg-white border-slate-200',
+          details: 'bg-slate-50 border-slate-200',
+          textStrong: 'text-slate-950',
+          text: 'text-slate-700',
+          textMuted: 'text-slate-500',
+          badgeRing: 'ring-1 ring-black/5',
+          detailsCard: 'bg-white/70',
         };
+      // 3) Casino / landing style (colorful)
+      case 'casino':
+        return {
+          container: 'bg-gradient-to-br from-[#070A16] via-[#1A0636] to-[#062A4B]',
+          header: 'bg-transparent',
+          headerText: 'text-white',
+          tableHeader: 'bg-gradient-to-r from-amber-500/15 via-fuchsia-500/15 to-cyan-400/15',
+          row: 'hover:bg-white/5',
+          selectedRow: 'bg-gradient-to-r from-amber-500/10 via-fuchsia-500/10 to-cyan-400/10',
+          border: 'border-white/10',
+          card: 'bg-black/25 border-white/10',
+          details: 'bg-gradient-to-r from-black/40 via-fuchsia-950/25 to-black/40 border-amber-400/20',
+          textStrong: 'text-white',
+          text: 'text-white/85',
+          textMuted: 'text-white/60',
+          badgeRing: 'ring-1 ring-white/10',
+          detailsCard: 'bg-black/20',
+        };
+      // 1) Dark style (keep dark, improve proportions a bit)
       default: // classic
         return {
-          container: 'bg-white dark:bg-gray-800',
+          container: 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950',
           header: 'bg-transparent',
-          headerText: 'text-gray-900 dark:text-white',
-          tableHeader: 'bg-gray-100 dark:bg-gray-700 border-b-2 border-gray-300 dark:border-gray-600',
-          row: 'hover:bg-gray-50 dark:hover:bg-gray-700/50',
-          selectedRow: 'bg-blue-50 dark:bg-blue-900/20',
-          border: 'border-gray-200 dark:border-gray-700',
-          card: 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700',
-          details: 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800',
+          headerText: 'text-white',
+          tableHeader: 'bg-slate-900/70',
+          row: 'hover:bg-white/5',
+          selectedRow: 'bg-blue-500/10',
+          border: 'border-slate-700/50',
+          card: 'bg-slate-900/40 border-slate-700/50',
+          details: 'bg-gradient-to-r from-slate-900/70 to-slate-950/70 border-slate-700/50',
+          textStrong: 'text-white',
+          text: 'text-slate-200',
+          textMuted: 'text-slate-400',
+          badgeRing: 'ring-1 ring-white/10',
+          detailsCard: 'bg-white/5',
         };
     }
   };
   
   const styleClasses = getStyleClasses();
+  const iconSizeClass = normalizedStyle === 'dark' ? 'text-xl' : 'text-2xl';
   
   // Get top 5 by popularity and merge with custom casinos
   const topMethods = [...PAYMENT_METHODS]
@@ -511,14 +539,14 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
         <table className="w-full">
           <thead>
             <tr className={`${styleClasses.tableHeader} border-b-2 ${styleClasses.border}`}>
-              <th className={`text-left py-4 px-4 font-bold ${style === 'modern' ? 'text-purple-900 dark:text-purple-100' : 'text-gray-900 dark:text-white'}`}>{t.method}</th>
-              <th className={`text-center py-4 px-4 font-bold ${style === 'modern' ? 'text-purple-900 dark:text-purple-100' : 'text-gray-900 dark:text-white'}`}>{t.status}</th>
-              <th className={`text-center py-4 px-4 font-bold ${style === 'modern' ? 'text-purple-900 dark:text-purple-100' : 'text-gray-900 dark:text-white'}`}>{t.popularity}</th>
+              <th className={`text-left py-4 px-4 font-bold ${styleClasses.textStrong}`}>{t.method}</th>
+              <th className={`text-center py-4 px-4 font-bold ${styleClasses.textStrong}`}>{t.status}</th>
+              <th className={`text-center py-4 px-4 font-bold ${styleClasses.textStrong}`}>{t.popularity}</th>
               {showDetails && (
                 <>
-                  <th className={`text-center py-4 px-4 font-bold ${style === 'modern' ? 'text-purple-900 dark:text-purple-100' : 'text-gray-900 dark:text-white'}`}>{t.minDeposit}</th>
-                  <th className={`text-center py-4 px-4 font-bold ${style === 'modern' ? 'text-purple-900 dark:text-purple-100' : 'text-gray-900 dark:text-white'}`}>{t.maxDeposit}</th>
-                  <th className={`text-center py-4 px-4 font-bold ${style === 'modern' ? 'text-purple-900 dark:text-purple-100' : 'text-gray-900 dark:text-white'}`}>{t.processingTime}</th>
+                  <th className={`text-center py-4 px-4 font-bold ${styleClasses.textStrong}`}>{t.minDeposit}</th>
+                  <th className={`text-center py-4 px-4 font-bold ${styleClasses.textStrong}`}>{t.maxDeposit}</th>
+                  <th className={`text-center py-4 px-4 font-bold ${styleClasses.textStrong}`}>{t.processingTime}</th>
                 </>
               )}
             </tr>
@@ -540,12 +568,12 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
               >
                 <td className="py-4 px-4">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{method.icon}</span>
+                    <span className={iconSizeClass}>{method.icon}</span>
                     <div className="flex items-center gap-2">
                       {countryFlag && (
                         <span className="text-lg" title={country}>{countryFlag}</span>
                       )}
-                      <span className="font-semibold text-gray-900 dark:text-white">
+                      <span className={`font-semibold ${styleClasses.textStrong}`}>
                         {method.name[country]}
                       </span>
                     </div>
@@ -566,13 +594,13 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
                 </td>
                 {showDetails && (
                   <>
-                    <td className="py-4 px-4 text-center text-gray-700 dark:text-gray-300">
+                    <td className={`py-4 px-4 text-center ${styleClasses.text}`}>
                       {method.minDeposit || '-'}
                     </td>
-                    <td className="py-4 px-4 text-center text-gray-700 dark:text-gray-300">
+                    <td className={`py-4 px-4 text-center ${styleClasses.text}`}>
                       {method.maxDeposit || '-'}
                     </td>
-                    <td className="py-4 px-4 text-center text-gray-700 dark:text-gray-300">
+                    <td className={`py-4 px-4 text-center ${styleClasses.text}`}>
                       {typeof method.processingTime === 'object' 
                         ? method.processingTime[country] || '-' 
                         : method.processingTime || '-'}
@@ -604,22 +632,22 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
                     {countryFlag && (
                       <span className="text-2xl" title={country}>{countryFlag}</span>
                     )}
-                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+                    <h3 className={`text-xl sm:text-2xl font-bold ${styleClasses.textStrong}`}>
                       {method.name[country]}
                     </h3>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-4">
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.minDeposit}</p>
-                      <p className="text-lg font-semibold text-gray-900 dark:text-white">{method.minDeposit}</p>
+                      <p className={`text-sm ${styleClasses.textMuted} mb-1`}>{t.minDeposit}</p>
+                      <p className={`text-lg font-semibold ${styleClasses.textStrong}`}>{method.minDeposit}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.maxDeposit}</p>
-                      <p className="text-lg font-semibold text-gray-900 dark:text-white">{method.maxDeposit}</p>
+                      <p className={`text-sm ${styleClasses.textMuted} mb-1`}>{t.maxDeposit}</p>
+                      <p className={`text-lg font-semibold ${styleClasses.textStrong}`}>{method.maxDeposit}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{t.processingTime}</p>
-                      <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                      <p className={`text-sm ${styleClasses.textMuted} mb-1`}>{t.processingTime}</p>
+                      <p className={`text-lg font-semibold ${styleClasses.textStrong}`}>
                         {typeof method.processingTime === 'object' 
                           ? method.processingTime[country] || '-' 
                           : method.processingTime || '-'}
@@ -629,8 +657,8 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
                   
                   {/* Top Casinos */}
                   {method.casinos && method.casinos.length > 0 && (
-                    <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-blue-200 dark:border-blue-800">
-                      <h4 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">
+                    <div className={`mt-4 sm:mt-6 pt-4 sm:pt-6 border-t ${style === 'modern' ? 'border-blue-200' : 'border-white/10'}`}>
+                      <h4 className={`text-base sm:text-lg font-bold ${styleClasses.textStrong} mb-3 sm:mb-4`}>
                         {t.topCasinos}
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
@@ -643,15 +671,18 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.1 }}
-                            className="group p-4 bg-white dark:bg-gray-700 rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-all shadow-sm hover:shadow-md"
+                            className={`group p-4 rounded-lg border-2 transition-all shadow-sm hover:shadow-md ${style === 'modern'
+                              ? 'bg-white border-slate-200 hover:border-blue-500'
+                              : `bg-white/5 border-white/10 hover:border-blue-400/60 ${styleClasses.badgeRing}`
+                            }`}
                           >
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                              <span className={`text-lg font-bold ${styleClasses.textStrong} group-hover:text-blue-400 transition-colors`}>
                                 {casino.name}
                               </span>
                               <span className="text-xl">🎰</span>
                             </div>
-                            <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                            <span className="text-sm text-blue-400 font-medium">
                               {t.playNow} →
                             </span>
                           </motion.a>
@@ -680,11 +711,11 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
                 w-full p-4 rounded-xl border-2 transition-all cursor-pointer touch-manipulation
                 ${selectedMethod === method.id 
                   ? style === 'modern'
-                    ? 'bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-800/40 dark:to-blue-800/40 border-purple-500 dark:border-purple-400 shadow-lg'
+                    ? 'bg-blue-50 border-blue-300 shadow-lg'
                     : style === 'minimal'
-                    ? 'bg-gray-100 dark:bg-gray-800 border-gray-400 dark:border-gray-500 shadow-lg'
-                    : 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400 shadow-lg'
-                  : `${styleClasses.card} active:scale-[0.98] hover:border-gray-300 dark:hover:border-gray-600`}
+                    ? 'bg-gradient-to-r from-amber-500/10 via-fuchsia-500/10 to-cyan-400/10 border-amber-400/30 shadow-lg'
+                    : 'bg-white/5 border-blue-400/40 shadow-lg'
+                  : `${styleClasses.card} active:scale-[0.98] hover:border-white/20`}
               `}
               onClick={(e) => {
                 e.preventDefault();
@@ -696,18 +727,18 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
               {/* Header */}
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="text-2xl flex-shrink-0">{method.icon}</span>
+                  <span className={`${iconSizeClass} flex-shrink-0`}>{method.icon}</span>
                   <div className="flex items-center gap-1.5 min-w-0">
                     {countryFlag && (
                       <span className="text-base flex-shrink-0" title={country}>{countryFlag}</span>
                     )}
-                    <span className="font-bold text-gray-900 dark:text-white text-base truncate">
+                    <span className={`font-bold ${styleClasses.textStrong} text-base truncate`}>
                       {method.name[country]}
                     </span>
                   </div>
                 </div>
                 <span className={`
-                  inline-block px-2.5 py-1 rounded-full text-xs font-semibold text-white flex-shrink-0
+                  inline-block px-2.5 py-1 rounded-full text-xs font-semibold text-white flex-shrink-0 ${styleClasses.badgeRing}
                   ${getStatusColor(method.status)}
                 `}>
                   {getStatusText(method.status)}
@@ -716,7 +747,7 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
 
               {/* Popularity */}
               <div className="mb-3">
-                <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">{t.popularity}</div>
+                <div className={`text-xs ${styleClasses.textMuted} mb-1`}>{t.popularity}</div>
                 <div className="text-sm sm:text-base break-words">{getPopularityStars(method.popularity)}</div>
               </div>
 
@@ -724,16 +755,16 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
               {showDetails && (
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div className="min-w-0">
-                    <div className="text-gray-600 dark:text-gray-400 mb-1 truncate">{t.minDeposit}</div>
-                    <div className="font-semibold text-gray-900 dark:text-white truncate">{method.minDeposit || '-'}</div>
+                    <div className={`mb-1 truncate ${styleClasses.textMuted}`}>{t.minDeposit}</div>
+                    <div className={`font-semibold truncate ${styleClasses.textStrong}`}>{method.minDeposit || '-'}</div>
                   </div>
                   <div className="min-w-0">
-                    <div className="text-gray-600 dark:text-gray-400 mb-1 truncate">{t.maxDeposit}</div>
-                    <div className="font-semibold text-gray-900 dark:text-white truncate">{method.maxDeposit || '-'}</div>
+                    <div className={`mb-1 truncate ${styleClasses.textMuted}`}>{t.maxDeposit}</div>
+                    <div className={`font-semibold truncate ${styleClasses.textStrong}`}>{method.maxDeposit || '-'}</div>
                   </div>
                   <div className="min-w-0">
-                    <div className="text-gray-600 dark:text-gray-400 mb-1 truncate">{t.processingTime}</div>
-                    <div className="font-semibold text-gray-900 dark:text-white truncate">
+                    <div className={`mb-1 truncate ${styleClasses.textMuted}`}>{t.processingTime}</div>
+                    <div className={`font-semibold truncate ${styleClasses.textStrong}`}>
                       {typeof method.processingTime === 'object' 
                         ? method.processingTime[country] || '-' 
                         : method.processingTime || '-'}
@@ -743,8 +774,8 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
               )}
               
               {/* Expand indicator */}
-              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-center">
-                <span className="text-xs text-gray-500 dark:text-gray-400">
+              <div className={`mt-3 pt-3 border-t ${style === 'modern' ? 'border-slate-200' : 'border-white/10'} flex items-center justify-center`}>
+                <span className={`text-xs ${styleClasses.textMuted}`}>
                   {selectedMethod === method.id ? 'Нажмите, чтобы свернуть' : 'Нажмите для подробностей'}
                 </span>
               </div>
@@ -766,22 +797,22 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
                       {countryFlag && (
                         <span className="text-xl flex-shrink-0" title={country}>{countryFlag}</span>
                       )}
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white break-words">
+                      <h3 className={`text-lg font-bold ${styleClasses.textStrong} break-words`}>
                         {method.name[country]}
                       </h3>
                     </div>
                     <div className="grid grid-cols-1 gap-2 mt-3">
-                      <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
-                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{t.minDeposit}</span>
-                        <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white ml-2">{method.minDeposit}</span>
+                      <div className={`flex justify-between items-center p-3 ${styleClasses.detailsCard} rounded-lg ${styleClasses.badgeRing}`}>
+                        <span className={`text-xs sm:text-sm ${styleClasses.textMuted}`}>{t.minDeposit}</span>
+                        <span className={`text-sm sm:text-base font-semibold ${styleClasses.textStrong} ml-2`}>{method.minDeposit}</span>
                       </div>
-                      <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
-                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{t.maxDeposit}</span>
-                        <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white ml-2">{method.maxDeposit}</span>
+                      <div className={`flex justify-between items-center p-3 ${styleClasses.detailsCard} rounded-lg ${styleClasses.badgeRing}`}>
+                        <span className={`text-xs sm:text-sm ${styleClasses.textMuted}`}>{t.maxDeposit}</span>
+                        <span className={`text-sm sm:text-base font-semibold ${styleClasses.textStrong} ml-2`}>{method.maxDeposit}</span>
                       </div>
-                      <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
-                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{t.processingTime}</span>
-                        <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white ml-2 break-words text-right">
+                      <div className={`flex justify-between items-center p-3 ${styleClasses.detailsCard} rounded-lg ${styleClasses.badgeRing}`}>
+                        <span className={`text-xs sm:text-sm ${styleClasses.textMuted}`}>{t.processingTime}</span>
+                        <span className={`text-sm sm:text-base font-semibold ${styleClasses.textStrong} ml-2 break-words text-right`}>
                           {typeof method.processingTime === 'object' 
                             ? method.processingTime[country] || '-' 
                             : method.processingTime || '-'}
@@ -791,8 +822,8 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
                     
                     {/* Top Casinos */}
                     {method.casinos && method.casinos.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-800">
-                        <h4 className="text-base font-bold text-gray-900 dark:text-white mb-3">
+                      <div className={`mt-4 pt-4 border-t ${style === 'modern' ? 'border-blue-200' : 'border-white/10'}`}>
+                        <h4 className={`text-base font-bold ${styleClasses.textStrong} mb-3`}>
                           {t.topCasinos}
                         </h4>
                         <div className="space-y-2">
@@ -805,16 +836,19 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: idx * 0.1 }}
-                              className="group block p-3 bg-white dark:bg-gray-700 rounded-lg border-2 border-gray-200 dark:border-gray-600 active:border-blue-500 dark:active:border-blue-400 transition-all shadow-sm touch-manipulation"
+                              className={`group block p-3 rounded-lg border-2 transition-all shadow-sm touch-manipulation ${style === 'modern'
+                                ? 'bg-white border-slate-200 active:border-blue-500'
+                                : `bg-white/5 border-white/10 active:border-blue-400/60 ${styleClasses.badgeRing}`
+                              }`}
                               onClick={(e) => e.stopPropagation()}
                             >
                               <div className="flex items-center justify-between">
-                                <span className="text-sm font-bold text-gray-900 dark:text-white group-active:text-blue-600 dark:group-active:text-blue-400 transition-colors break-words pr-2">
+                                <span className={`text-sm font-bold ${styleClasses.textStrong} group-active:text-blue-400 transition-colors break-words pr-2`}>
                                   {casino.name}
                                 </span>
                                 <span className="text-lg flex-shrink-0">🎰</span>
                               </div>
-                              <span className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1 block">
+                              <span className="text-xs text-blue-400 font-medium mt-1 block">
                                 {t.playNow} →
                               </span>
                             </motion.a>
