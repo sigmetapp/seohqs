@@ -3,7 +3,8 @@ import { supabase } from '@/lib/supabase';
 import { 
   getTelegramChannelUpdates, 
   filterChannelUpdates, 
-  convertTelegramPostToBlogPost 
+  convertTelegramPostToBlogPost,
+  getAllTelegramChannelPosts
 } from '@/lib/telegram';
 
 /**
@@ -117,12 +118,128 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/blog/sync - получение статуса синхронизации
+ * GET /api/blog/sync - получение статуса синхронизации или полная синхронизация
+ * Query параметры:
+ * - full=true - выполнить полную синхронизацию всех постов из канала
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const searchParams = request.nextUrl.searchParams;
+    const fullSync = searchParams.get('full') === 'true';
     const channelUsername = process.env.TELEGRAM_CHANNEL_USERNAME || 'seohqs';
     
+    // Если запрошена полная синхронизация
+    if (fullSync) {
+      console.log('Starting full sync for channel:', channelUsername);
+      
+      // Получаем все посты из канала через веб-страницу
+      const allPosts = await getAllTelegramChannelPosts(channelUsername);
+      
+      console.log(`Found ${allPosts.length} posts in channel`);
+      
+      // Получаем существующие посты из БД
+      const { data: existingPosts } = await supabase
+        ?.from('blog_posts')
+        .select('telegram_message_id')
+        .eq('telegram_channel_username', channelUsername) || { data: [] };
+      
+      const existingMessageIds = new Set(
+        (existingPosts || []).map(p => p.telegram_message_id)
+      );
+      
+      // Конвертируем и сохраняем посты
+      const syncedPosts = [];
+      const updatedPosts = [];
+      const skippedPosts = [];
+      
+      for (const post of allPosts) {
+        try {
+          // Конвертируем пост в формат для БД
+          // Используем упрощенную конвертацию, так как у нас уже есть данные
+          const text = post.text || post.caption || '';
+          const publishedAt = post.date > 0 ? new Date(post.date * 1000) : new Date();
+          
+          // Извлекаем заголовок
+          const lines = text.split('\n').filter(line => line.trim());
+          const title = lines.length > 0 ? lines[0].substring(0, 200) : null;
+          
+          // Генерируем slug
+          const slugBase = title 
+            ? title.toLowerCase()
+                .replace(/[^a-zа-яё0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                .substring(0, 100)
+            : `post-${post.message_id}`;
+          const slug = `${slugBase}-${post.message_id}`;
+          
+          // Конвертируем текст в HTML
+          let htmlContent = text
+            .replace(/\n/g, '<br>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/`(.*?)`/g, '<code>$1</code>');
+          
+          const blogPost = {
+            telegram_message_id: post.message_id,
+            telegram_channel_username: channelUsername,
+            title,
+            content: text,
+            html_content: htmlContent,
+            images: post.images || [],
+            published_at: publishedAt.toISOString(),
+            slug
+          };
+          
+          // Проверяем, существует ли уже пост
+          if (existingMessageIds.has(post.message_id)) {
+            // Обновляем существующий пост (особенно дату публикации)
+            const { error } = await supabase
+              ?.from('blog_posts')
+              .update({
+                ...blogPost,
+                updated_at: new Date().toISOString()
+              })
+              .eq('telegram_message_id', post.message_id) || { error: null };
+            
+            if (error) {
+              console.error(`Error updating post ${post.message_id}:`, error);
+              skippedPosts.push(post.message_id);
+            } else {
+              updatedPosts.push(blogPost.slug);
+            }
+          } else {
+            // Создаем новый пост
+            const { error } = await supabase
+              ?.from('blog_posts')
+              .insert(blogPost) || { error: null };
+            
+            if (error) {
+              console.error(`Error inserting post ${post.message_id}:`, error);
+              skippedPosts.push(post.message_id);
+            } else {
+              syncedPosts.push(blogPost.slug);
+            }
+          }
+        } catch (error) {
+          console.error(`Error processing post ${post.message_id}:`, error);
+          skippedPosts.push(post.message_id);
+          continue;
+        }
+      }
+      
+      return NextResponse.json({
+        message: `Полная синхронизация завершена`,
+        channel: channelUsername,
+        total_found: allPosts.length,
+        synced: syncedPosts.length,
+        updated: updatedPosts.length,
+        skipped: skippedPosts.length,
+        synced_posts: syncedPosts,
+        updated_posts: updatedPosts
+      });
+    }
+    
+    // Обычный статус синхронизации
     const { data: posts, error } = await supabase
       ?.from('blog_posts')
       .select('id, telegram_message_id, title, published_at, created_at')
@@ -140,6 +257,7 @@ export async function GET() {
       latest_posts: posts || []
     });
   } catch (error: any) {
+    console.error('Error in GET /api/blog/sync:', error);
     return NextResponse.json(
       { error: error.message || 'Ошибка при получении статуса' },
       { status: 500 }

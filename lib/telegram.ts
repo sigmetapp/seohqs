@@ -148,6 +148,196 @@ export async function getTelegramChannelUpdates(
 }
 
 /**
+ * Получает все посты из канала через веб-страницу Telegram
+ * Это позволяет получить исторические посты с оригинальными датами
+ */
+export async function getAllTelegramChannelPosts(
+  channelUsername: string
+): Promise<Array<{
+  message_id: number;
+  date: number;
+  text?: string;
+  caption?: string;
+  images?: Array<{ url: string; caption?: string }>;
+}>> {
+  const channelUrl = `https://t.me/s/${channelUsername}`;
+  const posts: Array<{
+    message_id: number;
+    date: number;
+    text?: string;
+    caption?: string;
+    images?: Array<{ url: string; caption?: string }>;
+  }> = [];
+  
+  try {
+    // Получаем HTML страницы канала
+    const response = await fetch(channelUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch channel: ${response.statusText}`);
+    }
+    
+    const html = await response.text();
+    
+    // Парсим посты из HTML
+    // Telegram использует структуру с data-post атрибутами
+    // Ищем все блоки сообщений
+    const postMatches: Array<{ postId: string; html: string; date?: string }> = [];
+    
+    // Ищем все div с классом tgme_widget_message и data-post
+    const messageDivRegex = /<div\s+class="tgme_widget_message[^"]*"\s+data-post="([^"]+)"([\s\S]*?)<\/div>\s*(?=<div\s+class="tgme_widget_message|<div\s+class="tgme_widget_message_date|$)/g;
+    
+    let match;
+    while ((match = messageDivRegex.exec(html)) !== null) {
+      const postId = match[1]; // формат: channel/message_id
+      const postHtml = match[2] + match[0]; // весь HTML поста
+      
+      // Ищем дату в этом посте (может быть в разных местах)
+      const dateMatch = postHtml.match(/<time\s+datetime="([^"]+)"/) || 
+                       postHtml.match(/data-time="(\d+)"/) ||
+                       postHtml.match(/data-timestamp="(\d+)"/);
+      
+      let date: string | undefined;
+      if (dateMatch) {
+        if (dateMatch[1].includes('T')) {
+          // ISO формат даты
+          date = dateMatch[1];
+        } else {
+          // Unix timestamp
+          const timestamp = parseInt(dateMatch[1], 10);
+          date = new Date(timestamp * 1000).toISOString();
+        }
+      }
+      
+      postMatches.push({ postId, html: postHtml, date });
+    }
+    
+    // Если не нашли посты первым способом, пробуем альтернативный
+    if (postMatches.length === 0) {
+      // Альтернативный паттерн - ищем по data-post напрямую
+      const altRegex = /data-post="([^"]+)"([\s\S]{0,5000}?)<time\s+datetime="([^"]+)"/g;
+      while ((match = altRegex.exec(html)) !== null) {
+        const postId = match[1];
+        const postHtml = match[2];
+        const date = match[3];
+        postMatches.push({ postId, html: postHtml, date });
+      }
+    }
+    
+    // Обрабатываем каждый пост
+    for (const postMatch of postMatches) {
+      try {
+        // Извлекаем message_id из data-post (формат: channel/message_id)
+        const messageIdMatch = postMatch.postId.match(/\/(\d+)$/);
+        if (!messageIdMatch) continue;
+        
+        const messageId = parseInt(messageIdMatch[1], 10);
+        
+        // Парсим дату
+        let dateTimestamp = 0;
+        if (postMatch.date) {
+          const dateObj = new Date(postMatch.date);
+          dateTimestamp = Math.floor(dateObj.getTime() / 1000);
+        }
+        
+        // Извлекаем текст поста
+        let text: string | undefined;
+        
+        // Пробуем разные варианты извлечения текста
+        const textMatch = postMatch.html.match(/<div\s+class="tgme_widget_message_text[^"]*">([\s\S]*?)<\/div>/i) ||
+                         postMatch.html.match(/<div\s+class="[^"]*message_text[^"]*">([\s\S]*?)<\/div>/i);
+        
+        if (textMatch) {
+          text = textMatch[1]
+            .replace(/<br\s*\/?>/gi, '\n') // Сохраняем переносы строк
+            .replace(/<[^>]+>/g, '') // Удаляем остальные HTML теги
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&mdash;/g, '—')
+            .replace(/&ndash;/g, '–')
+            .trim();
+        }
+        
+        // Если текст не найден, но есть caption в изображениях
+        if (!text || text.length === 0) {
+          const captionMatch = postMatch.html.match(/<div\s+class="[^"]*message_caption[^"]*">([\s\S]*?)<\/div>/i);
+          if (captionMatch) {
+            text = captionMatch[1]
+              .replace(/<br\s*\/?>/gi, '\n')
+              .replace(/<[^>]+>/g, '')
+              .replace(/&nbsp;/g, ' ')
+              .replace(/&amp;/g, '&')
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .replace(/&quot;/g, '"')
+              .trim();
+          }
+        }
+        
+        // Извлекаем изображения
+        const images: Array<{ url: string; caption?: string }> = [];
+        
+        // Пробуем разные варианты извлечения изображений
+        const imageRegexes = [
+          /<a\s+class="tgme_widget_message_photo_wrap[^"]*"\s+href="([^"]+)"/gi,
+          /<img\s+[^>]*src="([^"]*\/[^"]*\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/gi,
+          /background-image:\s*url\(['"]?([^'"]+)['"]?\)/gi
+        ];
+        
+        for (const imageRegex of imageRegexes) {
+          let imageMatch;
+          while ((imageMatch = imageRegex.exec(postMatch.html)) !== null) {
+            let imageUrl = imageMatch[1];
+            if (imageUrl && !imageUrl.startsWith('data:')) {
+              // Нормализуем URL
+              if (imageUrl.startsWith('//')) {
+                imageUrl = 'https:' + imageUrl;
+              } else if (imageUrl.startsWith('/')) {
+                imageUrl = 'https://t.me' + imageUrl;
+              }
+              
+              if (imageUrl && !images.find(img => img.url === imageUrl)) {
+                images.push({ url: imageUrl });
+              }
+            }
+          }
+        }
+        
+        // Если есть текст или изображения, добавляем пост
+        if (text || images.length > 0) {
+          posts.push({
+            message_id: messageId,
+            date: dateTimestamp,
+            text: text || undefined,
+            caption: text || undefined,
+            images: images.length > 0 ? images : undefined
+          });
+        }
+      } catch (error) {
+        console.error(`Error parsing post ${postMatch.postId}:`, error);
+        continue;
+      }
+    }
+    
+    // Сортируем по дате (от старых к новым)
+    posts.sort((a, b) => a.date - b.date);
+    
+    return posts;
+  } catch (error) {
+    console.error('Error fetching all Telegram channel posts:', error);
+    throw error;
+  }
+}
+
+/**
  * Получает информацию о файле для загрузки фото
  */
 export async function getTelegramFile(botToken: string, fileId: string): Promise<string | null> {
