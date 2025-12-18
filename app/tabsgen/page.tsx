@@ -65,7 +65,7 @@ export default function TabsGenPage() {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<TabType>('payment-methods');
   const [country, setCountry] = useState<CountryCode>('UK');
-  const [tableStyle, setTableStyle] = useState<TableStyle>('modern');
+  const [tableStyle, setTableStyle] = useState<TableStyle>('light');
   const [copied, setCopied] = useState(false);
   const [casinos, setCasinos] = useState<Record<string, Casino[]>>(DEFAULT_CASINOS);
   const [bestCasinos, setBestCasinos] = useState<BestCasino[]>(DEFAULT_BEST_CASINOS);
@@ -262,37 +262,37 @@ export default function TabsGenPage() {
                   </label>
                   <div className="flex flex-wrap gap-2 sm:gap-3 mb-4 sm:mb-6">
                     <button
-                      onClick={() => setTableStyle('classic')}
+                      onClick={() => setTableStyle('dark')}
                       className={`
                         flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg font-medium transition-all border-2 text-xs sm:text-sm
-                        ${tableStyle === 'classic'
+                        ${tableStyle === 'dark'
                           ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                           : 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}
                       `}
                       >
-                        {t('tabsgen.classic')}
+                        {t('tabsgen.dark')}
                       </button>
                       <button
-                        onClick={() => setTableStyle('modern')}
+                        onClick={() => setTableStyle('light')}
                         className={`
                         flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg font-medium transition-all border-2 text-xs sm:text-sm
-                        ${tableStyle === 'modern'
+                        ${tableStyle === 'light'
                           ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                           : 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}
                       `}
                       >
-                        {t('tabsgen.modern')}
+                        {t('tabsgen.light')}
                       </button>
                       <button
-                        onClick={() => setTableStyle('minimal')}
+                        onClick={() => setTableStyle('casino')}
                         className={`
                         flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg font-medium transition-all border-2 text-xs sm:text-sm
-                        ${tableStyle === 'minimal'
+                        ${tableStyle === 'casino'
                           ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                           : 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'}
                       `}
                       >
-                        {t('tabsgen.minimal')}
+                        {t('tabsgen.casino')}
                       </button>
                   </div>
                   <p className="mb-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400">

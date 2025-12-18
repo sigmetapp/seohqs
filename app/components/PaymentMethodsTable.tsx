@@ -389,7 +389,7 @@ const TRANSLATIONS: Record<CountryCode, {
   },
 };
 
-export type TableStyle = 'classic' | 'modern' | 'minimal';
+export type TableStyle = 'dark' | 'light' | 'casino' | 'classic' | 'modern' | 'minimal';
 
 interface PaymentMethodsTableProps {
   country: CountryCode;
@@ -403,11 +403,20 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const t = TRANSLATIONS[country];
   
+  const normalizedStyle: 'dark' | 'light' | 'casino' =
+    style === 'dark' || style === 'light' || style === 'casino'
+      ? style
+      : style === 'minimal'
+        ? 'casino'
+        : style === 'modern'
+          ? 'light'
+          : 'dark';
+
   // Style configurations
   const getStyleClasses = () => {
-    switch (style) {
+    switch (normalizedStyle) {
       // 2) Light style (for white websites)
-      case 'modern':
+      case 'light':
         return {
           container: 'bg-white',
           header: 'bg-transparent',
@@ -425,7 +434,7 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
           detailsCard: 'bg-white/70',
         };
       // 3) Casino / landing style (colorful)
-      case 'minimal':
+      case 'casino':
         return {
           container: 'bg-gradient-to-br from-[#070A16] via-[#1A0636] to-[#062A4B]',
           header: 'bg-transparent',
@@ -464,7 +473,7 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
   };
   
   const styleClasses = getStyleClasses();
-  const iconSizeClass = style === 'classic' ? 'text-xl' : 'text-2xl';
+  const iconSizeClass = normalizedStyle === 'dark' ? 'text-xl' : 'text-2xl';
   
   // Get top 5 by popularity and merge with custom casinos
   const topMethods = [...PAYMENT_METHODS]
