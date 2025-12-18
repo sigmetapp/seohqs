@@ -365,98 +365,6 @@ async function getAllTelegramChannelPostsWithPuppeteer(
     // Прокручиваем страницу вверх для загрузки старых постов
     // Telegram загружает старые посты при прокрутке к самому верху
     for (let attempt = 0; attempt < maxScrollAttempts; attempt++) {
-      // Парсим текущие посты на странице
-      const currentPosts = await page.evaluate(() => {
-        const posts: Array<{
-          message_id: number;
-          date: number;
-          text?: string;
-          caption?: string;
-          images?: Array<{ url: string; caption?: string }>;
-        }> = [];
-        
-        const messageElements = document.querySelectorAll('.tgme_widget_message');
-        
-        messageElements.forEach((element) => {
-          try {
-            // Извлекаем message_id из data-post
-            const dataPost = element.getAttribute('data-post');
-            if (!dataPost) return;
-            
-            const messageIdMatch = dataPost.match(/\/(\d+)$/);
-            if (!messageIdMatch) return;
-            
-            const messageId = parseInt(messageIdMatch[1], 10);
-            
-            // Извлекаем дату
-            const timeElement = element.querySelector('time[datetime]');
-            let dateTimestamp = 0;
-            if (timeElement) {
-              const datetime = timeElement.getAttribute('datetime');
-              if (datetime) {
-                dateTimestamp = Math.floor(new Date(datetime).getTime() / 1000);
-              }
-            }
-            
-            // Извлекаем текст
-            const textElement = element.querySelector('.tgme_widget_message_text');
-            let text: string | undefined;
-            if (textElement) {
-              text = textElement.textContent?.trim() || undefined;
-            }
-            
-            // Если текста нет, пробуем caption
-            if (!text) {
-              const captionElement = element.querySelector('.tgme_widget_message_caption');
-              if (captionElement) {
-                text = captionElement.textContent?.trim() || undefined;
-              }
-            }
-            
-            // Извлекаем изображения
-            const images: Array<{ url: string; caption?: string }> = [];
-            const imageLinks = element.querySelectorAll<HTMLAnchorElement>('.tgme_widget_message_photo_wrap');
-            imageLinks.forEach((link) => {
-              const href = link.getAttribute('href');
-              if (href) {
-                images.push({ url: href });
-              }
-            });
-            
-            // Добавляем пост, если есть текст или изображения
-            if (text || images.length > 0) {
-              posts.push({
-                message_id: messageId,
-                date: dateTimestamp,
-                text,
-                caption: text,
-                images: images.length > 0 ? images : undefined
-              });
-            }
-          } catch (error) {
-            // Пропускаем некорректные посты
-          }
-        });
-        
-        return posts;
-      });
-      
-      // Добавляем посты в Map
-      currentPosts.forEach(post => {
-        if (post.message_id) {
-          postsMap.set(post.message_id, post);
-        }
-      });
-      
-      const currentPostCount = postsMap.size;
-      console.log(`Found ${currentPostCount} unique posts (scroll attempt ${attempt + 1}/${maxScrollAttempts})`);
-      
-      // Проверяем лимит
-      if (maxPosts && currentPostCount >= maxPosts) {
-        console.log(`Reached max posts limit: ${maxPosts}`);
-        break;
-      }
-      
       // Прокручиваем вверх для загрузки старых постов
       // Telegram загружает старые посты при прокрутке к самому верху страницы
       const scrollInfo = await page.evaluate(() => {
@@ -498,8 +406,8 @@ async function getAllTelegramChannelPostsWithPuppeteer(
         console.log('Error with mouse interaction:', error);
       }
       
-      // Парсим посты снова после прокрутки
-      const currentPosts = await page.evaluate(() => {
+      // Парсим посты после прокрутки
+      const postsAfterScroll = await page.evaluate(() => {
         const posts: Array<{
           message_id: number;
           date: number;
@@ -570,7 +478,7 @@ async function getAllTelegramChannelPostsWithPuppeteer(
       
       // Добавляем новые посты
       let newPostsFound = 0;
-      currentPosts.forEach(post => {
+      postsAfterScroll.forEach(post => {
         if (post.message_id && !postsMap.has(post.message_id)) {
           postsMap.set(post.message_id, post);
           newPostsFound++;
