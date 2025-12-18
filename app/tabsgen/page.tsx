@@ -226,16 +226,22 @@ export default function TabsGenPage() {
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 md:mb-6 relative z-10 px-2 sm:px-1">
               {t('tabsgen.preview')}
             </h2>
-            <div className="relative z-10 w-full overflow-x-auto overflow-y-visible min-h-[200px]">
+            <div className="relative z-10 w-full overflow-x-auto overflow-y-visible min-h-[300px]">
               <div className="min-w-0 w-full">
                 {activeTab === 'payment-methods' && (
-                  <PaymentMethodsTable country={country} casinos={casinos} countryFlag={selectedCountryFlag} style={tableStyle} />
+                  <div className="w-full">
+                    <PaymentMethodsTable country={country} casinos={casinos} countryFlag={selectedCountryFlag} style={tableStyle} />
+                  </div>
                 )}
                 {activeTab === 'best-casino' && (
-                  <BestCasinoTable country={country} casinos={bestCasinos} countryFlag={selectedCountryFlag} style={tableStyle} />
+                  <div className="w-full">
+                    <BestCasinoTable country={country} casinos={bestCasinos} countryFlag={selectedCountryFlag} style={tableStyle} />
+                  </div>
                 )}
                 {activeTab === 'recent-winnings' && (
-                  <RecentWinningsTable country={country} winnings={winnings} countryFlag={selectedCountryFlag} style={tableStyle} />
+                  <div className="w-full">
+                    <RecentWinningsTable country={country} winnings={winnings} countryFlag={selectedCountryFlag} style={tableStyle} />
+                  </div>
                 )}
               </div>
             </div>

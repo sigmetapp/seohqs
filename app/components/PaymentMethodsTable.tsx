@@ -507,7 +507,7 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="desktop-table-view hidden md:block overflow-x-auto w-full">
         <table className="w-full">
           <thead>
             <tr className={`${styleClasses.tableHeader} border-b-2 ${styleClasses.border}`}>
@@ -667,8 +667,10 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
       )}
 
       {/* Mobile Card View - Always visible on mobile */}
-      <div className="md:hidden space-y-3 sm:space-y-4 w-full">
-        {topMethods.length > 0 && topMethods.map((method, index) => (
+      <div className="mobile-table-view block md:hidden space-y-3 sm:space-y-4 w-full min-h-[200px]">
+        {topMethods && topMethods.length > 0 ? (
+          <>
+            {topMethods.map((method, index) => (
           <div key={method.id} className="w-full">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -825,7 +827,14 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
               </motion.div>
             )}
           </div>
-        ))}
+            ))}
+          </>
+        ) : (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <p className="text-lg font-semibold">Нет доступных методов оплаты</p>
+            <p className="text-sm mt-2">Попробуйте обновить страницу</p>
+          </div>
+        )}
       </div>
 
       {/* Footer */}

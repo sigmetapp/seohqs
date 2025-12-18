@@ -280,7 +280,7 @@ export default function RecentWinningsTable({
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="desktop-table-view hidden md:block overflow-x-auto w-full">
         <table className="w-full">
           <thead>
             <tr className={`${styleClasses.tableHeader} border-b-2 ${styleClasses.border}`}>
@@ -412,8 +412,10 @@ export default function RecentWinningsTable({
       )}
 
       {/* Mobile Card View - Always visible on mobile */}
-      <div className="md:hidden space-y-3 sm:space-y-4 w-full">
-        {displayedWinnings.length > 0 && displayedWinnings.map((winning, index) => (
+      <div className="mobile-table-view block md:hidden space-y-3 sm:space-y-4 w-full min-h-[200px]">
+        {displayedWinnings && displayedWinnings.length > 0 ? (
+          <>
+            {displayedWinnings.map((winning, index) => (
           <div key={`${winning.casino}-${winning.player}-${index}-${updateKey}`} className="w-full">
             <motion.div
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -537,7 +539,14 @@ export default function RecentWinningsTable({
               </motion.div>
             )}
           </div>
-        ))}
+            ))}
+          </>
+        ) : (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <p className="text-lg font-semibold">Нет доступных выигрышей</p>
+            <p className="text-sm mt-2">Попробуйте обновить страницу</p>
+          </div>
+        )}
       </div>
 
       {/* Footer */}

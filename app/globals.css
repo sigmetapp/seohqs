@@ -37,6 +37,20 @@ body {
   input, textarea, select {
     font-size: 16px !important; /* Prevents zoom on iOS */
   }
+  
+  /* Force mobile table view to be visible */
+  .mobile-table-view {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
+    min-height: 200px !important;
+  }
+  
+  /* Hide desktop table view on mobile */
+  .desktop-table-view {
+    display: none !important;
+  }
 }
 
 @keyframes slide-in-right {
