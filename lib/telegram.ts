@@ -150,9 +150,11 @@ export async function getTelegramChannelUpdates(
 /**
  * Получает все посты из канала через веб-страницу Telegram
  * Это позволяет получить исторические посты с оригинальными датами
+ * Использует Puppeteer для рендеринга JavaScript и прокрутки страницы
  */
 export async function getAllTelegramChannelPosts(
-  channelUsername: string
+  channelUsername: string,
+  maxPosts?: number
 ): Promise<Array<{
   message_id: number;
   date: number;
@@ -161,6 +163,261 @@ export async function getAllTelegramChannelPosts(
   images?: Array<{ url: string; caption?: string }>;
 }>> {
   const channelUrl = `https://t.me/s/${channelUsername}`;
+  const allPostsMap = new Map<number, {
+    message_id: number;
+    date: number;
+    text?: string;
+    caption?: string;
+    images?: Array<{ url: string; caption?: string }>;
+  }>();
+  
+  try {
+    // Пробуем использовать Puppeteer для получения всех постов
+    let puppeteerPosts: Array<{
+      message_id: number;
+      date: number;
+      text?: string;
+      caption?: string;
+      images?: Array<{ url: string; caption?: string }>;
+    }> = [];
+    
+    try {
+      console.log('Attempting to fetch posts using Puppeteer...');
+      puppeteerPosts = await getAllTelegramChannelPostsWithPuppeteer(channelUsername, maxPosts);
+      puppeteerPosts.forEach(post => allPostsMap.set(post.message_id, post));
+      console.log(`Found ${puppeteerPosts.length} posts using Puppeteer`);
+    } catch (puppeteerError: any) {
+      console.log('Puppeteer not available or failed, falling back to HTML parsing:', puppeteerError.message);
+      
+      // Fallback: Парсинг основной страницы канала
+      console.log('Fetching posts from main channel page...');
+      const mainPosts = await parseTelegramChannelPage(channelUrl);
+      mainPosts.forEach(post => allPostsMap.set(post.message_id, post));
+      console.log(`Found ${mainPosts.length} posts on main page`);
+      
+      // Пробуем получить посты через JSON данные
+      try {
+        const jsonPosts = await parseTelegramChannelJSON(channelUrl, channelUsername);
+        jsonPosts.forEach(post => {
+          if (!allPostsMap.has(post.message_id)) {
+            allPostsMap.set(post.message_id, post);
+          }
+        });
+        console.log(`Found ${jsonPosts.length} additional posts from JSON data`);
+      } catch (error) {
+        console.log('Could not parse JSON data:', error);
+      }
+    }
+    
+    // Конвертируем Map в массив и сортируем по дате
+    const posts = Array.from(allPostsMap.values());
+    posts.sort((a, b) => a.date - b.date);
+    
+    // Если указан лимит, возвращаем только последние N постов
+    if (maxPosts && posts.length > maxPosts) {
+      return posts.slice(-maxPosts);
+    }
+    
+    return posts;
+  } catch (error) {
+    console.error('Error fetching all Telegram channel posts:', error);
+    throw error;
+  }
+}
+
+/**
+ * Получает все посты используя Puppeteer для рендеринга JavaScript
+ * Прокручивает страницу вверх для загрузки всех исторических постов
+ */
+async function getAllTelegramChannelPostsWithPuppeteer(
+  channelUsername: string,
+  maxPosts?: number
+): Promise<Array<{
+  message_id: number;
+  date: number;
+  text?: string;
+  caption?: string;
+  images?: Array<{ url: string; caption?: string }>;
+}>> {
+  // Динамический импорт Puppeteer (может быть не установлен)
+  const puppeteer = await import('puppeteer').catch(() => null);
+  if (!puppeteer) {
+    throw new Error('Puppeteer is not available');
+  }
+  
+  const channelUrl = `https://t.me/s/${channelUsername}`;
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+  
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    console.log(`Loading channel page: ${channelUrl}`);
+    await page.goto(channelUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+    
+    // Ждем загрузки постов
+    await page.waitForSelector('.tgme_widget_message', { timeout: 10000 }).catch(() => {
+      console.log('Messages selector not found, continuing...');
+    });
+    
+    let previousPostCount = 0;
+    let noNewPostsCount = 0; // Счетчик попыток без новых постов
+    const maxScrollAttempts = 100; // Максимальное количество попыток прокрутки
+    const postsMap = new Map<number, {
+      message_id: number;
+      date: number;
+      text?: string;
+      caption?: string;
+      images?: Array<{ url: string; caption?: string }>;
+    }>();
+    
+    // Прокручиваем страницу вверх для загрузки старых постов
+    for (let attempt = 0; attempt < maxScrollAttempts; attempt++) {
+      // Парсим текущие посты на странице
+      const currentPosts = await page.evaluate(() => {
+        const posts: Array<{
+          message_id: number;
+          date: number;
+          text?: string;
+          caption?: string;
+          images?: Array<{ url: string; caption?: string }>;
+        }> = [];
+        
+        const messageElements = document.querySelectorAll('.tgme_widget_message');
+        
+        messageElements.forEach((element) => {
+          try {
+            // Извлекаем message_id из data-post
+            const dataPost = element.getAttribute('data-post');
+            if (!dataPost) return;
+            
+            const messageIdMatch = dataPost.match(/\/(\d+)$/);
+            if (!messageIdMatch) return;
+            
+            const messageId = parseInt(messageIdMatch[1], 10);
+            
+            // Извлекаем дату
+            const timeElement = element.querySelector('time[datetime]');
+            let dateTimestamp = 0;
+            if (timeElement) {
+              const datetime = timeElement.getAttribute('datetime');
+              if (datetime) {
+                dateTimestamp = Math.floor(new Date(datetime).getTime() / 1000);
+              }
+            }
+            
+            // Извлекаем текст
+            const textElement = element.querySelector('.tgme_widget_message_text');
+            let text: string | undefined;
+            if (textElement) {
+              text = textElement.textContent?.trim() || undefined;
+            }
+            
+            // Если текста нет, пробуем caption
+            if (!text) {
+              const captionElement = element.querySelector('.tgme_widget_message_caption');
+              if (captionElement) {
+                text = captionElement.textContent?.trim() || undefined;
+              }
+            }
+            
+            // Извлекаем изображения
+            const images: Array<{ url: string; caption?: string }> = [];
+            const imageLinks = element.querySelectorAll<HTMLAnchorElement>('.tgme_widget_message_photo_wrap');
+            imageLinks.forEach((link) => {
+              const href = link.getAttribute('href');
+              if (href) {
+                images.push({ url: href });
+              }
+            });
+            
+            // Добавляем пост, если есть текст или изображения
+            if (text || images.length > 0) {
+              posts.push({
+                message_id: messageId,
+                date: dateTimestamp,
+                text,
+                caption: text,
+                images: images.length > 0 ? images : undefined
+              });
+            }
+          } catch (error) {
+            // Пропускаем некорректные посты
+          }
+        });
+        
+        return posts;
+      });
+      
+      // Добавляем посты в Map
+      currentPosts.forEach(post => {
+        if (post.message_id) {
+          postsMap.set(post.message_id, post);
+        }
+      });
+      
+      const currentPostCount = postsMap.size;
+      console.log(`Found ${currentPostCount} unique posts (scroll attempt ${attempt + 1}/${maxScrollAttempts})`);
+      
+      // Проверяем лимит
+      if (maxPosts && currentPostCount >= maxPosts) {
+        console.log(`Reached max posts limit: ${maxPosts}`);
+        break;
+      }
+      
+      // Прокручиваем вверх для загрузки старых постов
+      // Telegram загружает старые посты при прокрутке к верху страницы
+      const beforeScroll = await page.evaluate(() => document.body.scrollHeight);
+      await page.evaluate(() => {
+        window.scrollTo(0, 0);
+      });
+      
+      // Ждем загрузки новых постов
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const afterScroll = await page.evaluate(() => document.body.scrollHeight);
+      const newPostCount = postsMap.size;
+      
+      // Если высота страницы увеличилась или количество постов изменилось, значит загрузились новые посты
+      if (afterScroll > beforeScroll || newPostCount > previousPostCount) {
+        noNewPostsCount = 0; // Сбрасываем счетчик, так как нашли новые посты
+        previousPostCount = newPostCount; // Обновляем счетчик постов
+      } else {
+        noNewPostsCount++;
+        // Если несколько раз подряд не находим новые посты, прекращаем
+        if (noNewPostsCount >= 5) {
+          console.log('No new posts loaded after multiple scroll attempts, stopping');
+          break;
+        }
+      }
+    }
+    
+    // Конвертируем Map в массив и сортируем по дате
+    const posts = Array.from(postsMap.values());
+    posts.sort((a, b) => a.date - b.date);
+    
+    return posts;
+  } finally {
+    await browser.close();
+  }
+}
+
+/**
+ * Парсит HTML страницу канала Telegram
+ */
+async function parseTelegramChannelPage(
+  channelUrl: string
+): Promise<Array<{
+  message_id: number;
+  date: number;
+  text?: string;
+  caption?: string;
+  images?: Array<{ url: string; caption?: string }>;
+}>> {
   const posts: Array<{
     message_id: number;
     date: number;
@@ -169,19 +426,19 @@ export async function getAllTelegramChannelPosts(
     images?: Array<{ url: string; caption?: string }>;
   }> = [];
   
-  try {
-    // Получаем HTML страницы канала
-    const response = await fetch(channelUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch channel: ${response.statusText}`);
+  const response = await fetch(channelUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5'
     }
-    
-    const html = await response.text();
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch channel: ${response.statusText}`);
+  }
+  
+  const html = await response.text();
     
     // Парсим посты из HTML
     // Telegram использует структуру с data-post атрибутами
@@ -327,14 +584,124 @@ export async function getAllTelegramChannelPosts(
       }
     }
     
-    // Сортируем по дате (от старых к новым)
-    posts.sort((a, b) => a.date - b.date);
+  return posts;
+}
+
+/**
+ * Пытается извлечь данные постов из JSON, встроенного в страницу Telegram
+ */
+async function parseTelegramChannelJSON(
+  channelUrl: string,
+  channelUsername: string
+): Promise<Array<{
+  message_id: number;
+  date: number;
+  text?: string;
+  caption?: string;
+  images?: Array<{ url: string; caption?: string }>;
+}>> {
+  const posts: Array<{
+    message_id: number;
+    date: number;
+    text?: string;
+    caption?: string;
+    images?: Array<{ url: string; caption?: string }>;
+  }> = [];
+  
+  try {
+    const response = await fetch(channelUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
     
-    return posts;
+    const html = await response.text();
+    
+    // Ищем JSON данные в скриптах на странице
+    // Telegram иногда встраивает данные в window.__INITIAL_STATE__ или подобные переменные
+    const jsonMatches = [
+      /window\.__INITIAL_STATE__\s*=\s*({[\s\S]*?});/,
+      /window\.__INITIAL_DATA__\s*=\s*({[\s\S]*?});/,
+      /<script[^>]*>[\s\S]*?({[\s\S]*?"messages"[\s\S]*?})[\s\S]*?<\/script>/i
+    ];
+    
+    for (const regex of jsonMatches) {
+      const match = html.match(regex);
+      if (match) {
+        try {
+          const data = JSON.parse(match[1]);
+          // Парсим структуру данных (может варьироваться)
+          // Это упрощенная версия, может потребоваться адаптация
+          if (data.messages || data.posts) {
+            const messages = data.messages || data.posts || [];
+            for (const msg of messages) {
+              if (msg.id && msg.date) {
+                posts.push({
+                  message_id: msg.id,
+                  date: typeof msg.date === 'number' ? msg.date : Math.floor(new Date(msg.date).getTime() / 1000),
+                  text: msg.text || msg.message || msg.caption,
+                  caption: msg.caption,
+                  images: msg.photo ? [{ url: msg.photo }] : undefined
+                });
+              }
+            }
+          }
+        } catch (e) {
+          // Продолжаем поиск других форматов
+          continue;
+        }
+      }
+    }
   } catch (error) {
-    console.error('Error fetching all Telegram channel posts:', error);
-    throw error;
+    // Игнорируем ошибки парсинга JSON
   }
+  
+  return posts;
+}
+
+/**
+ * Пытается получить посты через неофициальный API или альтернативные методы
+ */
+async function fetchTelegramChannelViaAPI(
+  channelUsername: string,
+  currentCount: number
+): Promise<Array<{
+  message_id: number;
+  date: number;
+  text?: string;
+  caption?: string;
+  images?: Array<{ url: string; caption?: string }>;
+}>> {
+  const posts: Array<{
+    message_id: number;
+    date: number;
+    text?: string;
+    caption?: string;
+    images?: Array<{ url: string; caption?: string }>;
+  }> = [];
+  
+  try {
+    // Пробуем получить больше постов через несколько запросов к веб-странице
+    // Telegram иногда предоставляет API endpoint для загрузки старых сообщений
+    // Формат: https://t.me/s/{channel}?before={message_id}
+    
+    // Если у нас уже есть посты, пробуем загрузить более старые
+    if (currentCount > 0) {
+      // Пробуем загрузить страницу с параметром before (если Telegram поддерживает)
+      // Это может не работать, но стоит попробовать
+      const olderUrl = `https://t.me/s/${channelUsername}?before=1`;
+      try {
+        const olderPosts = await parseTelegramChannelPage(olderUrl);
+        posts.push(...olderPosts);
+      } catch (error) {
+        // Игнорируем ошибки
+      }
+    }
+  } catch (error) {
+    // Игнорируем ошибки
+  }
+  
+  return posts;
 }
 
 /**
