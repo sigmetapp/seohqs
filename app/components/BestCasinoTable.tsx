@@ -196,7 +196,7 @@ export default function BestCasinoTable({ country, casinos, countryFlag, style =
   };
 
   return (
-    <div className={`w-full max-w-6xl mx-auto p-2 sm:p-4 md:p-6 ${styleClasses.container} rounded-xl sm:rounded-2xl shadow-xl border ${styleClasses.border}`}>
+    <div className={`w-full max-w-6xl mx-auto p-2 sm:p-4 md:p-6 ${styleClasses.container} rounded-xl sm:rounded-2xl shadow-xl border ${styleClasses.border} min-w-0`}>
       {/* Header */}
       <div className={`text-center mb-4 sm:mb-6 md:mb-8 p-2 sm:p-4 rounded-xl ${style === 'modern' ? styleClasses.header : ''}`}>
         <h2 className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold mb-1 sm:mb-2 md:mb-3 ${
@@ -216,7 +216,7 @@ export default function BestCasinoTable({ country, casinos, countryFlag, style =
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="desktop-table-view hidden md:block overflow-x-auto w-full">
         <table className="w-full">
           <thead>
             <tr className={`${styleClasses.tableHeader} border-b-2 ${styleClasses.border}`}>
@@ -317,85 +317,107 @@ export default function BestCasinoTable({ country, casinos, countryFlag, style =
         </motion.div>
       )}
 
-      {/* Mobile Card View */}
-      <div className="md:hidden space-y-3 sm:space-y-4">
-        {casinos.slice(0, 5).map((casino, index) => (
-          <div key={index}>
+      {/* Mobile Card View - Always visible on mobile */}
+      <div className="mobile-table-view block md:hidden space-y-3 sm:space-y-4 w-full min-h-[200px]">
+        {casinos && casinos.length > 0 ? (
+          <>
+            {casinos.slice(0, 5).map((casino, index) => (
+          <div key={index} className="w-full">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               className={`
-                p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 transition-all cursor-pointer
+                w-full p-4 rounded-xl border-2 transition-all cursor-pointer touch-manipulation
                 ${selectedCasino === index 
                   ? style === 'modern'
-                    ? 'bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-800/40 dark:to-blue-800/40 border-purple-500 dark:border-purple-400'
+                    ? 'bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-800/40 dark:to-blue-800/40 border-purple-500 dark:border-purple-400 shadow-lg'
                     : style === 'minimal'
-                    ? 'bg-gray-100 dark:bg-gray-800 border-gray-400 dark:border-gray-500'
-                    : 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400'
-                  : `${styleClasses.card} hover:border-gray-300 dark:hover:border-gray-600`}
+                    ? 'bg-gray-100 dark:bg-gray-800 border-gray-400 dark:border-gray-500 shadow-lg'
+                    : 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400 shadow-lg'
+                  : `${styleClasses.card} active:scale-[0.98] hover:border-gray-300 dark:hover:border-gray-600`}
               `}
-              onClick={() => setSelectedCasino(selectedCasino === index ? null : index)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSelectedCasino(selectedCasino === index ? null : index);
+              }}
+              whileTap={{ scale: 0.98 }}
             >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">🎲</span>
-                  <span className="font-bold text-gray-900 dark:text-white text-base">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="text-2xl flex-shrink-0">🎲</span>
+                  <span className="font-bold text-gray-900 dark:text-white text-base truncate">
                     {casino.name}
                   </span>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-xs">
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400 mb-1">{t.rating}</div>
-                  <div className="font-semibold text-gray-900 dark:text-white">{getRatingStars(casino.rating)}</div>
+                <div className="min-w-0">
+                  <div className="text-gray-600 dark:text-gray-400 mb-1 truncate">{t.rating}</div>
+                  <div className="font-semibold text-gray-900 dark:text-white break-words text-[10px] sm:text-xs">{getRatingStars(casino.rating)}</div>
                 </div>
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400 mb-1">{t.bonus}</div>
-                  <div className="font-semibold text-gray-900 dark:text-white">{casino.bonus || '-'}</div>
+                <div className="min-w-0">
+                  <div className="text-gray-600 dark:text-gray-400 mb-1 truncate">{t.bonus}</div>
+                  <div className="font-semibold text-gray-900 dark:text-white truncate">{casino.bonus || '-'}</div>
                 </div>
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400 mb-1">{t.minDeposit}</div>
-                  <div className="font-semibold text-gray-900 dark:text-white">{casino.minDeposit || '-'}</div>
+                <div className="min-w-0">
+                  <div className="text-gray-600 dark:text-gray-400 mb-1 truncate">{t.minDeposit}</div>
+                  <div className="font-semibold text-gray-900 dark:text-white truncate">{casino.minDeposit || '-'}</div>
                 </div>
+              </div>
+              
+              {/* Expand indicator */}
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {selectedCasino === index ? 'Нажмите, чтобы свернуть' : 'Нажмите для подробностей'}
+                </span>
               </div>
             </motion.div>
 
             {/* Mobile Details */}
             {selectedCasino === index && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className={`mt-3 p-3 sm:p-4 ${styleClasses.details} rounded-lg sm:rounded-xl border ${styleClasses.border}`}
+                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className={`w-full p-4 ${styleClasses.details} rounded-xl border ${styleClasses.border} overflow-visible`}
               >
                 <div className="flex items-start gap-3">
-                  <span className="text-3xl">🎲</span>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">
+                  <span className="text-3xl flex-shrink-0">🎲</span>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3 break-words">
                       {casino.name}
                     </h3>
                     <div className="space-y-2 mb-4">
-                      <div className="flex justify-between items-center p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg">
-                        <span className="text-xs text-gray-600 dark:text-gray-400">{t.rating}</span>
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{getRatingStars(casino.rating)}</span>
+                      <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{t.rating}</span>
+                        <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white ml-2 break-words text-right">{getRatingStars(casino.rating)}</span>
                       </div>
-                      <div className="flex justify-between items-center p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg">
-                        <span className="text-xs text-gray-600 dark:text-gray-400">{t.bonus}</span>
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{casino.bonus || '-'}</span>
+                      <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{t.bonus}</span>
+                        <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white ml-2 break-words text-right">{casino.bonus || '-'}</span>
                       </div>
-                      <div className="flex justify-between items-center p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg">
-                        <span className="text-xs text-gray-600 dark:text-gray-400">{t.minDeposit}</span>
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{casino.minDeposit || '-'}</span>
+                      <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{t.minDeposit}</span>
+                        <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white ml-2">{casino.minDeposit || '-'}</span>
                       </div>
+                      {casino.license && (
+                        <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                          <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{t.license}</span>
+                          <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white ml-2">{casino.license}</span>
+                        </div>
+                      )}
                     </div>
                     {casino.url && (
                       <a
                         href={casino.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block w-full text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+                        className="block w-full text-center px-4 py-2 bg-blue-600 active:bg-blue-700 text-white font-semibold rounded-lg transition-colors touch-manipulation"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         {t.playNow} →
                       </a>
@@ -405,7 +427,14 @@ export default function BestCasinoTable({ country, casinos, countryFlag, style =
               </motion.div>
             )}
           </div>
-        ))}
+            ))}
+          </>
+        ) : (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <p className="text-lg font-semibold">Нет доступных казино</p>
+            <p className="text-sm mt-2">Попробуйте обновить страницу</p>
+          </div>
+        )}
       </div>
 
       {/* Footer */}

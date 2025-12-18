@@ -455,7 +455,7 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
       ...method,
       casinos: casinos?.[method.id] || method.casinos || [],
     }));
-
+  
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'available':
@@ -487,7 +487,7 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
   };
 
   return (
-    <div className={`w-full max-w-6xl mx-auto p-2 sm:p-4 md:p-6 ${styleClasses.container} rounded-xl sm:rounded-2xl shadow-xl border ${styleClasses.border}`}>
+    <div className={`w-full max-w-6xl mx-auto p-2 sm:p-4 md:p-6 ${styleClasses.container} rounded-xl sm:rounded-2xl shadow-xl border ${styleClasses.border} min-w-0`}>
       {/* Header */}
       <div className={`text-center mb-4 sm:mb-6 md:mb-8 p-2 sm:p-4 rounded-xl ${style === 'modern' ? styleClasses.header : ''}`}>
         <h2 className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold mb-1 sm:mb-2 md:mb-3 ${
@@ -507,7 +507,7 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="desktop-table-view hidden md:block overflow-x-auto w-full">
         <table className="w-full">
           <thead>
             <tr className={`${styleClasses.tableHeader} border-b-2 ${styleClasses.border}`}>
@@ -666,41 +666,48 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
         </motion.div>
       )}
 
-      {/* Mobile Card View */}
-      <div className="md:hidden space-y-3 sm:space-y-4">
-        {topMethods.map((method, index) => (
-          <div key={method.id}>
+      {/* Mobile Card View - Always visible on mobile */}
+      <div className="mobile-table-view block md:hidden space-y-3 sm:space-y-4 w-full min-h-[200px]">
+        {topMethods && topMethods.length > 0 ? (
+          <>
+            {topMethods.map((method, index) => (
+          <div key={method.id} className="w-full">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               className={`
-                p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 transition-all cursor-pointer
+                w-full p-4 rounded-xl border-2 transition-all cursor-pointer touch-manipulation
                 ${selectedMethod === method.id 
                   ? style === 'modern'
-                    ? 'bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-800/40 dark:to-blue-800/40 border-purple-500 dark:border-purple-400'
+                    ? 'bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-800/40 dark:to-blue-800/40 border-purple-500 dark:border-purple-400 shadow-lg'
                     : style === 'minimal'
-                    ? 'bg-gray-100 dark:bg-gray-800 border-gray-400 dark:border-gray-500'
-                    : 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400'
-                  : `${styleClasses.card} hover:border-gray-300 dark:hover:border-gray-600`}
+                    ? 'bg-gray-100 dark:bg-gray-800 border-gray-400 dark:border-gray-500 shadow-lg'
+                    : 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400 shadow-lg'
+                  : `${styleClasses.card} active:scale-[0.98] hover:border-gray-300 dark:hover:border-gray-600`}
               `}
-              onClick={() => setSelectedMethod(selectedMethod === method.id ? null : method.id)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSelectedMethod(selectedMethod === method.id ? null : method.id);
+              }}
+              whileTap={{ scale: 0.98 }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{method.icon}</span>
-                  <div className="flex items-center gap-1.5">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="text-2xl flex-shrink-0">{method.icon}</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
                     {countryFlag && (
-                      <span className="text-base" title={country}>{countryFlag}</span>
+                      <span className="text-base flex-shrink-0" title={country}>{countryFlag}</span>
                     )}
-                    <span className="font-bold text-gray-900 dark:text-white text-base">
+                    <span className="font-bold text-gray-900 dark:text-white text-base truncate">
                       {method.name[country]}
                     </span>
                   </div>
                 </div>
                 <span className={`
-                  inline-block px-2.5 py-1 rounded-full text-xs font-semibold text-white
+                  inline-block px-2.5 py-1 rounded-full text-xs font-semibold text-white flex-shrink-0
                   ${getStatusColor(method.status)}
                 `}>
                   {getStatusText(method.status)}
@@ -710,23 +717,23 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
               {/* Popularity */}
               <div className="mb-3">
                 <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">{t.popularity}</div>
-                <div className="text-base">{getPopularityStars(method.popularity)}</div>
+                <div className="text-sm sm:text-base break-words">{getPopularityStars(method.popularity)}</div>
               </div>
 
               {/* Details */}
               {showDetails && (
                 <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div>
-                    <div className="text-gray-600 dark:text-gray-400 mb-1">{t.minDeposit}</div>
-                    <div className="font-semibold text-gray-900 dark:text-white">{method.minDeposit || '-'}</div>
+                  <div className="min-w-0">
+                    <div className="text-gray-600 dark:text-gray-400 mb-1 truncate">{t.minDeposit}</div>
+                    <div className="font-semibold text-gray-900 dark:text-white truncate">{method.minDeposit || '-'}</div>
                   </div>
-                  <div>
-                    <div className="text-gray-600 dark:text-gray-400 mb-1">{t.maxDeposit}</div>
-                    <div className="font-semibold text-gray-900 dark:text-white">{method.maxDeposit || '-'}</div>
+                  <div className="min-w-0">
+                    <div className="text-gray-600 dark:text-gray-400 mb-1 truncate">{t.maxDeposit}</div>
+                    <div className="font-semibold text-gray-900 dark:text-white truncate">{method.maxDeposit || '-'}</div>
                   </div>
-                  <div>
-                    <div className="text-gray-600 dark:text-gray-400 mb-1">{t.processingTime}</div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
+                  <div className="min-w-0">
+                    <div className="text-gray-600 dark:text-gray-400 mb-1 truncate">{t.processingTime}</div>
+                    <div className="font-semibold text-gray-900 dark:text-white truncate">
                       {typeof method.processingTime === 'object' 
                         ? method.processingTime[country] || '-' 
                         : method.processingTime || '-'}
@@ -734,39 +741,47 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
                   </div>
                 </div>
               )}
+              
+              {/* Expand indicator */}
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {selectedMethod === method.id ? 'Нажмите, чтобы свернуть' : 'Нажмите для подробностей'}
+                </span>
+              </div>
             </motion.div>
 
             {/* Mobile Details - открывается сразу под карточкой */}
             {selectedMethod === method.id && showDetails && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className={`mt-3 p-3 sm:p-4 ${styleClasses.details} rounded-lg sm:rounded-xl border ${styleClasses.border}`}
+                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className={`w-full p-4 ${styleClasses.details} rounded-xl border ${styleClasses.border} overflow-visible`}
               >
                 <div className="flex items-start gap-3">
-                  <span className="text-3xl">{method.icon}</span>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
+                  <span className="text-3xl flex-shrink-0">{method.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-3 flex-wrap">
                       {countryFlag && (
-                        <span className="text-xl" title={country}>{countryFlag}</span>
+                        <span className="text-xl flex-shrink-0" title={country}>{countryFlag}</span>
                       )}
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white break-words">
                         {method.name[country]}
                       </h3>
                     </div>
-                    <div className="grid grid-cols-1 gap-3 mt-3">
-                      <div className="flex justify-between items-center p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg">
-                        <span className="text-xs text-gray-600 dark:text-gray-400">{t.minDeposit}</span>
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{method.minDeposit}</span>
+                    <div className="grid grid-cols-1 gap-2 mt-3">
+                      <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{t.minDeposit}</span>
+                        <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white ml-2">{method.minDeposit}</span>
                       </div>
-                      <div className="flex justify-between items-center p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg">
-                        <span className="text-xs text-gray-600 dark:text-gray-400">{t.maxDeposit}</span>
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{method.maxDeposit}</span>
+                      <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{t.maxDeposit}</span>
+                        <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white ml-2">{method.maxDeposit}</span>
                       </div>
-                      <div className="flex justify-between items-center p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg">
-                        <span className="text-xs text-gray-600 dark:text-gray-400">{t.processingTime}</span>
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg">
+                        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{t.processingTime}</span>
+                        <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white ml-2 break-words text-right">
                           {typeof method.processingTime === 'object' 
                             ? method.processingTime[country] || '-' 
                             : method.processingTime || '-'}
@@ -790,13 +805,14 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: idx * 0.1 }}
-                              className="group block p-3 bg-white dark:bg-gray-700 rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-all shadow-sm"
+                              className="group block p-3 bg-white dark:bg-gray-700 rounded-lg border-2 border-gray-200 dark:border-gray-600 active:border-blue-500 dark:active:border-blue-400 transition-all shadow-sm touch-manipulation"
+                              onClick={(e) => e.stopPropagation()}
                             >
                               <div className="flex items-center justify-between">
-                                <span className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                <span className="text-sm font-bold text-gray-900 dark:text-white group-active:text-blue-600 dark:group-active:text-blue-400 transition-colors break-words pr-2">
                                   {casino.name}
                                 </span>
-                                <span className="text-lg">🎰</span>
+                                <span className="text-lg flex-shrink-0">🎰</span>
                               </div>
                               <span className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1 block">
                                 {t.playNow} →
@@ -811,7 +827,14 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
               </motion.div>
             )}
           </div>
-        ))}
+            ))}
+          </>
+        ) : (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <p className="text-lg font-semibold">Нет доступных методов оплаты</p>
+            <p className="text-sm mt-2">Попробуйте обновить страницу</p>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
