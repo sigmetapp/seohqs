@@ -1306,16 +1306,10 @@
     .${uniqueId}-mobile-card-title {
       font-weight: 800;
       font-size: 15px;
-      color: #000000;
+      color: ${isDarkMode() ? 'white' : '#000000'};
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-mobile-card-title {
-        color: white;
-      }
     }
 
     .${uniqueId}-mobile-chip {
@@ -1326,14 +1320,8 @@
       border-radius: 9999px;
       font-size: 11px;
       font-weight: 700;
-      border: 1px solid rgba(0,0,0,0.08);
+      border: 1px solid ${isDarkMode() ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'};
       white-space: nowrap;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-mobile-chip {
-        border-color: rgba(255,255,255,0.12);
-      }
     }
 
     .${uniqueId}-mobile-card-subgrid {
@@ -1355,74 +1343,42 @@
       gap: 10px;
       padding: 10px 12px;
       border-radius: 12px;
-      background: rgba(255,255,255,0.55);
-      border: 1px solid rgba(0,0,0,0.06);
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-mobile-kv {
-        background: rgba(17,24,39,0.35);
-        border-color: rgba(255,255,255,0.08);
-      }
+      background: ${isDarkMode() ? 'rgba(17,24,39,0.35)' : 'rgba(255,255,255,0.55)'};
+      border: 1px solid ${isDarkMode() ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};
     }
 
     .${uniqueId}-mobile-k {
       font-size: 11px;
-      color: #6b7280;
+      color: ${isDarkMode() ? '#9ca3af' : '#6b7280'};
       font-weight: 600;
       white-space: nowrap;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-mobile-k {
-        color: #9ca3af;
-      }
     }
 
     .${uniqueId}-mobile-v {
       font-size: 12px;
       font-weight: 800;
-      color: #111827;
+      color: ${isDarkMode() ? 'white' : '#111827'};
       text-align: right;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-mobile-v {
-        color: white;
-      }
-    }
-
     .${uniqueId}-mobile-hint {
       margin-top: 10px;
       padding-top: 10px;
-      border-top: 1px solid rgba(0,0,0,0.08);
+      border-top: 1px solid ${isDarkMode() ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'};
       font-size: 11px;
-      color: #6b7280;
+      color: ${isDarkMode() ? '#9ca3af' : '#6b7280'};
       text-align: center;
       font-weight: 600;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-mobile-hint {
-        border-top-color: rgba(255,255,255,0.12);
-        color: #9ca3af;
-      }
     }
 
     .${uniqueId}-mobile-expand {
       display: none;
       margin-top: 10px;
       padding-top: 10px;
-      border-top: 1px dashed rgba(0,0,0,0.12);
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-mobile-expand {
-        border-top-color: rgba(255,255,255,0.18);
-      }
+      border-top: 1px dashed ${isDarkMode() ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)'};
     }
 
     .${uniqueId}-mobile-expand.show {
@@ -1442,17 +1398,10 @@
       gap: 10px;
       padding: 12px 12px;
       border-radius: 12px;
-      border: 1px solid rgba(0,0,0,0.08);
+      border: 1px solid ${isDarkMode() ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'};
       text-decoration: none;
       color: inherit;
-      background: rgba(255,255,255,0.6);
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-mobile-link {
-        border-color: rgba(255,255,255,0.12);
-        background: rgba(17,24,39,0.35);
-      }
+      background: ${isDarkMode() ? 'rgba(17,24,39,0.35)' : 'rgba(255,255,255,0.6)'};
     }
 
     .${uniqueId}-mobile-link strong {
@@ -1466,27 +1415,15 @@
     .${uniqueId}-mobile-link span {
       font-size: 12px;
       font-weight: 800;
-      color: #2563eb;
+      color: ${isDarkMode() ? '#60a5fa' : '#2563eb'};
       white-space: nowrap;
       flex-shrink: 0;
     }
 
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-mobile-link span {
-        color: #60a5fa;
-      }
-    }
-
     .${uniqueId}-winning-amount {
       font-weight: bold;
-      color: #10b981;
+      color: ${isDarkMode() ? '#34d399' : '#10b981'};
       font-size: 18px;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .${uniqueId}-winning-amount {
-        color: #34d399;
-      }
     }
 
   `;
