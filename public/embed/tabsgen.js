@@ -517,6 +517,67 @@
 
   var t = translations[country] || translations.UK;
 
+  // Small UI strings (mobile hints)
+  var uiTranslations = {
+    UK: {
+      tapToViewCasinos: 'Tap to view casinos',
+      tapForDetails: 'Tap for details',
+      tapToCollapse: 'Tap to collapse',
+    },
+    DE: {
+      tapToViewCasinos: 'Tippen, um Casinos zu sehen',
+      tapForDetails: 'Tippen für Details',
+      tapToCollapse: 'Tippen zum Einklappen',
+    },
+    FR: {
+      tapToViewCasinos: 'Appuyez pour voir les casinos',
+      tapForDetails: 'Appuyez pour les détails',
+      tapToCollapse: 'Appuyez pour réduire',
+    },
+    ES: {
+      tapToViewCasinos: 'Toca para ver casinos',
+      tapForDetails: 'Toca para ver detalles',
+      tapToCollapse: 'Toca para contraer',
+    },
+    IT: {
+      tapToViewCasinos: 'Tocca per vedere i casinò',
+      tapForDetails: 'Tocca per i dettagli',
+      tapToCollapse: 'Tocca per chiudere',
+    },
+    PT: {
+      tapToViewCasinos: 'Toque para ver casinos',
+      tapForDetails: 'Toque para ver detalhes',
+      tapToCollapse: 'Toque para recolher',
+    },
+    BR: {
+      tapToViewCasinos: 'Toque para ver cassinos',
+      tapForDetails: 'Toque para ver detalhes',
+      tapToCollapse: 'Toque para recolher',
+    },
+    BG: {
+      tapToViewCasinos: 'Докоснете, за да видите казина',
+      tapForDetails: 'Докоснете за детайли',
+      tapToCollapse: 'Докоснете, за да сгънете',
+    },
+    HU: {
+      tapToViewCasinos: 'Koppints a kaszinókért',
+      tapForDetails: 'Koppints a részletekért',
+      tapToCollapse: 'Koppints az összecsukáshoz',
+    },
+    FI: {
+      tapToViewCasinos: 'Napauta nähdäksesi kasinot',
+      tapForDetails: 'Napauta nähdäksesi tiedot',
+      tapToCollapse: 'Napauta sulkeaksesi',
+    },
+    NO: {
+      tapToViewCasinos: 'Trykk for å se casinoer',
+      tapForDetails: 'Trykk for detaljer',
+      tapToCollapse: 'Trykk for å skjule',
+    },
+  };
+
+  var ui = uiTranslations[country] || uiTranslations.UK;
+
   var paymentMethods = [
     {
       id: 'visa',
@@ -1643,7 +1704,7 @@
 
         var hint = document.createElement('div');
         hint.className = `${uniqueId}-mobile-hint`;
-        hint.textContent = 'Tap to view casinos';
+        hint.textContent = ui.tapToViewCasinos;
         card.appendChild(hint);
 
         // Expand area
@@ -1728,10 +1789,10 @@
               : '0 1px 2px rgba(0,0,0,0.05)';
             if (isSelected) {
               expandEl.classList.add('show');
-              hintEl.textContent = 'Tap to collapse';
+              hintEl.textContent = ui.tapToCollapse;
             } else {
               expandEl.classList.remove('show');
-              hintEl.textContent = 'Tap to view casinos';
+              hintEl.textContent = ui.tapToViewCasinos;
             }
           });
         });
@@ -2102,7 +2163,7 @@
 
         var hint = document.createElement('div');
         hint.className = `${uniqueId}-mobile-hint`;
-        hint.textContent = 'Tap for details';
+        hint.textContent = ui.tapForDetails;
         card.appendChild(hint);
 
         var expand = document.createElement('div');
@@ -2149,10 +2210,10 @@
               : '0 1px 2px rgba(0,0,0,0.05)';
             if (isSelected) {
               expandEl.classList.add('show');
-              hintEl.textContent = 'Tap to collapse';
+              hintEl.textContent = ui.tapToCollapse;
             } else {
               expandEl.classList.remove('show');
-              hintEl.textContent = 'Tap for details';
+              hintEl.textContent = ui.tapForDetails;
             }
           });
         });
@@ -2623,7 +2684,7 @@
 
         var hint = document.createElement('div');
         hint.className = `${uniqueId}-mobile-hint`;
-        hint.textContent = 'Tap for details';
+        hint.textContent = ui.tapForDetails;
         card.appendChild(hint);
 
         var expand = document.createElement('div');
@@ -2669,10 +2730,10 @@
               : '0 1px 2px rgba(0,0,0,0.05)';
             if (isSelected) {
               expandEl.classList.add('show');
-              hintEl.textContent = 'Tap to collapse';
+              hintEl.textContent = ui.tapToCollapse;
             } else {
               expandEl.classList.remove('show');
-              hintEl.textContent = 'Tap for details';
+              hintEl.textContent = ui.tapForDetails;
             }
           });
         });
