@@ -52,22 +52,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Вставляем лог в базу данных
-    const { error } = await supabase
+    const logData = {
+      script_name: scriptName,
+      referer: referer,
+      user_agent: userAgent,
+      ip_address: ipAddress,
+    };
+    
+    console.log('Inserting log:', logData);
+    
+    const { data, error } = await supabase
       .from('embed_script_logs')
-      .insert({
-        script_name: scriptName,
-        referer: referer,
-        user_agent: userAgent,
-        ip_address: ipAddress,
-      });
+      .insert(logData)
+      .select();
 
     if (error) {
       console.error('Error inserting log:', error);
       return NextResponse.json(
-        { success: false, error: 'Failed to log request' },
+        { success: false, error: 'Failed to log request', details: error.message },
         { status: 500, headers: corsHeaders }
       );
     }
+    
+    console.log('Log inserted successfully:', data);
 
     return NextResponse.json({ success: true }, { headers: corsHeaders });
   } catch (error: any) {
