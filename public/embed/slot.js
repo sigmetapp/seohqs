@@ -1,6 +1,41 @@
 (function() {
   'use strict';
 
+  // Логирование вызова скрипта
+  try {
+    // Определяем базовый URL из текущего скрипта
+    var scriptEl = document.currentScript || document.querySelector('script[src*="slot.js"]');
+    var scriptSrc = scriptEl ? scriptEl.src : '';
+    var baseUrl = 'https://www.seohqs.com';
+    if (scriptSrc) {
+      var embedIndex = scriptSrc.indexOf('/embed/');
+      if (embedIndex !== -1) {
+        baseUrl = scriptSrc.substring(0, embedIndex);
+      } else {
+        // Если нет /embed/, берем origin
+        try {
+          var url = new URL(scriptSrc);
+          baseUrl = url.origin;
+        } catch (e) {
+          // Используем дефолтный URL
+        }
+      }
+    }
+    
+    fetch(baseUrl + '/api/embed/log', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ scriptName: 'slot.js' }),
+      keepalive: true,
+    }).catch(function() {
+      // Игнорируем ошибки логирования
+    });
+  } catch (e) {
+    // Игнорируем ошибки логирования
+  }
+
   // Получаем параметры из data-атрибутов скрипта
   var script = document.currentScript || document.querySelector('script[data-brand-name]');
   var brandName = script?.getAttribute('data-brand-name') || 'CASINO';
