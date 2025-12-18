@@ -50,7 +50,7 @@ const DEFAULT_BEST_CASINOS: BestCasino[] = [
   { name: 'Casino E', url: 'https://example.com/casino-e', rating: 4, bonus: '€150 + 20 FS', minDeposit: '€20', license: 'UKGC' },
 ];
 
-const DEFAULT_WINNINGS: CasinoWinning[] = Array.from({ length: 30 }, (_, i) => ({
+const DEFAULT_WINNINGS: CasinoWinning[] = Array.from({ length: 10 }, (_, i) => ({
   casino: `Casino ${String.fromCharCode(65 + (i % 5))}`,
   url: `https://example.com/casino-${String.fromCharCode(97 + (i % 5))}`,
   player: `Player${i + 1}`,
@@ -437,11 +437,11 @@ export default function TabsGenPage() {
                       Recent Winnings Settings
                     </h3>
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 sm:mb-4">
-                      Configure 30 possible winnings. 5 random ones will be displayed and updated periodically.
+                      Configure 10 winnings. 5 random ones will be displayed and updated periodically.
                     </p>
                     
                     <div className="space-y-2 max-h-96 overflow-y-auto overflow-x-visible pr-2">
-                      {winnings.slice(0, 10).map((winning, index) => (
+                      {winnings.map((winning, index) => (
                         <div key={index} className="p-2 sm:p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700 w-full min-w-0">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-2 sm:mb-3">
                             <input
@@ -492,7 +492,7 @@ export default function TabsGenPage() {
                         </div>
                       ))}
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 px-1">
-                        Showing first 10 of {winnings.length} winnings. All {winnings.length} will be used for random selection.
+                        Configured {winnings.length} winnings. 5 random ones will be used for rotation.
                       </p>
                     </div>
                   </div>
