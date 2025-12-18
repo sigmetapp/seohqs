@@ -411,9 +411,9 @@ export default function RecentWinningsTable({
         </motion.div>
       )}
 
-      {/* Mobile Card View */}
+      {/* Mobile Card View - Always visible on mobile */}
       <div className="md:hidden space-y-3 sm:space-y-4 w-full">
-        {displayedWinnings.map((winning, index) => (
+        {displayedWinnings.length > 0 && displayedWinnings.map((winning, index) => (
           <div key={`${winning.casino}-${winning.player}-${index}-${updateKey}`} className="w-full">
             <motion.div
               initial={{ opacity: 0, y: 20, scale: 0.95 }}

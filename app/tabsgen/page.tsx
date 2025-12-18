@@ -219,14 +219,14 @@ export default function TabsGenPage() {
 
         {/* Preview Section */}
         <div className="mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-2 sm:p-4 md:p-6 border border-gray-200 dark:border-gray-700 relative overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-2 sm:p-4 md:p-6 border border-gray-200 dark:border-gray-700 relative overflow-x-hidden overflow-y-visible">
             <div className="absolute top-0 right-0 p-2 sm:p-4 opacity-10 font-black text-3xl sm:text-4xl md:text-6xl rotate-12 select-none pointer-events-none">
               PREVIEW
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 md:mb-6 relative z-10 px-2 sm:px-1">
               {t('tabsgen.preview')}
             </h2>
-            <div className="relative z-10 w-full overflow-x-auto overflow-y-visible">
+            <div className="relative z-10 w-full overflow-x-auto overflow-y-visible min-h-[200px]">
               <div className="min-w-0 w-full">
                 {activeTab === 'payment-methods' && (
                   <PaymentMethodsTable country={country} casinos={casinos} countryFlag={selectedCountryFlag} style={tableStyle} />

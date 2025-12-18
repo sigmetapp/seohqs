@@ -317,9 +317,9 @@ export default function BestCasinoTable({ country, casinos, countryFlag, style =
         </motion.div>
       )}
 
-      {/* Mobile Card View */}
+      {/* Mobile Card View - Always visible on mobile */}
       <div className="md:hidden space-y-3 sm:space-y-4 w-full">
-        {casinos.slice(0, 5).map((casino, index) => (
+        {casinos.length > 0 && casinos.slice(0, 5).map((casino, index) => (
           <div key={index} className="w-full">
             <motion.div
               initial={{ opacity: 0, y: 20 }}

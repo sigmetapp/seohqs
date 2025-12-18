@@ -455,7 +455,7 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
       ...method,
       casinos: casinos?.[method.id] || method.casinos || [],
     }));
-
+  
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'available':
@@ -666,9 +666,9 @@ export default function PaymentMethodsTable({ country, showDetails = true, casin
         </motion.div>
       )}
 
-      {/* Mobile Card View */}
+      {/* Mobile Card View - Always visible on mobile */}
       <div className="md:hidden space-y-3 sm:space-y-4 w-full">
-        {topMethods.map((method, index) => (
+        {topMethods.length > 0 && topMethods.map((method, index) => (
           <div key={method.id} className="w-full">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
