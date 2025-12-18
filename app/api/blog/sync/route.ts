@@ -139,7 +139,26 @@ export async function GET(request: NextRequest) {
       
       console.log(`Found ${allPosts.length} posts in channel`);
       if (allPosts.length > 0) {
-        console.log(`Date range: ${new Date(allPosts[0].date * 1000).toISOString()} to ${new Date(allPosts[allPosts.length - 1].date * 1000).toISOString()}`);
+        // Проверяем даты постов
+        const postsWithDates = allPosts.filter(p => p.date > 0);
+        const postsWithoutDates = allPosts.filter(p => p.date === 0);
+        console.log(`Posts with dates: ${postsWithDates.length}, without dates: ${postsWithoutDates.length}`);
+        
+        if (postsWithDates.length > 0) {
+          const sortedByDate = [...postsWithDates].sort((a, b) => a.date - b.date);
+          console.log(`Date range: ${new Date(sortedByDate[0].date * 1000).toISOString()} to ${new Date(sortedByDate[sortedByDate.length - 1].date * 1000).toISOString()}`);
+        }
+        
+        // Логируем примеры постов для отладки
+        if (allPosts.length > 0) {
+          console.log('Sample posts:', allPosts.slice(0, 3).map(p => ({
+            message_id: p.message_id,
+            date: p.date,
+            dateISO: p.date > 0 ? new Date(p.date * 1000).toISOString() : 'NO DATE',
+            hasText: !!(p.text || p.caption),
+            imagesCount: p.images?.length || 0
+          })));
+        }
       }
       
       // Получаем существующие посты из БД
@@ -162,7 +181,25 @@ export async function GET(request: NextRequest) {
           // Конвертируем пост в формат для БД
           // Используем упрощенную конвертацию, так как у нас уже есть данные
           const text = post.text || post.caption || '';
-          const publishedAt = post.date > 0 ? new Date(post.date * 1000) : new Date();
+          
+          // Обрабатываем дату публикации
+          let publishedAt: Date;
+          if (post.date && post.date > 0) {
+            // Дата в формате Unix timestamp (секунды)
+            publishedAt = new Date(post.date * 1000);
+          } else {
+            // Если дата не найдена, пытаемся извлечь из message_id (примерная дата)
+            // Telegram message_id обычно содержит временную информацию
+            // Но лучше использовать текущую дату как fallback
+            console.warn(`Post ${post.message_id} has no date, using current date`);
+            publishedAt = new Date();
+          }
+          
+          // Проверяем, что дата валидна
+          if (isNaN(publishedAt.getTime())) {
+            console.warn(`Invalid date for post ${post.message_id}, using current date`);
+            publishedAt = new Date();
+          }
           
           // Извлекаем заголовок
           const lines = text.split('\n').filter(line => line.trim());

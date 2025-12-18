@@ -305,12 +305,46 @@ async function getAllTelegramChannelPostsWithPuppeteer(
           
           const messageId = parseInt(messageIdMatch[1], 10);
           
-          const timeElement = element.querySelector('time[datetime]');
+          // Извлекаем дату - пробуем разные способы
           let dateTimestamp = 0;
+          
+          // Способ 1: time элемент с datetime атрибутом
+          const timeElement = element.querySelector('time[datetime]');
           if (timeElement) {
             const datetime = timeElement.getAttribute('datetime');
             if (datetime) {
-              dateTimestamp = Math.floor(new Date(datetime).getTime() / 1000);
+              const dateObj = new Date(datetime);
+              if (!isNaN(dateObj.getTime())) {
+                dateTimestamp = Math.floor(dateObj.getTime() / 1000);
+              }
+            }
+          }
+          
+          // Способ 2: ищем в блоке с датой
+          if (dateTimestamp === 0) {
+            const dateBlock = element.querySelector('.tgme_widget_message_date');
+            if (dateBlock) {
+              const timeInBlock = dateBlock.querySelector('time[datetime]');
+              if (timeInBlock) {
+                const datetime = timeInBlock.getAttribute('datetime');
+                if (datetime) {
+                  const dateObj = new Date(datetime);
+                  if (!isNaN(dateObj.getTime())) {
+                    dateTimestamp = Math.floor(dateObj.getTime() / 1000);
+                  }
+                }
+              }
+            }
+          }
+          
+          // Способ 3: ищем data-time или data-timestamp атрибуты
+          if (dateTimestamp === 0) {
+            const dataTime = element.getAttribute('data-time');
+            if (dataTime) {
+              const timestamp = parseInt(dataTime, 10);
+              if (!isNaN(timestamp) && timestamp > 0) {
+                dateTimestamp = timestamp;
+              }
             }
           }
           
@@ -428,12 +462,46 @@ async function getAllTelegramChannelPostsWithPuppeteer(
             
             const messageId = parseInt(messageIdMatch[1], 10);
             
-            const timeElement = element.querySelector('time[datetime]');
+            // Извлекаем дату - пробуем разные способы
             let dateTimestamp = 0;
+            
+            // Способ 1: time элемент с datetime атрибутом
+            const timeElement = element.querySelector('time[datetime]');
             if (timeElement) {
               const datetime = timeElement.getAttribute('datetime');
               if (datetime) {
-                dateTimestamp = Math.floor(new Date(datetime).getTime() / 1000);
+                const dateObj = new Date(datetime);
+                if (!isNaN(dateObj.getTime())) {
+                  dateTimestamp = Math.floor(dateObj.getTime() / 1000);
+                }
+              }
+            }
+            
+            // Способ 2: ищем в блоке с датой
+            if (dateTimestamp === 0) {
+              const dateBlock = element.querySelector('.tgme_widget_message_date');
+              if (dateBlock) {
+                const timeInBlock = dateBlock.querySelector('time[datetime]');
+                if (timeInBlock) {
+                  const datetime = timeInBlock.getAttribute('datetime');
+                  if (datetime) {
+                    const dateObj = new Date(datetime);
+                    if (!isNaN(dateObj.getTime())) {
+                      dateTimestamp = Math.floor(dateObj.getTime() / 1000);
+                    }
+                  }
+                }
+              }
+            }
+            
+            // Способ 3: ищем data-time или data-timestamp атрибуты
+            if (dateTimestamp === 0) {
+              const dataTime = element.getAttribute('data-time');
+              if (dataTime) {
+                const timestamp = parseInt(dataTime, 10);
+                if (!isNaN(timestamp) && timestamp > 0) {
+                  dateTimestamp = timestamp;
+                }
               }
             }
             
